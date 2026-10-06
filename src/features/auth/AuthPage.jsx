@@ -43,8 +43,8 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
         <div className="auth-brand-panel">
           <div className="auth-brand-mark"><Icon name="home" size={28} /></div>
           <span className="auth-eyebrow">HOSTEL LIFE</span>
-          <h1>আপনার মেস, আপনার হিসাব।</h1>
-          <p>সদস্য, মিল, বাজার ও হিসাব — সবকিছু এক জায়গায়।</p>
+          <h1>মেসের কাজ, হিসাব আর মিল — এক জায়গায়।</h1>
+          <p>মিল, বাজার, জমা ও সদস্যদের হিসাব সহজভাবে পরিচালনা করুন।</p>
         </div>
         <div className="auth-form-panel">
           <div className="auth-header">
@@ -89,7 +89,7 @@ function LoginForm() {
   };
 
   return (
-    <AuthFrame title="লগইন করুন" subtitle="আপনার Hostel Life অ্যাকাউন্টে প্রবেশ করুন।">
+    <AuthFrame title="লগইন করুন" subtitle="আপনার অ্যাকাউন্টে প্রবেশ করুন।">
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
           <span>ইমেইল</span>
@@ -157,7 +157,7 @@ function RegisterForm() {
   };
 
   return (
-    <AuthFrame title="রেজিস্ট্রেশন করুন" subtitle="নতুন অ্যাকাউন্ট তৈরি করে Hostel Life শুরু করুন।">
+    <AuthFrame title="রেজিস্ট্রেশন করুন" subtitle="অ্যাকাউন্ট তৈরি করে শুরু করুন।">
       <form className="form-stack" onSubmit={submit}>
         <div className="two-field-grid">
           <label className="field-label">
@@ -228,13 +228,13 @@ function ForgotPasswordForm() {
   };
 
   return (
-    <AuthFrame compact title="পাসওয়ার্ড পুনরুদ্ধার" subtitle="আপনার ইমেইলে একটি নিরাপদ reset link পাঠানো হবে।">
+    <AuthFrame compact title="পাসওয়ার্ড পুনরুদ্ধার" subtitle="আপনার ইমেইলে পাসওয়ার্ড বদলের লিংক পাঠানো হবে।">
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
           <span>ইমেইল</span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="যে ইমেইলে অ্যাকাউন্ট আছে" autoComplete="email" required />
         </label>
-        {sent && <div className="inline-success"><Icon name="check" size={17} /><span>ইমেইল পাঠানো হয়েছে। Inbox/Spam folder দেখুন।</span></div>}
+        {sent && <div className="inline-success"><Icon name="check" size={17} /><span>ইমেইল পাঠানো হয়েছে। আপনার ইনবক্স দেখুন।</span></div>}
         <button className="primary-button large" type="submit" disabled={submitting || !online}>
           {submitting ? 'পাঠানো হচ্ছে...' : 'রিসেট লিংক পাঠান'}
         </button>
@@ -257,7 +257,7 @@ function ResetPasswordForm() {
   const submit = async (event) => {
     event.preventDefault();
     if (!canReset) {
-      toast.error('Reset link সঠিক নয় অথবা মেয়াদ শেষ হয়েছে। আবার password reset করুন।');
+      toast.error('রিসেট লিংক সঠিক নয় অথবা মেয়াদ শেষ হয়েছে। আবার পাসওয়ার্ড পুনরুদ্ধার করুন।');
       return;
     }
     if (password.length < 8) {
@@ -289,7 +289,7 @@ function ResetPasswordForm() {
   return (
     <AuthFrame compact title="নতুন পাসওয়ার্ড" subtitle="নতুন পাসওয়ার্ড সেট করে আপনার অ্যাকাউন্ট সুরক্ষিত করুন।">
       {!session && !done && (
-        <div className="inline-error"><Icon name="warning" size={17} /><span>এই page-এ valid password reset session পাওয়া যায়নি।</span></div>
+        <div className="inline-error"><Icon name="warning" size={17} /><span>এই পৃষ্ঠায় পাসওয়ার্ড পরিবর্তনের বৈধ সেশন পাওয়া যায়নি।</span></div>
       )}
       {done ? (
         <div className="success-panel">

@@ -42,7 +42,7 @@ function MealStat({ label, value, accent }) {
   );
 }
 
-function MealCard({ meal, isOnline, lastSync, onDetails, loading, cachedError }) {
+function MealCard({ meal, isOnline, hasOfflineDetails = false, lastSync, onDetails, loading, cachedError }) {
   if (loading && !meal) {
     return (
       <section className="card meal-card hero-card meal-card-loading" aria-busy="true">
@@ -72,13 +72,13 @@ function MealCard({ meal, isOnline, lastSync, onDetails, loading, cachedError })
         <div className="meal-card-heading">
           <div>
             <h1>মিলের তথ্য পাওয়া যায়নি</h1>
-            <p>{isOnline ? 'Meal Card-এর তথ্য এখনো পাওয়া যায়নি।' : 'এই ডিভাইসে এই সময়ের জন্য সংরক্ষিত meal data নেই।'}</p>
+            <p>{isOnline ? 'উপরের মিলের তথ্য এখনো পাওয়া যায়নি।' : 'এই সময়ের জন্য এই ডিভাইসে সংরক্ষিত মিল নেই।'}</p>
           </div>
           <div className="hero-icon"><Icon name="dining" size={26} /></div>
         </div>
         <div className="meal-empty-note">
           <Icon name={isOnline ? 'warning' : 'offline'} size={18} />
-          <span>{cachedError || (isOnline ? 'আবার চেষ্টা করুন।' : 'নেট চালু করলে সর্বশেষ meal data sync হবে।')}</span>
+          <span>{cachedError || (isOnline ? 'আবার চেষ্টা করুন।' : 'নেট চালু করলে সর্বশেষ মিলের তথ্য আবার সিঙ্ক হবে।')}</span>
         </div>
         {lastSync && (
           <div className="sync-placeholder">
@@ -95,16 +95,16 @@ function MealCard({ meal, isOnline, lastSync, onDetails, loading, cachedError })
     <section
       className={`card meal-card hero-card ${isOffline ? 'meal-card-offline' : ''}`}
       role="button"
-      tabIndex={isOnline ? 0 : undefined}
-      onClick={isOnline ? onDetails : undefined}
+      tabIndex={isOnline || hasOfflineDetails ? 0 : undefined}
+      onClick={(isOnline || hasOfflineDetails) ? onDetails : undefined}
       onKeyDown={(event) => {
-        if (!isOnline) return;
+        if (!isOnline && !hasOfflineDetails) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           onDetails();
         }
       }}
-      aria-label={isOnline ? `${meal.label} বিস্তারিত দেখুন` : undefined}
+      aria-label={(isOnline || hasOfflineDetails) ? `${meal.label} বিস্তারিত দেখুন` : undefined}
     >
       <div className="card-topline">
         <div>
@@ -120,7 +120,7 @@ function MealCard({ meal, isOnline, lastSync, onDetails, loading, cachedError })
       <div className="meal-card-heading">
         <div>
           <h1>{meal.label}</h1>
-          <p>{isOffline ? 'ইন্টারনেট ছাড়াই সর্বশেষ সংরক্ষিত meal data দেখা যাচ্ছে।' : 'রান্নার জন্য বর্তমান meal count এক নজরে দেখুন।'}</p>
+          <p>{isOffline ? 'ইন্টারনেট না থাকলেও সর্বশেষ সংরক্ষিত মিলের তথ্য দেখা যাচ্ছে।' : 'রান্নার জন্য বর্তমান মিল এক নজরে দেখুন।'}</p>
         </div>
         <div className="hero-icon"><Icon name="dining" size={26} /></div>
       </div>
@@ -147,13 +147,13 @@ function MealCard({ meal, isOnline, lastSync, onDetails, loading, cachedError })
       {isOffline && (
         <div className="offline-meal-note">
           <Icon name="offline" size={15} />
-          <span>অফলাইন কপি • বিস্তারিত দেখতে ইন্টারনেট চালু করুন</span>
+          <span>{hasOfflineDetails ? 'অফলাইন কপি • সদস্যভিত্তিক বিস্তারিতও সংরক্ষিত আছে' : 'অফলাইন কপি • বিস্তারিত দেখতে ইন্টারনেট চালু করুন'}</span>
         </div>
       )}
 
-      {isOnline && (
+      {(isOnline || hasOfflineDetails) && (
         <div className="meal-detail-hint">
-          <span>বিস্তারিত দেখুন</span>
+          <span>{isOffline ? 'অফলাইনে বিস্তারিত দেখুন' : 'বিস্তারিত দেখুন'}</span>
           <Icon name="chevron" size={17} />
         </div>
       )}
@@ -211,9 +211,13 @@ function MemberCard({ member }) {
       <ActivityBadge activity={member?.meal_activity} />
       <div className="member-stats-grid">
         <div><span>জমা</span><strong>{formatCurrency(member?.deposit)}</strong></div>
-        <div><span>মিল</span><strong>{formatMeal(member?.meals)}</strong></div>
+        <div><span>মোট মিল</span><strong>{formatMeal(member?.meals)}</strong></div>
         <div><span>মিল খরচ</span><strong>{formatCurrency(member?.meal_cost)}</strong></div>
-        <div><span>অবশিষ্ট</span><strong>{formatCurrency(member?.balance)}</strong></div>
+        <div><span>অন্যান্য খরচ</span><strong>{formatCurrency(member?.other_expense)}</strong></div>
+      </div>
+      <div className="member-balance-row">
+        <span>বর্তমান অবশিষ্ট</span>
+        <strong>{formatCurrency(member?.balance)}</strong>
       </div>
     </article>
   );
@@ -264,7 +268,7 @@ function MealDetailsModal({ date, rows, loading, onClose }) {
               {rows.length === 0 ? (
                 <div className="empty-state-card">
                   <Icon name="user" size={23} />
-                  <strong>এই দিনের জন্য কোনো সদস্যভিত্তিক meal data নেই।</strong>
+                  <strong>এই দিনের জন্য কোনো সদস্যভিত্তিক মিলের তথ্য নেই।</strong>
                 </div>
               ) : rows.map((row) => (
                 <article className="meal-member-row" key={row.membership_id}>
@@ -345,12 +349,22 @@ export function DashboardPage() {
   }, [loadDashboard, online]);
 
   const openDetails = useCallback(async () => {
+    const selectedMeal = online ? dashboard?.meal_card : offlineMealCard;
+    const date = selectedMeal?.meal_date;
+    if (!date) return;
+
     if (!online) {
-      toast.warning('মিলের বিস্তারিত দেখতে ইন্টারনেট সংযোগ প্রয়োজন।');
+      const cachedRows = Array.isArray(offlineMealCard?.member_details) ? offlineMealCard.member_details : [];
+      if (!cachedRows.length) {
+        toast.warning('এই কপিতে সদস্যভিত্তিক বিস্তারিত নেই। ইন্টারনেট চালু করুন।');
+        return;
+      }
+      setDetailsDate(date);
+      setDetailsRows(cachedRows);
+      setDetailsLoading(false);
       return;
     }
-    const date = dashboard?.meal_card?.meal_date;
-    if (!date) return;
+
     setDetailsDate(date);
     setDetailsRows([]);
     setDetailsLoading(true);
@@ -363,7 +377,7 @@ export function DashboardPage() {
     } finally {
       setDetailsLoading(false);
     }
-  }, [dashboard?.meal_card?.meal_date, online, toast]);
+  }, [dashboard?.meal_card, offlineMealCard, online, toast]);
 
   const mealCard = online ? dashboard?.meal_card : offlineMealCard;
   const lastSync = offlineRecord?.clientSyncedAt || null;
@@ -376,6 +390,7 @@ export function DashboardPage() {
       <MealCard
         meal={mealCard}
         isOnline={online}
+        hasOfflineDetails={Array.isArray(offlineMealCard?.member_details) && offlineMealCard.member_details.length > 0}
         lastSync={lastSync}
         onDetails={openDetails}
         loading={online ? loading : offlineLoading}

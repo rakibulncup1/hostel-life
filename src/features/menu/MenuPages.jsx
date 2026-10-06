@@ -70,9 +70,13 @@ export function AllMembersPage() {
               </div>
               <div className="member-stats-grid">
                 <div><span>ডিপোজিট</span><strong>{formatCurrency(member.deposit)}</strong></div>
-                <div><span>মিল</span><strong>{formatNumber(member.final_meals)}</strong></div>
+                <div><span>মোট মিল</span><strong>{formatNumber(member.final_meals)}</strong></div>
                 <div><span>মিল খরচ</span><strong>{formatCurrency(member.meal_cost)}</strong></div>
-                <div><span>ব্যালেন্স</span><strong>{formatCurrency(member.balance)}</strong></div>
+                <div><span>অন্যান্য খরচ</span><strong>{formatCurrency(member.other_expense)}</strong></div>
+              </div>
+              <div className="member-balance-row">
+                <span>বর্তমান অবশিষ্ট</span>
+                <strong>{formatCurrency(member.balance)}</strong>
               </div>
             </article>
           ))}
@@ -118,7 +122,7 @@ function RankingPage({ kind }) {
           <button className="icon-button compact-icon ghost" type="button" onClick={load} aria-label="রিফ্রেশ"><Icon name="refresh" size={17} /></button>
         </div>
         {loading ? <LoadingSpinner label="র‌্যাঙ্কিং লোড হচ্ছে..." /> : rows.length === 0 ? (
-          <div className="empty-state-card compact-empty"><Icon name={shopper ? 'shopping-bag' : 'trophy'} size={25} /><strong>এখনো কোনো র‌্যাঙ্কিং নেই</strong><span>বর্তমান মাসে যথেষ্ট valid data যোগ হলে তালিকা দেখা যাবে।</span></div>
+          <div className="empty-state-card compact-empty"><Icon name={shopper ? 'shopping-bag' : 'trophy'} size={25} /><strong>এখনো কোনো র‌্যাঙ্কিং নেই</strong><span>এই মাসের তথ্য যোগ হলে তালিকা এখানে দেখা যাবে।</span></div>
         ) : (
           <div className="ranking-list">
             {rows.map((row) => (
@@ -142,9 +146,9 @@ export function TopShoppersPage() { return <RankingPage kind="shopper" />; }
 export function DeveloperInfoPage() {
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Hostel Life" title="ডেভেলপার ইনফো" description="এই অ্যাপের নির্মাতা ও যোগাযোগের তথ্য।" />
+      <PageHeader eyebrow="Hostel Life" title="ডেভেলপার ইনফো" />
       <section className="card developer-card">
-        <div className="developer-photo-placeholder" aria-label="ডেভেলপারের ছবি পরে যুক্ত হবে"><Icon name="user" size={42} /></div>
+        <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>
         <div className="developer-name">RAKIBUL ISLAM SAMRAT</div>
         <div className="developer-subtitle">Student Of Mymensingh Government Polytechnic Institute</div>
         <div className="developer-contact-list">
@@ -159,7 +163,6 @@ export function DeveloperInfoPage() {
             <Icon name="external-link" size={16} />
           </a>
         </div>
-        <div className="developer-note">ডেভেলপারের ছবি পরে সরাসরি এই কার্ডের উপরের অংশে যুক্ত করা হবে।</div>
       </section>
     </div>
   );
@@ -207,8 +210,8 @@ export function SendNotificationPage() {
 export function PlaceholderMenuPage({ title, description }) {
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="পরবর্তী module" title={title} description={description} />
-      <div className="card empty-state-card module-placeholder"><Icon name="clock" size={28} /><strong>এই ফিচারটি পরের module-এ সম্পূর্ণ হবে</strong><span>বর্তমান Module 05-এর অন্যান্য অংশ প্রস্তুত আছে।</span></div>
+      <PageHeader eyebrow="" title={title} description={description} />
+      <div className="card empty-state-card module-placeholder"><Icon name="clock" size={28} /><strong>এই ফিচারটি এখনো প্রস্তুত নয়</strong><span></span></div>
     </div>
   );
 }

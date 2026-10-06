@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchOfflineMealBundle } from '../services/dashboardService';
+import { fetchMealDetails, fetchOfflineMealBundle } from '../services/dashboardService';
 import { clearMealBundle, pickOfflineMealCard, readMealBundle, saveMealBundle } from '../services/mealOfflineStore';
 
 export function useMealOffline({ hostelId, isOnline }) {
@@ -30,7 +30,25 @@ export function useMealOffline({ hostelId, isOnline }) {
     try {
       const bundle = await fetchOfflineMealBundle();
       if (!bundle) return null;
-      await saveMealBundle({ hostelId, bundle });
+
+      const dates = [bundle?.today?.meal_date, bundle?.tomorrow?.meal_date].filter(Boolean);
+      const detailPairs = await Promise.all(dates.map(async (mealDate) => {
+        try {
+          const rows = await fetchMealDetails(mealDate);
+          return [mealDate, rows];
+        } catch (error) {
+          console.warn('Offline member meal details could not sync:', error);
+          return [mealDate, []];
+        }
+      }));
+      const detailMap = new Map(detailPairs);
+      const enrichedBundle = {
+        ...bundle,
+        today: bundle.today ? { ...bundle.today, member_details: detailMap.get(bundle.today.meal_date) || [] } : bundle.today,
+        tomorrow: bundle.tomorrow ? { ...bundle.tomorrow, member_details: detailMap.get(bundle.tomorrow.meal_date) || [] } : bundle.tomorrow,
+      };
+
+      await saveMealBundle({ hostelId, bundle: enrichedBundle });
       const record = await readMealBundle(hostelId);
       setOfflineRecord(record);
       setOfflineMealCard(pickOfflineMealCard(record));

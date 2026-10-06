@@ -1,0 +1,984 @@
+/* ================================================================
+   Hostel Life — UI Refresh 1.2
+   Mobile-first polish, responsive containment, dashboard members,
+   authentication presentation, and interaction surfaces.
+   ================================================================ */
+
+:root {
+  --content-max: 1280px;
+  --page-pad-mobile: 14px;
+  --page-pad-desktop: 28px;
+  --soft-shadow: 0 10px 30px rgba(18, 50, 33, 0.06);
+  --lift-shadow: 0 16px 36px rgba(18, 50, 33, 0.09);
+}
+
+html, body, #root,
+.app-shell,
+.app-main,
+.page-stack,
+.page-stack > * {
+  min-width: 0;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  min-width: 320px;
+}
+
+img,
+svg,
+canvas {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+.app-shell {
+  width: 100%;
+  overflow-x: clip;
+}
+
+.app-header {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.brand-block,
+.header-actions,
+.header-actions > * {
+  min-width: 0;
+}
+
+.brand-name {
+  max-width: 100%;
+}
+
+.app-main {
+  width: min(var(--content-max), 100%);
+  max-width: 100%;
+  padding-inline: var(--page-pad-mobile);
+}
+
+.page-stack,
+.dashboard-stack,
+.dining-stack {
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.card {
+  min-width: 0;
+  width: 100%;
+}
+
+.page-title-row,
+.section-heading,
+.card-topline,
+.profile-hero,
+.meal-card-heading,
+.sync-placeholder,
+.rate-strip,
+.account-balance-row,
+.member-card-top,
+.menu-page-title {
+  min-width: 0;
+}
+
+.page-title-row > *,
+.section-heading > *,
+.card-topline > *,
+.meal-card-heading > *,
+.sync-placeholder > *,
+.rate-strip > *,
+.account-balance-row > *,
+.member-card-top > * {
+  min-width: 0;
+}
+
+.page-title-row p,
+.meal-card-heading p,
+.feature-card p,
+.profile-summary-copy p,
+.menu-page-title-copy p,
+.auth-header p,
+.auth-brand-panel p,
+.manager-warning-box p,
+.form-hint,
+.developer-subtitle,
+.developer-contact strong,
+.history-item-copy span,
+.history-item-copy small,
+.member-badge,
+.activity-badge,
+.status-chip,
+.power-badge {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Header ---------- */
+.app-header {
+  height: 68px;
+  padding-inline: 12px;
+  gap: 9px;
+  background: color-mix(in srgb, var(--surface) 97%, transparent);
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+}
+
+.menu-trigger {
+  width: 40px;
+  height: 40px;
+}
+
+.header-actions {
+  gap: 6px;
+}
+
+.network-pill {
+  width: 28px;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+}
+
+.network-text {
+  display: none;
+}
+
+.notification-trigger {
+  width: 40px;
+  height: 40px;
+}
+
+.notification-count {
+  top: 4px;
+  right: 2px;
+}
+
+/* ---------- Main dashboard card ---------- */
+.hero-card {
+  padding: 16px;
+  border-radius: 22px;
+  box-shadow: var(--lift-shadow);
+}
+
+.meal-card-heading {
+  align-items: flex-start;
+  margin-top: 14px;
+}
+
+.meal-card-heading h1 {
+  font-size: 24px;
+  line-height: 1.18;
+}
+
+.meal-card-heading p {
+  max-width: 48ch;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.hero-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+}
+
+.meal-grid {
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.meal-stat {
+  min-width: 0;
+  padding: 12px 10px;
+  border-radius: 14px;
+}
+
+.meal-stat span {
+  white-space: nowrap;
+  font-size: 10px;
+}
+
+.meal-stat strong {
+  font-size: 20px;
+}
+
+.meal-total-row {
+  padding-top: 11px;
+  margin-top: 10px;
+}
+
+.meal-total-row strong {
+  font-size: 24px;
+}
+
+.sync-placeholder {
+  margin-top: 10px;
+  padding-top: 10px;
+  font-size: 10px;
+}
+
+.sync-placeholder > span:last-child {
+  max-width: 60%;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.meal-detail-hint {
+  margin-top: 10px;
+  padding-top: 10px;
+  font-size: 11px;
+}
+
+.offline-meal-note {
+  width: 100%;
+  font-size: 10px;
+}
+
+/* ---------- Dashboard summary + own account ---------- */
+.summary-card,
+.my-account-card {
+  padding: 16px;
+  border-radius: 20px;
+  box-shadow: var(--soft-shadow);
+}
+
+.summary-card h2,
+.my-account-card h2 {
+  font-size: 18px;
+}
+
+.metric-grid {
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.metric {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 13px;
+}
+
+.metric span {
+  font-size: 10px;
+}
+
+.metric strong {
+  font-size: 18px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.rate-strip {
+  margin-top: 11px;
+  padding-top: 11px;
+  font-size: 11px;
+}
+
+.rate-strip strong {
+  font-size: 18px;
+}
+
+.account-grid {
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.account-grid > div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 13px;
+}
+
+.account-grid span,
+.member-stats-grid span {
+  font-size: 10px;
+}
+
+.account-grid strong,
+.member-stats-grid strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.account-balance-row {
+  margin-top: 10px;
+  padding: 12px 13px;
+  border-radius: 13px;
+}
+
+.account-balance-row strong {
+  font-size: 18px;
+}
+
+/* ---------- Dashboard member cards: match My Account visual language ---------- */
+.section-block {
+  width: 100%;
+}
+
+.section-heading.outside {
+  padding-inline: 0;
+  margin-bottom: 9px;
+}
+
+.member-preview-grid,
+.member-detail-grid {
+  width: 100%;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.member-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 11px;
+  align-items: stretch;
+  padding: 15px;
+  border-radius: 20px;
+  box-shadow: var(--soft-shadow);
+}
+
+.member-card-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+}
+
+.member-copy h3 {
+  font-size: 15px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.member-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.member-badge,
+.role-mini-badge,
+.activity-badge {
+  max-width: 100%;
+}
+
+.member-badge {
+  padding: 4px 8px;
+  font-size: 9px;
+}
+
+.role-mini-badge {
+  padding: 4px 8px;
+  font-size: 9px;
+}
+
+.activity-badge {
+  justify-self: start;
+  margin-top: 0;
+  padding: 5px 8px;
+  font-size: 9px;
+}
+
+.member-stats-grid {
+  margin-top: 0;
+  gap: 7px;
+}
+
+.member-stats-grid > div {
+  min-width: 0;
+  padding: 11px;
+  border-radius: 12px;
+}
+
+.member-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 12px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.member-balance-row strong {
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.member-inactive-card {
+  opacity: 0.72;
+  filter: saturate(.9);
+}
+
+/* ---------- Offline state ---------- */
+.dashboard-offline-lock {
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.dashboard-offline-lock h2 {
+  line-height: 1.35;
+}
+
+.dashboard-offline-lock p {
+  font-size: 11px;
+}
+
+/* ---------- Forms and buttons ---------- */
+.primary-button,
+.secondary-button {
+  min-height: 46px;
+  padding-inline: 14px;
+  border-radius: 13px;
+}
+
+.primary-button.large {
+  min-height: 50px;
+}
+
+.field-label {
+  gap: 6px;
+  font-size: 11px;
+}
+
+.field-label input,
+.field-label select,
+.field-label textarea,
+.password-field input {
+  min-height: 47px;
+  padding: 11px 12px;
+  border-radius: 13px;
+  font-size: 13px;
+}
+
+.text-button {
+  font-size: 11px;
+}
+
+/* ---------- Authentication: compact, premium mobile presentation ---------- */
+.auth-page {
+  min-height: 100svh;
+  padding: 12px;
+  place-items: start center;
+}
+
+.auth-shell {
+  width: min(560px, 100%);
+  margin-top: 3vh;
+  border-radius: 24px;
+  box-shadow: var(--lift-shadow);
+}
+
+.auth-brand-panel {
+  padding: 18px 18px 15px;
+  min-height: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.auth-brand-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+
+.auth-eyebrow {
+  margin-top: 11px;
+  font-size: 9px;
+  letter-spacing: .14em;
+}
+
+.auth-brand-panel h1 {
+  margin-top: 7px;
+  font-size: 24px;
+  line-height: 1.18;
+  letter-spacing: -.035em;
+}
+
+.auth-brand-panel p {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.auth-form-panel {
+  padding: 20px 17px 18px;
+}
+
+.auth-header h2 {
+  font-size: 24px;
+}
+
+.auth-header p {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.auth-header {
+  margin-bottom: 2px;
+}
+
+.auth-switch {
+  font-size: 10px;
+}
+
+.two-field-grid {
+  grid-template-columns: 1fr;
+}
+
+.auth-page .form-stack {
+  gap: 12px;
+}
+
+/* ---------- Notification: true outside-click layer ---------- */
+.notification-outside-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  cursor: default;
+}
+
+.notification-panel-card {
+  z-index: 42;
+  width: min(380px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  border-radius: 18px;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .18);
+}
+
+.notification-panel-head h2 {
+  font-size: 18px;
+}
+
+/* ---------- History ---------- */
+.history-tabbar {
+  max-width: 100%;
+  overflow: hidden;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 14px;
+}
+
+.history-tabbar button {
+  min-width: 0;
+  flex: 1 1 0;
+  padding-inline: 6px;
+  font-size: 10px;
+  white-space: normal;
+}
+
+.history-item-card,
+.account-history-row {
+  min-width: 0;
+}
+
+.history-item-copy,
+.history-amount {
+  min-width: 0;
+}
+
+.history-amount-value {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Dining ---------- */
+.dining-section-title h1 {
+  font-size: 30px;
+  letter-spacing: -.04em;
+}
+
+.dining-section-title p {
+  font-size: 12px;
+  max-width: 45ch;
+}
+
+.dining-action-grid {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.dining-option-card {
+  min-width: 0;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.dining-option-copy small {
+  line-height: 1.45;
+}
+
+/* ---------- Developer ---------- */
+.developer-card {
+  padding: 18px 15px;
+  border-radius: 20px;
+}
+
+.developer-photo-placeholder {
+  width: 104px;
+  height: 104px;
+  border-radius: 31px;
+  margin-bottom: 13px;
+}
+
+.developer-name {
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.developer-contact-list {
+  margin-top: 15px;
+}
+
+.developer-note {
+  display: none;
+}
+
+/* ---------- Drawer ---------- */
+.drawer {
+  width: min(360px, calc(100vw - 24px));
+  padding-inline: 12px;
+}
+
+.drawer-title {
+  max-width: 220px;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.menu-row {
+  min-width: 0;
+}
+
+.menu-row > span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Generic modals ---------- */
+.modal-backdrop {
+  padding: 10px;
+}
+
+.modal-panel,
+.modal-card {
+  max-width: 100%;
+}
+
+.modal-head,
+.modal-header {
+  min-width: 0;
+}
+
+/* ---------- Small phones ---------- */
+@media (max-width: 360px) {
+  .app-header {
+    padding-inline: 9px;
+    gap: 7px;
+  }
+
+  .brand-name {
+    font-size: 14px;
+  }
+
+  .role-badge {
+    font-size: 9px;
+    padding-inline: 7px;
+  }
+
+  .icon-button,
+  .menu-trigger,
+  .notification-trigger {
+    width: 38px;
+    height: 38px;
+  }
+
+  .app-main {
+    padding-inline: 10px;
+  }
+
+  .hero-card,
+  .summary-card,
+  .my-account-card,
+  .member-card {
+    border-radius: 18px;
+  }
+
+  .meal-stat strong {
+    font-size: 18px;
+  }
+
+  .metric strong,
+  .account-grid strong,
+  .member-stats-grid strong {
+    font-size: 15px;
+  }
+
+  .member-balance-row strong {
+    font-size: 15px;
+  }
+}
+
+/* ---------- Tablet / desktop ---------- */
+@media (min-width: 640px) {
+  .auth-page {
+    padding: 24px 18px;
+  }
+
+  .auth-shell {
+    margin-top: 0;
+  }
+
+  .auth-brand-panel {
+    padding: 28px 24px;
+  }
+
+  .auth-form-panel {
+    padding: 30px 26px 28px;
+  }
+
+  .two-field-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .member-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dining-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .network-pill {
+    width: auto;
+    height: 29px;
+    padding-inline: 9px;
+  }
+
+  .network-text {
+    display: inline;
+  }
+
+  .app-main {
+    padding-inline: 24px;
+  }
+}
+
+@media (min-width: 900px) {
+  .app-header {
+    height: 76px;
+    padding-inline: 26px;
+  }
+
+  .app-main {
+    padding-inline: 32px;
+  }
+
+  .member-detail-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .history-tabbar {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .notification-panel-card {
+    right: 24px;
+    top: 84px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-main {
+    width: min(1320px, 100%);
+    padding-inline: 40px;
+  }
+
+  .hero-card,
+  .summary-card,
+  .my-account-card {
+    padding: 22px;
+  }
+}
+
+/* ---------- Final mobile guardrails ---------- */
+html {
+  overscroll-behavior-x: none;
+}
+
+body {
+  overscroll-behavior-x: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page-stack > .card,
+.page-stack > .state-card,
+.page-stack > form {
+  overflow: hidden;
+}
+
+.dining-panel,
+.manager-form-card,
+.form-panel,
+.profile-section-card,
+.profile-overview-card,
+.history-filter-card,
+.ranking-card,
+.developer-card {
+  min-width: 0;
+}
+
+.form-grid-2,
+.market-top-fields,
+.request-range-grid,
+.default-meal-controls,
+.theme-choice-grid,
+.report-kpi-grid,
+.archive-detail-grid,
+.archive-summary-grid,
+.market-detail-summary {
+  min-width: 0;
+}
+
+.form-grid-2 > *,
+.market-top-fields > *,
+.request-range-grid > *,
+.default-meal-controls > *,
+.theme-choice-grid > *,
+.report-kpi-grid > *,
+.archive-detail-grid > *,
+.archive-summary-grid > *,
+.market-detail-summary > * {
+  min-width: 0;
+}
+
+@media (max-width: 560px) {
+  .market-table-card {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .market-table-head {
+    display: none;
+  }
+
+  .market-item-list {
+    gap: 8px;
+  }
+
+  .market-item-row {
+    grid-template-columns: 1fr 1fr 34px;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .market-serial {
+    grid-column: 1 / -1;
+    text-align: left;
+    padding-bottom: 2px;
+  }
+
+  .market-input-item {
+    grid-column: 1 / -1;
+  }
+
+  .market-input-quantity {
+    grid-column: 1 / 2;
+  }
+
+  .market-input-amount {
+    grid-column: 2 / 3;
+  }
+
+  .market-item-row > .icon-button {
+    grid-column: 3;
+    grid-row: 2 / span 2;
+    justify-self: end;
+  }
+
+  .add-market-item {
+    width: calc(100% - 20px);
+    margin-inline: 10px;
+  }
+
+  .request-action-row .primary-button,
+  .request-action-row .secondary-button {
+    flex-basis: 100%;
+  }
+
+  .report-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-actions {
+    width: 100%;
+  }
+
+  .report-actions > * {
+    flex: 1 1 0;
+  }
+
+  .manager-role-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-role-hero > svg {
+    display: none;
+  }
+
+  .confirm-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .confirm-actions > * {
+    width: 100%;
+  }
+
+  .profile-detail-list > div {
+    gap: 10px;
+  }
+
+  .profile-detail-list strong {
+    max-width: 58%;
+  }
+}

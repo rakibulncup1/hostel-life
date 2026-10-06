@@ -4,6 +4,7 @@ import { App } from './app/App';
 import { ToastProvider } from './components/Toast';
 import { AuthProvider } from './contexts/AuthContext';
 import './styles/global.css';
+import './styles/ui-refresh.css';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

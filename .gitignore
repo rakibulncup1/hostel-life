@@ -8,6 +8,3 @@ Thumbs.db
 .vscode/
 *.log
 npm-debug.log*
-
-.vercel
-.env*

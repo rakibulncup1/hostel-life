@@ -35,8 +35,8 @@ export async function saveMealBundle({ hostelId, bundle }) {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     tx.objectStore(STORE_NAME).put(record);
     tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error || new Error('Offline meal data সংরক্ষণ করা যায়নি।'));
-    tx.onabort = () => reject(tx.error || new Error('Offline meal data সংরক্ষণ বাতিল হয়েছে।'));
+    tx.onerror = () => reject(tx.error || new Error('অফলাইন মিলের তথ্য সংরক্ষণ করা যায়নি।'));
+    tx.onabort = () => reject(tx.error || new Error('অফলাইন মিলের তথ্য সংরক্ষণ বাতিল হয়েছে।'));
   });
 
   db.close();
@@ -50,7 +50,7 @@ export async function readMealBundle(hostelId) {
     const tx = db.transaction(STORE_NAME, 'readonly');
     const request = tx.objectStore(STORE_NAME).get(CACHE_KEY);
     request.onsuccess = () => resolve(request.result ?? null);
-    request.onerror = () => reject(request.error || new Error('Offline meal data পড়া যায়নি।'));
+    request.onerror = () => reject(request.error || new Error('অফলাইন মিলের তথ্য পড়া যায়নি।'));
   });
 
   db.close();
@@ -105,6 +105,7 @@ export function pickOfflineMealCard(record, now = new Date()) {
     return {
       ...selected,
       label: selected.meal_date === today?.meal_date ? 'আজকের মিল' : 'আগামীকালের মিল',
+      member_details: Array.isArray(selected.member_details) ? selected.member_details : [],
       client_synced_at: record.clientSyncedAt,
       server_fetched_at: record.bundle.server_fetched_at,
       offline: true,

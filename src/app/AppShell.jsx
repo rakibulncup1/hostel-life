@@ -170,7 +170,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       )}
 
       {notificationsOpen && (
-        <NotificationsPopover isManager={isManager} onUnreadChange={setUnreadCount} />
+        <NotificationsPopover isManager={isManager} onUnreadChange={setUnreadCount} onClose={() => setNotificationsOpen(false)} />
       )}
 
       <main className="app-main">

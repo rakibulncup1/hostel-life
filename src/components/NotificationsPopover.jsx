@@ -12,7 +12,7 @@ function typeLabel(type) {
   return 'সিস্টেম নোটিফিকেশন';
 }
 
-export function NotificationsPopover({ isManager = false, onUnreadChange }) {
+export function NotificationsPopover({ isManager = false, onUnreadChange, onClose }) {
   const toast = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,14 @@ export function NotificationsPopover({ isManager = false, onUnreadChange }) {
     }
   }, [onUnreadChange, toast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [load, onClose]);
 
   const unreadCount = useMemo(() => items.filter((item) => !item.is_seen).length, [items]);
 
@@ -82,7 +89,14 @@ export function NotificationsPopover({ isManager = false, onUnreadChange }) {
   };
 
   return (
-    <div className="notification-panel-card card" role="dialog" aria-label="নোটিফিকেশন">
+    <>
+      <button
+        className="notification-outside-backdrop"
+        type="button"
+        aria-label="নোটিফিকেশন বন্ধ করুন"
+        onClick={onClose}
+      />
+      <div className="notification-panel-card card" role="dialog" aria-label="নোটিফিকেশন" aria-modal="false">
       <div className="notification-panel-head">
         <div>
           <span className="eyebrow">আপনার আপডেট</span>
@@ -113,6 +127,7 @@ export function NotificationsPopover({ isManager = false, onUnreadChange }) {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
