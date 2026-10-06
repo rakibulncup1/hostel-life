@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/app/(.*)", "destination": "/index.html" },
+    { "source": "/auth/(.*)", "destination": "/index.html" },
+    { "source": "/onboarding/(.*)", "destination": "/index.html" },
+    { "source": "/account/(.*)", "destination": "/index.html" }
+  ]
+}
