@@ -2,16 +2,20 @@ import { Icon } from './Icon';
 
 const commonItems = [
   { key: 'meal-sheet', label: 'মিল শিট', icon: 'history' },
+  { key: 'archive-edit-access', label: 'আর্কাইভ সম্পাদনা', icon: 'history' },
   { key: 'reports', label: 'রিপোর্ট ডাউনলোড', icon: 'download' },
   { key: 'members', label: 'সকল সদস্য', icon: 'user' },
+  { key: 'khala-money-view', label: 'খালার টাকা', icon: 'wallet' },
   { key: 'top-eater', label: 'শীর্ষ খাদক', icon: 'dining' },
   { key: 'top-shopper', label: 'বেশি বাজারকারী', icon: 'dining' },
   { key: 'developer', label: 'ডেভেলপার ইনফো', icon: 'user' },
 ];
 
-const managerItems = [
+const primaryItems = [
+  { key: 'current-month-close', label: 'বর্তমান মাস শেষ করুন', icon: 'calendar' },
   { key: 'new-month', label: 'নতুন মাস শুরু', icon: 'history' },
   { key: 'change-manager', label: 'ম্যানেজার পরিবর্তন', icon: 'shield' },
+  { key: 'assistant-managers', label: 'সহকারী ম্যানেজার', icon: 'users' },
   { key: 'hostel-settings', label: 'মেস সেটিংস', icon: 'lock' },
   { key: 'archive', label: 'আর্কাইভ', icon: 'history' },
   { key: 'send-notification', label: 'নোটিফিকেশন পাঠান', icon: 'bell' },
@@ -19,7 +23,12 @@ const managerItems = [
   { key: 'member-management', label: 'সদস্য ব্যবস্থাপনা', icon: 'user' },
 ];
 
-export function MenuDrawer({ open, onClose, isManager = false, canInstall, onInstall, onAction, profile, hostelName, role }) {
+const assistantItems = [
+  { key: 'dining-operations', label: 'ডাইনিং ব্যবস্থাপনা', icon: 'dining' },
+  { key: 'khala-money', label: 'খালার টাকা', icon: 'wallet' },
+];
+
+export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager = false, isOperationalManager = false, canInstall, onInstall, onAction, profile, hostelName, role }) {
   if (!open) return null;
 
   const click = (key) => {
@@ -28,6 +37,9 @@ export function MenuDrawer({ open, onClose, isManager = false, canInstall, onIns
   };
 
   const initials = profile?.full_name?.trim()?.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'HL';
+  const effectivePrimaryManager = Boolean(isManager || isPrimaryManager);
+  const effectiveOperationalManager = Boolean(isManager || isOperationalManager);
+  const managerItems = effectivePrimaryManager ? primaryItems : assistantItems;
 
   return (
     <>
@@ -51,17 +63,14 @@ export function MenuDrawer({ open, onClose, isManager = false, canInstall, onIns
         {canInstall && (
           <button className="install-card" onClick={onInstall}>
             <span className="install-card-icon"><Icon name="download" size={19} /></span>
-            <span>
-              <strong>অ্যাপ ইনস্টল করুন</strong>
-              <small>হোম স্ক্রিন থেকে অ্যাপের মতো খুলুন</small>
-            </span>
+            <span><strong>অ্যাপ ইনস্টল করুন</strong><small>হোম স্ক্রিন থেকে অ্যাপের মতো খুলুন</small></span>
             <Icon name="chevron" size={18} />
           </button>
         )}
 
         <div className="menu-group">
           <div className="menu-group-title">সাধারণ</div>
-          {commonItems.map((item) => (
+          {commonItems.filter((item) => !(effectiveOperationalManager && item.key === 'khala-money-view')).map((item) => (
             <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
               <span className="menu-row-icon"><Icon name={item.icon} size={18} /></span>
               <span>{item.label}</span>
@@ -70,9 +79,9 @@ export function MenuDrawer({ open, onClose, isManager = false, canInstall, onIns
           ))}
         </div>
 
-        {isManager && (
+        {effectiveOperationalManager && (
           <div className="menu-group manager-group">
-            <div className="menu-group-title manager-title"><Icon name="shield" size={13} /> ম্যানেজার ফিচার</div>
+            <div className="menu-group-title manager-title"><Icon name="shield" size={13} /> {effectivePrimaryManager ? 'ম্যানেজার ফিচার' : 'সহকারী ম্যানেজার'}</div>
             {managerItems.map((item) => (
               <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
                 <span className="menu-row-icon manager-icon"><Icon name={item.icon} size={18} /></span>

@@ -13,6 +13,8 @@ export function getFriendlySupabaseError(error, fallback = 'কাজটি স�
     ['jwt expired', 'আপনার সেশন শেষ হয়েছে। আবার লগইন করুন।'],
     ['network request failed', 'ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না।'],
     ['failed to fetch', 'ইন্টারনেট সংযোগে সমস্যা হয়েছে।'],
+    ['could not find the function', 'এই ফিচারের জন্য প্রয়োজনীয় server function পাওয়া যায়নি। Stabilization update প্রয়োজন।'],
+    ['multiple rows were returned', 'একাধিক running month পাওয়া গেছে। আগে month data যাচাই করুন।'],
   ];
 
   for (const [needle, translated] of exactMap) {
@@ -23,6 +25,8 @@ export function getFriendlySupabaseError(error, fallback = 'কাজটি স�
   if (message.includes('এই অ্যাকাউন্ট ইতিমধ্যে একটি মেসের সঙ্গে যুক্ত আছে।')) return 'এই অ্যাকাউন্ট ইতিমধ্যে একটি মেসের সঙ্গে যুক্ত আছে।';
   if (message.includes('প্রথমে একটি মেসে যুক্ত হন।')) return 'প্রথমে একটি মেসে যুক্ত হন।';
   if (message.includes('লগইন করা প্রয়োজন।')) return 'লগইন করা প্রয়োজন।';
+  if (message.includes('এই তারিখগুলোর মধ্যে এক বা একাধিক দিনের মিল আগে থেকেই দেওয়া আছে।') || message.includes('একই দিনের রিকোয়েস্ট দুইবার দেওয়া যাবে না।')) return 'এই তারিখের জন্য আগে থেকেই একটি মিল রিকোয়েস্ট আছে। আগের রিকোয়েস্টটি এডিট/সংশোধন করুন; নতুন করে একই দিনের request দেবেন না।';
+  if (message.includes('এই তারিখের কিছু সদস্যের meal data আগে থেকেই রয়েছে')) return 'এই সদস্যের এই তারিখের মিলের তথ্য আগে থেকেই আছে। রিকোয়েস্ট থাকলে রিকোয়েস্ট থেকেই edit করুন; প্রয়োজন হলে নিশ্চিত override ব্যবহার করুন।';
 
   // Most protected Hostel Life RPCs intentionally return user-facing Bengali
   // reasons (cutoff, permission, validation, missing record, etc.). Keep those

@@ -1,7 +1,7 @@
 import { Icon } from './Icon';
 import { formatTime12 } from '../utils/time';
 
-export function Header({ hostelName = 'Hostel Life', role = 'সদস্য', isOnline, unreadCount = 0, onMenu, onNotifications }) {
+export function Header({ hostelName = 'Hostel Life', profileName = null, role = 'সদস্য', periodLabel = null, isOnline, unreadCount = 0, onMenu, onNotifications }) {
   return (
     <header className="app-header">
       <button className="icon-button menu-trigger" onClick={onMenu} aria-label="মেনু খুলুন">
@@ -10,7 +10,11 @@ export function Header({ hostelName = 'Hostel Life', role = 'সদস্য', i
 
       <div className="brand-block">
         <div className="brand-name">{hostelName}</div>
-        <span className="role-badge"><Icon name="shield" size={12} /> {role}</span>
+        <div className="header-context-row">
+          {profileName && <span className="header-name-badge" title={profileName}>{profileName}</span>}
+          <span className="role-badge"><Icon name="shield" size={12} /> {role}</span>
+          {periodLabel ? <span className="period-badge"><Icon name="calendar" size={11} /> {periodLabel}</span> : <span className="no-period-badge"><Icon name="calendar" size={11} /> এখনো মাস শুরু হয়নি</span>}
+        </div>
       </div>
 
       <div className="header-actions">

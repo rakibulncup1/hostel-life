@@ -78,6 +78,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.header-context-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .role-badge {
   display: inline-flex;
   align-items: center;
@@ -89,6 +90,21 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   color: var(--primary-strong);
   font-size: 11px;
   font-weight: 800;
+}
+.period-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .header-actions { display: flex; align-items: center; gap: 8px; }
 .icon-button {
@@ -1519,3 +1535,9 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .manager-member-actions .secondary-button, .report-actions .secondary-button, .report-actions .primary-button { flex: 1; }
   .manager-ledger-row > strong { justify-self: start; }
 }
+
+
+/* FIX-05 — Reports & History completion */
+.history-title-actions,.modal-head-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}.history-item-card.is-void{opacity:.78}.history-item-card.is-void .history-amount strong{text-decoration:line-through}.archive-list-row.is-void{opacity:.72}.report-health-card{display:grid;gap:14px;padding:15px}.report-health-card>div:first-child{display:grid;gap:4px}.report-health-card h2{margin:0;font-size:15px}.report-health-card p{margin:0;color:var(--muted);font-size:10px;line-height:1.55}.report-health-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.report-health-metrics>div{display:grid;gap:3px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2)}.report-health-metrics span{font-size:8px;color:var(--muted)}.report-health-metrics strong{font-size:13px}.modal-head-actions .secondary-button{white-space:nowrap}
+@media (min-width:720px){.report-health-card{grid-template-columns:1.15fr .85fr;align-items:center}.report-health-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:560px){.history-title-actions{width:100%;justify-content:stretch}.history-title-actions>*{flex:1}.modal-head-actions{max-width:100%;justify-content:flex-end}.modal-head-actions .secondary-button{flex:1}.report-health-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}

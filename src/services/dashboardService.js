@@ -24,3 +24,10 @@ export async function fetchOfflineMealBundle() {
   if (error) throw error;
   return data ?? null;
 }
+
+export async function fetchMemberPeriodDetails(memberId, periodId = null) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('get_member_period_details', { p_member_id: memberId, p_period_id: periodId });
+  if (error) throw error;
+  return data ?? null;
+}

@@ -8,7 +8,7 @@ import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import { OfflineState } from '../components/OfflineState';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
-import { clearMealBundle } from '../services/mealOfflineStore';
+import { useManagementContext } from '../hooks/useManagementContext';
 import { fetchNotifications } from '../services/notificationService';
 
 export function keyToPath(key) {
@@ -33,6 +33,10 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const isOnline = useOnlineStatus();
   const { canInstall, install } = useInstallPrompt();
   const { signOut } = useAuth();
+  const { period, isPrimaryManager, isAssistantManager, isOperationalManager } = useManagementContext();
+  const hasRunningPeriod = Boolean(period?.period_id || period?.id);
+  const effectivePrimaryManager = hasRunningPeriod ? Boolean(isPrimaryManager) : Boolean(isManager);
+  const effectiveOperationalManager = Boolean(effectivePrimaryManager || isAssistantManager || (!hasRunningPeriod && isManager));
   const toast = useToast();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -75,10 +79,15 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       }
     };
     loadUnread();
-    timer = window.setInterval(loadUnread, 60000);
+    timer = window.setInterval(loadUnread, 300000);
+    const refreshIfVisible = () => { if (document.visibilityState === 'visible') loadUnread(); };
+    window.addEventListener('focus', refreshIfVisible);
+    document.addEventListener('visibilitychange', refreshIfVisible);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+      window.removeEventListener('focus', refreshIfVisible);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
     };
   }, [isOnline]);
 
@@ -94,7 +103,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const handleMenuAction = async (key) => {
     if (key === 'logout') {
       try {
-        await clearMealBundle().catch((clearError) => console.warn('Offline meal cache could not be cleared:', clearError));
         await signOut();
         toast.success('সফলভাবে লগআউট হয়েছে।');
       } catch (error) {
@@ -109,15 +117,20 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     }
 
     const routes = {
+      'dining-operations': '/app/dining',
       members: '/app/menu/members',
+      'khala-money-view': '/app/menu/khala-money-view',
       'top-eater': '/app/menu/top-eater',
       'top-shopper': '/app/menu/top-shopper',
       developer: '/app/menu/developer',
       'send-notification': '/app/menu/send-notification',
       'reports': '/app/menu/reports',
       'meal-sheet': '/app/menu/meal-sheet',
+      'archive-edit-access': '/app/menu/archive-edit-access',
+      'current-month-close': '/app/menu/current-month-close',
       'new-month': '/app/menu/new-month',
       'change-manager': '/app/menu/change-manager',
+      'assistant-managers': '/app/menu/assistant-managers',
       'hostel-settings': '/app/menu/hostel-settings',
       archive: '/app/menu/archive',
       'khala-money': '/app/menu/khala-money',
@@ -149,7 +162,9 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     <div className="app-shell">
       <Header
         hostelName={membership?.hostel_name || 'Hostel Life'}
-        role={isManager ? 'ম্যানেজার' : 'সদস্য'}
+        profileName={profile?.full_name || null}
+        role={effectivePrimaryManager ? 'ম্যানেজার' : isAssistantManager ? 'সহকারী ম্যানেজার' : 'সদস্য'}
+        periodLabel={period?.label || null}
         isOnline={isOnline}
         unreadCount={unreadCount}
         onMenu={() => setDrawerOpen(true)}
@@ -165,7 +180,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       {!isOnline && (
         <div className="offline-banner" role="status">
           <span className="offline-banner-dot" />
-          <span>ইন্টারনেট সংযোগ নেই — শুধু ড্যাশবোর্ডের মিল কার্ড offline-এ রাখা হবে।</span>
+          <span>ইন্টারনেট সংযোগ নেই — সর্বশেষ সংরক্ষিত ড্যাশবোর্ড, মিল ও লেট রিকোয়েস্ট দেখা যাবে।</span>
         </div>
       )}
 
@@ -182,14 +197,16 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       <MenuDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        isManager={isManager}
+        isManager={effectivePrimaryManager}
+        isPrimaryManager={effectivePrimaryManager}
+        isOperationalManager={effectiveOperationalManager}
         canInstall={canInstall}
         onInstall={installApp}
         onAction={handleMenuAction}
         profile={profile}
         user={user}
         hostelName={membership?.hostel_name}
-        role={isManager ? 'ম্যানেজার' : 'সদস্য'}
+        role={effectivePrimaryManager ? 'ম্যানেজার' : isAssistantManager ? 'সহকারী ম্যানেজার' : 'সদস্য'}
       />
 
       <div className="desktop-theme-bar" aria-label="থিম">

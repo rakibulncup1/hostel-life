@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useToast } from '../../components/Toast';
 import { navigateTo } from '../../app/AppShell';
-import { fetchMemberDirectory } from '../../services/diningService';
-import { fetchArchivedMonthDetail, fetchPreviousMonths } from '../../services/historyService';
+import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
+import { fetchArchivedMonthDetail, fetchKhalaMoneyHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
 import { managerSendNotification } from '../../services/notificationService';
 import { fetchTopEaters, fetchTopShoppers } from '../../services/rankingService';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
@@ -32,13 +33,18 @@ function Avatar({ member, large = false }) {
 
 export function AllMembersPage() {
   const toast = useToast();
+  const { membership } = useAuth();
   const [members, setMembers] = useState([]);
+  const [hasRunningPeriod, setHasRunningPeriod] = useState(true);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setMembers(await fetchMemberDirectory());
+      const [directoryResult, periodResult] = await Promise.allSettled([fetchMemberDirectory(), fetchRunningPeriod()]);
+      if (directoryResult.status === 'rejected') throw directoryResult.reason;
+      setMembers(Array.isArray(directoryResult.value) ? directoryResult.value : []);
+      if (periodResult.status === 'fulfilled') setHasRunningPeriod(Boolean(periodResult.value?.period_id || periodResult.value?.id));
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।'));
     } finally {
@@ -46,11 +52,32 @@ export function AllMembersPage() {
     }
   }, [toast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    const timer = window.setInterval(refreshIfVisible, 300000);
+    window.addEventListener('focus', refreshIfVisible);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refreshIfVisible);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [load]);
+
+  useRealtimeRefresh({
+    enabled: true,
+    hostelId: membership?.hostel_id,
+    tables: ['hostel_memberships'],
+    onRefresh: () => load(),
+  });
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="মেসের সবাই" title="সকল সদস্য" description="সক্রিয় ও নিষ্ক্রিয় সদস্যের বর্তমান মাসের হিসাব দেখুন।" />
+      <PageHeader eyebrow="মেসের সবাই" title="সকল সদস্য" description="সদস্যের পরিচয় ও বর্তমান হিসাব দেখুন।" />
+      {!hasRunningPeriod && <div className="no-active-period-inline"><Icon name="calendar" size={18} /><div><strong>এখনো নতুন মাস শুরু হয়নি</strong><span>সদস্য তালিকা অক্ষত আছে। নতুন মাস শুরু হলে হিসাব আবার দেখানো হবে।</span></div></div>}
       {loading ? <LoadingSpinner label="সদস্য তালিকা লোড হচ্ছে..." /> : members.length === 0 ? (
         <div className="empty-state-card"><Icon name="users" size={28} /><strong>কোনো সদস্য পাওয়া যায়নি</strong><span>মেসে এখনো কোনো সদস্যের তথ্য নেই।</span></div>
       ) : (
@@ -63,24 +90,163 @@ export function AllMembersPage() {
                   <strong>{member.member_name}</strong>
                   <div className="member-badge-row">
                     <span className={`member-badge ${member.member_status === 'active' ? 'active' : 'inactive'}`}>{member.member_status === 'active' ? 'সক্রিয় সদস্য' : 'নিষ্ক্রিয়'}</span>
-                    <span className="member-badge subtle">{member.meal_activity || 'এই মাসে মিল নেই'}</span>
-                    {member.role === 'manager' && <span className="member-badge manager">ম্যানেজার</span>}
+                    <span className="member-badge subtle">{hasRunningPeriod ? (member.meal_activity || 'এই মাসে মিল নেই') : 'এখনো মাস শুরু হয়নি'}</span>
+                    {Boolean(member.is_primary_manager ?? (member.role === 'manager')) && <span className="member-badge manager">ম্যানেজার</span>}
+                    {member.is_assistant_manager && <span className="member-badge assistant">সহকারী ম্যানেজার</span>}
                   </div>
                 </div>
               </div>
               <div className="member-stats-grid">
-                <div><span>ডিপোজিট</span><strong>{formatCurrency(member.deposit)}</strong></div>
-                <div><span>মোট মিল</span><strong>{formatNumber(member.final_meals)}</strong></div>
-                <div><span>মিল খরচ</span><strong>{formatCurrency(member.meal_cost)}</strong></div>
-                <div><span>অন্যান্য খরচ</span><strong>{formatCurrency(member.other_expense)}</strong></div>
+                <div><span>ডিপোজিট</span><strong>{formatCurrency(hasRunningPeriod ? member.deposit : 0)}</strong></div>
+                <div><span>মোট মিল</span><strong>{formatNumber(hasRunningPeriod ? member.final_meals : 0)}</strong></div>
+                <div><span>মিল খরচ</span><strong>{formatCurrency(hasRunningPeriod ? member.meal_cost : 0)}</strong></div>
+                <div><span>অন্যান্য খরচ</span><strong>{formatCurrency(hasRunningPeriod ? member.other_expense : 0)}</strong></div>
               </div>
-              <div className="member-balance-row">
-                <span>বর্তমান অবশিষ্ট</span>
-                <strong>{formatCurrency(member.balance)}</strong>
+              <div className={`member-balance-row ${Number(hasRunningPeriod ? member.balance : 0) < 0 ? 'balance-negative' : 'balance-positive'}`}>
+                <span>{hasRunningPeriod && Number(member.balance || 0) < 0 ? 'বর্তমান বকেয়া' : 'বর্তমান অবশিষ্ট'}</span>
+                <strong>{formatCurrency(Math.abs(Number(hasRunningPeriod ? member.balance : 0)))}</strong>
               </div>
             </article>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+
+export function KhalaMoneyViewPage() {
+  const toast = useToast();
+  const { membership } = useAuth();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [currentPeriod, previousPeriods] = await Promise.all([
+        fetchRunningPeriod(),
+        fetchPreviousMonths(),
+      ]);
+
+      const periodRows = [
+        ...(currentPeriod?.period_id ? [currentPeriod] : []),
+        ...(Array.isArray(previousPeriods) ? previousPeriods : []),
+      ].filter((period, index, all) => period?.period_id && all.findIndex((item) => item.period_id === period.period_id) === index)
+        .slice(0, 24);
+
+      const responses = await Promise.all(
+        periodRows.map((period) => fetchKhalaMoneyHistory({ periodId: period.period_id, limit: 300 }))
+      );
+
+      const nextRows = [];
+      responses.forEach((data, index) => {
+        const period = periodRows[index];
+        for (const row of Array.isArray(data) ? data : []) {
+          nextRows.push({ ...row, period_id: period.period_id, period_label: period.label || period.name || 'কাজের মাস' });
+        }
+      });
+
+      setRows(nextRows);
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'খালার টাকার তথ্য দেখা যায়নি।'));
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const grouped = useMemo(() => {
+    const groups = new Map();
+    for (const row of rows) {
+      const key = row.period_id || 'unknown';
+      if (!groups.has(key)) {
+        groups.set(key, {
+          period_id: key,
+          label: row.period_label || row.period_name || 'মাস',
+          rows: [],
+        });
+      }
+      groups.get(key).rows.push(row);
+    }
+    return [...groups.values()].map((group) => ({
+      ...group,
+      rows: [...group.rows].sort((a, b) => {
+        const aMine = a.membership_id === membership?.membership_id ? 0 : 1;
+        const bMine = b.membership_id === membership?.membership_id ? 0 : 1;
+        if (aMine !== bMine) return aMine - bMine;
+        return String(b.entry_date || b.created_at || '').localeCompare(String(a.entry_date || a.created_at || ''));
+      }),
+      total: group.rows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0),
+    }));
+  }, [rows, membership?.membership_id]);
+
+  const myCount = rows.filter((row) => row.membership_id === membership?.membership_id && row.status !== 'void').length;
+  const myTotal = rows.filter((row) => row.membership_id === membership?.membership_id && row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+  return (
+    <div className="page-stack">
+      <PageHeader
+        eyebrow="মেসের স্বচ্ছতা"
+        title="খালার টাকা"
+        description="মাস অনুযায়ী খালার টাকার এন্ট্রি দেখুন। আপনার এন্ট্রি সবার আগে থাকবে।"
+      />
+
+      <section className="card khala-view-hero">
+        <div>
+          <span className="eyebrow">আপনার হিসাব</span>
+          <h2>{myCount ? `${formatCurrency(myTotal)} জমা` : 'আপনি এখনো টাকা দেননি'}</h2>
+          <p>{myCount ? `${formatNumber(myCount)}টি এন্ট্রি` : 'আপনার নামে কোনো কার্যকর এন্ট্রি নেই।'}</p>
+        </div>
+        <button className="secondary-button compact" type="button" onClick={load} disabled={loading}>
+          <Icon name="refresh" size={15} /> রিফ্রেশ
+        </button>
+      </section>
+
+      {loading ? (
+        <LoadingSpinner label="খালার টাকার হিসাব লোড হচ্ছে..." />
+      ) : grouped.length === 0 ? (
+        <div className="empty-state-card">
+          <Icon name="wallet" size={28} />
+          <strong>এখনো কোনো খালার টাকার তথ্য নেই</strong>
+          <span>ম্যানেজার এন্ট্রি যোগ করলে এখানেই সবার জন্য দেখা যাবে।</span>
+        </div>
+      ) : (
+        grouped.map((group) => (
+          <section className="card khala-view-section" key={group.period_id}>
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">কাজের মাস</span>
+                <h2>{group.label}</h2>
+              </div>
+              <strong>{formatCurrency(group.total)}</strong>
+            </div>
+
+            <div className="khala-public-list">
+              {group.rows.map((row) => {
+                const isMine = row.membership_id === membership?.membership_id;
+                return (
+                  <article className={`khala-public-row ${isMine ? 'is-mine' : ''} ${row.status === 'void' ? 'is-void' : ''}`} key={row.entry_id}>
+                    <div className="khala-public-person">
+                      <Avatar member={{ member_name: row.member_name }} />
+                      <div>
+                        <strong>{isMine ? 'আপনি' : row.member_name || 'সদস্য'}</strong>
+                        <small>{formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
+                      </div>
+                    </div>
+                    <div className="khala-public-amount">
+                      <strong>{formatCurrency(row.amount)}</strong>
+                      <span className={`member-badge ${row.status === 'void' ? 'inactive' : isMine ? 'active' : 'subtle'}`}>
+                        {row.status === 'void' ? 'বাতিল' : isMine ? 'আপনার এন্ট্রি' : 'পরিশোধিত'}
+                      </span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ))
       )}
     </div>
   );
@@ -302,4 +468,27 @@ function ArchiveDetailModal({ detail, onClose }) {
       </div>
     </div>
   );
+}
+
+
+export function ArchiveEditAccessPage() {
+  const toast = useToast();
+  const [periods, setPeriods] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorText, setErrorText] = useState('');
+  const load = useCallback(async () => {
+    setLoading(true);
+    setErrorText('');
+    try { setPeriods(await fetchMyArchiveEditablePeriods()); }
+    catch (error) {
+      setPeriods([]);
+      setErrorText(getFriendlySupabaseError(error, 'আর্কাইভের অনুমতিগুলো লোড করা যায়নি।'));
+    } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  return <div className="page-stack">
+    <PageHeader eyebrow="নির্দিষ্ট মাসের অনুমতি" title="আর্কাইভ সম্পাদনা" description="শুধু যে আর্কাইভের জন্য তোমার বৈধ অনুমতি আছে, সেগুলোই এখানে দেখানো হবে।" />
+    {loading ? <LoadingSpinner label="আর্কাইভের অনুমতি যাচাই হচ্ছে..." /> : errorText ? <div className="state-card state-card-warning"><Icon name="warning" size={24} /><div><h2>আর্কাইভ লোড করা যায়নি</h2><p>{errorText}</p><button className="secondary-button compact" type="button" onClick={load}>আবার চেষ্টা করুন</button></div></div> : periods.length === 0 ? <div className="empty-state-card"><Icon name="shield" size={28} /><strong>এখনো কোনো আর্কাইভ সম্পাদনার অনুমতি নেই</strong><span>যে ম্যানেজার মাসটি বন্ধ করেছেন, বর্তমান প্রধান ম্যানেজার তাকে ওই নির্দিষ্ট মাসের জন্য অস্থায়ী অনুমতি দিতে পারবেন।</span></div> : <div className="archive-month-list">{periods.map((period) => <article className="card archive-month-card detail-month" key={period.period_id}><div className="archive-month-icon"><Icon name="history" size={20} /></div><div className="archive-month-copy"><strong>{period.label}</strong><small>{formatDateBangla(period.start_date)} → {formatDateBangla(period.end_date)}</small><span>{period.access_kind}{period.expires_at ? ` · মেয়াদ ${formatDateWithWeekday(period.expires_at)}` : ''}</span><span>মাস বন্ধ করেছিলেন: {period.manager_at_close_name}</span></div><button className="primary-button compact" type="button" onClick={() => navigateTo(`/app/history?archive_period=${encodeURIComponent(period.period_id)}`)}>হিসাব খুলুন</button></article>)}</div>}
+    <p className="muted-note">অনুমতি শুধু নির্দিষ্ট আর্কাইভের জন্য কার্যকর। মেয়াদ শেষ বা অনুমতি বাতিল হলে সার্ভার থেকে সম্পাদনা আটকে যাবে।</p>
+  </div>;
 }
