@@ -4,7 +4,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToast } from '../../components/Toast';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useAuth } from '../../contexts/AuthContext';
-import { fetchDashboardData, fetchMealDetails, fetchMemberPeriodDetails } from '../../services/dashboardService';
+import { fetchDashboardData, fetchMealDetails } from '../../services/dashboardService';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
 import { useDashboardOffline } from '../../hooks/useDashboardOffline';
 import { formatDateTime12, formatTime12 } from '../../utils/time';
@@ -12,6 +12,7 @@ import { formatDateWithWeekday } from '../../utils/date';
 import { useManagementContext } from '../../hooks/useManagementContext';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatMeal } from '../../utils/meal';
+import { navigateTo } from '../../app/AppShell';
 
 function safeNumber(value) {
   const number = Number(value ?? 0);
@@ -197,11 +198,11 @@ function BalanceLabel({ value }) {
 
 function MyAccountCard({ account, onClick }) {
   return (
-    <section className="card my-account-card dashboard-clickable-card" role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick} onKeyDown={(event) => { if (onClick && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onClick(); } }}>
+    <section className="card my-account-card">
       <div className="section-heading">
         <div>
           <span className="eyebrow">আমার হিসাব</span>
-          <h2>{account?.name || 'আমার হিসাব'}</h2>
+          <h2><button className="dashboard-member-name" type="button" onClick={onClick}>{account?.name || 'আমার হিসাব'}</button></h2>
         </div>
         <div className="avatar avatar-large">{initials(account?.name)}</div>
       </div>
@@ -218,11 +219,11 @@ function MyAccountCard({ account, onClick }) {
 
 function MemberCard({ member, onClick }) {
   return (
-    <article className={`card member-card detailed-member-card dashboard-clickable-card ${member?.status === 'inactive' ? 'member-inactive-card' : ''}`} role="button" tabIndex={0} onClick={onClick} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick?.(); } }}>
+    <article className={`card member-card detailed-member-card ${member?.status === 'inactive' ? 'member-inactive-card' : ''}`}>
       <div className="member-card-top">
         <div className="avatar">{initials(member?.name)}</div>
         <div className="member-copy">
-          <h3>{member?.name || 'সদস্য'}</h3>
+          <h3><button className="dashboard-member-name" type="button" onClick={onClick}>{member?.name || 'সদস্য'}</button></h3>
           <div className="member-badge-row">
             <span className={statusClass(member?.status)}>{member?.status === 'active' ? 'সক্রিয় সদস্য' : 'নিষ্ক্রিয়'}</span>
             {Boolean(member?.is_primary_manager ?? (member?.role === 'manager')) && <span className="role-mini-badge"><Icon name="shield" size={11} /> ম্যানেজার</span>}
@@ -245,7 +246,7 @@ function MemberCard({ member, onClick }) {
   );
 }
 
-function MemberPeriodDetailsModal({ detail, loading, memberName, onClose }) {
+export function MemberPeriodDetailsModal({ detail, loading, memberName, onClose }) {
   const summary = detail?.summary || {};
   const meals = Array.isArray(detail?.daily_meals) ? detail.daily_meals : [];
   const transactions = Array.isArray(detail?.transactions) ? detail.transactions : [];
@@ -256,7 +257,7 @@ function MemberPeriodDetailsModal({ detail, loading, memberName, onClose }) {
       {loading ? <div className="loading-wrap"><span className="spinner"/><span>সদস্যের হিসাব লোড হচ্ছে...</span></div> : <>
         <div className="member-period-summary-grid"><MetricCard label="মোট ফাইনাল মিল" value={formatMeal(summary.final_meals)}/><MetricCard label="মোট জমা" value={formatCurrency(summary.total_deposit)}/><MetricCard label="মিল খরচ" value={formatCurrency(summary.meal_cost)}/><MetricCard label="বাজারের মোট" value={formatCurrency(summary.total_market)}/><MetricCard label="অন্যান্য খরচ" value={formatCurrency(summary.other_expense)}/><MetricCard label="মিল রেট" value={formatCurrency(summary.meal_rate)}/></div>
         <div className={`member-period-balance ${safeNumber(summary.balance)<0?'balance-negative':'balance-positive'}`}><span>{safeNumber(summary.balance)<0?'বর্তমান বকেয়া':'বর্তমান অবশিষ্ট'}</span><strong>{formatCurrency(Math.abs(safeNumber(summary.balance)))}</strong></div>
-        <section className="archive-detail-section"><div className="section-heading"><h3>প্রতিদিনের ফাইনাল মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.length ? meals.map((row)=><div className="archive-list-row" key={row.date}><div><strong>{formatDateWithWeekday(row.date)}</strong><small>ব্রেকফাস্ট {formatMeal(row.breakfast)} · লাঞ্চ {formatMeal(row.lunch)} · ডিনার {formatMeal(row.dinner)}</small></div><strong>মোট {formatMeal(row.total)}</strong></div>) : <div className="empty-state-card"><span>এই period-এ কোনো final meal record নেই।</span></div>}</section>
+        <section className="archive-detail-section"><div className="section-heading"><h3>প্রতিদিনের চূড়ান্ত মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.length ? meals.map((row)=><div className="archive-list-row" key={row.date}><div><strong>{formatDateWithWeekday(row.date)}</strong><small>ব্রেকফাস্ট {formatMeal(row.breakfast)} · লাঞ্চ {formatMeal(row.lunch)} · ডিনার {formatMeal(row.dinner)}</small></div><strong>মোট {formatMeal(row.total)}</strong></div>) : <div className="empty-state-card"><span>এই সময়কালে কোনো চূড়ান্ত মিলের তথ্য নেই।</span></div>}</section>
         <section className="archive-detail-section"><div className="section-heading"><h3>লেনদেনের ইতিহাস</h3><span>{formatNumber(transactions.length)}টি</span></div>{transactions.length ? transactions.map((row)=><div className="archive-list-row" key={row.transaction_id}><div><strong>{row.transaction_type}</strong><small>{formatDateWithWeekday(row.entry_date)} · {row.description || 'বিবরণ নেই'}</small></div><strong className={Number(row.amount)>=0?'positive':'negative'}>{formatCurrency(row.amount)}</strong></div>) : <div className="empty-state-card"><span>কোনো লেনদেন নেই।</span></div>}</section>
         <section className="archive-detail-section"><div className="section-heading"><h3>সদস্যের নামে বাজার</h3><span>{formatNumber(markets.length)}টি</span></div>{markets.length ? markets.map((row)=><div className="archive-list-row" key={row.market_entry_id}><div><strong>{formatDateWithWeekday(row.entry_date)}</strong><small>{(row.items||[]).map((item)=>item.name).join(', ') || 'বাজারের আইটেম'}</small></div><strong>{formatCurrency(row.total_amount)}</strong></div>) : <div className="empty-state-card"><span>এই period-এ এই সদস্যের নামে বাজার নেই।</span></div>}</section>
       </>}
@@ -342,9 +343,11 @@ function lateRequestVisibleUntil(visibleUntil = null) {
 }
 
 function dhakaToday() {
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-GB', {
     timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function signedMealDelta(value) {
@@ -431,7 +434,7 @@ function LateRequestCard({ meal, isOnline, lastSync }) {
         </div>
         <span className="count-badge">{formatNumber(preparedRows.length)} জন</span>
       </div>
-      <p className="late-request-summary">{formatNumber(preparedRows.length)} জনের অনুমোদিত লেট মিলের পরিবর্তন মূল মিলের সঙ্গে সমন্বয় করতে হবে। নিচের মানগুলো নতুন মোট নয়—আগের মিলের তুলনায় কম-বেশি।</p>
+      <div className="late-request-summary-info"><Icon name="info" size={17}/><div><strong>{formatNumber(preparedRows.length)} জনের অনুমোদিত মিল পরিবর্তন</strong><p>নিচের +/− সংখ্যাগুলো মূল মিলের সঙ্গে সমন্বয় করতে হবে; এগুলো নতুন মোট মিল নয়।</p></div></div>
       <div className="late-request-delta-grid">
         <LateDeltaStat label="ব্রেকফাস্ট" value={totals.breakfast} />
         <LateDeltaStat label="লাঞ্চ" value={totals.lunch} />
@@ -447,7 +450,7 @@ function LateRequestCard({ meal, isOnline, lastSync }) {
       </div>
       <div className="meal-detail-hint"><span>{isOnline ? 'ব্যক্তিভিত্তিক বিস্তারিত দেখুন' : 'সংরক্ষিত বিস্তারিত দেখুন'}</span><Icon name="chevron" size={17} /></div>
     </section>
-    <p className="late-request-counting-warning"><Icon name="warning" size={15} /> মিল গণনার সময় আজকের মিল কার্ডের তথ্যের সঙ্গে এই লেট রিকোয়েস্টের +/− সমন্বয় করে ফলাফল খালাকে জানাবেন।</p>
+    <div className="late-request-counting-warning"><Icon name="warning" size={17} /><div><strong>মিল গণনার সময় খেয়াল রাখুন</strong><span>আজকের মিল কার্ডের তথ্যের সঙ্গে এই লেট রিকোয়েস্টের +/− সমন্বয় করে তারপর খালাকে মিলের হিসাব জানাবেন।</span></div></div>
     {detailsOpen && <LateRequestDetailsModal
       date={targetDate}
       rows={preparedRows}
@@ -475,10 +478,10 @@ function LateRequestDetailsModal({ date, rows, totals, onClose }) {
     ['dinner', 'ডিনার'],
   ];
 
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+  return <div className="modal-backdrop late-request-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="modal-card meal-details-modal late-request-details-modal" role="dialog" aria-modal="true" aria-labelledby="late-request-detail-title">
       <div className="modal-header">
-        <div><span className="eyebrow">অনুমোদিত মিল সংশোধন</span><h2 id="late-request-detail-title">{date ? formatDateWithWeekday(date) : 'লেট রিকোয়েস্টের বিস্তারিত'}</h2><p>প্রতিটি মান = নতুন অনুরোধ − আগের মিল। সবুজ মান বাড়তি, লাল মান কমাতে হবে।</p></div>
+        <div><span className="eyebrow">অনুমোদিত মিল সংশোধন</span><h2 id="late-request-detail-title">{date ? formatDateWithWeekday(date) : 'লেট রিকোয়েস্টের বিস্তারিত'}</h2><p>প্রতিটি মান = নতুন অনুরোধ − আগের মিল। সবুজ মান যোগ হবে, লাল মান কমাতে হবে।</p></div>
         <button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={20} /></button>
       </div>
       <div className="late-request-detail-totals">
@@ -554,9 +557,6 @@ export function DashboardPage() {
   const [detailsDate, setDetailsDate] = useState(null);
   const [detailsRows, setDetailsRows] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
-  const [selectedMemberId, setSelectedMemberId] = useState(null);
-  const [memberDetail, setMemberDetail] = useState(null);
-  const [memberDetailLoading, setMemberDetailLoading] = useState(false);
 
   const loadDashboard = useCallback(async (silent = false) => {
     if (!online || !hostelId) return;
@@ -756,14 +756,11 @@ export function DashboardPage() {
     }
   }, [cachedDashboard?.meal_card, mealCard, offlineMealCard, online, toast]);
 
-  const openMember = useCallback(async (memberId) => {
+  const openMember = useCallback((memberId) => {
     if (!memberId) return;
     if (!online) { toast.warning('সদস্যের পূর্ণ হিসাব দেখতে ইন্টারনেট চালু করুন।'); return; }
-    setSelectedMemberId(memberId); setMemberDetail(null); setMemberDetailLoading(true);
-    try { setMemberDetail(await fetchMemberPeriodDetails(memberId, effectiveDashboard?.period?.period_id || effectiveDashboard?.period?.id || null)); }
-    catch (error) { toast.error(error?.message || 'সদস্যের বিস্তারিত হিসাব লোড করা যায়নি।'); setSelectedMemberId(null); }
-    finally { setMemberDetailLoading(false); }
-  }, [effectiveDashboard?.period?.id, effectiveDashboard?.period?.period_id, online, toast]);
+    navigateTo(`/app/menu/members?member_id=${encodeURIComponent(memberId)}`);
+  }, [online, toast]);
 
   const hasCachedDashboard = Boolean(cachedDashboard);
 
@@ -811,23 +808,23 @@ export function DashboardPage() {
             <div className="rate-strip">
               <div>
                 <span>বর্তমান মিল রেট</span>
-                <small>খাবারের বাজার ÷ ফাইনাল মিল</small>
+                <small>খাবারের বাজারের খরচ ÷ চূড়ান্ত মিল</small>
               </div>
               <strong>{formatCurrency(summary?.meal_rate)}</strong>
             </div>
             {!online && (
               <div className="offline-snapshot-note">
-                <Icon name="offline" size={15} /> সর্বশেষ সংরক্ষিত snapshot · {lastSync ? formatDateTime12(lastSync) : 'সময় পাওয়া যায়নি'}
+                <Icon name="offline" size={15} /> সর্বশেষ সংরক্ষিত তথ্য · {lastSync ? formatDateTime12(lastSync) : 'সময় পাওয়া যায়নি'}
               </div>
             )}
-          </section> : <div className="no-period-summary-note"><Icon name="info" size={16} /> নতুন মাস শুরু না হওয়া পর্যন্ত এই মাসের deposit, meal ও expense summary দেখানো হবে না।</div>}
+          </section> : <div className="no-period-summary-note"><Icon name="info" size={16} /> নতুন মাস শুরু না হওয়া পর্যন্ত এই মাসের জমা, মিল ও খরচের সারসংক্ষেপ দেখানো হবে না।</div>}
 
           <MyAccountCard account={account} onClick={() => openMember(membership?.membership_id)} />
 
           <section className="section-block">
             <div className="section-heading outside">
               <div>
-                <span className="eyebrow">এই মেসের সদস্য</span>
+                <span className="eyebrow">এই মেসের সদস্যরা</span>
                 <h2>সদস্য তালিকা</h2>
               </div>
               <span className="count-badge">{formatNumber(members.length)} জন</span>
@@ -852,7 +849,7 @@ export function DashboardPage() {
             <h2>ড্যাশবোর্ড লোড করা যায়নি</h2>
             <p>{dashboardError}</p>
             {hasCachedDashboard ? (
-              <p className="muted-note">পুরোনো সংরক্ষিত snapshot থাকলে উপরের তথ্য সেখান থেকে দেখানো হবে।</p>
+              <p className="muted-note">আগের সংরক্ষিত তথ্য থাকলে উপরের অংশে সেটি দেখানো হবে।</p>
             ) : (
               <button className="secondary-button compact" onClick={loadDashboard}>আবার চেষ্টা করুন</button>
             )}
@@ -869,7 +866,6 @@ export function DashboardPage() {
         </section>
       ) : null}
 
-      {selectedMemberId && <MemberPeriodDetailsModal detail={memberDetail} loading={memberDetailLoading} memberName={members.find((item) => item.membership_id === selectedMemberId)?.name || account?.name} onClose={() => { setSelectedMemberId(null); setMemberDetail(null); }} />}
 
       {detailsDate && (
         <MealDetailsModal

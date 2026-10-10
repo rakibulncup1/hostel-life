@@ -1,8 +1,8 @@
 const LEDGER_TYPE_LABELS = Object.freeze({
-  deposit: 'ডিপোজিট',
-  market_deposit: 'বাজার ডিপোজিট',
+  deposit: 'জমা',
+  market_deposit: 'বাজার বাবদ জমা',
   other_expense: 'অন্যান্য খরচ',
-  adjustment: 'সংশোধন',
+  adjustment: 'হিসাব সংশোধন',
 });
 
 export function ledgerTypeLabel(type) {

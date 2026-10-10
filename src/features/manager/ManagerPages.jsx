@@ -30,7 +30,7 @@ import {
   voidKhalaMoney,
 } from '../../services/managerService';
 import { fetchKhalaMoneyHistory, fetchPreviousMonths, fetchArchivedMonthDetail } from '../../services/historyService';
-import { buildDailyMealRows, buildMemberSettlementRows, calculateMealTotals, downloadCsv, fetchCurrentReportBundle, getActiveMarketRows, getReportFilename, getVoidMarketRows, mergeFinancialRows, openPrintReportWindow, printReport, summarizeFinancialRows } from '../../services/reportService';
+import { buildDailyMealRows, buildMemberSettlementRows, calculateMealTotals, fetchCurrentReportBundle, getActiveMarketRows, getVoidMarketRows, mergeFinancialRows, openPrintReportWindow, printReport, summarizeFinancialRows } from '../../services/reportService';
 import { fetchManagerMemberDirectory, fetchMonthClosePreflight } from '../../services/diningService';
 import { formatDateBangla, formatDateWithWeekday, toDateInputValue } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
@@ -62,19 +62,48 @@ function PrimaryManagerGuard({ children }) {
   return <AccessNotice title="প্রধান ম্যানেজারের অনুমতি প্রয়োজন" text="এই কাজটি শুধু বর্তমান প্রধান ম্যানেজার করতে পারবেন।" />;
 }
 
-function PageHeader({ title, description, icon = 'shield' }) {
+function PageHeader({ title, description, icon = 'shield', eyebrow = 'ম্যানেজার ফিচার' }) {
+  const managerOnly = eyebrow === 'ম্যানেজার ফিচার';
   return (
-    <div className="page-title-row manager-page-title">
+    <div className="page-title-row manager-page-title card menu-page-intro-card">
       <div>
         <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}>
           <Icon name="arrow-left" size={15} /> ফিরে যান
         </button>
-        <div className="manager-eyebrow"><Icon name={icon} size={13} /> ম্যানেজার ফিচার</div>
+        <div className={`manager-eyebrow ${managerOnly ? '' : 'neutral-page-eyebrow'}`}>{managerOnly && <Icon name={icon} size={13} />} {eyebrow}</div>
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>
     </div>
   );
+}
+
+function escapeReportHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+
+function reportStatusLabel(value) {
+  const labels = {
+    finalized: 'চূড়ান্ত', final: 'চূড়ান্ত', closed: 'বন্ধ', locked: 'বন্ধ', open: 'চলমান', pending: 'অপেক্ষমাণ',
+    in_progress: 'চলমান', draft: 'খসড়া', reopened: 'পুনরায় চালু', active: 'সক্রিয়', inactive: 'নিষ্ক্রিয়',
+    void: 'বাতিল', cancelled: 'বাতিল', completed: 'সম্পন্ন', approved: 'অনুমোদিত', rejected: 'প্রত্যাখ্যাত',
+  };
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return labels[normalized] || (value ? 'অন্যান্য অবস্থা' : '—');
+}
+
+function reportTransactionLabel(value) {
+  const labels = {
+    deposit: 'জমা', contribution: 'জমা', market_deposit: 'বাজার বাবদ জমা',
+    other_expense: 'অন্যান্য খরচ', expense: 'খরচ', market: 'বাজার খরচ',
+    market_entry: 'বাজার খরচ', meal_cost: 'মিলের খরচ', khala_money: 'খালার টাকা',
+    correction: 'হিসাব সংশোধন', adjustment: 'হিসাব সমন্বয়', reversal: 'বাতিলের সমন্বয়',
+    market_reversal: 'বাজার বাতিলের সমন্বয়', refund: 'ফেরত', withdrawal: 'উত্তোলন',
+  };
+  const raw = String(value ?? '').trim();
+  if (!raw) return 'অন্যান্য';
+  const normalized = raw.toLowerCase().replace(/[ -]+/g, '_');
+  return labels[normalized] || 'অন্যান্য লেনদেন';
 }
 
 function ConfirmModal({ title, description, confirmLabel = 'নিশ্চিত করুন', danger = false, busy = false, onConfirm, onClose, children }) {
@@ -291,7 +320,7 @@ export function CloseCurrentMonthPage() {
         <PageHeader title="বর্তমান মাস শেষ করুন" icon="calendar" description="আজকের তারিখ default থাকবে। প্রয়োজনে আগে বর্তমান মাসের শেষ তারিখ সামঞ্জস্য করুন।" />
         <section className="card manager-form-card">
           <div className="manager-current-period"><span>চলমান মাস</span><strong>{context.period.label}</strong><small>{formatDateBangla(context.period.start_date)} → {formatDateBangla(context.period.end_date)}</small>{context.period.is_current_for_today === false && <em>এই period-এর সীমা আজকের তারিখের সঙ্গে মেলেনি; সিস্টেম recovery boundary প্রয়োগ করেছে।</em>}</div>
-          {preflight?.running_period_count > 1 && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মেসে একাধিক running month পাওয়া গেছে।</strong><p>নতুন মাস শুরু করবেন না। আগে এই ডাটার অবস্থা যাচাই করতে হবে।</p></div></div>}
+          {preflight?.running_period_count > 1 && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মেসে একাধিক চলমান মাস পাওয়া গেছে।</strong><p>নতুন মাস শুরু করবেন না। আগে এই তথ্যের অবস্থা যাচাই করতে হবে।</p></div></div>}
           {preflight && preflight.future_active_request_count > 0 && <div className="manager-warning-box"><Icon name="info" size={18} /><div><strong>{preflight.future_active_request_count}টি ভবিষ্যৎ active meal request আছে।</strong><p>আজ মাস বন্ধ করলে নিশ্চিত করার পরে এগুলো বাতিল হবে।</p></div></div>}
           {preflight && preflight.overlap_pair_count > 0 && <div className="form-hint"><Icon name="info" size={16} /> {preflight.overlap_pair_count}টি পুরোনো overlapping normal request pair আছে। এগুলো মাস বন্ধের বাধা নয়; নতুন request দেওয়ার সময় শুধু conflict protection কাজ করবে।</div>}
           {overlaps.length > 0 && <div className="manager-overlap-list"><strong>ঐতিহাসিক overlap-এর বিবরণ</strong>{overlaps.map((item) => <div className="manager-overlap-row" key={`${item.request_id_a}-${item.request_id_b}`}><span>{item.member_name_a || 'সদস্য'} · {formatDateBangla(item.start_date_a)} → {formatDateBangla(item.end_date_a)}</span><span>{item.member_name_b || 'সদস্য'} · {formatDateBangla(item.start_date_b)} → {formatDateBangla(item.end_date_b)}</span></div>)}</div>}
@@ -785,12 +814,12 @@ export function ArchiveManagerPage() {
           : <form onSubmit={grant}>
             <div className="archive-closer-target"><Icon name="user-check" size={18}/><div><strong>{selected.manager_at_close_name || closer?.member_name || 'আগের মাসের ম্যানেজার'}</strong><small>শুধু এই সদস্যের কাছেই অনুমতি যাবে</small></div></div>
             <div className="form-grid-2"><label className="field-label"><span>অনুমতি শেষ হবে <em>(বাধ্যতামূলক)</em></span><input type="datetime-local" required value={grantForm.expiresAt} onChange={(event) => setGrantForm((form) => ({ ...form, expiresAt: event.target.value }))}/></label><label className="field-label"><span>কারণ</span><input value={grantForm.reason} onChange={(event) => setGrantForm((form) => ({ ...form, reason: event.target.value }))} placeholder="যেমন: আগের মাসের বাজারের ভুল সংশোধন"/></label></div>
-            <button className="primary-button" type="submit" disabled={busy}>Closing manager-কে অনুমতি দিন</button>
+            <button className="primary-button" type="submit" disabled={busy}>মাস বন্ধ করা ম্যানেজারকে অনুমতি দিন</button>
           </form>}
       </section>
       <section className="card manager-form-card">
-        <div className="section-heading"><div><h2>এই archive-এর access history</h2><small>{formatNumber(activePermissions.length)}টি কার্যকর temporary permission</small></div><button className="secondary-button compact" type="button" onClick={loadPermissions} disabled={permLoading}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
-        {activePermissions.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="shield" size={24}/><strong>কোনো active temporary permission নেই</strong><span>Closing manager নিজে মাস বন্ধ করে থাকলে তার নিজের access-এর জন্য আলাদা grant দরকার নেই।</span></div> : <div className="permission-list">{activePermissions.map((permission) => <article className="permission-row" key={permission.id}><div><strong>{memberMap.get(permission.membership_id) || (permission.membership_id === selected?.manager_at_close_membership_id ? selected.manager_at_close_name : 'Closing manager')}</strong><small>দেওয়া হয়েছে: {formatDateTime12(permission.created_at)}</small><span>মেয়াদ: {permission.expires_at ? formatDateTime12(permission.expires_at) : 'মেয়াদ নেই'}</span>{permission.reason && <span>কারণ: {permission.reason}</span>}</div><button className="secondary-button compact danger-outline" type="button" disabled={busy} onClick={() => revoke(permission.id)}>বাতিল করুন</button></article>)}</div>}
+        <div className="section-heading"><div><h2>এই সংরক্ষিত মাসের অনুমতির ইতিহাস</h2><small>{formatNumber(activePermissions.length)}টি কার্যকর সাময়িক অনুমতি</small></div><button className="secondary-button compact" type="button" onClick={loadPermissions} disabled={permLoading}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+        {activePermissions.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="shield" size={24}/><strong>কোনো active সাময়িক অনুমতি নেই</strong><span>যিনি নিজে মাস বন্ধ করেছেন, তাঁর নিজের প্রবেশাধিকারের জন্য আলাদা অনুমতি দরকার নেই।</span></div> : <div className="permission-list">{activePermissions.map((permission) => <article className="permission-row" key={permission.id}><div><strong>{memberMap.get(permission.membership_id) || (permission.membership_id === selected?.manager_at_close_membership_id ? selected.manager_at_close_name : 'Closing manager')}</strong><small>দেওয়া হয়েছে: {formatDateTime12(permission.created_at)}</small><span>মেয়াদ: {permission.expires_at ? formatDateTime12(permission.expires_at) : 'মেয়াদ নেই'}</span>{permission.reason && <span>কারণ: {permission.reason}</span>}</div><button className="secondary-button compact danger-outline" type="button" disabled={busy} onClick={() => revoke(permission.id)}>বাতিল করুন</button></article>)}</div>}
       </section>
     </>}
   </div></PrimaryManagerGuard>;
@@ -818,7 +847,7 @@ export function MealSheetPage() {
 
   if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>মিল শিট দেখতে ইন্টারনেট চালু করুন</h2><p>রিপোর্ট অফলাইনে রাখা হয় না।</p></div></div>;
   if (loading) return <LoadingSpinner label="মিল শিট তৈরি হচ্ছে..." />;
-  if (!bundle) return <div className="empty-state-card"><Icon name="calendar" size={28} /><strong>কোনো running month নেই</strong><span>মিল শিট তৈরি করার জন্য একটি চলমান মাস থাকতে হবে।</span></div>;
+  if (!bundle) return <div className="empty-state-card"><Icon name="calendar" size={28} /><strong>কোনো চলমান মাস নেই</strong><span>মিল শিট তৈরি করতে একটি চলমান মাস থাকতে হবে।</span></div>;
 
   const dailyTotals = bundle.days.map((day) => {
     const rows = bundle.mealRows.filter((r) => r.date === day.meal_date);
@@ -838,31 +867,22 @@ export function MealSheetPage() {
     return { key: day.meal_date, date: day.meal_date, status: day.status, breakfast: rows.reduce((s, r) => s + Number(r.breakfast || 0), 0), lunch: rows.reduce((s, r) => s + Number(r.lunch || 0), 0), dinner: rows.reduce((s, r) => s + Number(r.dinner || 0), 0) };
   });
 
-  const download = () => downloadCsv(`hostel-life-meal-sheet-${bundle.period.label}${selectedMember ? `-${selectedMember.member_name}` : ''}.csv`, [
-    { label: 'তারিখ', value: (r) => formatDateWithWeekday(r.date) },
-    { label: 'অবস্থা', value: (r) => r.status },
-    { label: 'ব্রেকফাস্ট', value: (r) => r.breakfast },
-    { label: 'লাঞ্চ', value: (r) => r.lunch },
-    { label: 'ডিনার', value: (r) => r.dinner },
-    { label: 'মোট', value: (r) => Number(r.breakfast) + Number(r.lunch) + Number(r.dinner) },
-  ], filteredDailyTotals);
-
   const print = () => {
     setPrintBusy(true);
     try {
-      const rows = filteredDailyTotals.map((r) => `<tr><td>${formatDateWithWeekday(r.date)}</td><td>${r.status}</td><td>${r.breakfast}</td><td>${r.lunch}</td><td>${r.dinner}</td><td>${r.breakfast+r.lunch+r.dinner}</td></tr>`).join('');
+      const rows = filteredDailyTotals.map((r) => `<tr><td>${escapeReportHtml(formatDateWithWeekday(r.date))}</td><td>${reportStatusLabel(r.status)}</td><td>${r.breakfast}</td><td>${r.lunch}</td><td>${r.dinner}</td><td>${r.breakfast+r.lunch+r.dinner}</td></tr>`).join('');
       const memberTotal = selectedMember ? memberTotals.find((row) => row.key === selectedMemberId) : null;
-      const memberSummary = memberTotal ? `<p><strong>${memberTotal.name}</strong> — ব্রেকফাস্ট ${memberTotal.breakfast}, লাঞ্চ ${memberTotal.lunch}, ডিনার ${memberTotal.dinner}, মোট ${memberTotal.breakfast + memberTotal.lunch + memberTotal.dinner}</p>` : '<p>সব সদস্য</p>' ;
+      const memberSummary = memberTotal ? `<p><strong>${escapeReportHtml(memberTotal.name)}</strong> — সকালের মিল ${memberTotal.breakfast}, দুপুরের মিল ${memberTotal.lunch}, রাতের মিল ${memberTotal.dinner}, মোট ${memberTotal.breakfast + memberTotal.lunch + memberTotal.dinner}</p>` : '<p>সব সদস্য</p>' ;
       printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, `${memberSummary}<table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows}</tbody></table>`);
     } catch (error) { toast.error(error.message || 'রিপোর্ট প্রিন্ট করা যায়নি।'); }
     finally { setPrintBusy(false); }
   };
 
   return (
-    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" description={`${bundle.period.label} — দৈনিক মিলের সারসংক্ষেপ এবং সদস্যভিত্তিক মোট হিসাব।`} />
-      <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{formatDateBangla(bundle.period.start_date)} → {formatDateBangla(bundle.period.end_date)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact" type="button" onClick={download}><Icon name="download" size={15} /> CSV</button><button className="primary-button compact" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> প্রিন্ট / PDF</button></div></section>
-      <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা'},{key:'breakfast',label:'ব্রেকফাস্ট',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'লাঞ্চ',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'ডিনার',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
-      <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'ব্রেকফাস্ট',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'লাঞ্চ',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'ডিনার',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
+    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} — দৈনিক মিলের সারসংক্ষেপ এবং সদস্যভিত্তিক মোট হিসাব।`} />
+      <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{formatDateBangla(bundle.period.start_date)} → {formatDateBangla(bundle.period.end_date)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="primary-button compact" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
+      <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
+      <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
     </div>
   );
 }
@@ -873,6 +893,7 @@ export function ReportsPage() {
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exportBusy, setExportBusy] = useState(false);
+  const [selectedDetailMemberId, setSelectedDetailMemberId] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -884,8 +905,8 @@ export function ReportsPage() {
   useEffect(() => { if (online) load(); }, [online, load]);
 
   if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>রিপোর্ট দেখতে ইন্টারনেট চালু করুন</h2><p>রিপোর্ট অনলাইনেই তৈরি হয়।</p></div></div>;
-  if (loading) return <LoadingSpinner label="রিপোর্ট ডাটা প্রস্তুত হচ্ছে..." />;
-  if (!bundle) return <div className="empty-state-card"><Icon name="download" size={28} /><strong>রিপোর্টের জন্য running month নেই</strong><span>নতুন মাস শুরু হলে রিপোর্ট তৈরি করা যাবে।</span></div>;
+  if (loading) return <LoadingSpinner label="রিপোর্টের তথ্য প্রস্তুত হচ্ছে..." />;
+  if (!bundle) return <div className="empty-state-card"><Icon name="download" size={28} /><strong>রিপোর্টের জন্য কোনো চলমান মাস নেই</strong><span>নতুন মাস শুরু হলে রিপোর্ট তৈরি করা যাবে।</span></div>;
 
   const meals = calculateMealTotals(bundle.mealRows);
   const dailyRows = buildDailyMealRows(bundle.days, bundle.mealRows);
@@ -905,47 +926,69 @@ export function ReportsPage() {
     finally { window.setTimeout(() => setExportBusy(false), 350); }
   };
 
-  const downloadMeal = () => downloadCsv(`${getReportFilename('meals', bundle.period.label)}.csv`, [
+  const openPdf = (title, rows, columns, subtitle = bundle.period.label) => {
+    const head = columns.map((column) => `<th>${escapeReportHtml(column.label)}</th>`).join('');
+    const body = rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeReportHtml(column.value(row))}</td>`).join('')}</tr>`).join('');
+    printReport(title, subtitle, `<table><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${columns.length}">কোনো তথ্য পাওয়া যায়নি</td></tr>`}</tbody></table>`);
+  };
+
+  const downloadMeal = () => openPdf(`মিল রিপোর্ট — ${bundle.period.label}`, bundle.mealRows.filter((r) => r.date), [
     { label:'তারিখ', value:r=>formatDateWithWeekday(r.date) },
     { label:'সদস্য', value:r=>r.memberName },
-    { label:'ব্রেকফাস্ট', value:r=>r.breakfast },
-    { label:'লাঞ্চ', value:r=>r.lunch },
-    { label:'ডিনার', value:r=>r.dinner },
-    { label:'মোট', value:r=>Number(r.breakfast)+Number(r.lunch)+Number(r.dinner) },
-    { label:'ফাইনাল', value:r=>r.finalized?'হ্যাঁ':'না' },
-  ], bundle.mealRows.filter((r)=>r.date));
+    { label:'সকালের মিল', value:r=>r.breakfast },
+    { label:'দুপুরের মিল', value:r=>r.lunch },
+    { label:'রাতের মিল', value:r=>r.dinner },
+    { label:'মোট মিল', value:r=>Number(r.breakfast)+Number(r.lunch)+Number(r.dinner) },
+    { label:'অবস্থা', value:r=>r.finalized?'চূড়ান্ত':'অপেক্ষমাণ' },
+  ], `তারিখ ${formatDateBangla(bundle.period.start_date)} থেকে ${formatDateBangla(bundle.period.end_date)} পর্যন্ত`);
 
-  const downloadMarket = () => downloadCsv(`${getReportFilename('market', bundle.period.label)}.csv`, [
+  const downloadMarket = () => openPdf(`বাজার রিপোর্ট — ${bundle.period.label}`, bundle.marketRows, [
     { label:'তারিখ', value:r=>formatDateWithWeekday(r.entry_date) },
     { label:'বাজারকারী', value:r=>r.buyer_name },
-    { label:'মোট', value:r=>r.total_amount },
-    { label:'অবস্থা', value:r=>r.status === 'void' ? 'বাতিল' : 'active' },
-    { label:'ডিপোজিটে যুক্ত', value:r=>r.credit_to_buyer?'হ্যাঁ':'না' },
-    { label:'আইটেম সংখ্যা', value:r=>Array.isArray(r.items)?r.items.length:0 },
-  ], bundle.marketRows);
+    { label:'মোট মূল্য', value:r=>formatCurrency(r.total_amount) },
+    { label:'অবস্থা', value:r=>r.status === 'void' ? 'বাতিল' : 'সক্রিয়' },
+    { label:'জমায় যুক্ত', value:r=>r.credit_to_buyer?'হ্যাঁ':'না' },
+    { label:'পণ্যের সংখ্যা', value:r=>Array.isArray(r.items)?r.items.length:0 },
+  ]);
 
-  const downloadAccount = () => downloadCsv(`${getReportFilename('account', bundle.period.label)}.csv`, [
-    { label:'এন্ট্রির তারিখ', value:r=>formatDateWithWeekday(r.entry_date || r.created_at) },
+  const downloadAccount = () => openPdf(`হিসাব রিপোর্ট — ${bundle.period.label}`, financialRows, [
+    { label:'তারিখ', value:r=>formatDateWithWeekday(r.entry_date || r.created_at) },
     { label:'সদস্য', value:r=>r.member_name },
-    { label:'ধরন', value:r=>r.transaction_type },
-    { label:'পরিমাণ', value:r=>r.amount },
-    { label:'বিবরণ', value:r=>r.description || '' },
-  ], financialRows);
+    { label:'লেনদেনের ধরন', value:r=>reportTransactionLabel(r.transaction_type) },
+    { label:'পরিমাণ', value:r=>formatCurrency(r.amount) },
+    { label:'বিবরণ', value:r=>r.description || '—' },
+  ]);
 
-  const downloadSettlement = () => downloadCsv(`${getReportFilename('member-settlement', bundle.period.label)}.csv`, [
+  const downloadSettlement = () => openPdf(`সদস্যভিত্তিক হিসাব — ${bundle.period.label}`, members, [
     { label:'সদস্য', value:r=>r.name },
-    { label:'স্ট্যাটাস', value:r=>r.status === 'active' ? 'active' : 'inactive' },
+    { label:'অবস্থা', value:r=>reportStatusLabel(r.status) },
     { label:'মোট মিল', value:r=>r.meals },
-    { label:'ডিপোজিট', value:r=>r.deposit },
-    { label:'মিল খরচ', value:r=>r.mealCost },
-    { label:'অন্যান্য খরচ', value:r=>r.otherExpense },
-    { label:'ব্যালেন্স', value:r=>r.balance },
-  ], members);
+    { label:'মোট জমা', value:r=>formatCurrency(r.deposit) },
+    { label:'মিলের খরচ', value:r=>formatCurrency(r.mealCost) },
+    { label:'অন্যান্য খরচ', value:r=>formatCurrency(r.otherExpense) },
+    { label:'বর্তমান বকেয়া/অবশিষ্ট', value:r=>formatCurrency(r.balance) },
+  ]);
+
+  const selectedDetailMember = bundle.members.find((member) => member.membership_id === selectedDetailMemberId) || null;
+  const selectedDailyMealRows = selectedDetailMemberId
+    ? bundle.mealRows.filter((row) => row.memberId === selectedDetailMemberId && row.date).sort((a, b) => String(a.date).localeCompare(String(b.date)))
+    : [];
+  const downloadMemberDailyMeals = () => {
+    if (!selectedDetailMember) { toast.warning('আগে একজন সদস্য নির্বাচন করুন।'); return; }
+    openPdf(`${selectedDetailMember.member_name} — প্রতিদিনের মিল`, selectedDailyMealRows, [
+      { label:'তারিখ', value:r=>formatDateWithWeekday(r.date) },
+      { label:'অবস্থা', value:r=>r.finalized?'চূড়ান্ত':'অপেক্ষমাণ' },
+      { label:'সকালের মিল', value:r=>r.breakfast },
+      { label:'দুপুরের মিল', value:r=>r.lunch },
+      { label:'রাতের মিল', value:r=>r.dinner },
+      { label:'মোট মিল', value:r=>Number(r.breakfast)+Number(r.lunch)+Number(r.dinner) },
+    ], `${bundle.period.label} · ${selectedDailyMealRows.length} দিনের তথ্য`);
+  };
 
   const printFullReport = (existingWindow = null) => {
-    const memberRows = members.map((row)=>`<tr><td>${row.name}</td><td>${row.meals}</td><td>${formatCurrency(row.deposit)}</td><td>${formatCurrency(row.mealCost)}</td><td>${formatCurrency(row.otherExpense)}</td><td>${formatCurrency(row.balance)}</td></tr>`).join('');
-    const daily = dailyRows.map((row)=>`<tr><td>${formatDateWithWeekday(row.date)}</td><td>${row.status}</td><td>${row.breakfast}</td><td>${row.lunch}</td><td>${row.dinner}</td><td>${row.breakfast+row.lunch+row.dinner}</td></tr>`).join('');
-    const html = `<h2>মাসিক সারসংক্ষেপ</h2><table><tr><th>বিষয়</th><th>পরিমাণ</th></tr><tr><td>মোট মিল</td><td>${meals.total}</td></tr><tr><td>সক্রিয় বাজার</td><td>${formatCurrency(totalMarket)}</td></tr><tr><td>বাজার থেকে জমায় যুক্ত</td><td>${formatCurrency(marketDeposit)}</td></tr><tr><td>মোট ইনফ্লো</td><td>${formatCurrency(finances.inflow)}</td></tr><tr><td>মোট আউটফ্লো</td><td>${formatCurrency(finances.outflow)}</td></tr><tr><td>নেট</td><td>${formatCurrency(finances.net)}</td></tr><tr><td>মিল রেট</td><td>৳${formatNumber(bundle.period && meals.total > 0 ? totalMarket / meals.total : 0, { maximumFractionDigits: 4 })}</td></tr></table><br/><h2>সদস্যভিত্তিক settlement</h2><table><thead><tr><th>সদস্য</th><th>মিল</th><th>ডিপোজিট</th><th>মিল খরচ</th><th>অন্যান্য খরচ</th><th>ব্যালেন্স</th></tr></thead><tbody>${memberRows}</tbody></table><br/><h2>দৈনিক মিল</h2><table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${daily}</tbody></table>`;
+    const memberRows = members.map((row)=>`<tr><td>${escapeReportHtml(row.name)}</td><td>${row.meals}</td><td>${formatCurrency(row.deposit)}</td><td>${formatCurrency(row.mealCost)}</td><td>${formatCurrency(row.otherExpense)}</td><td>${formatCurrency(row.balance)}</td></tr>`).join('');
+    const daily = dailyRows.map((row)=>`<tr><td>${escapeReportHtml(formatDateWithWeekday(row.date))}</td><td>${reportStatusLabel(row.status)}</td><td>${row.breakfast}</td><td>${row.lunch}</td><td>${row.dinner}</td><td>${row.breakfast+row.lunch+row.dinner}</td></tr>`).join('');
+    const html = `<h2>মাসিক সারসংক্ষেপ</h2><table><tr><th>বিষয়</th><th>পরিমাণ</th></tr><tr><td>মোট মিল</td><td>${meals.total}</td></tr><tr><td>কার্যকর বাজারের মোট</td><td>${formatCurrency(totalMarket)}</td></tr><tr><td>বাজার থেকে জমায় যোগ</td><td>${formatCurrency(marketDeposit)}</td></tr><tr><td>মোট জমা</td><td>${formatCurrency(finances.inflow)}</td></tr><tr><td>মোট খরচ</td><td>${formatCurrency(finances.outflow)}</td></tr><tr><td>জমা ও খরচের পার্থক্য</td><td>${formatCurrency(finances.net)}</td></tr><tr><td>প্রতি মিলের খরচ</td><td>৳${formatNumber(bundle.period && meals.total > 0 ? totalMarket / meals.total : 0, { maximumFractionDigits: 4 })}</td></tr></table><br/><h2>সদস্যভিত্তিক হিসাব</h2><table><thead><tr><th>সদস্য</th><th>মিল</th><th>মোট জমা</th><th>মিলের খরচ</th><th>অন্যান্য খরচ</th><th>বকেয়া/অবশিষ্ট</th></tr></thead><tbody>${memberRows}</tbody></table><br/><h2>দৈনিক মিল</h2><table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>সকালের মিল</th><th>দুপুরের মিল</th><th>রাতের মিল</th><th>মোট</th></tr></thead><tbody>${daily}</tbody></table>`;
     printReport(`Hostel Life — ${bundle.period.label} পূর্ণ রিপোর্ট`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, html, existingWindow);
   };
 
@@ -963,26 +1006,27 @@ export function ReportsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" description="বর্তমান মাসের মিল, বাজার, হিসাব ও সদস্যভিত্তিক settlement এক জায়গা থেকে CSV বা PDF হিসেবে নিন।" />
+      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" eyebrow="রিপোর্ট" description="বর্তমান মাসের মিল, বাজার, হিসাব ও সদস্যভিত্তিক প্রতিবেদন এক জায়গা থেকে PDF হিসেবে সংরক্ষণ করুন।" />
       <section className="report-kpi-grid">
         <div className="card report-kpi"><span>মোট মিল</span><strong>{formatNumber(meals.total)}</strong><small>ব্রেকফাস্ট {formatNumber(meals.breakfast)} · লাঞ্চ {formatNumber(meals.lunch)} · ডিনার {formatNumber(meals.dinner)}</small></div>
-        <div className="card report-kpi"><span>সক্রিয় বাজার</span><strong>{formatCurrency(totalMarket)}</strong><small>{formatNumber(activeMarkets.length)}টি active · {formatNumber(voidMarkets.length)}টি বাতিল</small></div>
-        <div className="card report-kpi"><span>মোট ইনফ্লো</span><strong>{formatCurrency(finances.inflow)}</strong><small>ডিপোজিট + adjustment</small></div>
-        <div className="card report-kpi"><span>মোট আউটফ্লো</span><strong>{formatCurrency(finances.outflow)}</strong><small>খরচ + negative adjustment</small></div>
+        <div className="card report-kpi"><span>সক্রিয় বাজার</span><strong>{formatCurrency(totalMarket)}</strong><small>{formatNumber(activeMarkets.length)}টি কার্যকর · {formatNumber(voidMarkets.length)}টি বাতিল</small></div>
+        <div className="card report-kpi"><span>মোট জমা</span><strong>{formatCurrency(finances.inflow)}</strong><small>জমা ও সংশোধনী যোগফল</small></div>
+        <div className="card report-kpi"><span>মোট খরচ</span><strong>{formatCurrency(finances.outflow)}</strong><small>খরচ ও বিয়োগ সমন্বয়</small></div>
       </section>
       <section className="card report-health-card">
-        <div><span className="eyebrow">হিসাবের অবস্থা</span><h2>মাসিক settlement overview</h2><p>{members.length} জন সদস্য · {negativeBalances.length} জনের due · {positiveBalances.length} জনের refund/credit।</p></div>
-        <div className="report-health-metrics"><div><span>Net</span><strong>{formatCurrency(finances.net)}</strong></div><div><span>Market deposit</span><strong>{formatCurrency(marketDeposit)}</strong></div><div><span>Finalized rows</span><strong>{formatNumber(meals.finalizedRows)}</strong></div><div><span>Pending rows</span><strong>{formatNumber(meals.pendingRows)}</strong></div></div>
+        <div><span className="eyebrow">হিসাবের অবস্থা</span><h2>মাসিক হিসাবের সারসংক্ষেপ</h2><p>{members.length} জন সদস্য · {negativeBalances.length} জনের বকেয়া · {positiveBalances.length} জনের অতিরিক্ত জমা।</p></div>
+        <div className="report-health-metrics"><div><span>জমা ও খরচের পার্থক্য</span><strong>{formatCurrency(finances.net)}</strong></div><div><span>বাজার থেকে জমায় যোগ</span><strong>{formatCurrency(marketDeposit)}</strong></div><div><span>চূড়ান্ত মিলের সারি</span><strong>{formatNumber(meals.finalizedRows)}</strong></div><div><span>অপেক্ষমাণ মিলের সারি</span><strong>{formatNumber(meals.pendingRows)}</strong></div></div>
       </section>
       <div className="report-download-grid">
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadMeal)} disabled={exportBusy}><span className="report-option-icon"><Icon name="dining" size={21} /></span><strong>মিল রিপোর্ট</strong><small>প্রতিটি সদস্যের প্রতিদিনের মিল</small><b>CSV</b></button>
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadMarket)} disabled={exportBusy}><span className="report-option-icon"><Icon name="shopping-bag" size={21} /></span><strong>বাজার রিপোর্ট</strong><small>active ও বাতিল entry-সহ</small><b>CSV</b></button>
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadAccount)} disabled={exportBusy}><span className="report-option-icon"><Icon name="wallet" size={21} /></span><strong>হিসাব রিপোর্ট</strong><small>ডিপোজিট, খরচ, খালা ও adjustment</small><b>CSV</b></button>
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadSettlement)} disabled={exportBusy}><span className="report-option-icon"><Icon name="users" size={21} /></span><strong>সদস্য settlement</strong><small>মিল, খরচ ও ব্যালেন্স</small><b>CSV</b></button>
-        <button className="card report-option" type="button" onClick={startPdfExport} disabled={exportBusy}><span className="report-option-icon"><Icon name="file-text" size={21} /></span><strong>পূর্ণ মাসিক রিপোর্ট</strong><small>সারসংক্ষেপ + settlement + daily meal</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={()=>runExport(downloadMeal)} disabled={exportBusy}><span className="report-option-icon"><Icon name="dining" size={21} /></span><strong>মিল প্রতিবেদন</strong><small>সদস্যভিত্তিক দৈনিক মিল</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={()=>runExport(downloadMarket)} disabled={exportBusy}><span className="report-option-icon"><Icon name="shopping-bag" size={21} /></span><strong>বাজার প্রতিবেদন</strong><small>কার্যকর ও বাতিল বাজারসহ</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={()=>runExport(downloadAccount)} disabled={exportBusy}><span className="report-option-icon"><Icon name="wallet" size={21} /></span><strong>হিসাব প্রতিবেদন</strong><small>জমা, খরচ, খালার টাকা ও সংশোধনী</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={()=>runExport(downloadSettlement)} disabled={exportBusy}><span className="report-option-icon"><Icon name="users" size={21} /></span><strong>সদস্যভিত্তিক হিসাব</strong><small>মিল, খরচ ও বকেয়া/অবশিষ্ট</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={startPdfExport} disabled={exportBusy}><span className="report-option-icon"><Icon name="file-text" size={21} /></span><strong>পূর্ণ মাসিক প্রতিবেদন</strong><small>সারসংক্ষেপ, সদস্যভিত্তিক হিসাব ও দৈনিক মিল</small><b>PDF</b></button>
       </div>
-      <section className="card report-section-card"><div className="section-heading"><div><h2>সদস্য settlement</h2><small>বর্তমান month-এর server-calculated meal cost ও balance</small></div><span>{formatNumber(members.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'meals',label:'মিল',render:(r)=>formatNumber(r.meals)},{key:'deposit',label:'জমা',render:(r)=>formatCurrency(r.deposit)},{key:'mealCost',label:'মিল খরচ',render:(r)=>formatCurrency(r.mealCost)},{key:'otherExpense',label:'অন্যান্য',render:(r)=>formatCurrency(r.otherExpense)},{key:'balance',label:'ব্যালেন্স',render:(r)=>formatCurrency(r.balance)}]} rows={members} /></section>
-      <section className="card report-section-card"><div className="section-heading"><div><h2>দৈনিক মিল</h2><small>final থাকলে final value, না থাকলে actual/planned fallback</small></div><span>{formatNumber(dailyRows.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা'},{key:'breakfast',label:'ব্রেকফাস্ট',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'লাঞ্চ',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'ডিনার',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={dailyRows} /></section>
+      <section className="card report-section-card member-daily-report-card"><div className="section-heading"><div><h2>একজন সদস্যের প্রতিদিনের মিল</h2><small>সদস্য ও দিনভিত্তিক মিলের বিস্তারিত দেখুন এবং PDF সংরক্ষণ করুন।</small></div><div className="member-daily-report-actions"><label className="field-label"><span>সদস্য নির্বাচন</span><select value={selectedDetailMemberId} onChange={(event) => setSelectedDetailMemberId(event.target.value)}><option value="">একজন সদস্য বেছে নিন</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact" type="button" disabled={!selectedDetailMember || !selectedDailyMealRows.length} onClick={downloadMemberDailyMeals}><Icon name="file-text" size={15}/> PDF সংরক্ষণ</button></div></div>{selectedDetailMember ? <Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'finalized',label:'অবস্থা',render:(r)=>r.finalized?'চূড়ান্ত':'অপেক্ষমাণ'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট মিল',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={selectedDailyMealRows.map((row,index)=>({...row,key:`${row.date}-${index}`}))}/> : <div className="empty-state-card compact-empty"><Icon name="user" size={22}/><span>বিস্তারিত দেখতে তালিকা থেকে একজন সদস্য নির্বাচন করুন।</span></div>}</section>
+      <section className="card report-section-card"><div className="section-heading"><div><h2>সদস্যভিত্তিক মাসিক হিসাব</h2><small>বর্তমান মাসের মিলের খরচ, জমা ও বকেয়া/অবশিষ্টের হিসাব</small></div><span>{formatNumber(members.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'meals',label:'মিল',render:(r)=>formatNumber(r.meals)},{key:'deposit',label:'জমা',render:(r)=>formatCurrency(r.deposit)},{key:'mealCost',label:'মিল খরচ',render:(r)=>formatCurrency(r.mealCost)},{key:'otherExpense',label:'অন্যান্য',render:(r)=>formatCurrency(r.otherExpense)},{key:'balance',label:'বকেয়া/অবশিষ্ট',render:(r)=>formatCurrency(r.balance)}]} rows={members} /></section>
+      <section className="card report-section-card"><div className="section-heading"><div><h2>দৈনিক মিল</h2><small>চূড়ান্ত হিসাব থাকলে সেটি, না হলে নির্ধারিত বা বাস্তব হিসাব</small></div><span>{formatNumber(dailyRows.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={dailyRows} /></section>
     </div>
   );
 }

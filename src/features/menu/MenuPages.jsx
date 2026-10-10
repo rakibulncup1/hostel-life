@@ -6,6 +6,8 @@ import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useToast } from '../../components/Toast';
 import { navigateTo } from '../../app/AppShell';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
+import { fetchMemberPeriodDetails } from '../../services/dashboardService';
+import { MemberPeriodDetailsModal } from '../dashboard/DashboardPage';
 import { fetchArchivedMonthDetail, fetchKhalaMoneyHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
 import { managerSendNotification } from '../../services/notificationService';
 import { fetchTopEaters, fetchTopShoppers } from '../../services/rankingService';
@@ -15,7 +17,7 @@ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 
 function PageHeader({ eyebrow = 'হোস্টেল লাইফ', title, description, back = true }) {
   return (
-    <div className="page-title-row menu-page-title">
+    <div className="page-title-row menu-page-title card menu-page-intro-card">
       <div className="menu-page-title-copy">
         {back && <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15} /> ফিরে যান</button>}
         <span className="eyebrow">{eyebrow}</span>
@@ -36,7 +38,12 @@ export function AllMembersPage() {
   const { membership } = useAuth();
   const [members, setMembers] = useState([]);
   const [hasRunningPeriod, setHasRunningPeriod] = useState(true);
+  const [runningPeriodId, setRunningPeriodId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [memberDetail, setMemberDetail] = useState(null);
+  const [memberDetailLoading, setMemberDetailLoading] = useState(false);
+  const [requestedMemberId] = useState(() => new URLSearchParams(window.location.search).get('member_id') || '');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,7 +51,11 @@ export function AllMembersPage() {
       const [directoryResult, periodResult] = await Promise.allSettled([fetchMemberDirectory(), fetchRunningPeriod()]);
       if (directoryResult.status === 'rejected') throw directoryResult.reason;
       setMembers(Array.isArray(directoryResult.value) ? directoryResult.value : []);
-      if (periodResult.status === 'fulfilled') setHasRunningPeriod(Boolean(periodResult.value?.period_id || periodResult.value?.id));
+      if (periodResult.status === 'fulfilled') {
+        const period = periodResult.value;
+        setHasRunningPeriod(Boolean(period?.period_id || period?.id));
+        setRunningPeriodId(period?.period_id || period?.id || null);
+      }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।'));
     } finally {
@@ -74,6 +85,22 @@ export function AllMembersPage() {
     onRefresh: () => load(),
   });
 
+  useEffect(() => {
+    if (loading || !requestedMemberId || !members.length) return;
+    const target = members.find((member) => member.membership_id === requestedMemberId);
+    if (!target) return;
+    window.setTimeout(() => document.getElementById(`member-card-${requestedMemberId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120);
+  }, [loading, members, requestedMemberId]);
+
+  const openMemberDetails = async (memberId) => {
+    setSelectedMemberId(memberId);
+    setMemberDetail(null);
+    setMemberDetailLoading(true);
+    try { setMemberDetail(await fetchMemberPeriodDetails(memberId, runningPeriodId)); }
+    catch (error) { toast.error(getFriendlySupabaseError(error, 'সদস্যের বিস্তারিত হিসাব লোড করা যায়নি।')); }
+    finally { setMemberDetailLoading(false); }
+  };
+
   return (
     <div className="page-stack">
       <PageHeader eyebrow="মেসের সবাই" title="সকল সদস্য" description="সদস্যের পরিচয় ও বর্তমান হিসাব দেখুন।" />
@@ -83,11 +110,11 @@ export function AllMembersPage() {
       ) : (
         <div className="menu-member-grid">
           {members.map((member) => (
-            <article className={`card all-member-card ${member.member_status === 'inactive' ? 'member-inactive-card' : ''}`} key={member.membership_id}>
+            <article id={`member-card-${member.membership_id}`} className={`card all-member-card ${requestedMemberId === member.membership_id ? 'requested-member-card' : ''} ${member.member_status === 'inactive' ? 'member-inactive-card' : ''}`} key={member.membership_id}>
               <div className="all-member-head">
                 <Avatar member={member} />
                 <div className="all-member-copy">
-                  <strong>{member.member_name}</strong>
+                  <button type="button" className="member-name-detail-trigger" onClick={() => openMemberDetails(member.membership_id)}>{member.member_name}</button>
                   <div className="member-badge-row">
                     <span className={`member-badge ${member.member_status === 'active' ? 'active' : 'inactive'}`}>{member.member_status === 'active' ? 'সক্রিয় সদস্য' : 'নিষ্ক্রিয়'}</span>
                     <span className="member-badge subtle">{hasRunningPeriod ? (member.meal_activity || 'এই মাসে মিল নেই') : 'এখনো মাস শুরু হয়নি'}</span>
@@ -97,7 +124,7 @@ export function AllMembersPage() {
                 </div>
               </div>
               <div className="member-stats-grid">
-                <div><span>ডিপোজিট</span><strong>{formatCurrency(hasRunningPeriod ? member.deposit : 0)}</strong></div>
+                <div><span>জমা</span><strong>{formatCurrency(hasRunningPeriod ? member.deposit : 0)}</strong></div>
                 <div><span>মোট মিল</span><strong>{formatNumber(hasRunningPeriod ? member.final_meals : 0)}</strong></div>
                 <div><span>মিল খরচ</span><strong>{formatCurrency(hasRunningPeriod ? member.meal_cost : 0)}</strong></div>
                 <div><span>অন্যান্য খরচ</span><strong>{formatCurrency(hasRunningPeriod ? member.other_expense : 0)}</strong></div>
@@ -110,6 +137,7 @@ export function AllMembersPage() {
           ))}
         </div>
       )}
+      {selectedMemberId && <MemberPeriodDetailsModal detail={memberDetail} loading={memberDetailLoading} memberName={members.find((item) => item.membership_id === selectedMemberId)?.member_name || 'সদস্য'} onClose={() => { setSelectedMemberId(''); setMemberDetail(null); }} />}
     </div>
   );
 }
@@ -317,7 +345,7 @@ export function DeveloperInfoPage() {
       <section className="card developer-card">
         <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>
         <div className="developer-name">RAKIBUL ISLAM SAMRAT</div>
-        <div className="developer-subtitle">Student Of Mymensingh Government Polytechnic Institute</div>
+        <div className="developer-subtitle">ময়মনসিংহ সরকারি পলিটেকনিক ইনস্টিটিউটের শিক্ষার্থী</div>
         <div className="developer-contact-list">
           <a className="developer-contact" href="mailto:support.sec1.info@gmail.com">
             <span className="developer-contact-icon"><Icon name="mail" size={18} /></span>
@@ -329,10 +357,43 @@ export function DeveloperInfoPage() {
             <span><small>হোয়াটসঅ্যাপ</small><strong>01965787790</strong></span>
             <Icon name="external-link" size={16} />
           </a>
+          <a className="developer-contact" href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noreferrer">
+            <span className="developer-contact-icon"><Icon name="external-link" size={18} /></span>
+            <span><small>পোর্টফোলিও</small><strong>rakibul-sec1.vercel.app</strong></span>
+            <Icon name="external-link" size={16} />
+          </a>
         </div>
       </section>
     </div>
   );
+}
+
+export function PrivacyPolicyPage() {
+  return <div className="page-stack"><PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা ও নীতিমালা" description="Hostel Life-এ তথ্য ব্যবহারের প্রাথমিক ধারণা। পূর্ণ নীতিমালা পরবর্তী সংস্করণে বিস্তারিত করা হবে।" />
+    <section className="card policy-content-card"><div className="policy-note"><Icon name="info" size={18}/><span>এটি প্রাথমিক নমুনা লেখা—প্রকাশের আগে চূড়ান্ত নীতিমালা যাচাই করে হালনাগাদ করতে হবে।</span></div>
+      <h2>কোন তথ্য ব্যবহৃত হয়</h2><p>অ্যাপটি মেসের সদস্যপরিচয়, মিলের রেকর্ড, জমা, বাজার, খরচ ও সংশ্লিষ্ট হিসাব পরিচালনার জন্য প্রয়োজনীয় তথ্য ব্যবহার করে।</p>
+      <h2>তথ্যের গোপনীয়তা</h2><p>ব্যবহারকারীর অ্যাক্সেস অ্যাপের অনুমতি ও মেসের ব্যবস্থাপনা-নিয়মের মধ্যে সীমাবদ্ধ থাকা উচিত। লগইন তথ্য, পাসওয়ার্ড বা ব্যক্তিগত অ্যাক্সেস লিংক অন্যের সঙ্গে ভাগ করবেন না।</p>
+      <h2>সঠিক তথ্য ও সহায়তা</h2><p>কোনো হিসাব ভুল মনে হলে অনুমোদিত ম্যানেজারকে জানান। চূড়ান্ত নীতিমালায় তথ্য সংরক্ষণ, মুছে ফেলা ও যোগাযোগের পদ্ধতি পরে স্পষ্ট করা হবে।</p>
+    </section></div>;
+}
+
+export function TermsPage() {
+  return <div className="page-stack"><PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="অ্যাপ ব্যবহারের প্রাথমিক নিয়মের নমুনা। বিস্তারিত শর্তাবলী পরে চূড়ান্ত করা হবে।" />
+    <section className="card policy-content-card"><div className="policy-note"><Icon name="info" size={18}/><span>এটি ডেমো কনটেন্ট; চূড়ান্ত ব্যবহারের আগে আপনার প্রয়োজন অনুযায়ী সম্পাদনা করতে হবে।</span></div>
+      <h2>সঠিকভাবে ব্যবহার</h2><p>মিল, বাজার, জমা ও খরচের তথ্য যথাসম্ভব সঠিকভাবে দিন। ভুল তথ্য ধরা পড়লে অনুমোদিত সংশোধনের প্রক্রিয়া অনুসরণ করুন।</p>
+      <h2>অনুমতি ও দায়িত্ব</h2><p>কোনো কাজ কেবল নিজের অ্যাকাউন্টের অনুমতি অনুযায়ী করবেন। অনুমোদন-প্রয়োজনীয় অনুরোধ ম্যানেজারের পর্যালোচনা ছাড়া চূড়ান্ত বলে গণ্য হবে না।</p>
+      <h2>হিসাব যাচাই</h2><p>অ্যাপে প্রদর্শিত হিসাব নিয়ে প্রশ্ন থাকলে সংশ্লিষ্ট রেকর্ড ও তারিখসহ ম্যানেজারকে জানান। এই পৃষ্ঠাটি পূর্ণ চুক্তির বিকল্প নয়।</p>
+    </section></div>;
+}
+
+export function HowToUsePage() {
+  return <div className="page-stack"><PageHeader eyebrow="সহায়তা" title="কীভাবে ব্যবহার করব" description="Hostel Life-এর সাধারণ কাজগুলো করার সংক্ষিপ্ত নির্দেশিকা।" />
+    <section className="card policy-content-card"><div className="policy-step"><span>১</span><div><h2>ড্যাশবোর্ড</h2><p>আজকের ও পরবর্তী দিনের মিল, সদস্যদের সারসংক্ষেপ এবং প্রযোজ্য অনুমোদিত লেট রিকোয়েস্ট দেখুন।</p></div></div>
+      <div className="policy-step"><span>২</span><div><h2>ডাইনিং</h2><p>নিজের মিলের অনুরোধ দিন, অনুরোধের ইতিহাস দেখুন এবং অনুমোদিত কাজের মধ্যে বাজার বা অন্যান্য এন্ট্রি পরিচালনা করুন।</p></div></div>
+      <div className="policy-step"><span>৩</span><div><h2>হিস্টরি</h2><p>বাজার ইতিহাস, জমা-খরচের লেনদেন এবং আগের মাসের তথ্য দেখুন। অনুমতি থাকলেই কেবল লেনদেন সম্পাদনা করা যাবে।</p></div></div>
+      <div className="policy-step"><span>৪</span><div><h2>রিপোর্ট ও মিল শিট</h2><p>প্রয়োজনীয় মাস বা সদস্য বেছে রিপোর্ট তৈরি করুন। PDF সংরক্ষণের জন্য প্রিন্ট উইন্ডোতে “Save as PDF / PDF হিসেবে সংরক্ষণ” নির্বাচন করুন।</p></div></div>
+      <div className="policy-note"><Icon name="info" size={18}/><span>অ্যাপের কিছু নির্দেশনা বর্তমানে সংক্ষিপ্ত নমুনা হিসেবে আছে; পরবর্তী পর্যায়ে আরও বিস্তারিত করা হবে।</span></div>
+    </section></div>;
 }
 
 export function SendNotificationPage() {

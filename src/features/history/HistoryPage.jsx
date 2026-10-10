@@ -163,15 +163,16 @@ export function HistoryPage() {
     finally { setDetailLoading(false); }
   };
 
-  if (!isOnline) return <div className="state-card state-card-warning"><Icon name="offline" size={28} /><div><h2>হিস্টরি দেখতে ইন্টারনেট চালু করুন</h2><p>হিস্টরি offline-এ রাখা হয় না।</p></div></div>;
+  if (!isOnline) return <div className="state-card state-card-warning"><Icon name="offline" size={28} /><div><h2>ইতিহাস দেখতে ইন্টারনেট চালু করুন</h2><p>ইতিহাস অফলাইনে সংরক্ষণ করা হয় না।</p></div></div>;
 
   return (
     <div className="page-stack">
       <div className="page-title-row history-title-row">
-        <div>
+        <div className="history-page-intro-copy">
           <span className="eyebrow">স্বচ্ছ হিসাব</span>
           <h1>হিস্টরি</h1>
           <p>বাজার, হিসাব এবং আগের মাসের সংরক্ষিত তথ্য এক জায়গায়।</p>
+          <div className="history-intro-info"><Icon name="info" size={17}/><span>বাজারের হিসাব, জমা-খরচের লেনদেন ও আগের মাসের সংরক্ষিত তথ্য এখানে একসঙ্গে পাবেন। বিস্তারিত দেখতে যেকোনো লেনদেনে চাপ দিন। সম্পাদনার সুবিধা শুধু অনুমোদিত ম্যানেজারের জন্য।</span></div>
         </div>
         <div className="history-title-actions"><button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>{tab !== 'months' && <button className="secondary-button compact" type="button" onClick={exportCurrentTab} disabled={loading || exportBusy || !accountGrouped.length && tab === 'account' || !visibleMarketRows.length && tab === 'market'}><Icon name="download" size={15} /> PDF / প্রিন্ট</button>}</div>
       </div>
@@ -190,7 +191,7 @@ export function HistoryPage() {
 
       {tab === 'account' && (
         <div className="card history-filter-card account-history-filter-card">
-          <div><strong>হিসাব ইতিহাসের পরিসর</strong><small>{canEditVisibleRows ? 'সব সদস্য অথবা নির্দিষ্ট সদস্যের হিসাব দেখুন।' : 'প্রথমে কার হিসাব দেখতে চান নির্বাচন করুন; এরপর নিচের ডিপোজিট/বাজার/খরচ ফিল্টারও ব্যবহার করতে পারবেন।'}</small></div>
+          <div><strong>হিসাব ইতিহাসের পরিসর</strong><small>{canEditVisibleRows ? 'সব সদস্য অথবা নির্দিষ্ট সদস্যের হিসাব দেখুন।' : 'সবার হিসাব অথবা শুধু নিজের হিসাব বেছে নিন। এরপর জমা, বাজার ও খরচের ধরন দিয়েও তালিকা ছেঁকে নিতে পারবেন।'}</small></div>
           <div className="account-history-scope-controls" role="group" aria-label="কার হিসাব দেখাবেন">
             {!isManager && !selectedArchivePeriodId && <>
               <button type="button" className={`secondary-button compact ${accountScope === 'all' ? 'active' : ''}`} aria-pressed={accountScope === 'all'} onClick={() => setAccountScope('all')}>সবার হিসাব</button>
@@ -208,7 +209,7 @@ export function HistoryPage() {
       {loading ? <LoadingSpinner label="হিস্টরি লোড হচ্ছে..." /> : tab === 'market' ? (
         <><section className="card history-filter-card market-history-filters"><div><strong>বাজার ফিল্টার</strong><small>{visibleMarketRows.length}টি এন্ট্রি · সক্রিয় বাজারের মোট {formatCurrency(marketTotal)}</small></div><div className="history-filter-controls"><select value={marketMemberFilter} onChange={(event)=>setMarketMemberFilter(event.target.value)} aria-label="বাজারকারী সদস্য ফিল্টার"><option value="">সব বাজারকারী</option>{members.map((member)=><option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select><label className="field-label compact-field"><span>শুরু</span><input type="date" value={marketDateFrom} max={marketDateTo || undefined} onChange={(event)=>setMarketDateFrom(event.target.value)}/></label><label className="field-label compact-field"><span>শেষ</span><input type="date" value={marketDateTo} min={marketDateFrom || undefined} onChange={(event)=>setMarketDateTo(event.target.value)}/></label><button type="button" className="secondary-button compact" onClick={()=>{setMarketMemberFilter('');setMarketDateFrom('');setMarketDateTo('');}}>রিসেট</button></div></section><MarketHistoryList rows={visibleMarketRows} serialById={marketSerialById} onOpen={openMarket} /></>
       ) : tab === 'account' ? (
-        <AccountHistoryList rows={accountGrouped} isManager={canEditVisibleRows} onOpenDetail={(row) => setTransactionDetail(row)} />
+        <AccountHistoryList rows={accountGrouped} canEdit={Boolean(canEditVisibleRows)} onOpenDetail={(row) => setTransactionDetail(row)} />
       ) : (
         <PreviousMonthList rows={periods} onOpen={openMonth} />
       )}
@@ -240,18 +241,18 @@ function AccountSummary({ rows, selectedType = 'all', onSelect }) {
   const amountFor = (type) => (rows || []).filter((row) => (row.transaction_type_raw || row.transaction_type) === type)
     .reduce((sum, row) => sum + Math.abs(Number(row.amount || 0)), 0);
   const cards = [
-    { key: 'deposit', label: 'ডিপোজিট', description: 'সদস্যের জমা', value: amountFor('deposit'), tone: 'positive' },
-    { key: 'market_deposit', label: 'বাজার ডিপোজিট', description: 'বাজার-সম্পর্কিত জমা', value: amountFor('market_deposit'), tone: 'market' },
+    { key: 'deposit', label: 'জমা', description: 'সদস্যের জমা', value: amountFor('deposit'), tone: 'positive' },
+    { key: 'market_deposit', label: 'বাজার বাবদ জমা', description: 'বাজার-সম্পর্কিত জমা', value: amountFor('market_deposit'), tone: 'market' },
     { key: 'other_expense', label: 'অন্যান্য খরচ', description: 'অন্যান্য খরচের হিসাব', value: amountFor('other_expense'), tone: 'negative' },
   ];
   return <section className="account-summary-grid account-summary-filter-grid" aria-label="লেনদেন অনুযায়ী হিসাব ফিল্টার">{cards.map((card)=><button key={card.key} type="button" aria-pressed={selectedType===card.key} className={`card account-summary-card ${card.tone} ${selectedType===card.key?'is-selected':''}`} onClick={()=>onSelect?.(selectedType===card.key?'all':card.key)}><span>{card.label}</span><strong>{formatCurrency(card.value)}</strong><small>{card.description} · চাপলে তালিকা ফিল্টার হবে</small></button>)}</section>;
 }
 
-function AccountHistoryList({ rows, isManager = false, onOpenDetail }) {
-  if (!rows.length) return <EmptyHistory icon="wallet" title="কোনো হিসাব ইতিহাস নেই" text="এই সময়ে কোনো হিসাবের transaction পাওয়া যায়নি।" />;
+function AccountHistoryList({ rows, canEdit = false, onOpenDetail }) {
+  if (!rows.length) return <EmptyHistory icon="wallet" title="কোনো হিসাব ইতিহাস নেই" text="এই সময়ে কোনো হিসাবের লেনদেন পাওয়া যায়নি।" />;
   return <div className="history-list">{rows.map((row) => {
     const positive = ledgerRowIsPositive(row);
-    const canOpen = Boolean(isManager && onOpenDetail);
+    const canOpen = Boolean(onOpenDetail);
     const openDetail = canOpen ? () => onOpenDetail(row) : undefined;
     return <article
       className={`card account-history-row manager-history-row ${canOpen ? 'account-history-row-editable' : ''}`}
@@ -301,7 +302,7 @@ function TransactionDetailModal({ row, canEdit = false, onClose, onEdit }) {
 
 function PreviousMonthList({ rows, onOpen }) {
   if (!rows.length) return <EmptyHistory icon="history" title="কোনো পূর্ববর্তী মাস নেই" text="মেসে এখনো archive করা মাস পাওয়া যায়নি।" />;
-  return <div className="archive-month-list">{rows.map((row) => <button className={`card archive-month-card ${row.detail_available ? 'detail-month' : 'summary-month'}`} type="button" key={row.period_id} onClick={() => onOpen(row)}><div className="archive-month-icon"><Icon name={row.detail_available ? 'file-text' : 'history'} size={20} /></div><div className="archive-month-copy"><strong>{row.label}</strong><small>{formatDateBangla(row.start_date)} → {formatDateBangla(row.end_date)}</small><span>{row.detail_available ? 'সম্পূর্ণ বিস্তারিত ডাটা' : 'শুধু সারসংক্ষেপ'}</span></div><Icon name="chevron" size={18} /></button>)}</div>;
+  return <div className="archive-month-list">{rows.map((row) => <button className={`card archive-month-card ${row.detail_available ? 'detail-month' : 'summary-month'}`} type="button" key={row.period_id} onClick={() => onOpen(row)}><div className="archive-month-icon"><Icon name={row.detail_available ? 'file-text' : 'history'} size={20} /></div><div className="archive-month-copy"><strong>{row.label}</strong><small>{formatDateBangla(row.start_date)} → {formatDateBangla(row.end_date)}</small><span>{row.detail_available ? 'সম্পূর্ণ বিস্তারিত তথ্য' : 'শুধু সারসংক্ষেপ'}</span></div><Icon name="chevron" size={18} /></button>)}</div>;
 }
 
 function EmptyHistory({ icon, title, text }) {
@@ -332,7 +333,7 @@ function TransactionEditModal({ row, busy, onClose, onSaved, onBusy }) {
     catch (error) { toast.error(getFriendlySupabaseError(error, 'হিসাব সংশোধন করা যায়নি।')); }
     finally { onBusy(false); }
   };
-  return <div className="modal-backdrop"><div className="modal-panel card confirmation-modal"><div className="modal-head"><div><span className="eyebrow">ম্যানেজার সংশোধন</span><h2>{row.transaction_type}</h2></div><button className="icon-button" type="button" onClick={onClose} disabled={busy}><Icon name="x" size={19} /></button></div><p className="confirm-description">{row.member_name}-এর এই transaction সরাসরি মুছে না দিয়ে adjustment তৈরি হবে।</p><label className="field-label"><span>নতুন পরিমাণ</span><input type="number" min={row.transaction_type === 'অন্যান্য খরচ' ? '0.01' : '0'} step="0.01" value={amount} onChange={(e)=>setAmount(e.target.value)} /></label><label className="field-label"><span>বিবরণ</span><input value={description} onChange={(e)=>setDescription(e.target.value)} /></label><div className="confirm-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>বাতিল</button><button className="primary-button" type="button" onClick={save} disabled={busy}>সংশোধন সংরক্ষণ</button></div></div></div>;
+  return <div className="modal-backdrop"><div className="modal-panel card confirmation-modal"><div className="modal-head"><div><span className="eyebrow">ম্যানেজার সংশোধন</span><h2>{row.transaction_type}</h2></div><button className="icon-button" type="button" onClick={onClose} disabled={busy}><Icon name="x" size={19} /></button></div><p className="confirm-description">{row.member_name}-এর এই লেনদেন সরাসরি মুছে না দিয়ে হিসাব সমন্বয়ের রেকর্ড তৈরি হবে।</p><label className="field-label"><span>নতুন পরিমাণ</span><input type="number" min={row.transaction_type === 'অন্যান্য খরচ' ? '0.01' : '0'} step="0.01" value={amount} onChange={(e)=>setAmount(e.target.value)} /></label><label className="field-label"><span>বিবরণ</span><input value={description} onChange={(e)=>setDescription(e.target.value)} /></label><div className="confirm-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>বাতিল</button><button className="primary-button" type="button" onClick={save} disabled={busy}>সংশোধন সংরক্ষণ</button></div></div></div>;
 }
 
 function MarketEditModal({ detail, members, busy, onClose, onSaved, onBusy }) {
@@ -355,7 +356,7 @@ function MarketEditModal({ detail, members, busy, onClose, onSaved, onBusy }) {
     catch(error){toast.error(getFriendlySupabaseError(error,'বাজার এন্ট্রি আপডেট করা যায়নি।'));}
     finally{onBusy(false);}
   };
-  return <div className="modal-backdrop"><div className="modal-panel card large-modal"><div className="modal-head"><div><span className="eyebrow">ম্যানেজার সংশোধন</span><h2>বাজার এন্ট্রি সম্পাদনা</h2></div><button className="icon-button" type="button" onClick={onClose} disabled={busy}><Icon name="x" size={19}/></button></div><div className="form-grid-2"><label className="field-label"><span>তারিখ</span><input type="date" max={new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())} value={date} onChange={(e)=>setDate(e.target.value)}/></label><label className="field-label"><span>বাজারকারী</span><select value={buyer} onChange={(e)=>setBuyer(e.target.value)}>{members.filter(m=>m.member_status==='active'||m.membership_id===buyer).map(m=><option key={m.membership_id} value={m.membership_id}>{m.member_name}</option>)}</select></label></div><div className="market-table-card"><div className="market-table-head"><span>ক্রম</span><span>আইটেম</span><span>পরিমাণ</span><span>Amount</span><span/></div><div className="market-item-list">{items.map((item,index)=><div className="market-item-row" key={`${index}-${item.item_name}`}><span className="market-serial">{formatNumber(index+1,{maximumFractionDigits:0})}</span><input className="market-input-item" value={item.item_name} onChange={(e)=>update(index,{item_name:e.target.value})} placeholder="চাল, ডাল..."/><input className="market-input-quantity" value={item.quantity} onChange={(e)=>update(index,{quantity:e.target.value})} placeholder="৫ কেজি"/><input className="market-input-amount" type="number" min="0" step="0.01" value={item.amount} onChange={(e)=>update(index,{amount:e.target.value})} /><button className="icon-button compact-icon" type="button" onClick={()=>remove(index)} disabled={items.length===1}><Icon name="x" size={15}/></button></div>)}</div><button className="secondary-button add-market-item" type="button" onClick={add}><Icon name="plus-circle" size={17}/> আরেকটি আইটেম</button><div className="market-total-row"><span>সর্বমোট</span><strong>{formatCurrency(total)}</strong></div></div><div className={`deposit-toggle-card ${credit?'enabled':''}`}><button type="button" className="toggle-control" onClick={()=>setCredit(v=>!v)} aria-pressed={credit}><span className="toggle-track"><span className="toggle-thumb"/></span><span><strong>বাজারের টাকা deposit হিসেবে যুক্ত থাকবে</strong><small>{credit?'ON — বাজারের মোট টাকা member-এর হিসাবে জমা থাকবে।':'OFF — বাজারের টাকা deposit হিসেবে যুক্ত হবে না।'}</small></span></button></div><label className="field-label"><span>সংশোধনের কারণ</span><textarea rows="2" value={reason} onChange={(e)=>setReason(e.target.value)} /></label><div className="confirm-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>বাতিল</button><button className="primary-button" type="button" onClick={save} disabled={busy}>বাজার আপডেট করুন</button></div></div></div>;
+  return <div className="modal-backdrop"><div className="modal-panel card large-modal"><div className="modal-head"><div><span className="eyebrow">ম্যানেজার সংশোধন</span><h2>বাজার এন্ট্রি সম্পাদনা</h2></div><button className="icon-button" type="button" onClick={onClose} disabled={busy}><Icon name="x" size={19}/></button></div><div className="form-grid-2"><label className="field-label"><span>তারিখ</span><input type="date" max={new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())} value={date} onChange={(e)=>setDate(e.target.value)}/></label><label className="field-label"><span>বাজারকারী</span><select value={buyer} onChange={(e)=>setBuyer(e.target.value)}>{members.filter(m=>m.member_status==='active'||m.membership_id===buyer).map(m=><option key={m.membership_id} value={m.membership_id}>{m.member_name}</option>)}</select></label></div><div className="market-table-card"><div className="market-table-head"><span>ক্রম</span><span>আইটেম</span><span>পরিমাণ</span><span>টাকার পরিমাণ</span><span/></div><div className="market-item-list">{items.map((item,index)=><div className="market-item-row" key={`${index}-${item.item_name}`}><span className="market-serial">{formatNumber(index+1,{maximumFractionDigits:0})}</span><input className="market-input-item" value={item.item_name} onChange={(e)=>update(index,{item_name:e.target.value})} placeholder="চাল, ডাল..."/><input className="market-input-quantity" value={item.quantity} onChange={(e)=>update(index,{quantity:e.target.value})} placeholder="৫ কেজি"/><input className="market-input-amount" type="number" min="0" step="0.01" value={item.amount} onChange={(e)=>update(index,{amount:e.target.value})} /><button className="icon-button compact-icon" type="button" onClick={()=>remove(index)} disabled={items.length===1}><Icon name="x" size={15}/></button></div>)}</div><button className="secondary-button add-market-item" type="button" onClick={add}><Icon name="plus-circle" size={17}/> আরেকটি আইটেম</button><div className="market-total-row"><span>সর্বমোট</span><strong>{formatCurrency(total)}</strong></div></div><div className={`deposit-toggle-card ${credit?'enabled':''}`}><button type="button" className="toggle-control" onClick={()=>setCredit(v=>!v)} aria-pressed={credit}><span className="toggle-track"><span className="toggle-thumb"/></span><span><strong>বাজারের টাকা জমা হিসেবে যুক্ত থাকবে</strong><small>{credit?'ON — বাজারের মোট টাকা member-এর হিসাবে জমা থাকবে।':'OFF — বাজারের টাকা deposit হিসেবে যুক্ত হবে না।'}</small></span></button></div><label className="field-label"><span>সংশোধনের কারণ</span><textarea rows="2" value={reason} onChange={(e)=>setReason(e.target.value)} /></label><div className="confirm-actions"><button className="secondary-button" type="button" onClick={onClose} disabled={busy}>বাতিল</button><button className="primary-button" type="button" onClick={save} disabled={busy}>বাজার আপডেট করুন</button></div></div></div>;
 }
 
 function MonthDetailModal({ detail, onClose }) {

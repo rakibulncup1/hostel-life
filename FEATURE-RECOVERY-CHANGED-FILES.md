@@ -1,5 +1,3 @@
-> **HISTORICAL DOCUMENT — DO NOT APPLY THIS PACKAGE.** The associated SQL has a live return-type conflict (`private.notify_period_managers`: integer vs void). Use `HOSTEL-LIFE-FRONTEND-RECOVERY-V1-CHANGED-FILES-BN.md` for the current package.
-
 # Feature Recovery V1 — Changed files and behavior
 
 ## Frontend changes

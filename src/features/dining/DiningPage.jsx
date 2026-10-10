@@ -109,8 +109,8 @@ function statusText(status) {
 }
 
 function requestTypeText(type, isLate = false) {
-  if (isLate) return 'লেট মিল রিকোয়েস্ট';
-  return type === 'correction' ? 'সংশোধন রিকোয়েস্ট' : 'মিল রিকোয়েস্ট';
+  if (isLate) return 'লেট মিল অনুরোধ';
+  return type === 'correction' ? 'সংশোধন অনুরোধ' : 'মিল অনুরোধ';
 }
 
 function dhakaNowParts() {
@@ -174,7 +174,6 @@ function DiningOptionCard({ icon, title, description, onClick, badge }) {
         <small>{description}</small>
       </span>
       {badge && <span className="power-badge">পাওয়ার</span>}
-      <Icon name="chevron" size={18} className="dining-option-arrow" />
     </button>
   );
 }
@@ -290,7 +289,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   const dayStateMap = useMemo(() => new Map(dayStates.map((day) => [String(day.meal_date).slice(0, 10), day])), [dayStates]);
   const correctionEligibleDays = useMemo(() => originalDays.filter((day) => canCorrectMealDay(dayStateMap.get(day.meal_date))), [originalDays, dayStateMap]);
   const editEligibleDays = useMemo(() => originalDays.filter((day) => canSubmitMealDay(dayStateMap.get(day.meal_date)) && day.meal_date > today), [originalDays, dayStateMap, today]);
-  const title = isCorrection ? 'মিল সংশোধন রিকোয়েস্ট' : isEdit ? 'অনুমোদিত রিকোয়েস্ট এডিট' : 'নতুন মিল রিকোয়েস্ট';
+  const title = isCorrection ? 'মিল সংশোধন অনুরোধ' : isEdit ? 'অনুমোদিত অনুরোধ এডিট' : 'নতুন মিল অনুরোধ';
   const helper = isCorrection
     ? 'কাট-অফ পার হওয়া দিনের জন্য ম্যানেজারের অনুমোদন প্রয়োজন।'
     : isEdit
@@ -335,16 +334,16 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
     if (isCorrection) {
       const eligible = correctionEligibleDays.map((day) => day.meal_date);
       if (!eligible.length) {
-        toast.warning('এই রিকোয়েস্টে সংশোধনযোগ্য কোনো দিন পাওয়া যায়নি।');
+        toast.warning('এই অনুরোধে সংশোধনযোগ্য কোনো দিন পাওয়া যায়নি।');
         return;
       }
       if (payloadDates.some((day) => !eligible.includes(day))) {
-        toast.warning('শুধু server cutoff পার হওয়া দিনের জন্য সংশোধন রিকোয়েস্ট করা যাবে। দিনটি ইতিমধ্যে final হয়ে থাকলেও manager approval-এর পরে final হিসাব আপডেট হবে।');
+        toast.warning('শুধু সার্ভার নির্ধারিত সময়সীমা পার হওয়া দিনের জন্য সংশোধনের অনুরোধ করা যাবে। দিনটির মিল ইতিমধ্যে চূড়ান্ত হলেও ম্যানেজার অনুমোদন দিলে চূড়ান্ত হিসাব আপডেট হবে।');
         return;
       }
       const fullRange = buildDateRange(startDate, endDate).map((day) => day.meal_date);
       if (fullRange.some((day) => !eligible.includes(day)) || payloadDates.length !== fullRange.length) {
-        toast.warning('নির্বাচিত range-এর প্রতিটি দিনের cutoff পার হওয়া থাকতে হবে।');
+        toast.warning('নির্বাচিত তারিখের পরিসরের প্রতিটি দিনের সময়সীমা পার হওয়া থাকতে হবে।');
         return;
       }
     }
@@ -359,7 +358,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         return;
       }
       if (payloadDates.some((day) => !eligible.includes(day))) {
-        toast.warning('নির্বাচিত range-এর কোনো একটি দিনের cutoff শেষ হয়ে গেছে। সেই দিনের জন্য সংশোধন রিকোয়েস্ট ব্যবহার করুন।');
+        toast.warning('নির্বাচিত তারিখের পরিসরের কোনো দিনের নির্ধারিত সময়সীমা শেষ হয়েছে। সেই দিনের জন্য সংশোধনের অনুরোধ ব্যবহার করুন।');
         return;
       }
     }
@@ -378,7 +377,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         }
         if (duplicateDates.length) {
           const first = [...new Set(duplicateDates)].sort()[0];
-          toast.warning(`আপনার ${formatDateWithWeekday(first)}-এর জন্য আগে থেকেই একটি সক্রিয় meal request আছে। একই দিনের জন্য আবার request দেওয়া যাবে না।`);
+          toast.warning(`আপনার ${formatDateWithWeekday(first)}-এর জন্য আগে থেকেই একটি সক্রিয় মিল অনুরোধ আছে। একই দিনের জন্য আবার অনুরোধ দেওয়া যাবে না।`);
           return;
         }
       } catch (error) {
@@ -386,16 +385,16 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
       }
 
       if (startDate <= today) {
-        toast.warning('আজকের বা আগের দিনের জন্য সাধারণ মিল রিকোয়েস্ট দেওয়া যাবে না।');
+        toast.warning('আজকের বা আগের দিনের জন্য সাধারণ মিল অনুরোধ দেওয়া যাবে না।');
         return;
       }
       const unavailable = payloadDates.filter((day) => !canSubmitMealDay(dayStateMap.get(day)));
       if (unavailable.length) {
-        toast.warning('নির্বাচিত তারিখগুলোর অন্তত একটি দিনে cutoff শেষ হয়েছে বা দিনটি final হয়েছে।');
+        toast.warning('নির্বাচিত তারিখগুলোর অন্তত একটির সময়সীমা শেষ হয়েছে অথবা মিল চূড়ান্ত হয়েছে।');
         return;
       }
       if (period?.end_date && endDate > period.end_date) {
-        toast.warning('মিল রিকোয়েস্ট চলমান মাসের শেষ তারিখের বাইরে দেওয়া যাবে না।');
+        toast.warning('মিল অনুরোধ চলমান মাসের শেষ তারিখের বাইরে দেওয়া যাবে না।');
         return;
       }
     }
@@ -420,12 +419,12 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         result = await createMealRequest({ startDate, endDate, days: payload });
       }
 
-      if (isCorrection) toast.success('মিল সংশোধন রিকোয়েস্ট সফলভাবে পাঠানো হয়েছে।');
-      else if (isEdit) toast.success('মিল রিকোয়েস্ট সফলভাবে আপডেট হয়েছে।');
-      else toast.success('মিল রিকোয়েস্ট সফলভাবে সাবমিট ও অনুমোদিত হয়েছে।');
+      if (isCorrection) toast.success('মিল সংশোধন অনুরোধ সফলভাবে পাঠানো হয়েছে।');
+      else if (isEdit) toast.success('মিল অনুরোধ সফলভাবে আপডেট হয়েছে।');
+      else toast.success('মিল অনুরোধ সফলভাবে সাবমিট ও অনুমোদিত হয়েছে।');
       onSaved?.(result);
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'রিকোয়েস্ট সংরক্ষণ করা যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'অনুরোধ সংরক্ষণ করা যায়নি।'));
     } finally {
       setBusy(false);
     }
@@ -435,7 +434,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
     <section className="dining-panel card">
       <div className="panel-header">
         <div>
-          <span className="eyebrow">মিল রিকোয়েস্ট</span>
+          <span className="eyebrow">মিল অনুরোধ</span>
           <h2>{title}</h2>
           <p>{helper}</p>
         </div>
@@ -509,10 +508,10 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
       )}
 
       {dayStateLoading && (
-        <div className="meal-policy-note is-loading"><Icon name="clock" size={15} /> নির্বাচিত দিনের cutoff ও status যাচাই করা হচ্ছে...</div>
+        <div className="meal-policy-note is-loading"><Icon name="clock" size={15} /> নির্বাচিত দিনের সময়সীমা ও অবস্থা যাচাই করা হচ্ছে...</div>
       )}
       {!dayStateLoading && (isCorrection ? correctionEligibleDays.length === 0 : isEdit ? editEligibleDays.length === 0 : dayStates.length === 0) && (
-        <div className="meal-policy-note is-warning"><Icon name="warning" size={15} /> এই date range-এ এখন submit/edit করার উপযোগী দিন পাওয়া যায়নি। server rule অনুযায়ী তারিখটি পরিবর্তন করুন।</div>
+        <div className="meal-policy-note is-warning"><Icon name="warning" size={15} /> এই তারিখের পরিসরে জমা বা সম্পাদনার উপযোগী দিন পাওয়া যায়নি। সার্ভারের নিয়ম অনুযায়ী তারিখ পরিবর্তন করুন।</div>
       )}
 
       <div className="default-meal-box">
@@ -554,11 +553,11 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
       </div>
 
       <div className="request-footer-note">
-        <Icon name="clock" size={16} /> প্রতিটি দিনের cutoff server থেকে নির্ধারিত হয়। cutoff পার হলে সরাসরি পরিবর্তনের বদলে সংশোধন রিকোয়েস্ট ব্যবহার করুন।
+        <Icon name="clock" size={16} /> প্রতিটি দিনের সময়সীমা সার্ভার থেকে নির্ধারিত হয়। সময়সীমা পার হলে সরাসরি পরিবর্তনের বদলে সংশোধনের অনুরোধ করুন।
       </div>
 
       <button className="primary-button large dining-submit" type="button" disabled={busy || dayStateLoading} onClick={submit}>
-        {busy ? 'সংরক্ষণ হচ্ছে...' : isCorrection ? 'সংশোধন রিকোয়েস্ট পাঠান' : isEdit ? 'পরিবর্তন সংরক্ষণ করুন' : 'চূড়ান্তভাবে সাবমিট করুন'}
+        {busy ? 'সংরক্ষণ হচ্ছে...' : isCorrection ? 'সংশোধন অনুরোধ পাঠান' : isEdit ? 'পরিবর্তন সংরক্ষণ করুন' : 'চূড়ান্তভাবে সাবমিট করুন'}
       </button>
     </section>
   );
@@ -575,7 +574,7 @@ function RequestHistory({ onEdit, onCorrect }) {
     try {
       setRequests(await fetchMyMealRequests(100));
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'মিল রিকোয়েস্ট হিস্টরি লোড করা যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'মিল অনুরোধের ইতিহাস লোড করা যায়নি।'));
     } finally {
       setLoading(false);
     }
@@ -583,21 +582,21 @@ function RequestHistory({ onEdit, onCorrect }) {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <div className="dining-panel card"><LoadingSpinner label="রিকোয়েস্ট হিস্টরি লোড হচ্ছে..." /></div>;
+  if (loading) return <div className="dining-panel card"><LoadingSpinner label="অনুরোধের ইতিহাস লোড হচ্ছে..." /></div>;
 
   return (
     <section className="dining-panel card">
       <div className="panel-header">
         <div>
-          <span className="eyebrow">মিল রিকোয়েস্ট</span>
-          <h2>রিকোয়েস্ট হিস্টরি</h2>
-          <p>আপনার আগের ও বর্তমান রিকোয়েস্টগুলো এখানে থাকবে।</p>
+          <span className="eyebrow">মিল অনুরোধ</span>
+          <h2>অনুরোধের ইতিহাস</h2>
+          <p>আপনার আগের ও বর্তমান অনুরোধগুলো এখানে থাকবে।</p>
         </div>
         <button className="secondary-button compact" type="button" onClick={load}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
 
       {requests.length === 0 ? (
-        <div className="empty-state-card dining-empty"><Icon name="calendar" size={26} /><strong>এখনও কোনো রিকোয়েস্ট নেই</strong><span>নতুন মিল রিকোয়েস্ট দিলে এখানে দেখা যাবে।</span></div>
+        <div className="empty-state-card dining-empty"><Icon name="calendar" size={26} /><strong>এখনও কোনো অনুরোধ নেই</strong><span>নতুন মিল অনুরোধ দিলে এখানে দেখা যাবে।</span></div>
       ) : (
         <div className="request-history-list">
           {requests.map((request) => {
@@ -628,17 +627,17 @@ function RequestHistory({ onEdit, onCorrect }) {
                   {request.status === 'approved' && request.request_type === 'normal' && request.is_late_request && (
                     <div className="late-request-locked-note">
                       <Icon name="lock" size={17} />
-                      <div><strong>এটি সংশোধনযোগ্য নয়</strong><span>ম্যানেজার এই আবেদনটি লেট রিকোয়েস্ট হিসেবে অনুমোদন করেছেন। এটি আর এডিট বা নতুন সংশোধন রিকোয়েস্টের মাধ্যমে পরিবর্তন করা যাবে না। ফাইনাল মিল হয়ে গেলে পরিবর্তনের জন্য প্রধান ম্যানেজারের সঙ্গে যোগাযোগ করুন।</span></div>
+                      <div><strong>এটি সংশোধনযোগ্য নয়</strong><span>ম্যানেজার এই আবেদনটি লেট অনুরোধ হিসেবে অনুমোদন করেছেন। এটি আর সম্পাদনা বা নতুন সংশোধনের অনুরোধের মাধ্যমে পরিবর্তন করা যাবে না। চূড়ান্ত মিল হয়ে গেলে পরিবর্তনের জন্য প্রধান ম্যানেজারের সঙ্গে যোগাযোগ করুন।</span></div>
                     </div>
                   )}
                   {request.status === 'approved' && request.request_type === 'normal' && !request.is_late_request && (
                     <div className="request-action-row">
                       {request.days?.some((day) => String(day.meal_date).slice(0, 10) > todayValue()) && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="refresh" size={16} /> এডিট করুন</button>}
-                      {request.days?.some((day) => String(day.meal_date).slice(0, 10) <= todayValue()) && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="warning" size={16} /> সংশোধন রিকোয়েস্ট</button>}
+                      {request.days?.some((day) => String(day.meal_date).slice(0, 10) <= todayValue()) && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="warning" size={16} /> সংশোধন অনুরোধ</button>}
                     </div>
                   )}
                   {needsReview && (
-                    <div className="inline-success"><Icon name="clock" size={16} /> {request.is_late_request ? 'লেট রিকোয়েস্ট ম্যানেজারের অনুমোদনের অপেক্ষায় আছে। এই আবেদন পাঠানোর পর এডিট বা আলাদা সংশোধন রিকোয়েস্ট করা যাবে না।' : 'ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।'}</div>
+                    <div className="inline-success"><Icon name="clock" size={16} /> {request.is_late_request ? 'লেট অনুরোধ ম্যানেজারের অনুমোদনের অপেক্ষায় আছে। এই আবেদন পাঠানোর পর এডিট বা আলাদা সংশোধন অনুরোধ করা যাবে না।' : 'ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।'}</div>
                   )}
                 </div>
               )}
@@ -869,9 +868,9 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
 
   const save = async () => {
     if (!isPrimaryManager) return toast.warning('ফাইনাল মিল সংশোধন শুধু প্রধান ম্যানেজার করতে পারবেন।');
-    if (!dayStatus || dayStatus.status !== 'finalized') return toast.warning('শুধু final হওয়া দিনের মিল এখানে সংশোধন করা যাবে।');
+    if (!dayStatus || dayStatus.status !== 'finalized') return toast.warning('শুধু চূড়ান্ত হওয়া দিনের মিল এখানে সংশোধন করা যাবে।');
     const payload = buildPayload(true);
-    if (!payload.length) return toast.warning('এই তারিখে কোনো সদস্যের final meal record নেই।');
+    if (!payload.length) return toast.warning('এই তারিখে কোনো সদস্যের চূড়ান্ত মিলের তথ্য নেই।');
     const missing = payload.filter((row) => !finalizedMemberIds.includes(row.member_id));
     if (missing.length) return toast.warning('শুধু আগে final হওয়া member record-ই সংশোধন করা যাবে।');
     await performSave(payload);
@@ -884,7 +883,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
         <div>
           <span className="eyebrow">ম্যানেজার ফিচার</span>
           <h2>ফাইনাল মিল সংশোধন</h2>
-          <p>শুধু নির্বাচিত দিনে যাদের final meal record আছে তারাই তালিকায় আসবে। পরিবর্তন সরাসরি final হিসাব ও snapshot আপডেট করবে।</p>
+          <p>শুধু নির্বাচিত দিনে যাদের চূড়ান্ত মিলের তথ্য আছে তারাই তালিকায় আসবে। পরিবর্তন সরাসরি চূড়ান্ত হিসাব ও snapshot আপডেট করবে।</p>
         </div>
       </div>
 
@@ -923,8 +922,8 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
         <div className="meal-policy-note is-warning"><Icon name="warning" size={15} /> এই তারিখের server meal-day record পাওয়া যায়নি। আগে তারিখটি পরিবর্তন করে দেখুন।</div>
       )}
 
-      {!isPrimaryManager && <div className="meal-policy-note is-warning"><Icon name="shield" size={15}/> এই ক্ষমতা শুধু প্রধান ম্যানেজারের। সহকারী ম্যানেজার ম্যানুয়াল মিল রিকোয়েস্ট দিতে পারবেন।</div>}
-      {dayStatus?.status !== 'finalized' && !loading && <div className="meal-policy-note is-warning"><Icon name="info" size={15}/> নির্বাচিত দিনটি এখনো final হয়নি। Final correction কেবল রাত ৯টার পর final হওয়া দিনের জন্য।</div>}
+      {!isPrimaryManager && <div className="meal-policy-note is-warning"><Icon name="shield" size={15}/> এই ক্ষমতা শুধু প্রধান ম্যানেজারের। সহকারী ম্যানেজার ম্যানুয়াল মিল অনুরোধ দিতে পারবেন।</div>}
+      {dayStatus?.status !== 'finalized' && !loading && <div className="meal-policy-note is-warning"><Icon name="info" size={15}/> নির্বাচিত দিনের মিল এখনো চূড়ান্ত হয়নি। চূড়ান্ত মিল সংশোধন শুধু রাত ৯টার পর চূড়ান্ত হওয়া দিনের জন্য।</div>}
       {loading ? <LoadingSpinner label="ফাইনাল মিলের রেকর্ড লোড হচ্ছে..." /> : (
         <div className="manager-meal-entry-list">
           {(mode === 'single' ? finalizedMembers.filter((member) => member.membership_id === selectedMember) : finalizedMembers).map((member) => {
@@ -943,7 +942,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
               </article>
             );
           })}
-          {!finalizedMembers.length && !loading && <div className="empty-state-card"><Icon name="calendar" size={24}/><strong>এই দিনে কোনো final meal record নেই</strong><span>যাদের নামে ওই দিনে final meal হয়েছে, শুধু তারাই এখানে দেখা যাবে।</span></div>}
+          {!finalizedMembers.length && !loading && <div className="empty-state-card"><Icon name="calendar" size={24}/><strong>এই দিনে কোনো চূড়ান্ত মিলের তথ্য নেই</strong><span>যাদের নামে ওই দিনে মিল চূড়ান্ত হয়েছে, শুধু তারাই এখানে দেখা যাবে।</span></div>}
         </div>
       )}
 
@@ -955,7 +954,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
         <div className="modal-backdrop" role="presentation">
           <section className="modal-panel card confirmation-modal" role="dialog" aria-modal="true">
             <div className="modal-head"><div><span className="eyebrow">সতর্কতা</span><h2>আগের মিলের তথ্য পাওয়া গেছে</h2></div><button className="icon-button" type="button" onClick={() => { if (!busy) setConflictConfirmOpen(false); }} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button></div>
-            <p className="confirm-description">{conflicts.length === 1 ? `${activeMembers.find((m) => m.membership_id === conflicts[0]?.member_id)?.member_name || 'এই সদস্য'}-এর ${formatDateWithWeekday(conflicts[0]?.meal_date)} তারিখে আগে থেকেই মিল রিকোয়েস্ট বা মিল এন্ট্রি আছে। নতুন করে duplicate না করে “মিল রিকোয়েস্ট” থেকে সেটি সম্পাদনা/সংশোধন করুন।` : `${formatNumber(conflicts.length)}টি সদস্য-তারিখে আগে থেকেই রিকোয়েস্ট বা মিলের তথ্য পাওয়া গেছে। duplicate তৈরি না করে সংশ্লিষ্ট রিকোয়েস্ট/মিল এন্ট্রি সম্পাদনা করুন।`} আপনি জোর করে পরিবর্তন চালালে server permission অনুযায়ী আগের হিসাব override হবে।</p>
+            <p className="confirm-description">{conflicts.length === 1 ? `${activeMembers.find((m) => m.membership_id === conflicts[0]?.member_id)?.member_name || 'এই সদস্য'}-এর ${formatDateWithWeekday(conflicts[0]?.meal_date)} তারিখে আগে থেকেই মিল অনুরোধ বা মিল এন্ট্রি আছে। নতুন করে duplicate না করে “মিল অনুরোধ” থেকে সেটি সম্পাদনা/সংশোধন করুন।` : `${formatNumber(conflicts.length)}টি সদস্য-তারিখে আগে থেকেই অনুরোধ বা মিলের তথ্য পাওয়া গেছে। duplicate তৈরি না করে সংশ্লিষ্ট অনুরোধ/মিল এন্ট্রি সম্পাদনা করুন।`} আপনি জোর করে পরিবর্তন চালালে server permission অনুযায়ী আগের হিসাব override হবে।</p>
             <div className="conflict-list">{conflicts.map((conflict, index) => <div className="conflict-item" key={`${conflict.member_id || 'member'}-${conflict.meal_date || index}`}><strong>{activeMembers.find((m) => m.membership_id === conflict.member_id)?.member_name || 'সদস্য'}</strong><span>{formatDateWithWeekday(conflict.meal_date)}{conflict.message ? ` · ${conflict.message}` : ''}</span></div>)}</div>
             <div className="confirm-actions"><button className="secondary-button" type="button" disabled={busy} onClick={() => setConflictConfirmOpen(false)}>বাতিল</button><button className="primary-button danger-button" type="button" disabled={busy} onClick={() => performSave(buildPayload(true))}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'পরিবর্তন নিশ্চিত করুন'}</button></div>
           </section>
@@ -999,7 +998,7 @@ function PersonalTomorrowMealCard({ compact = false }) {
     <section className={`card personal-tomorrow-meal-card ${compact ? 'compact-personal-meal-card' : ''}`}>
       <div className="personal-tomorrow-head">
         <div><span className="eyebrow">সার্ভার থেকে সর্বশেষ তথ্য</span><h2>আপনার আগামীকাল অর্থাৎ {formatDateWithWeekday(targetDate)}-এর মিল</h2></div>
-        <span className={`status-chip ${meal ? 'live-chip' : 'offline-chip'}`}><span className="pulse-dot" /> {meal ? 'সার্ভারে সংরক্ষিত' : 'এখনো রিকোয়েস্ট নেই'}</span>
+        <span className={`status-chip ${meal ? 'live-chip' : 'offline-chip'}`}><span className="pulse-dot" /> {meal ? 'সার্ভারে সংরক্ষিত' : 'এখনো অনুরোধ নেই'}</span>
       </div>
       {loading ? <div className="personal-tomorrow-loading">সার্ভারের তথ্য লোড হচ্ছে...</div> : (
         <div className="personal-tomorrow-grid">
@@ -1011,7 +1010,7 @@ function PersonalTomorrowMealCard({ compact = false }) {
       )}
       {!loading && <div className={`personal-meal-cutoff-note ${left ? '' : 'is-closed'}`}>
         <Icon name={left ? 'clock' : 'shield'} size={15}/>
-        {left ? `স্বাভাবিক রিকোয়েস্ট ${left} পরে, আজ রাত ১০টায় বন্ধ হবে। ${meal ? 'এর আগে চাইলে রিকোয়েস্ট আপডেট করতে পারবেন।' : 'সময় শেষ হওয়ার আগে মিল রিকোয়েস্ট দিন।'}` : 'আজ রাত ১০টার স্বাভাবিক cutoff শেষ হয়েছে। আজকের মিলের জন্য লেট রিকোয়েস্ট দিন; সেটি ম্যানেজারের অনুমোদনসাপেক্ষ।'}
+        {left ? `স্বাভাবিক অনুরোধ ${left} পরে, আজ রাত ১০টায় বন্ধ হবে। ${meal ? 'এর আগে চাইলে অনুরোধ আপডেট করতে পারবেন।' : 'সময় শেষ হওয়ার আগে মিল অনুরোধ দিন।'}` : 'আজ রাত ১০টার স্বাভাবিক cutoff শেষ হয়েছে। আজকের মিলের জন্য লেট অনুরোধ দিন; সেটি ম্যানেজারের অনুমোদনসাপেক্ষ।'}
       </div>}
     </section>
   );
@@ -1081,7 +1080,7 @@ function ManagerMyMeal() {
     setBusy(true);
     try {
       await emergencyOverrideMyMeal({ mealDate: overrideDate, breakfast: clampMeal(override.breakfast), lunch: clampMeal(override.lunch), dinner: clampMeal(override.dinner), reason: overrideReason.trim() || null });
-      toast.success('জরুরি ওভাররাইড সফলভাবে সংরক্ষণ হয়েছে। এটি রাত ৯টার finalization-এ মূল হিসাবের সঙ্গে যুক্ত হবে।');
+      toast.success('জরুরি পরিবর্তন সফলভাবে সংরক্ষণ হয়েছে। রাত ৯টায় হিসাব চূড়ান্ত করার সময় এটি মূল হিসাবের সঙ্গে যুক্ত হবে।');
       setShowOverride(false); setOverrideReason('');
     } catch (error) { toast.error(getFriendlySupabaseError(error, 'জরুরি ওভাররাইড সংরক্ষণ করা যায়নি।')); }
     finally { setBusy(false); }
@@ -1113,7 +1112,7 @@ function ManagerMyMeal() {
           {!overrideLoading && overrideDate && <div className="form-hint"><Icon name="check-circle" size={15}/> সার্ভারে আগে মিল থাকলে সেটি ফর্মে বসানো হয়েছে; না থাকলে ডিফল্ট মান দেখানো হচ্ছে।</div>}
           <div className="manager-meal-grid">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label]) => <div key={key}><MealStepper label={label} value={override[key]} onChange={(value) => setOverride((current) => ({ ...current, [key]: value }))} /></div>)}</div>
           <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="3" value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} placeholder="জরুরি পরিবর্তনের কারণ" /></label>
-          <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>সতর্কতা</strong><p>এটি public locked snapshot-এ সঙ্গে সঙ্গে মিশবে না। রাত ৯টার finalization-এর সময় মূল final হিসাবের সঙ্গে যুক্ত হবে।</p></div></div>
+          <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>সতর্কতা</strong><p>এটি সবার দেখা সংরক্ষিত তথ্যে সঙ্গে সঙ্গে যুক্ত হবে না। রাত ৯টায় হিসাব চূড়ান্ত করার সময় মূল হিসাবের সঙ্গে যুক্ত হবে।</p></div></div>
           <div className="request-action-row"><button className="secondary-button" type="button" onClick={() => setShowOverride(false)}>বাতিল</button><button className="primary-button danger-button" type="button" disabled={busy || overrideLoading || !overrideDate} onClick={overrideNow}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'ওভাররাইড সংরক্ষণ করুন'}</button></div>
         </>}
       </section>
@@ -1149,7 +1148,7 @@ function ManagerMealRequests() {
         setRequests(await fetchManagerMealRequests({}));
       }
     } catch (error) {
-      if (!silent) toast.error(getFriendlySupabaseError(error, 'ম্যানেজারের রিকোয়েস্ট লোড করা যায়নি।'));
+      if (!silent) toast.error(getFriendlySupabaseError(error, 'ম্যানেজারের অনুরোধ লোড করা যায়নি।'));
       else console.warn('Manager request refresh failed:', error);
     } finally {
       if (!silent) setLoading(false);
@@ -1196,12 +1195,12 @@ function ManagerMealRequests() {
       } else {
         await reviewMealCorrection({ requestId, approve, reason: approve ? null : rejectReason.trim() });
       }
-      toast.success(approve ? (activeRequest?.is_late_request ? 'লেট রিকোয়েস্ট অনুমোদিত হয়েছে।' : 'সংশোধন রিকোয়েস্ট অনুমোদিত হয়েছে।') : 'রিকোয়েস্ট বাতিল করা হয়েছে।');
+      toast.success(approve ? (activeRequest?.is_late_request ? 'লেট অনুরোধ অনুমোদিত হয়েছে।' : 'সংশোধন অনুরোধ অনুমোদিত হয়েছে।') : 'অনুরোধ বাতিল করা হয়েছে।');
       setRejectingId('');
       setRejectReason('');
       await load();
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'রিকোয়েস্ট পর্যালোচনা করা যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'অনুরোধ পর্যালোচনা করা যায়নি।'));
     } finally {
       setReviewBusy('');
     }
@@ -1226,12 +1225,12 @@ function ManagerMealRequests() {
     setEditBusy(true);
     try {
       await managerEditApprovedMealRequest({ requestId: editRequest.request_id, days: editDays });
-      toast.success('রিকোয়েস্টের মিল সফলভাবে পরিবর্তন হয়েছে। cutoff অনুযায়ী এটি ৯টার finalization-এ যুক্ত হবে অথবা ইতিমধ্যে final হলে এখনই final update হয়েছে।');
+      toast.success('অনুরোধের মিল সফলভাবে পরিবর্তন হয়েছে। cutoff অনুযায়ী এটি ৯টার finalization-এ যুক্ত হবে অথবা ইতিমধ্যে final হলে এখনই final update হয়েছে।');
       setEditRequest(null);
       setEditDays([]);
       await load();
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'রিকোয়েস্টের মিল পরিবর্তন করা যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'অনুরোধের মিল পরিবর্তন করা যায়নি।'));
     } finally {
       setEditBusy(false);
     }
@@ -1242,9 +1241,9 @@ function ManagerMealRequests() {
       <div className="panel-header">
         <div>
           <span className="eyebrow">ম্যানেজার ফিচার</span>
-          <h2>মিল রিকোয়েস্ট</h2>
-          <p>সাধারণ রিকোয়েস্ট auto-approved; এখানে বিশেষ করে সংশোধন রিকোয়েস্ট পরিচালনা করুন।</p>
-          {!online && <div className="form-hint"><Icon name="offline" size={14} /> অফলাইনে নতুন রিকোয়েস্ট লোড করা যাবে না। সংযোগ ফিরলে তালিকাটি স্বয়ংক্রিয়ভাবে refresh হবে।</div>}
+          <h2>মিল অনুরোধ</h2>
+          <p>সাধারণ অনুরোধ স্বয়ংক্রিয়ভাবে অনুমোদিত হয়; এখানে বিশেষ করে সংশোধনের অনুরোধ পরিচালনা করুন।</p>
+          {!online && <div className="form-hint"><Icon name="offline" size={14} /> অফলাইনে নতুন অনুরোধ লোড করা যাবে না। সংযোগ ফিরলে তালিকাটি স্বয়ংক্রিয়ভাবে হালনাগাদ হবে।</div>}
         </div>
         <button className="secondary-button compact" type="button" onClick={load} disabled={!online}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
@@ -1253,11 +1252,11 @@ function ManagerMealRequests() {
         <button className={tab === 'correction' ? 'active' : ''} type="button" onClick={() => setTab('correction')}>সংশোধন অপেক্ষমাণ</button>
         <button className={tab === 'late' ? 'active' : ''} type="button" onClick={() => setTab('late')}>লেট অপেক্ষমাণ</button>
         <button className={tab === 'approved' ? 'active' : ''} type="button" onClick={() => setTab('approved')}>সাধারণ অনুমোদিত</button>
-        <button className={tab === 'all' ? 'active' : ''} type="button" onClick={() => setTab('all')}>সব রিকোয়েস্ট</button>
+        <button className={tab === 'all' ? 'active' : ''} type="button" onClick={() => setTab('all')}>সব অনুরোধ</button>
       </div>
 
-      {loading ? <LoadingSpinner label="রিকোয়েস্ট লোড হচ্ছে..." /> : requests.length === 0 ? (
-        <div className="empty-state-card dining-empty"><Icon name="check" size={26} /><strong>কোনো রিকোয়েস্ট নেই</strong><span>এই তালিকায় এখন কিছু দেখানোর নেই।</span></div>
+      {loading ? <LoadingSpinner label="অনুরোধ লোড হচ্ছে..." /> : requests.length === 0 ? (
+        <div className="empty-state-card dining-empty"><Icon name="check" size={26} /><strong>কোনো অনুরোধ নেই</strong><span>এই তালিকায় এখন কিছু দেখানোর নেই।</span></div>
       ) : (
         <div className="manager-request-list">
           {requests.map((request) => {
@@ -1316,7 +1315,7 @@ function ManagerMealRequests() {
       )}
       {editRequest && (
         <div className="modal-backdrop" role="presentation">
-          <section className="modal-panel card large-modal" role="dialog" aria-modal="true" aria-label="রিকোয়েস্টের মিল এডিট">
+          <section className="modal-panel card large-modal" role="dialog" aria-modal="true" aria-label="অনুরোধের মিল এডিট">
             <div className="modal-head">
               <div><span className="eyebrow">ম্যানেজার এডিট</span><h2>{editRequest.member_name}-এর মিল</h2><p>{formatDateWithWeekday(editRequest.start_date)} → {formatDateWithWeekday(editRequest.end_date)}</p></div>
               <button className="icon-button" type="button" disabled={editBusy} onClick={() => setEditRequest(null)} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
@@ -1329,7 +1328,7 @@ function ManagerMealRequests() {
             <div className="meal-days-stack">
               {editDays.map((day, index) => <MealDayCard key={day.meal_date} day={day} onChange={(next) => setEditDays((current) => current.map((item, i) => i === index ? next : item))} />)}
             </div>
-            <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>Server rule</strong><p>কাট-অফের আগে পরিবর্তন করলে ৯টার finalization পর্যন্ত pending থাকবে। কাট-অফের পরে বা দিনটি final হয়ে গেলে পরিবর্তনটি সঙ্গে সঙ্গে final হিসাবেও প্রয়োগ হবে।</p></div></div>
+            <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>সার্ভারের নিয়ম</strong><p>নির্ধারিত সময়সীমার আগে পরিবর্তন করলে রাত ৯টায় হিসাব চূড়ান্ত হওয়া পর্যন্ত অপেক্ষমাণ থাকবে। সময়সীমার পরে বা দিনটির হিসাব চূড়ান্ত হয়ে গেলে পরিবর্তনটি সঙ্গে সঙ্গে প্রয়োগ হবে।</p></div></div>
             <div className="confirm-actions"><button className="secondary-button" type="button" disabled={editBusy} onClick={() => setEditRequest(null)}>বাতিল</button><button className="primary-button" type="button" disabled={editBusy || !editDays.length} onClick={saveEdit}>{editBusy ? 'সংরক্ষণ হচ্ছে...' : 'পরিবর্তন সংরক্ষণ করুন'}</button></div>
           </section>
         </div>
@@ -1348,22 +1347,22 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   const targetDate = lateMealRequestTargetDate();
   const submit = async () => {
     if (busy) return;
-    if (!targetDate) return toast.warning('রাত ৯টার finalization ও ১০টার cutoff-এর মাঝের সময়ে late request দেওয়া যায় না।');
+    if (!targetDate) return toast.warning('রাত ৯টায় হিসাব চূড়ান্ত হওয়া এবং রাত ১০টার নতুন সময়সীমা শুরুর মাঝখানে লেট অনুরোধ দেওয়া যায় না।');
     setBusy(true);
     try {
       await createLateMealRequest({ mealDate: targetDate, breakfast: clampMeal(values.breakfast), lunch: clampMeal(values.lunch), dinner: clampMeal(values.dinner), reason: reason.trim() || null });
-      toast.success('লেট মিল রিকোয়েস্ট পাঠানো হয়েছে। প্রধান/সহকারী ম্যানেজারের অনুমোদন না হওয়া পর্যন্ত এটি কার্যকর হবে না।');
+      toast.success('লেট মিল অনুরোধ পাঠানো হয়েছে। প্রধান/সহকারী ম্যানেজারের অনুমোদন না হওয়া পর্যন্ত এটি কার্যকর হবে না।');
       onSaved?.();
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'লেট রিকোয়েস্ট পাঠানো যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'লেট অনুরোধ পাঠানো যায়নি।'));
     } finally { setBusy(false); }
   };
   return <section className="dining-panel card late-request-form">
-    <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল রিকোয়েস্ট` : 'লেট রিকোয়েস্টের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর স্বাভাবিক রাত ১০টার cutoff মিস করলে এখানে আবেদন দিন।` : 'আজকের মিল রাত ৯টায় final হয়েছে; আগামী দিনের late request রাত ১০টার cutoff-এর পরে শুরু হবে।'} এটি auto-approved নয়; অনুমোদিত হলে target দিনের রাত ৯টার finalization-এ হিসাবের সঙ্গে যুক্ত হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
-    <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট রিকোয়েস্ট কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট রিকোয়েস্ট পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন রিকোয়েস্ট পাঠানো যাবে না। অনুমোদিত হলে নতুন করে পরিবর্তনের সুযোগ থাকবে না। ফাইনাল মিল হয়ে যাওয়ার পরে পরিবর্তন দরকার হলে প্রধান ম্যানেজারকে জানাতে হবে; তিনি Admin Entry → Final Meal Correction ব্যবহার করে সংশোধন করতে পারবেন।</p></div></div>
+    <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর স্বাভাবিক রাত ১০টার সময়সীমা পার হলে এখানে আবেদন দিন।` : 'আজকের মিল রাত ৯টায় চূড়ান্ত হয়েছে; আগামী দিনের লেট অনুরোধ রাত ১০টার সময়সীমার পরে দেওয়া যাবে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
+    <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট অনুরোধ কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট অনুরোধ পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন অনুরোধ পাঠানো যাবে না। অনুমোদিত হলে নতুন করে পরিবর্তনের সুযোগ থাকবে না। ফাইনাল মিল হয়ে যাওয়ার পরে পরিবর্তন দরকার হলে প্রধান ম্যানেজারকে জানাতে হবে; তিনি Admin Entry → Final Meal Correction ব্যবহার করে সংশোধন করতে পারবেন।</p></div></div>
     <div className="manager-meal-grid">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><div key={key}><MealStepper label={label} value={values[key]} onChange={(value)=>setValues((old)=>({...old,[key]:value}))}/></div>)}</div>
-    <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={reason} onChange={(event)=>setReason(event.target.value)} placeholder="কেন স্বাভাবিক cutoff-এর পরে request দিচ্ছেন"/></label>
-    <button className="primary-button large dining-submit" type="button" onClick={submit} disabled={busy || !targetDate}>{busy?'আবেদন পাঠানো হচ্ছে...':'লেট রিকোয়েস্ট পাঠান'}</button>
+    <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={reason} onChange={(event)=>setReason(event.target.value)} placeholder="কেন স্বাভাবিক সময়সীমার পরে অনুরোধ দিচ্ছেন"/></label>
+    <button className="primary-button large dining-submit" type="button" onClick={submit} disabled={busy || !targetDate}>{busy?'আবেদন পাঠানো হচ্ছে...':'লেট অনুরোধ পাঠান'}</button>
   </section>;
 }
 
@@ -1385,26 +1384,26 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
     if(!memberId) return toast.warning('সদস্য নির্বাচন করুন।');
     if(!period) return toast.warning('কোনো running period নেই।');
     if(!startDate||!endDate||startDate>endDate) return toast.warning('তারিখের পরিসর সঠিক নয়।');
-    if(startDate<=todayValue()) return toast.warning('ম্যানুয়াল সাধারণ request আগামীকাল বা পরবর্তী দিনের জন্য হবে। আজকের জন্য Late Request ব্যবহার করুন।');
+    if(startDate<=todayValue()) return toast.warning('ম্যানুয়াল সাধারণ অনুরোধ আগামীকাল বা পরবর্তী দিনের জন্য হবে। আজকের জন্য লেট অনুরোধ ব্যবহার করুন।');
     if(startDate<period.start_date||endDate>period.end_date) return toast.warning('নির্বাচিত তারিখগুলো running period-এর মধ্যে হতে হবে।');
     if(!days.length) return toast.warning('কমপক্ষে একটি দিনের মিল দরকার।');
     setBusy(true);
     try{
       await createMemberMealRequest({memberId,startDate,endDate,days:normalizeDays(days)});
       const target=members.find((item)=>item.membership_id===memberId);
-      toast.success(`${target?.member_name||'সদস্য'}-এর হয়ে request তৈরি হয়েছে। এটি ওই সদস্যের request history-তে থাকবে।`);
+      toast.success(`${target?.member_name||'সদস্য'}-এর হয়ে অনুরোধ তৈরি হয়েছে। এটি ওই সদস্যের অনুরোধের ইতিহাসে থাকবে।`);
       onSaved?.();
-    }catch(error){toast.error(getFriendlySupabaseError(error,'ম্যানুয়াল মিল রিকোয়েস্ট তৈরি করা যায়নি।'));}
+    }catch(error){toast.error(getFriendlySupabaseError(error,'ম্যানুয়াল মিল অনুরোধ তৈরি করা যায়নি।'));}
     finally{setBusy(false);}
   };
   return <section className="dining-panel card">
-    <div className="panel-header"><div><span className="eyebrow">এডমিন এন্ট্রি</span><h2>ম্যানুয়াল মিল রিকোয়েস্ট</h2><p>সদস্য নিজে request দিতে না পারলে তার হয়ে দিন। request-টি ওই সদস্যের হিস্টরিতেই সংরক্ষিত হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
+    <div className="panel-header"><div><span className="eyebrow">এডমিন এন্ট্রি</span><h2>ম্যানুয়াল মিল অনুরোধ</h2><p>সদস্য নিজে অনুরোধ দিতে না পারলে তার হয়ে দিন। request-টি ওই সদস্যের হিস্টরিতেই সংরক্ষিত হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
     <div className="request-range-grid"><label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e)=>setMemberId(e.target.value)}>{members.filter((m)=>m.member_status==='active').map((m)=><option key={m.membership_id} value={m.membership_id}>{m.member_name}</option>)}</select></label><label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date||undefined} value={startDate} onChange={(e)=>{setStartDate(e.target.value);if(endDate<e.target.value)setEndDate(e.target.value);}}/></label><label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate||tomorrowValue()} max={period?.end_date||undefined} value={endDate} onChange={(e)=>setEndDate(e.target.value)}/></label></div>
     <div className="default-meal-box"><div><strong>ডিফল্ট মিল</strong><small>প্রতিদিনের শুরুতে এই মান থাকবে; প্রতিটি দিনে আলাদা করে +/- করতে পারবেন।</small></div><div className="default-meal-controls">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={defaults[key]} onChange={(e)=>setDefaults((old)=>({...old,[key]:clampMeal(e.target.value)}))}/></label>)}</div><button className="secondary-button compact" type="button" onClick={applyDefaults}>সব দিনে প্রয়োগ করুন</button></div>
     <div className="request-summary-strip"><span>{formatNumber(days.length)} দিন</span><strong>মোট {formatMealCompact(totalDays(days))} মিল</strong></div>
     <div className="meal-days-stack">{days.map((day)=><MealDayCard key={day.meal_date} day={day} onChange={(next)=>setDays((current)=>current.map((item)=>item.meal_date===next.meal_date?next:item))}/>)}</div>
     <div className="manager-warning-box"><Icon name="info" size={18}/><div><strong>ডুপ্লিকেট সুরক্ষা</strong><p>সদস্যের কোনো দিনের active request আগে থেকেই থাকলে server request reject করবে; পুরোনো request overwrite হবে না।</p></div></div>
-    <button className="primary-button large dining-submit" type="button" disabled={busy||!days.length} onClick={submit}>{busy?'রিকোয়েস্ট তৈরি হচ্ছে...':'চূড়ান্তভাবে সাবমিট করুন'}</button>
+    <button className="primary-button large dining-submit" type="button" disabled={busy||!days.length} onClick={submit}>{busy?'অনুরোধ তৈরি হচ্ছে...':'চূড়ান্তভাবে সাবমিট করুন'}</button>
   </section>;
 }
 
@@ -1589,6 +1588,7 @@ export function DiningPage() {
   if (requestMode) {
     return (
       <div className="page-stack">
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="arrow-left" size={15} /> ডাইনিংয়ে ফিরে যান</button></div>
         <MealRequestEditor
           mode={requestMode}
           request={selectedRequest}
@@ -1619,22 +1619,22 @@ export function DiningPage() {
     return (
       <div className="page-stack">
         <PersonalTomorrowMealCard />
-        <SectionHeader eyebrow="ডাইনিং" title="মিল রিকোয়েস্ট" description="নতুন রিকোয়েস্ট দিন, অথবা আগের রিকোয়েস্টের হিসাব দেখুন।" />
+        <SectionHeader eyebrow="ডাইনিং" title="মিল অনুরোধ" description="নতুন অনুরোধ দিন, অথবা আগের অনুরোধের হিসাব দেখুন।" />
         <div className="request-entry-choice-grid">
           <button className="card request-choice-card" type="button" onClick={() => { setSelectedRequest(null); setRequestMode('new'); }}>
             <span className="dining-option-icon"><Icon name="calendar" size={22} /></span>
-            <strong>নতুন মিল রিকোয়েস্ট</strong>
+            <strong>নতুন মিল অনুরোধ</strong>
             <small>একটি দিন বা তারিখের পরিসর নিয়ে সব দিনের মিল একসাথে সাজান।</small>
           </button>
           <button className="card request-choice-card" type="button" onClick={() => setView('request-history')}>
             <span className="dining-option-icon"><Icon name="history" size={22} /></span>
-            <strong>রিকোয়েস্ট হিস্টরি</strong>
-            <small>আগের রিকোয়েস্ট দেখুন, কাট-অফের আগে এডিট করুন বা পরে সংশোধনের আবেদন দিন।</small>
+            <strong>অনুরোধের ইতিহাস</strong>
+            <small>আগের অনুরোধ দেখুন, কাট-অফের আগে এডিট করুন বা পরে সংশোধনের আবেদন দিন।</small>
           </button>
           <button className="card request-choice-card request-choice-late" type="button" onClick={() => setView('late-request')}>
             <span className="dining-option-icon"><Icon name="clock" size={22} /></span>
-            <strong>লেট রিকোয়েস্ট</strong>
-            <small>স্বাভাবিক রাত ১০টার cutoff মিস হলে আজকের মিলের জন্য আবেদন করুন। এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হবে না; ম্যানেজার/সহকারী ম্যানেজারের review প্রয়োজন।</small>
+            <strong>লেট অনুরোধ</strong>
+            <small>স্বাভাবিক রাত ১০টার সময়সীমা পার হলে আজকের মিলের জন্য আবেদন করুন। এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হবে না; ম্যানেজার বা সহকারী ম্যানেজারের পর্যালোচনা প্রয়োজন।</small>
           </button>
         </div>
       </div>
@@ -1660,7 +1660,7 @@ export function DiningPage() {
   }
 
   if (view === 'admin-entry') {
-    return <div className="page-stack"><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><SectionHeader eyebrow="প্রধান/সহকারী ম্যানেজার" title="এডমিন এন্ট্রি" description="Final meal correction সরাসরি final হিসাব বদলায়; manual request নির্দিষ্ট সদস্যের request history-তে সংরক্ষিত হয়।"/><div className="request-entry-choice-grid"><button className="card request-choice-card" type="button" disabled={!isPrimaryDiningManager} onClick={() => setView('manager-meal')}><span className="dining-option-icon"><Icon name="check-circle" size={22}/></span><strong>ফাইনাল মিল সংশোধন</strong><small>{isPrimaryDiningManager ? 'তারিখ বেছে শুধু যাদের final meal record আছে তাদের হিসাব সংশোধন করুন।' : 'এই কাজটি শুধু প্রধান ম্যানেজার করতে পারবেন।'}</small></button><button className="card request-choice-card" type="button" onClick={() => setView('admin-manual-request')}><span className="dining-option-icon"><Icon name="users" size={22}/></span><strong>ম্যানুয়াল মিল রিকোয়েস্ট</strong><small>যে সদস্য নিজে request দিতে পারছেন না তার হয়ে date range ও daily meals দিয়ে request তৈরি করুন।</small></button></div></div>;
+    return <div className="page-stack"><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><SectionHeader eyebrow="প্রধান/সহকারী ম্যানেজার" title="এডমিন এন্ট্রি" description="চূড়ান্ত মিল সংশোধন সরাসরি চূড়ান্ত হিসাব বদলায়; ম্যানুয়াল অনুরোধ নির্দিষ্ট সদস্যের অনুরোধের ইতিহাসে সংরক্ষিত হয়।"/><div className="request-entry-choice-grid"><button className="card request-choice-card" type="button" disabled={!isPrimaryDiningManager} onClick={() => setView('manager-meal')}><span className="dining-option-icon"><Icon name="check-circle" size={22}/></span><strong>ফাইনাল মিল সংশোধন</strong><small>{isPrimaryDiningManager ? 'তারিখ বেছে শুধু যাদের চূড়ান্ত মিলের তথ্য আছে, তাদের হিসাব সংশোধন করুন।' : 'এই কাজটি শুধু প্রধান ম্যানেজার করতে পারবেন।'}</small></button><button className="card request-choice-card" type="button" onClick={() => setView('admin-manual-request')}><span className="dining-option-icon"><Icon name="users" size={22}/></span><strong>ম্যানুয়াল মিল অনুরোধ</strong><small>যে সদস্য নিজে অনুরোধ দিতে পারছেন না, তাঁর হয়ে তারিখের পরিসর ও প্রতিদিনের মিল দিয়ে অনুরোধ তৈরি করুন।</small></button></div></div>;
   }
 
   if (view === 'admin-manual-request') {
@@ -1709,14 +1709,14 @@ export function DiningPage() {
       <SectionHeader eyebrow="মূল সেকশন" title="ডাইনিং" description={isManager ? 'খাবার, বাজার ও মেসের হিসাবের সব কার্যক্রম এখানে পরিচালনা করুন।' : 'বাজার ও মিল সম্পর্কিত দৈনন্দিন কাজগুলো এখানে করুন।'} />
 
       <div className="dining-action-grid">
-        {canOperateDining && <DiningOptionCard icon="shield" title="এডমিন এন্ট্রি" description="ফাইনাল মিল সংশোধন বা সদস্যের হয়ে ম্যানুয়াল মিল রিকোয়েস্ট তৈরি করুন।" badge onClick={() => setView('admin-entry')} />}
-        {isPrimaryDiningManager && <DiningOptionCard icon="user" title="আমার মিল" description="সাধারণ সদস্যের মতো রিকোয়েস্ট, হিস্টরি ও সংশোধন ব্যবহার করুন।" badge onClick={() => setView('meal-request')} />}
-        {isAssistantManager && !isPrimaryDiningManager && <DiningOptionCard icon="user" title="আমার মিল" description="সাধারণ সদস্যের মতো মিল রিকোয়েস্ট দিন, ইতিহাস দেখুন বা সংশোধনের আবেদন করুন।" onClick={() => setView('meal-request')} />}
-        {canOperateDining && <DiningOptionCard icon="calendar" title="মিল রিকোয়েস্ট" description="সদস্যদের স্বয়ংক্রিয়ভাবে অনুমোদিত রিকোয়েস্ট এবং সংশোধন রিকোয়েস্ট পরিচালনা করুন।" badge onClick={() => setView('manager-request')} />}
+        {canOperateDining && <DiningOptionCard icon="shield" title="এডমিন এন্ট্রি" description="ফাইনাল মিল সংশোধন বা সদস্যের হয়ে ম্যানুয়াল মিল অনুরোধ তৈরি করুন।" badge onClick={() => setView('admin-entry')} />}
+        {isPrimaryDiningManager && <DiningOptionCard icon="user" title="আমার মিল" description="সাধারণ সদস্যের মতো অনুরোধ, হিস্টরি ও সংশোধন ব্যবহার করুন।" badge onClick={() => setView('meal-request')} />}
+        {isAssistantManager && !isPrimaryDiningManager && <DiningOptionCard icon="user" title="আমার মিল" description="সাধারণ সদস্যের মতো মিল অনুরোধ দিন, ইতিহাস দেখুন বা সংশোধনের আবেদন করুন।" onClick={() => setView('meal-request')} />}
+        {canOperateDining && <DiningOptionCard icon="calendar" title="মিল অনুরোধ" description="সদস্যদের স্বয়ংক্রিয়ভাবে অনুমোদিত অনুরোধ এবং সংশোধন অনুরোধ পরিচালনা করুন।" badge onClick={() => setView('manager-request')} />}
         <DiningOptionCard icon="dining" title="বাজার এন্ট্রি" description={isManager ? 'যেকোনো সদস্যের নামে বাজার যোগ করুন, প্রয়োজনে ডিপোজিট হিসাবেও যুক্ত করুন।' : 'নিজের নামে বাজার যোগ করুন এবং চাইলে বাজারের টাকা ডিপোজিট হিসেবে নিন।'} badge={canOperateDining} onClick={() => setView('market')} />
         {canOperateDining && <DiningOptionCard icon="wallet" title="ডিপোজিট" description="যেকোনো সদস্যের নামে ডিপোজিট যোগ করুন।" badge onClick={() => setView('deposit')} />}
         {canOperateDining && <DiningOptionCard icon="wallet" title="অন্যান্য খরচ" description="নির্বাচিত সদস্যের হিসাব থেকে অন্যান্য খরচ বাদ দিন।" badge onClick={() => setView('other-expense')} />}
-        {!isManager && !isAssistantManager && <DiningOptionCard icon="history" title="মিল রিকোয়েস্ট" description="নতুন request দিন বা আগের request-এর history দেখুন।" onClick={() => setView('meal-request')} />}
+        {!isManager && !isAssistantManager && <DiningOptionCard icon="history" title="মিল অনুরোধ" description="নতুন অনুরোধ দিন বা আগের অনুরোধের ইতিহাস দেখুন।" onClick={() => setView('meal-request')} />}
       </div>
 
       {canOperateDining && (

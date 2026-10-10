@@ -8,6 +8,12 @@ const commonItems = [
   { key: 'khala-money-view', label: 'খালার টাকা', icon: 'wallet' },
   { key: 'top-eater', label: 'শীর্ষ খাদক', icon: 'dining' },
   { key: 'top-shopper', label: 'বেশি বাজারকারী', icon: 'dining' },
+];
+
+const systemItems = [
+  { key: 'privacy-policy', label: 'গোপনীয়তা ও নীতিমালা', icon: 'shield' },
+  { key: 'terms', label: 'ব্যবহারের শর্তাবলী', icon: 'file' },
+  { key: 'how-to-use', label: 'কীভাবে ব্যবহার করব', icon: 'book' },
   { key: 'developer', label: 'ডেভেলপার ইনফো', icon: 'user' },
 ];
 
@@ -71,6 +77,17 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
         <div className="menu-group">
           <div className="menu-group-title">সাধারণ</div>
           {commonItems.filter((item) => !(effectiveOperationalManager && item.key === 'khala-money-view')).map((item) => (
+            <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
+              <span className="menu-row-icon"><Icon name={item.icon} size={18} /></span>
+              <span>{item.label}</span>
+              <Icon name="chevron" size={16} className="menu-chevron" />
+            </button>
+          ))}
+        </div>
+
+        <div className="menu-group system-group">
+          <div className="menu-group-title">সিস্টেম তথ্য</div>
+          {systemItems.map((item) => (
             <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
               <span className="menu-row-icon"><Icon name={item.icon} size={18} /></span>
               <span>{item.label}</span>

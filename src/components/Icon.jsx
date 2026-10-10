@@ -43,6 +43,8 @@ const paths = {
   crown: 'M4 18h16M5 18l-1-9 5 4 3-7 3 7 5-4-1 9',
   'shopping-bag': 'M5 8h14l-1 12H6L5 8zM9 8V6a3 3 0 0 1 6 0v2',
   'file-text': 'M6 3h8l4 4v14H6zM14 3v5h5M9 12h6M9 16h6',
+  file: 'M6 3h8l4 4v14H6zM14 3v5h5',
+  book: 'M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22zM4 4.5V22M8 6h8M8 10h8',
   monitor: 'M4 5h16v11H4zM9 21h6M12 16v5',
 };
 

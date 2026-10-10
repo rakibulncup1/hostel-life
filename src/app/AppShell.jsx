@@ -111,7 +111,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       return;
     }
 
-    if (!isOnline && key !== 'developer') {
+    if (!isOnline && !['developer', 'privacy-policy', 'terms', 'how-to-use'].includes(key)) {
       toast.warning('মেনুর এই কাজটি চালাতে ইন্টারনেট সংযোগ প্রয়োজন।');
       return;
     }
@@ -123,6 +123,9 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       'top-eater': '/app/menu/top-eater',
       'top-shopper': '/app/menu/top-shopper',
       developer: '/app/menu/developer',
+      'privacy-policy': '/app/menu/privacy-policy',
+      terms: '/app/menu/terms',
+      'how-to-use': '/app/menu/how-to-use',
       'send-notification': '/app/menu/send-notification',
       'reports': '/app/menu/reports',
       'meal-sheet': '/app/menu/meal-sheet',
@@ -189,7 +192,11 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       )}
 
       <main className="app-main">
-        {!isOnline && active !== 'dashboard' ? <OfflineState /> : children}
+        {!isOnline && active !== 'dashboard' && !pathname.startsWith('/app/menu/privacy-policy') && !pathname.startsWith('/app/menu/terms') && !pathname.startsWith('/app/menu/how-to-use') && !pathname.startsWith('/app/menu/developer') ? <OfflineState /> : children}
+        <footer className="app-copyright-footer">
+          <span>Copyright © {new Date().getFullYear()} Hostel-Life. All rights reserved.</span>
+          <span>Designed &amp; Developed by <a href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noreferrer">Rakibul Islam Samrat</a></span>
+        </footer>
       </main>
 
       <BottomNav active={active} onNavigate={handleNavigate} />

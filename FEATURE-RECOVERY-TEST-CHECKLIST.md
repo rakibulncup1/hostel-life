@@ -1,5 +1,3 @@
-> **HISTORICAL CHECKLIST — DO NOT RUN THE OLD MIGRATION.** The live snapshot shows `private.notify_period_managers(...)` returns `integer`, while the old migration tries `void` and may fail with 42P13. Use `HOSTEL-LIFE-FRONTEND-RECOVERY-V1-TEST-CHECKLIST-BN.md` for current manual checks.
-
 # Feature Recovery V1 — Manual QA checklist
 
 প্রথমে migration সফল এবং `npm run build` pass নিশ্চিত করো। Test-এর জন্য সম্ভব হলে একটি test hostel/member account ব্যবহার করো।
@@ -42,6 +40,6 @@
 - [ ] Realtime unavailable হলে fallback refresh কাজ করে এবং browser বারবার reload হয় না।
 
 ## 6. Supabase diagnostic
-- [ ] (Historical only) Do not run `HOSTEL_LIFE_FEATURE_RECOVERY_V1.sql`; inspect its status only from existing snapshot/migration history.
+- [ ] `HOSTEL_LIFE_FEATURE_RECOVERY_V1.sql` শেষে `FEATURE_RECOVERY_V1=committed` এবং core RPCs `present` দেখায়।
 - [ ] Existing business rows count অপ্রত্যাশিতভাবে কমেনি।
 - [ ] এই migration-এর বাইরে কোনো older SQL repeat করা হয়নি।

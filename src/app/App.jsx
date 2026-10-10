@@ -4,7 +4,7 @@ import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { DiningPage } from '../features/dining/DiningPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
-import { AllMembersPage, KhalaMoneyViewPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, SendNotificationPage, PreviousMonthsPage, ArchiveEditAccessPage } from '../features/menu/MenuPages';
+import { AllMembersPage, KhalaMoneyViewPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage, ArchiveEditAccessPage } from '../features/menu/MenuPages';
 import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, ArchiveManagerPage, KhalaMoneyPage, MemberManagementPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
 import { AuthPage } from '../features/auth/AuthPage';
 import { OnboardingPage } from '../features/onboarding/OnboardingPage';
@@ -26,6 +26,9 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/top-eater') return <TopEatersPage />;
   if (pathname === '/app/menu/top-shopper') return <TopShoppersPage />;
   if (pathname === '/app/menu/developer') return <DeveloperInfoPage />;
+  if (pathname === '/app/menu/privacy-policy') return <PrivacyPolicyPage />;
+  if (pathname === '/app/menu/terms') return <TermsPage />;
+  if (pathname === '/app/menu/how-to-use') return <HowToUsePage />;
   if (pathname === '/app/menu/send-notification') return <SendNotificationPage />;
   if (pathname === '/app/menu/archive') return isManager ? <ArchiveManagerPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/reports') return <ReportsPage />;
@@ -95,6 +98,9 @@ export function App() {
     else if (pathname.includes('/menu/members')) title = 'Hostel Life — সকল সদস্য';
     else if (pathname.includes('/menu/khala-money-view')) title = 'Hostel Life — খালার টাকা';
     else if (pathname.includes('/menu/developer')) title = 'Hostel Life — ডেভেলপার ইনফো';
+    else if (pathname.includes('/menu/privacy-policy')) title = 'Hostel Life — গোপনীয়তা ও নীতিমালা';
+    else if (pathname.includes('/menu/terms')) title = 'Hostel Life — ব্যবহারের শর্তাবলী';
+    else if (pathname.includes('/menu/how-to-use')) title = 'Hostel Life — কীভাবে ব্যবহার করব';
     else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
     else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
