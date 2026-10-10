@@ -35,11 +35,13 @@ export function HistoryPage() {
   const [monthDetail, setMonthDetail] = useState(null);
   const { isManager, membership } = useAuth();
   const [accountFilter, setAccountFilter] = useState('');
+  const [accountScope, setAccountScope] = useState('all');
   const [members, setMembers] = useState([]);
   const [accountType, setAccountType] = useState('all');
   const [marketEdit, setMarketEdit] = useState(null);
   const [marketVoid, setMarketVoid] = useState(null);
   const [transactionEdit, setTransactionEdit] = useState(null);
+  const [transactionDetail, setTransactionDetail] = useState(null);
   const [managerBusy, setManagerBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [marketMemberFilter, setMarketMemberFilter] = useState('');
@@ -74,7 +76,10 @@ export function HistoryPage() {
         if (memberResult.status === 'fulfilled') setMembers(memberResult.value);
         else console.warn('Market filters could not load member names:', memberResult.reason);
       } else if (tab === 'account') {
-        const accounts = await fetchAccountHistory({ periodId, memberId: canEditVisibleRows ? (accountFilter || null) : (membership?.membership_id || null), limit: 500 });
+        const memberId = canEditVisibleRows
+          ? (accountFilter || null)
+          : (accountScope === 'mine' ? (membership?.membership_id || null) : null);
+        const accounts = await fetchAccountHistory({ periodId, memberId, limit: 500 });
         setAccountRows(accounts);
         if (isManager || selectedArchivePeriodId) {
           try { setMembers(await fetchMemberDirectory()); }
@@ -86,7 +91,7 @@ export function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [accountFilter, isManager, isOnline, membership?.membership_id, selectedArchivePeriodId, tab, toast]);
+  }, [accountFilter, accountScope, isManager, isOnline, membership?.membership_id, selectedArchivePeriodId, tab, toast]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -184,11 +189,13 @@ export function HistoryPage() {
       </div>
 
       {tab === 'account' && (
-        <div className="card history-filter-card">
-          <div><strong>হিসাব ফিল্টার</strong><small>{canEditVisibleRows ? 'প্রয়োজনে নির্দিষ্ট সদস্যের হিসাবও আলাদা করে দেখা যাবে।' : 'এখানে আপনার হিসাবের ইতিহাস দেখানো হবে।'}</small></div>
-          <div className="history-filter-controls">
-
-            <button type="button" className={`secondary-button compact ${accountType === 'all' ? 'active' : ''}`} onClick={() => setAccountType('all')}>সব হিসাব</button>
+        <div className="card history-filter-card account-history-filter-card">
+          <div><strong>হিসাব ইতিহাসের পরিসর</strong><small>{canEditVisibleRows ? 'সব সদস্য অথবা নির্দিষ্ট সদস্যের হিসাব দেখুন।' : 'প্রথমে কার হিসাব দেখতে চান নির্বাচন করুন; এরপর নিচের ডিপোজিট/বাজার/খরচ ফিল্টারও ব্যবহার করতে পারবেন।'}</small></div>
+          <div className="account-history-scope-controls" role="group" aria-label="কার হিসাব দেখাবেন">
+            {!isManager && !selectedArchivePeriodId && <>
+              <button type="button" className={`secondary-button compact ${accountScope === 'all' ? 'active' : ''}`} aria-pressed={accountScope === 'all'} onClick={() => setAccountScope('all')}>সবার হিসাব</button>
+              <button type="button" className={`secondary-button compact ${accountScope === 'mine' ? 'active' : ''}`} aria-pressed={accountScope === 'mine'} onClick={() => setAccountScope('mine')}>শুধু আমার</button>
+            </>}
             {canEditVisibleRows && <select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} aria-label="সদস্য নির্বাচন"><option value="">সব সদস্য</option>{members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select>}
           </div>
         </div>
@@ -201,7 +208,7 @@ export function HistoryPage() {
       {loading ? <LoadingSpinner label="হিস্টরি লোড হচ্ছে..." /> : tab === 'market' ? (
         <><section className="card history-filter-card market-history-filters"><div><strong>বাজার ফিল্টার</strong><small>{visibleMarketRows.length}টি এন্ট্রি · সক্রিয় বাজারের মোট {formatCurrency(marketTotal)}</small></div><div className="history-filter-controls"><select value={marketMemberFilter} onChange={(event)=>setMarketMemberFilter(event.target.value)} aria-label="বাজারকারী সদস্য ফিল্টার"><option value="">সব বাজারকারী</option>{members.map((member)=><option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select><label className="field-label compact-field"><span>শুরু</span><input type="date" value={marketDateFrom} max={marketDateTo || undefined} onChange={(event)=>setMarketDateFrom(event.target.value)}/></label><label className="field-label compact-field"><span>শেষ</span><input type="date" value={marketDateTo} min={marketDateFrom || undefined} onChange={(event)=>setMarketDateTo(event.target.value)}/></label><button type="button" className="secondary-button compact" onClick={()=>{setMarketMemberFilter('');setMarketDateFrom('');setMarketDateTo('');}}>রিসেট</button></div></section><MarketHistoryList rows={visibleMarketRows} serialById={marketSerialById} onOpen={openMarket} /></>
       ) : tab === 'account' ? (
-        <AccountHistoryList rows={accountGrouped} isManager={canEditVisibleRows} onEdit={(row) => setTransactionEdit(row)} />
+        <AccountHistoryList rows={accountGrouped} isManager={canEditVisibleRows} onOpenDetail={(row) => setTransactionDetail(row)} />
       ) : (
         <PreviousMonthList rows={periods} onOpen={openMonth} />
       )}
@@ -211,6 +218,7 @@ export function HistoryPage() {
       {monthDetail && !detailLoading && <MonthDetailModal detail={monthDetail} onClose={() => setMonthDetail(null)} />}
       {marketEdit && <MarketEditModal detail={marketEdit} members={members} busy={managerBusy} onClose={() => setMarketEdit(null)} onSaved={async () => { setMarketEdit(null); setMarketDetail(null); await load(); }} onBusy={setManagerBusy} />}
       {marketVoid && <ReasonModal title="বাজার এন্ট্রি বাতিল" description="বাতিল করার কারণ লিখুন। ইতিহাস থাকবে, কিন্তু এটি আর active market হিসেবে গণনা হবে না।" busy={managerBusy} onClose={() => setMarketVoid(null)} onConfirm={async (reason) => { setManagerBusy(true); try { await voidMarketEntry(marketVoid.market_entry_id, reason); toast.success('বাজার এন্ট্রি সফলভাবে বাতিল হয়েছে।'); setMarketVoid(null); setMarketDetail(null); await load(); } catch (error) { toast.error(getFriendlySupabaseError(error, 'বাজার বাতিল করা যায়নি।')); } finally { setManagerBusy(false); } }} />}
+      {transactionDetail && <TransactionDetailModal row={transactionDetail} canEdit={canEditVisibleRows && transactionDetail.source === 'ledger' && ledgerRowIsEditable(transactionDetail)} onClose={() => setTransactionDetail(null)} onEdit={() => { setTransactionEdit(transactionDetail); setTransactionDetail(null); }} />}
       {transactionEdit && <TransactionEditModal row={transactionEdit} busy={managerBusy} onClose={() => setTransactionEdit(null)} onSaved={async () => { setTransactionEdit(null); await load(); }} onBusy={setManagerBusy} />}
           </div>
   );
@@ -239,18 +247,56 @@ function AccountSummary({ rows, selectedType = 'all', onSelect }) {
   return <section className="account-summary-grid account-summary-filter-grid" aria-label="লেনদেন অনুযায়ী হিসাব ফিল্টার">{cards.map((card)=><button key={card.key} type="button" aria-pressed={selectedType===card.key} className={`card account-summary-card ${card.tone} ${selectedType===card.key?'is-selected':''}`} onClick={()=>onSelect?.(selectedType===card.key?'all':card.key)}><span>{card.label}</span><strong>{formatCurrency(card.value)}</strong><small>{card.description} · চাপলে তালিকা ফিল্টার হবে</small></button>)}</section>;
 }
 
-function AccountHistoryList({ rows, isManager = false, onEdit, onKhalaVoid }) {
+function AccountHistoryList({ rows, isManager = false, onOpenDetail }) {
   if (!rows.length) return <EmptyHistory icon="wallet" title="কোনো হিসাব ইতিহাস নেই" text="এই সময়ে কোনো হিসাবের transaction পাওয়া যায়নি।" />;
   return <div className="history-list">{rows.map((row) => {
     const positive = ledgerRowIsPositive(row);
-    const canEditLedger = isManager && row.source === 'ledger' && ledgerRowIsEditable(row);
-    return <article className="card account-history-row manager-history-row" key={`${row.transaction_id}-${row.source}`}>
+    const canOpen = Boolean(isManager && onOpenDetail);
+    const openDetail = canOpen ? () => onOpenDetail(row) : undefined;
+    return <article
+      className={`card account-history-row manager-history-row ${canOpen ? 'account-history-row-editable' : ''}`}
+      key={`${row.transaction_id}-${row.source}`}
+      role={canOpen ? 'button' : undefined}
+      tabIndex={canOpen ? 0 : undefined}
+      onClick={openDetail}
+      onKeyDown={(event) => { if (openDetail && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDetail(); } }}
+      aria-label={canOpen ? `${row.member_name || 'সদস্য'} — ${row.transaction_type}, লেনদেনের বিস্তারিত খুলুন` : undefined}
+    >
       <div className={`history-leading-icon ${positive ? 'positive' : 'negative'}`}><Icon name={positive ? 'plus' : 'minus'} size={18} /></div>
-      <div className="history-item-copy"><strong>{row.member_name}</strong><small>{row.transaction_type} · এন্ট্রির তারিখ: {formatDateBangla(row.entry_date || row.created_at)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'কোনো বিবরণ দেওয়া হয়নি।'}</span></div>
+      <div className="history-item-copy"><strong>{row.member_name}</strong><small>{row.transaction_type} · এন্ট্রির তারিখ: {formatDateBangla(row.entry_date || row.created_at)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'কোনো বিবরণ দেওয়া হয়নি।'}</span>{canOpen && <small className="history-row-open-hint">বিস্তারিত দেখতে খুলুন <Icon name="chevron" size={12}/></small>}</div>
       <strong className={`history-amount-value ${positive ? 'positive' : 'negative'}`}>{positive ? '+' : '-'}{formatCurrency(Math.abs(Number(row.amount || 0)))}</strong>
-      {canEditLedger && <div className="history-row-actions"><button className="icon-button compact-icon" type="button" onClick={() => onEdit?.(row)} aria-label="হিসাব সংশোধন"><Icon name="edit" size={15} /> <span>সম্পাদনা</span></button></div>}
     </article>;
   })}</div>;
+}
+
+function TransactionDetailModal({ row, canEdit = false, onClose, onEdit }) {
+  useEffect(() => {
+    const handler = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handler);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  const positive = ledgerRowIsPositive(row);
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="modal-panel card transaction-detail-modal" role="dialog" aria-modal="true" aria-labelledby="transaction-detail-title">
+      <div className="modal-head"><div><span className="eyebrow">হিসাব ইতিহাস</span><h2 id="transaction-detail-title">{row.transaction_type}</h2><small>{row.member_name || 'সদস্যের হিসাব'}</small></div><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
+      <div className="transaction-detail-amount"><span>লেনদেনের পরিমাণ</span><strong className={positive ? 'positive' : 'negative'}>{positive ? '+' : '−'}{formatCurrency(Math.abs(Number(row.amount || 0)))}</strong></div>
+      <div className="transaction-detail-fields">
+        <div><span>সদস্য</span><strong>{row.member_name || '—'}</strong></div>
+        <div><span>লেনদেনের ধরন</span><strong>{row.transaction_type || 'সংশোধন'}</strong></div>
+        <div><span>এন্ট্রির তারিখ</span><strong>{formatDateWithWeekday(row.entry_date || row.created_at)}</strong></div>
+        <div><span>তৈরির সময়</span><strong>{formatDateTime12(row.created_at)}</strong></div>
+      </div>
+      <div className="transaction-detail-description"><span>বিবরণ</span><p>{row.description || 'কোনো বিবরণ দেওয়া হয়নি।'}</p></div>
+      {!canEdit && <div className="form-hint"><Icon name="info" size={15}/> এই ধরনের লেনদেন সরাসরি সম্পাদনা করা যায় না; সংশ্লিষ্ট বাজার/মূল এন্ট্রির মাধ্যমে পরিবর্তন করতে হবে।</div>}
+      <div className="confirm-actions"><button className="secondary-button" type="button" onClick={onClose}>বন্ধ করুন</button>{canEdit && <button className="primary-button" type="button" onClick={onEdit}><Icon name="edit" size={15}/> সম্পাদনা করুন</button>}</div>
+    </section>
+  </div>;
 }
 
 function PreviousMonthList({ rows, onOpen }) {

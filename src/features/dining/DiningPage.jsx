@@ -625,14 +625,20 @@ function RequestHistory({ onEdit, onCorrect }) {
                     ))}
                   </div>
                   {request.rejection_reason && <div className="inline-error"><Icon name="warning" size={16} /> {request.rejection_reason}</div>}
-                  {request.status === 'approved' && request.request_type === 'normal' && (
+                  {request.status === 'approved' && request.request_type === 'normal' && request.is_late_request && (
+                    <div className="late-request-locked-note">
+                      <Icon name="lock" size={17} />
+                      <div><strong>এটি সংশোধনযোগ্য নয়</strong><span>ম্যানেজার এই আবেদনটি লেট রিকোয়েস্ট হিসেবে অনুমোদন করেছেন। এটি আর এডিট বা নতুন সংশোধন রিকোয়েস্টের মাধ্যমে পরিবর্তন করা যাবে না। ফাইনাল মিল হয়ে গেলে পরিবর্তনের জন্য প্রধান ম্যানেজারের সঙ্গে যোগাযোগ করুন।</span></div>
+                    </div>
+                  )}
+                  {request.status === 'approved' && request.request_type === 'normal' && !request.is_late_request && (
                     <div className="request-action-row">
                       {request.days?.some((day) => String(day.meal_date).slice(0, 10) > todayValue()) && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="refresh" size={16} /> এডিট করুন</button>}
                       {request.days?.some((day) => String(day.meal_date).slice(0, 10) <= todayValue()) && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="warning" size={16} /> সংশোধন রিকোয়েস্ট</button>}
                     </div>
                   )}
                   {needsReview && (
-                    <div className="inline-success"><Icon name="clock" size={16} /> ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।</div>
+                    <div className="inline-success"><Icon name="clock" size={16} /> {request.is_late_request ? 'লেট রিকোয়েস্ট ম্যানেজারের অনুমোদনের অপেক্ষায় আছে। এই আবেদন পাঠানোর পর এডিট বা আলাদা সংশোধন রিকোয়েস্ট করা যাবে না।' : 'ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।'}</div>
                   )}
                 </div>
               )}
@@ -1354,7 +1360,7 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   };
   return <section className="dining-panel card late-request-form">
     <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল রিকোয়েস্ট` : 'লেট রিকোয়েস্টের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর স্বাভাবিক রাত ১০টার cutoff মিস করলে এখানে আবেদন দিন।` : 'আজকের মিল রাত ৯টায় final হয়েছে; আগামী দিনের late request রাত ১০টার cutoff-এর পরে শুরু হবে।'} এটি auto-approved নয়; অনুমোদিত হলে target দিনের রাত ৯টার finalization-এ হিসাবের সঙ্গে যুক্ত হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
-    <div className="manager-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের dashboard-এর Late Request কার্ডে finalization পর্যন্ত দেখা যাবে।</p></div></div>
+    <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট রিকোয়েস্ট কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট রিকোয়েস্ট পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন রিকোয়েস্ট পাঠানো যাবে না। অনুমোদিত হলে নতুন করে পরিবর্তনের সুযোগ থাকবে না। ফাইনাল মিল হয়ে যাওয়ার পরে পরিবর্তন দরকার হলে প্রধান ম্যানেজারকে জানাতে হবে; তিনি Admin Entry → Final Meal Correction ব্যবহার করে সংশোধন করতে পারবেন।</p></div></div>
     <div className="manager-meal-grid">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><div key={key}><MealStepper label={label} value={values[key]} onChange={(value)=>setValues((old)=>({...old,[key]:value}))}/></div>)}</div>
     <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={reason} onChange={(event)=>setReason(event.target.value)} placeholder="কেন স্বাভাবিক cutoff-এর পরে request দিচ্ছেন"/></label>
     <button className="primary-button large dining-submit" type="button" onClick={submit} disabled={busy || !targetDate}>{busy?'আবেদন পাঠানো হচ্ছে...':'লেট রিকোয়েস্ট পাঠান'}</button>

@@ -1,3 +1,7 @@
+-- HISTORICAL SCRIPT — DO NOT RUN AGAIN ON THE CURRENT LIVE DATABASE.
+-- The 2026-10-10 live snapshot confirms private.notify_period_managers(uuid,text,text,text,uuid,uuid)
+-- returns integer, whereas this script attempts RETURNS void and can fail with PostgreSQL 42P13.
+-- Use HOSTEL-LIFE-FRONTEND-RECOVERY-V1-README-BN.md for the current, limited installation path.
 -- HOSTEL LIFE - FEATURE RECOVERY V1
 -- Additive migration for late requests, manager inbox, member detail, and safe RPC visibility.
 -- Does not delete/reset business rows or replace the existing market accounting implementation.

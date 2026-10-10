@@ -190,14 +190,15 @@ export function KhalaMoneyViewPage() {
       <PageHeader
         eyebrow="মেসের স্বচ্ছতা"
         title="খালার টাকা"
-        description="মাস অনুযায়ী খালার টাকার এন্ট্রি দেখুন। আপনার এন্ট্রি সবার আগে থাকবে।"
+        description="প্রতিটি মাসে কার কত টাকা জমা হয়েছে দেখুন। আপনার এন্ট্রি আগে থাকবে; এই পেজটি শুধু দেখার জন্য।"
       />
 
       <section className="card khala-view-hero">
         <div>
           <span className="eyebrow">আপনার হিসাব</span>
-          <h2>{myCount ? `${formatCurrency(myTotal)} জমা` : 'আপনি এখনো টাকা দেননি'}</h2>
-          <p>{myCount ? `${formatNumber(myCount)}টি এন্ট্রি` : 'আপনার নামে কোনো কার্যকর এন্ট্রি নেই।'}</p>
+          <h2>{myCount ? `${formatCurrency(myTotal)} জমা` : 'আপনার নামে এখনো কোনো এন্ট্রি নেই'}</h2>
+          <p>{myCount ? `সকল উপলভ্য মাসে ${formatNumber(myCount)}টি কার্যকর এন্ট্রি` : 'ম্যানেজার আপনার নামে এন্ট্রি যোগ করলে সেটি এখানে ও নিচের ইতিহাসে দেখা যাবে।'}</p>
+          <div className="khala-view-hero-metrics"><div><span>আপনার কার্যকর এন্ট্রি</span><strong>{formatNumber(myCount)}টি</strong></div><div><span>আপনার মোট অবদান</span><strong>{formatCurrency(myTotal)}</strong></div></div>
         </div>
         <button className="secondary-button compact" type="button" onClick={load} disabled={loading}>
           <Icon name="refresh" size={15} /> রিফ্রেশ

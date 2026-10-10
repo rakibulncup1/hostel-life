@@ -337,37 +337,174 @@ function MealDetailsModal({ date, rows, loading, onClose }) {
 
 function lateRequestVisibleUntil(visibleUntil = null) {
   if (!visibleUntil) return true;
-  return Date.now() < new Date(visibleUntil).getTime();
+  const time = new Date(visibleUntil).getTime();
+  return Number.isFinite(time) && Date.now() < time;
 }
 
-function LateRequestCard({ meal, isOnline }) {
+function dhakaToday() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+}
+
+function signedMealDelta(value) {
+  const amount = safeNumber(value);
+  const magnitude = formatMeal(Math.abs(amount));
+  if (amount > 0) return `+${magnitude}`;
+  if (amount < 0) return `−${magnitude}`;
+  return formatMeal(0);
+}
+
+function deltaTone(value) {
+  return safeNumber(value) > 0 ? 'positive' : safeNumber(value) < 0 ? 'negative' : 'neutral';
+}
+
+function LateDeltaStat({ label, value }) {
+  return <div className={`late-delta-stat ${deltaTone(value)}`}>
+    <span>{label}</span>
+    <strong>{signedMealDelta(value)}</strong>
+  </div>;
+}
+
+function LateRequestCard({ meal, isOnline, lastSync }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const rows = (Array.isArray(meal?.late_requests) ? meal.late_requests : [])
     .filter((row) => lateRequestVisibleUntil(row.visible_until));
-  if (!rows.length) return null;
-  return (
-    <section className="card late-request-card">
+
+  const currentMembers = Array.isArray(meal?.member_details) ? meal.member_details : [];
+  const memberMap = new Map(currentMembers.map((row) => [
+    row.membership_id || row.member_id || row.memberId,
+    row,
+  ]));
+
+  const preparedRows = rows.map((row) => {
+    const previous = memberMap.get(row.membership_id || row.member_id) || null;
+    const before = {
+      breakfast: safeNumber(previous?.breakfast ?? previous?.final_breakfast ?? previous?.planned_breakfast),
+      lunch: safeNumber(previous?.lunch ?? previous?.final_lunch ?? previous?.planned_lunch),
+      dinner: safeNumber(previous?.dinner ?? previous?.final_dinner ?? previous?.planned_dinner),
+    };
+    const requested = {
+      breakfast: safeNumber(row.breakfast),
+      lunch: safeNumber(row.lunch),
+      dinner: safeNumber(row.dinner),
+    };
+    const delta = {
+      breakfast: requested.breakfast - before.breakfast,
+      lunch: requested.lunch - before.lunch,
+      dinner: requested.dinner - before.dinner,
+    };
+    return {
+      ...row,
+      before,
+      requested,
+      delta,
+      deltaTotal: delta.breakfast + delta.lunch + delta.dinner,
+      hadPreviousMealRecord: Boolean(previous),
+    };
+  });
+
+  if (!preparedRows.length) return null;
+
+  const totals = preparedRows.reduce((sum, row) => ({
+    breakfast: sum.breakfast + row.delta.breakfast,
+    lunch: sum.lunch + row.delta.lunch,
+    dinner: sum.dinner + row.delta.dinner,
+  }), { breakfast: 0, lunch: 0, dinner: 0 });
+  const targetDate = String(meal?.meal_date || preparedRows[0]?.target_meal_date || preparedRows[0]?.meal_date || '').slice(0, 10);
+  const dayTitle = targetDate === dhakaToday() ? 'আজকের' : 'আগামীকালের';
+  const syncTime = lastSync || meal?.server_snapshot_at || null;
+
+  return <>
+    <section
+      className="card late-request-card late-request-summary-card"
+      role="button"
+      tabIndex={0}
+      onClick={() => setDetailsOpen(true)}
+      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setDetailsOpen(true); } }}
+      aria-label={`${dayTitle} অনুমোদিত লেট রিকোয়েস্টের বিস্তারিত দেখুন`}
+    >
       <div className="late-request-head">
         <div className="late-request-title">
-          <span className="late-request-icon"><Icon name="warning" size={17} /></span>
-          <div><span className="eyebrow">মিল সংশোধন</span><h2>লেট রিকোয়েস্ট</h2></div>
+          <span className="late-request-icon"><Icon name="clock" size={18} /></span>
+          <div><span className="eyebrow">মিল সংশোধন</span><h2>{dayTitle} অনুমোদিত লেট রিকোয়েস্ট</h2></div>
         </div>
-        <span className="count-badge">{formatNumber(rows.length)}টি</span>
+        <span className="count-badge">{formatNumber(preparedRows.length)} জন</span>
       </div>
-      <p className="late-request-summary">{isOnline ? 'অনুমোদিত দেরিতে করা পরিবর্তনগুলো ৯টার finalization পর্যন্ত এখানে আলাদা করে দেখা যাবে।' : 'সর্বশেষ সিঙ্ক করা অনুমোদিত দেরিতে করা পরিবর্তনের তথ্য।'}</p>
-      <div className="late-request-list">
-        {rows.map((row) => (
-          <article className="late-request-row" key={`${row.membership_id}-${row.meal_date}`}>
-            <div><strong>{row.name || row.member_name || 'সদস্য'}</strong><small>টার্গেট: {formatDateWithWeekday(row.target_meal_date || row.meal_date)}</small></div>
-            <div className="meal-member-values meal-member-values-readable">
-              <span><small>ব্রেকফাস্ট</small><strong>{formatMeal(row.breakfast)}</strong></span>
-              <span><small>লাঞ্চ</small><strong>{formatMeal(row.lunch)}</strong></span>
-              <span><small>ডিনার</small><strong>{formatMeal(row.dinner)}</strong></span>
-            </div>
-          </article>
-        ))}
+      <p className="late-request-summary">{formatNumber(preparedRows.length)} জনের অনুমোদিত লেট মিলের পরিবর্তন মূল মিলের সঙ্গে সমন্বয় করতে হবে। নিচের মানগুলো নতুন মোট নয়—আগের মিলের তুলনায় কম-বেশি।</p>
+      <div className="late-request-delta-grid">
+        <LateDeltaStat label="ব্রেকফাস্ট" value={totals.breakfast} />
+        <LateDeltaStat label="লাঞ্চ" value={totals.lunch} />
+        <LateDeltaStat label="ডিনার" value={totals.dinner} />
       </div>
+      <div className="meal-total-row late-request-net-total">
+        <span>মোট নেট সমন্বয়</span>
+        <strong className={deltaTone(totals.breakfast + totals.lunch + totals.dinner)}>{signedMealDelta(totals.breakfast + totals.lunch + totals.dinner)}</strong>
+      </div>
+      <div className="sync-placeholder late-request-sync">
+        <span className="sync-label"><span className={`network-dot ${isOnline ? 'online-dot' : 'offline-dot'}`} />শেষ সিঙ্ক</span>
+        <span>{syncTime ? formatDateTime12(syncTime) : 'সময় সংরক্ষিত নেই'}</span>
+      </div>
+      <div className="meal-detail-hint"><span>{isOnline ? 'ব্যক্তিভিত্তিক বিস্তারিত দেখুন' : 'সংরক্ষিত বিস্তারিত দেখুন'}</span><Icon name="chevron" size={17} /></div>
     </section>
-  );
+    <p className="late-request-counting-warning"><Icon name="warning" size={15} /> মিল গণনার সময় আজকের মিল কার্ডের তথ্যের সঙ্গে এই লেট রিকোয়েস্টের +/− সমন্বয় করে ফলাফল খালাকে জানাবেন।</p>
+    {detailsOpen && <LateRequestDetailsModal
+      date={targetDate}
+      rows={preparedRows}
+      totals={totals}
+      onClose={() => setDetailsOpen(false)}
+    />}
+  </>;
+}
+
+function LateRequestDetailsModal({ date, rows, totals, onClose }) {
+  useEffect(() => {
+    const handler = (event) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handler);
+      document.body.style.overflow = previous;
+    };
+  }, [onClose]);
+
+  const mealItems = [
+    ['breakfast', 'ব্রেকফাস্ট'],
+    ['lunch', 'লাঞ্চ'],
+    ['dinner', 'ডিনার'],
+  ];
+
+  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="modal-card meal-details-modal late-request-details-modal" role="dialog" aria-modal="true" aria-labelledby="late-request-detail-title">
+      <div className="modal-header">
+        <div><span className="eyebrow">অনুমোদিত মিল সংশোধন</span><h2 id="late-request-detail-title">{date ? formatDateWithWeekday(date) : 'লেট রিকোয়েস্টের বিস্তারিত'}</h2><p>প্রতিটি মান = নতুন অনুরোধ − আগের মিল। সবুজ মান বাড়তি, লাল মান কমাতে হবে।</p></div>
+        <button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={20} /></button>
+      </div>
+      <div className="late-request-detail-totals">
+        {mealItems.map(([key, label]) => <LateDeltaStat key={key} label={label} value={totals[key]} />)}
+      </div>
+      <div className="late-request-detail-list">
+        {rows.map((row, index) => <article className="late-request-detail-member" key={`${row.override_id || row.request_id || row.membership_id}-${index}`}>
+          <div className="late-request-detail-member-head">
+            <div><strong>{row.name || row.member_name || 'সদস্য'}</strong><small>{row.source === 'member_correction' ? 'সংশোধিত মিল' : 'লেট মিল রিকোয়েস্ট'}</small></div>
+            <span className={`late-delta-pill ${deltaTone(row.deltaTotal)}`}>{signedMealDelta(row.deltaTotal)} মোট</span>
+          </div>
+          <div className="late-request-member-meals">
+            {mealItems.map(([key, label]) => <div className="late-request-member-meal" key={key}>
+              <span>{label}</span>
+              <small>{formatMeal(row.before[key])} → {formatMeal(row.requested[key])}</small>
+              <strong className={deltaTone(row.delta[key])}>{signedMealDelta(row.delta[key])}</strong>
+            </div>)}
+          </div>
+          {!row.hadPreviousMealRecord && <p className="late-request-member-note">আগের মিল কার্ডে এই সদস্যের রেকর্ড ছিল না; তাই অনুরোধকৃত মিলকে পুরোটা বাড়তি হিসেবে ধরা হয়েছে।</p>}
+          {row.reason && <p className="late-request-member-reason"><strong>কারণ:</strong> {row.reason}</p>}
+          {row.approved_at && <small className="late-request-approved-at">অনুমোদন: {formatDateTime12(row.approved_at)}</small>}
+        </article>)}
+      </div>
+      <div className="late-request-modal-warning"><Icon name="warning" size={17}/><span>এই +/− মানগুলো মূল মিলের সঙ্গে সমন্বয় করুন। একই মিল আবার পুরোপুরি যোগ করলে বা বাদ দিলে হিসাব ভুল হতে পারে।</span></div>
+    </section>
+  </div>;
 }
 
 function mapDirectoryMember(row, hasRunningPeriod = true) {
@@ -642,7 +779,7 @@ export function DashboardPage() {
           loading={online ? loading && !effectiveDashboard : offlineLoading}
           cachedError={dashboardError || offlineError?.message}
         />
-        <LateRequestCard meal={mealCard} isOnline={online} />
+        <LateRequestCard meal={mealCard} isOnline={online} lastSync={lastSync} />
       </> : effectiveDashboard ? <MealCard meal={null} noRunningPeriod isOnline={online} /> : <MealCard
         meal={mealCard}
         isOnline={online}

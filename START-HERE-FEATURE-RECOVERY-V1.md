@@ -1,4 +1,6 @@
-# Hostel Life — Feature Recovery V1
+# Hostel Life — Feature Recovery V1 (HISTORICAL — DO NOT RUN)
+
+> **সতর্কতা:** এই নির্দেশিকা পুরোনো। `supabase/HOSTEL_LIFE_FEATURE_RECOVERY_V1.sql` বর্তমান live snapshot-এর সঙ্গে return-type conflict করে (`integer` বনাম `void`) এবং `42P13` error দিতে পারে। এটি আবার চালাবে না। বর্তমান পরিবর্তনের জন্য `HOSTEL-LIFE-FRONTEND-RECOVERY-V1-README-BN.md` দেখুন।
 
 এই package-টি তোমার সর্বশেষ feature request অনুযায়ী বর্তমান recovery project-এর cumulative copy। এটি Super Admin phase নয়।
 
@@ -11,7 +13,7 @@
 
 ## কোন SQL?
 
-এই feature package-এর জন্য নতুন migration হলো:
+পুরোনো নির্দেশিকার অংশ — বর্তমান live database-এ এটি চালানো যাবে না:
 
 `supabase/HOSTEL_LIFE_FEATURE_RECOVERY_V1.sql`
 
@@ -33,12 +35,12 @@
 
 4. `npm ci` network error দিলে পুরোনো `node_modules` copy না করে error text রেখে দাও; build pass হয়েছে বলে ধরে নিও না।
 
-## Market Entry সমস্যা থাকলে
+## Market Entry সমস্যা থাকলে (ঐতিহাসিক নোট)
 
 Market entry form-এ member-directory RPC fail করলে আগে running-period result হারিয়ে যাচ্ছিল—এটি `Promise.allSettled`-ভিত্তিক load-এ বদলানো হয়েছে। RPC fallback এখন PostgREST `PGRST202/PGRST203` missing/schema-cache errors-ও চেনে। Directory unavailable হলে UI কারণ দেখাবে; নিজের member ID পাওয়া গেলে শুধু নিজের নামে fallback entry বেছে নেওয়া সম্ভব, কিন্তু অন্য সদস্য নির্বাচন করতে directory ঠিক হতে হবে।
 
-যদি Feature Recovery SQL এবং build সফল হওয়ার পরও market save fail করে, `supabase/READ_ONLY_MARKET_DIAGNOSTIC.sql` চালিয়ে result export করো। এটি শুধু SELECT/metadata inspection, কোনো table/function/data/privilege পরিবর্তন করে না। Error toast-এ যে message আসে সেটিও সংরক্ষণ করবে।
+পুরোনো diagnostic-এর বদলে বর্তমান প্যাকেজের `supabase/READ_ONLY_MARKET_DIAGNOSTIC_V2.sql` ব্যবহার করবে। এটি শুধু SELECT/metadata inspection, কোনো table/function/data/privilege পরিবর্তন করে না। Error toast-এ যে message আসে সেটিও সংরক্ষণ করবে।
 
 ## পুরোনো SQL
 
-এই ZIP-এ পূর্ববর্তী recovery SQL-গুলো historical/reference হিসেবে আছে। সেগুলো আবার চালাবে না। নতুন feature-এর জন্য শুধু উপরের `HOSTEL_LIFE_FEATURE_RECOVERY_V1.sql` প্রযোজ্য।
+এই ZIP-এর পুরোনো recovery SQL-গুলো historical/reference হিসেবে আছে। সেগুলো আবার চালাবে না।

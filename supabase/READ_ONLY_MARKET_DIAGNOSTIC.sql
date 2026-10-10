@@ -1,3 +1,5 @@
+-- HISTORICAL DIAGNOSTIC — use READ_ONLY_MARKET_DIAGNOSTIC_V2.sql instead.
+-- Current package includes additional table/security and market-integrity checks.
 -- HOSTEL LIFE: READ-ONLY MARKET DIAGNOSTIC
 -- Run only if Market Entry/Market History still fails after FEATURE_RECOVERY_V1 is applied.
 -- This script does not modify tables, functions, policies, data, or grants.
