@@ -59,7 +59,6 @@ export function AuthProvider({ children }) {
       setOperationalRole(identity.operationalRole || null);
       setOfflineIdentity(false);
       saveIdentitySnapshot({ userId: session.user.id, identity }).catch(() => undefined);
-      requestPersistentStorage().catch(() => undefined);
       return identity;
     } catch (error) {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -98,7 +97,7 @@ export function AuthProvider({ children }) {
         setIdentityError(getFriendlySupabaseError(error, 'লগইন সেশন যাচাই করা যায়নি।'));
       }
 
-      setSession(data.session ?? null);
+      setSession((current) => (current?.user?.id === data.session?.user?.id ? current : (data.session ?? null)));
       setAuthLoading(false);
     };
 
@@ -106,8 +105,15 @@ export function AuthProvider({ children }) {
 
     if (!supabaseConfigReady || !supabase) return () => { mounted = false; };
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession ?? null);
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // TOKEN_REFRESHED only rotates the credential. The app does not consume the
+      // access token from React state, so do not re-run three identity RPCs for it.
+      if (event === 'TOKEN_REFRESHED') return;
+      if (event === 'INITIAL_SESSION') {
+        setSession((current) => (current?.user?.id === nextSession?.user?.id ? current : (nextSession ?? null)));
+      } else {
+        setSession(nextSession ?? null);
+      }
       setAuthLoading(false);
       if (!nextSession) {
         clearIdentity();
@@ -126,10 +132,15 @@ export function AuthProvider({ children }) {
     refreshIdentity().catch(() => undefined);
   }, [session, refreshIdentity]);
 
+
+  useEffect(() => {
+    if (session?.user?.id) requestPersistentStorage().catch(() => undefined);
+  }, [session?.user?.id]);
+
   useEffect(() => {
     if (!session?.user) return undefined;
     const retry = () => {
-      if (navigator.onLine) refreshIdentity().catch(() => undefined);
+      if (navigator.onLine && document.visibilityState === 'visible' && document.hasFocus()) refreshIdentity().catch(() => undefined);
     };
     window.addEventListener('online', retry);
     return () => window.removeEventListener('online', retry);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '../components/Header';
 import { BottomNav } from '../components/BottomNav';
 import { MenuDrawer } from '../components/MenuDrawer';
@@ -10,6 +10,7 @@ import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useManagementContext } from '../hooks/useManagementContext';
 import { fetchNotifications } from '../services/notificationService';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 export function keyToPath(key) {
   return `/app/${key}`;
@@ -41,9 +42,11 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const unreadFetchInFlightRef = useRef(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('hostel-life-theme') || 'system');
 
   const active = pathToKey(pathname);
+  const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
 
   useEffect(() => {
     const syncTheme = () => setTheme(localStorage.getItem('hostel-life-theme') || 'system');
@@ -63,33 +66,41 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     return () => media?.removeEventListener?.('change', apply);
   }, [theme]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let timer;
-    const loadUnread = async () => {
-      if (!isOnline) {
-        setUnreadCount(0);
-        return;
-      }
+  const loadUnread = useCallback(async () => {
+    if (!isOnline || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) {
+      if (!isOnline) setUnreadCount(0);
+      return null;
+    }
+    if (unreadFetchInFlightRef.current) return unreadFetchInFlightRef.current;
+    const task = (async () => {
       try {
         const items = await fetchNotifications(50);
-        if (!cancelled) setUnreadCount(items.filter((item) => !item.is_seen).length);
-      } catch (error) {
-        if (!cancelled) console.warn('Notification badge could not load:', error);
+        setUnreadCount(items.filter((item) => !item.is_seen).length);
+        return items;
+      } catch {
+        // The notification panel has an explicit refresh action; background refresh
+        // errors are intentionally silent to avoid repetitive console noise.
+        return null;
       }
-    };
-    loadUnread();
-    timer = window.setInterval(loadUnread, 300000);
-    const refreshIfVisible = () => { if (document.visibilityState === 'visible') loadUnread(); };
-    window.addEventListener('focus', refreshIfVisible);
-    document.addEventListener('visibilitychange', refreshIfVisible);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-      window.removeEventListener('focus', refreshIfVisible);
-      document.removeEventListener('visibilitychange', refreshIfVisible);
-    };
+    })();
+    unreadFetchInFlightRef.current = task;
+    try { return await task; }
+    finally { if (unreadFetchInFlightRef.current === task) unreadFetchInFlightRef.current = null; }
   }, [isOnline]);
+
+  useEffect(() => {
+    if (isOnline) loadUnread();
+    else setUnreadCount(0);
+  }, [isOnline, loadUnread]);
+
+  // No five-minute notification polling. Refresh the badge only for visible,
+  // active sessions when the notifications table changes or the app resumes.
+  useRealtimeRefresh({
+    enabled: isOnline,
+    hostelId: membership?.hostel_id,
+    tables: ['notifications'],
+    onRefresh: () => loadUnread(),
+  });
 
   const handleNavigate = (key) => {
     if (!isOnline && key !== 'dashboard') {
@@ -188,7 +199,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       )}
 
       {notificationsOpen && (
-        <NotificationsPopover isManager={isManager} onUnreadChange={setUnreadCount} onClose={() => setNotificationsOpen(false)} />
+        <NotificationsPopover isManager={isManager} onUnreadChange={setUnreadCount} onClose={closeNotifications} />
       )}
 
       <main className="app-main">

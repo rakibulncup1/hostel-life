@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { fetchDashboardData, fetchOfflineMealBundle } from '../services/dashboardService';
+import { fetchOfflineMealBundle } from '../services/dashboardService';
 import { pickOfflineMealCard } from '../services/mealOfflineStore';
-import { readDashboardSnapshot, requestPersistentStorage, saveDashboardSnapshot } from '../services/offlineStore';
+import { readDashboardSnapshot, saveDashboardSnapshot } from '../services/offlineStore';
 
 export function useDashboardOffline({ userId, hostelId, isOnline }) {
   const [snapshot, setSnapshot] = useState(null);
@@ -21,7 +21,6 @@ export function useDashboardOffline({ userId, hostelId, isOnline }) {
       setError(null);
       return cached;
     } catch (storageError) {
-      console.warn('Dashboard offline cache read failed:', storageError);
       setError(storageError);
       return null;
     } finally {
@@ -29,24 +28,29 @@ export function useDashboardOffline({ userId, hostelId, isOnline }) {
     }
   }, [hostelId, userId]);
 
-  const sync = useCallback(async (freshDashboard = null) => {
-    if (!userId || !hostelId || !isOnline) return null;
+  // This function only persists a dashboard result already fetched by the page.
+  // It must not fetch dashboard data itself: doing so duplicated RPC calls and,
+  // when used by DashboardPage's effect, could start a fetch/cache/render loop.
+  const sync = useCallback(async (freshDashboard, { refreshMealBundle = false } = {}) => {
+    if (!userId || !hostelId || !isOnline || !freshDashboard) return null;
     try {
-      const dashboard = freshDashboard || await fetchDashboardData();
-      if (!dashboard) return null;
-      // Remove stale meal content from the snapshot only when server confirms there is no running period.
-      const mealBundle = dashboard.has_running_period === false
-        ? null
-        : await fetchOfflineMealBundle().catch(() => null);
+      const previous = await readDashboardSnapshot({ userId, hostelId }).catch(() => null);
+      let mealBundle = previous?.mealBundle || null;
 
-      await saveDashboardSnapshot({ userId, hostelId, dashboard, mealBundle });
+      if (freshDashboard.has_running_period === false) {
+        mealBundle = null;
+      } else if (refreshMealBundle || !mealBundle) {
+        // Never discard a good cached bundle just because this fetch temporarily fails.
+        const latestBundle = await fetchOfflineMealBundle().catch(() => null);
+        if (latestBundle) mealBundle = latestBundle;
+      }
+
+      await saveDashboardSnapshot({ userId, hostelId, dashboard: freshDashboard, mealBundle });
       const cached = await readDashboardSnapshot({ userId, hostelId });
       setSnapshot(cached);
       setError(null);
-      requestPersistentStorage().catch(() => undefined);
       return cached;
     } catch (syncError) {
-      console.warn('Dashboard online sync failed:', syncError);
       setError(syncError);
       return null;
     }
@@ -56,11 +60,6 @@ export function useDashboardOffline({ userId, hostelId, isOnline }) {
     loadCached();
   }, [loadCached]);
 
-  useEffect(() => {
-    if (!isOnline || !userId || !hostelId) return undefined;
-    requestPersistentStorage().catch(() => undefined);
-    return undefined;
-  }, [hostelId, isOnline, userId]);
 
   const offlineMealCard = (() => {
     if (!snapshot?.mealBundle) return snapshot?.dashboard?.meal_card || null;

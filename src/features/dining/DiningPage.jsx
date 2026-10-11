@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { OfflineState } from '../../components/OfflineState';
@@ -1134,45 +1134,39 @@ function ManagerMealRequests() {
   const [editDays, setEditDays] = useState([]);
   const [editDefaults, setEditDefaults] = useState(DEFAULT_MEALS);
   const [editBusy, setEditBusy] = useState(false);
+  const loadInFlightRef = useRef(null);
 
   const load = useCallback(async ({ silent = false } = {}) => {
-    if (!silent) setLoading(true);
-    try {
-      if (tab === 'correction') {
-        setRequests(await fetchManagerMealRequests({ requestType: 'correction', status: 'submitted' }));
-      } else if (tab === 'late') {
-        setRequests(await fetchManagerMealRequests({ status: 'submitted', lateOnly: true }));
-      } else if (tab === 'approved') {
-        setRequests(await fetchManagerMealRequests({ requestType: 'normal', status: 'approved', lateOnly: false }));
-      } else {
-        setRequests(await fetchManagerMealRequests({}));
+    if (!navigator.onLine || document.visibilityState !== 'visible' || !document.hasFocus()) return null;
+    if (loadInFlightRef.current) return loadInFlightRef.current;
+    const task = (async () => {
+      if (!silent) setLoading(true);
+      try {
+        if (tab === 'correction') {
+          setRequests(await fetchManagerMealRequests({ requestType: 'correction', status: 'submitted' }));
+        } else if (tab === 'late') {
+          setRequests(await fetchManagerMealRequests({ status: 'submitted', lateOnly: true }));
+        } else if (tab === 'approved') {
+          setRequests(await fetchManagerMealRequests({ requestType: 'normal', status: 'approved', lateOnly: false }));
+        } else {
+          setRequests(await fetchManagerMealRequests({}));
+        }
+      } catch (error) {
+        if (!silent) toast.error(getFriendlySupabaseError(error, 'ম্যানেজারের অনুরোধ লোড করা যায়নি।'));
+        // Background refresh errors remain silent; the next explicit action can retry.
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch (error) {
-      if (!silent) toast.error(getFriendlySupabaseError(error, 'ম্যানেজারের অনুরোধ লোড করা যায়নি।'));
-      else console.warn('Manager request refresh failed:', error);
-    } finally {
-      if (!silent) setLoading(false);
-    }
+    })();
+    loadInFlightRef.current = task;
+    try { return await task; }
+    finally { if (loadInFlightRef.current === task) loadInFlightRef.current = null; }
   }, [tab, toast]);
 
   const online = useOnlineStatus();
 
   useEffect(() => {
-    if (!online) return undefined;
-    load();
-    const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') load({ silent: true });
-    };
-    const timer = window.setInterval(() => {
-      if (!document.hidden && navigator.onLine) load({ silent: true });
-    }, 300000);
-    window.addEventListener('focus', refreshIfVisible);
-    document.addEventListener('visibilitychange', refreshIfVisible);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('focus', refreshIfVisible);
-      document.removeEventListener('visibilitychange', refreshIfVisible);
-    };
+    if (online) load();
   }, [load, online]);
 
   useRealtimeRefresh({

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useOnlineStatus } from './useOnlineStatus';
@@ -12,11 +12,19 @@ export function useManagementContext() {
   const online = useOnlineStatus();
   const [context, setContext] = useState(null);
   const [loading, setLoading] = useState(false);
+  const refreshInFlightRef = useRef(null);
+  const lastRefreshAtRef = useRef(0);
 
-  const refresh = useCallback(async () => {
-    if (!supabase || !online || !membership?.hostel_id) return null;
-    setLoading(true);
-    try {
+  const refresh = useCallback(async ({ force = false } = {}) => {
+    if (!supabase || !online || !membership?.hostel_id || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) return null;
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+    const now = Date.now();
+    if (!force && now - lastRefreshAtRef.current < 15000) return null;
+    lastRefreshAtRef.current = now;
+
+    const task = (async () => {
+      setLoading(true);
+      try {
       const { data, error } = await supabase.rpc('get_month_management_context');
       if (!error) {
         setContext(data ?? null);
@@ -43,8 +51,15 @@ export function useManagementContext() {
       };
       setContext(fallback);
       return fallback;
+      } finally {
+        setLoading(false);
+      }
+    })();
+    refreshInFlightRef.current = task;
+    try {
+      return await task;
     } finally {
-      setLoading(false);
+      if (refreshInFlightRef.current === task) refreshInFlightRef.current = null;
     }
   }, [membership?.hostel_id, online, isManager, operationalRole]);
 

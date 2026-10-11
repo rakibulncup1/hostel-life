@@ -1,6 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
+// Keep realtime-driven RPC refreshes bounded. Multiple row events are coalesced,
+// and a page will request at most one refresh per 15 seconds while visible.
+const REFRESH_DEBOUNCE_MS = 700;
+const MIN_REFRESH_INTERVAL_MS = 15000;
+
 export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRefresh }) {
   const onRefreshRef = useRef(onRefresh);
 
@@ -13,37 +18,123 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
   useEffect(() => {
     if (!enabled || !supabase || !hostelId || !tableKey) return undefined;
 
-    let timer = null;
-    const requestRefresh = () => {
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        if (document.visibilityState === 'visible' && navigator.onLine) {
-          onRefreshRef.current?.();
-        }
-      }, 700);
+    let channel = null;
+    let debounceTimer = null;
+    let lastRefreshAt = Date.now();
+    const pendingTables = new Set();
+    let pendingReason = 'realtime';
+
+    const isPageActive = () => document.visibilityState === 'visible' && document.hasFocus() && navigator.onLine;
+
+    const clearPending = () => {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      debounceTimer = null;
+      pendingTables.clear();
+      pendingReason = 'realtime';
     };
 
-    const requestedTables = tableKey.split('|').filter(Boolean);
-    const channelName = `hostel-life-live-${hostelId}-${requestedTables.join('-')}`;
-    const channel = supabase.channel(channelName);
+    const disconnect = () => {
+      clearPending();
+      if (!channel) return;
+      const oldChannel = channel;
+      channel = null;
+      // removeChannel closes the local subscription; failures are intentionally
+      // swallowed here because reconnect/visibility handling can safely retry.
+      Promise.resolve(supabase.removeChannel(oldChannel)).catch(() => undefined);
+    };
 
-    for (const table of requestedTables) {
-      channel.on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table, filter: `hostel_id=eq.${hostelId}` },
-        requestRefresh,
-      );
-    }
-
-    channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        console.warn(`Realtime subscription unavailable for ${channelName}.`);
+    const dispatchRefresh = () => {
+      debounceTimer = null;
+      if (!isPageActive()) {
+        pendingTables.clear();
+        pendingReason = 'realtime';
+        return;
       }
-    });
+      lastRefreshAt = Date.now();
+      const changedTables = [...pendingTables];
+      const reason = pendingReason;
+      pendingTables.clear();
+      pendingReason = 'realtime';
+      try {
+        const result = onRefreshRef.current?.({ tables: changedTables, reason });
+        if (result && typeof result.catch === 'function') result.catch(() => undefined);
+      } catch {
+        // A refresh failure is handled by the owning page; do not emit repetitive logs.
+      }
+    };
+
+    const scheduleRefresh = (table, reason = 'realtime') => {
+      if (table) pendingTables.add(table);
+      if (reason !== 'realtime') pendingReason = reason;
+      if (!isPageActive()) return;
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      const elapsed = Date.now() - lastRefreshAt;
+      const delay = reason !== 'realtime'
+        ? REFRESH_DEBOUNCE_MS
+        : Math.max(REFRESH_DEBOUNCE_MS, MIN_REFRESH_INTERVAL_MS - elapsed);
+      debounceTimer = window.setTimeout(dispatchRefresh, delay);
+    };
+
+    const connect = () => {
+      if (channel || !isPageActive()) return;
+      const requestedTables = tableKey.split('|').filter(Boolean);
+      const channelName = `hostel-life-live-${hostelId}-${requestedTables.join('-')}`;
+      const nextChannel = supabase.channel(channelName);
+
+      for (const table of requestedTables) {
+        nextChannel.on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table, filter: `hostel_id=eq.${hostelId}` },
+          () => scheduleRefresh(table),
+        );
+      }
+
+      channel = nextChannel;
+      // Supabase handles its own websocket reconnect. Avoid logging every transient
+      // channel error; hidden/offline pages explicitly detach and reconnect on resume.
+      nextChannel.subscribe();
+    };
+
+    const handleVisibility = () => {
+      if (!isPageActive()) {
+        disconnect();
+        return;
+      }
+      connect();
+      scheduleRefresh('__resume__', 'resume');
+    };
+
+    const handleOnline = () => {
+      if (!navigator.onLine) {
+        disconnect();
+        return;
+      }
+      connect();
+      scheduleRefresh('__online__', 'online');
+    };
+
+    const handleOffline = () => disconnect();
+    const handleFocus = () => {
+      if (!isPageActive()) return;
+      connect();
+      scheduleRefresh('__focus__', 'resume');
+    };
+    const handleBlur = () => disconnect();
+
+    connect();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
 
     return () => {
-      if (timer) window.clearTimeout(timer);
-      supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+      disconnect();
     };
   }, [enabled, hostelId, tableKey]);
 }

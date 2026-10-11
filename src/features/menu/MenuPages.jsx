@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useToast } from '../../components/Toast';
 import { navigateTo } from '../../app/AppShell';
@@ -36,6 +37,7 @@ function Avatar({ member, large = false }) {
 export function AllMembersPage() {
   const toast = useToast();
   const { membership } = useAuth();
+  const online = useOnlineStatus();
   const [members, setMembers] = useState([]);
   const [hasRunningPeriod, setHasRunningPeriod] = useState(true);
   const [runningPeriodId, setRunningPeriodId] = useState(null);
@@ -44,45 +46,44 @@ export function AllMembersPage() {
   const [memberDetail, setMemberDetail] = useState(null);
   const [memberDetailLoading, setMemberDetailLoading] = useState(false);
   const [requestedMemberId] = useState(() => new URLSearchParams(window.location.search).get('member_id') || '');
+  const loadInFlightRef = useRef(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [directoryResult, periodResult] = await Promise.allSettled([fetchMemberDirectory(), fetchRunningPeriod()]);
-      if (directoryResult.status === 'rejected') throw directoryResult.reason;
-      setMembers(Array.isArray(directoryResult.value) ? directoryResult.value : []);
-      if (periodResult.status === 'fulfilled') {
-        const period = periodResult.value;
-        setHasRunningPeriod(Boolean(period?.period_id || period?.id));
-        setRunningPeriodId(period?.period_id || period?.id || null);
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!online || !navigator.onLine || document.visibilityState !== 'visible' || !document.hasFocus()) return null;
+    if (loadInFlightRef.current) return loadInFlightRef.current;
+
+    const task = (async () => {
+      if (!silent) setLoading(true);
+      try {
+        const [directoryResult, periodResult] = await Promise.allSettled([fetchMemberDirectory(), fetchRunningPeriod()]);
+        if (directoryResult.status === 'rejected') throw directoryResult.reason;
+        setMembers(Array.isArray(directoryResult.value) ? directoryResult.value : []);
+        if (periodResult.status === 'fulfilled') {
+          const period = periodResult.value;
+          setHasRunningPeriod(Boolean(period?.period_id || period?.id));
+          setRunningPeriodId(period?.period_id || period?.id || null);
+        }
+      } catch (error) {
+        if (!silent) toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।'));
+      } finally {
+        if (!silent) setLoading(false);
       }
-    } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।'));
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+    })();
+    loadInFlightRef.current = task;
+    try { return await task; }
+    finally { if (loadInFlightRef.current === task) loadInFlightRef.current = null; }
+  }, [online, toast]);
 
   useEffect(() => {
-    load();
-    const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') load();
-    };
-    const timer = window.setInterval(refreshIfVisible, 300000);
-    window.addEventListener('focus', refreshIfVisible);
-    document.addEventListener('visibilitychange', refreshIfVisible);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('focus', refreshIfVisible);
-      document.removeEventListener('visibilitychange', refreshIfVisible);
-    };
-  }, [load]);
+    if (online) load();
+    else setLoading(false);
+  }, [load, online]);
 
   useRealtimeRefresh({
-    enabled: true,
+    enabled: online,
     hostelId: membership?.hostel_id,
     tables: ['hostel_memberships'],
-    onRefresh: () => load(),
+    onRefresh: () => load({ silent: true }),
   });
 
   useEffect(() => {

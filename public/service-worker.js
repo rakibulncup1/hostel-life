@@ -1,4 +1,5 @@
-const CACHE_NAME = 'hostel-life-shell-v9';
+// Bump this cache name when changing the cached app-shell contract.
+const CACHE_NAME = 'hostel-life-shell-v10';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -27,29 +28,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-async function cacheAndReturn(request, cacheKey = request) {
+async function cacheFirst(request, cacheKey = request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(cacheKey);
+  if (cached) return cached;
 
-  const refresh = fetch(request)
-    .then((response) => {
-      if (response && (response.ok || response.type === 'opaque')) {
-        cache.put(cacheKey, response.clone());
-      }
-      return response;
-    })
-    .catch(() => null);
+  const response = await fetch(request);
+  if (response && response.ok) await cache.put(cacheKey, response.clone());
+  return response;
+}
 
-  // Cache-first for immediate offline startup. While cached content is returned,
-  // the background refresh keeps the shell/assets current for the next visit.
-  if (cached) {
-    refresh.catch(() => undefined);
-    return cached;
+async function networkFirst(request, cacheKey = request) {
+  const cache = await caches.open(CACHE_NAME);
+  try {
+    // Refresh HTML only as a result of an actual navigation/request. This keeps
+    // deployments current without background re-fetches of every static asset.
+    const response = await fetch(request);
+    if (response && response.ok) await cache.put(cacheKey, response.clone());
+    return response;
+  } catch (error) {
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+    throw error;
   }
-
-  const network = await refresh;
-  if (network) return network;
-  throw new Error('Offline resource unavailable');
 }
 
 self.addEventListener('fetch', (event) => {
@@ -61,18 +62,20 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      cacheAndReturn(request, '/index.html').catch(() => caches.match('/index.html'))
+      networkFirst(request, '/index.html').catch(() => caches.match('/index.html'))
     );
     return;
   }
 
-  if (
-    url.pathname.startsWith('/assets/') ||
-    url.pathname.startsWith('/icons/') ||
-    url.pathname === '/manifest.webmanifest' ||
-    url.pathname === '/index.html'
-  ) {
-    event.respondWith(cacheAndReturn(request));
+  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) {
+    // Vite asset URLs are content-hashed, so a cached URL is immutable. Do not
+    // create another background network request when the asset is already cached.
+    event.respondWith(cacheFirst(request));
+    return;
+  }
+
+  if (url.pathname === '/manifest.webmanifest' || url.pathname === '/index.html') {
+    event.respondWith(networkFirst(request));
   }
 });
 

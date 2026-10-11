@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToast } from '../../components/Toast';
@@ -558,98 +558,170 @@ export function DashboardPage() {
   const [detailsRows, setDetailsRows] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
-  const loadDashboard = useCallback(async (silent = false) => {
-    if (!online || !hostelId) return;
-    if (!silent) setLoading(true);
-    setDashboardError(null);
-    try {
-      // Load the member directory and period independently from the dashboard summary.
-      // If get_dashboard_data fails while no period is running, members must still render.
-      const [dashboardResult, periodResult, directoryResult] = await Promise.allSettled([
-        fetchDashboardData(),
-        fetchRunningPeriod(),
-        fetchMemberDirectory(),
-      ]);
-      const data = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null;
-      const resolvedPeriod = periodResult.status === 'fulfilled' ? periodResult.value : (data?.period || null);
-      const hasRunningPeriod = periodResult.status === 'fulfilled'
-        ? Boolean(resolvedPeriod?.period_id || resolvedPeriod?.id)
-        : (typeof data?.has_running_period === 'boolean'
-          ? data.has_running_period
-          : Boolean(data?.period?.period_id || data?.period?.id));
-      const directoryRows = directoryResult.status === 'fulfilled' && Array.isArray(directoryResult.value)
-        ? directoryResult.value
-        : [];
-      const directoryMap = new Map(directoryRows.map((row) => [row.membership_id, row]));
-      const fromDirectory = directoryRows.map((row) => mapDirectoryMember(row, hasRunningPeriod));
-      const fromDashboard = (Array.isArray(data?.members) ? data.members : []).map((member) => {
-        const id = member.membership_id || member.id;
-        const directory = directoryMap.get(id);
-        return {
-          ...member,
-          membership_id: id,
-          name: member.name || directory?.member_name || 'সদস্য',
-          status: member.status || directory?.member_status || 'active',
-          role: member.role || directory?.role || 'member',
-          is_assistant_manager: Boolean(member.is_assistant_manager ?? directory?.is_assistant_manager),
-          is_primary_manager: Boolean(member.is_primary_manager ?? directory?.is_primary_manager ?? (directory?.role === 'manager')),
-          meal_activity: hasRunningPeriod
-            ? (member.meal_activity || directory?.meal_activity || 'এই মাসে মিল নেই')
-            : 'এখনো মাস শুরু হয়নি',
-          meals: hasRunningPeriod ? safeNumber(member.meals ?? directory?.final_meals) : 0,
-          deposit: hasRunningPeriod ? safeNumber(member.deposit ?? directory?.deposit) : 0,
-          meal_cost: hasRunningPeriod ? safeNumber(member.meal_cost ?? directory?.meal_cost) : 0,
-          other_expense: hasRunningPeriod ? safeNumber(member.other_expense ?? directory?.other_expense) : 0,
-          balance: hasRunningPeriod ? safeNumber(member.balance ?? directory?.balance) : 0,
+  const loadInFlightRef = useRef(null);
+  const lastLoadStartedAtRef = useRef(0);
+  const latestDashboardRef = useRef(null);
+  const latestCachedDashboardRef = useRef(null);
+
+  useEffect(() => { latestDashboardRef.current = dashboard; }, [dashboard]);
+  useEffect(() => { latestCachedDashboardRef.current = cachedDashboard; }, [cachedDashboard]);
+
+  const loadDashboard = useCallback(async (silent = false, options = {}) => {
+    if (!online || !hostelId || !navigator.onLine || document.visibilityState !== 'visible' || !document.hasFocus()) return null;
+    if (loadInFlightRef.current) return loadInFlightRef.current;
+
+    const now = Date.now();
+    // Focus, visibility, and realtime callbacks often happen together. Coalesce
+    // automatic refreshes; the explicit retry button remains available to users.
+    if (silent && !options.force && now - lastLoadStartedAtRef.current < 15000) return null;
+    lastLoadStartedAtRef.current = now;
+
+    const task = (async () => {
+      if (!silent) setLoading(true);
+      setDashboardError(null);
+      try {
+        const previous = latestDashboardRef.current || latestCachedDashboardRef.current;
+        const fullRead = !silent || !previous;
+        let dashboardResult;
+        let periodResult = { status: 'fulfilled', value: null };
+        let directoryResult = { status: 'fulfilled', value: [] };
+
+        if (fullRead) {
+          // The first page load (or a resume before any cache exists) performs the full fallback-safe read.
+          [dashboardResult, periodResult, directoryResult] = await Promise.allSettled([
+            fetchDashboardData(),
+            fetchRunningPeriod(),
+            fetchMemberDirectory(),
+          ]);
+        } else {
+          // For realtime/foreground updates, fetch the dashboard RPC first. Only
+          // call the two fallback RPCs if the dashboard response lacks key data.
+          [dashboardResult] = await Promise.allSettled([fetchDashboardData()]);
+          const quickData = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null;
+          const hasPeriodShape = typeof quickData?.has_running_period === 'boolean'
+            || Boolean(quickData?.period?.period_id || quickData?.period?.id);
+          const hasMembersShape = Array.isArray(quickData?.members);
+
+          if (dashboardResult.status === 'rejected' || !hasPeriodShape || !hasMembersShape) {
+            [periodResult, directoryResult] = await Promise.allSettled([
+              fetchRunningPeriod(),
+              fetchMemberDirectory(),
+            ]);
+          } else {
+            periodResult = {
+              status: 'fulfilled',
+              value: quickData?.period ?? previous?.period ?? null,
+            };
+          }
+        }
+
+        const data = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null;
+        const resolvedPeriod = periodResult.status === 'fulfilled'
+          ? periodResult.value
+          : (data?.period || previous?.period || null);
+        const hasRunningPeriod = fullRead && periodResult.status === 'fulfilled'
+          ? Boolean(resolvedPeriod?.period_id || resolvedPeriod?.id)
+          : (typeof data?.has_running_period === 'boolean'
+            ? data.has_running_period
+            : (periodResult.status === 'fulfilled'
+              ? Boolean(resolvedPeriod?.period_id || resolvedPeriod?.id)
+              : Boolean(previous?.has_running_period ?? previous?.period?.period_id ?? previous?.period?.id)));
+        const directoryRows = directoryResult.status === 'fulfilled' && Array.isArray(directoryResult.value)
+          ? directoryResult.value
+          : [];
+        const directoryMap = new Map(directoryRows.map((row) => [row.membership_id, row]));
+        const previousMemberMap = new Map((Array.isArray(previous?.members) ? previous.members : [])
+          .map((member) => [member.membership_id || member.id, member]));
+        const fromDirectory = directoryRows.map((row) => mapDirectoryMember(row, hasRunningPeriod));
+        const fromDashboard = (Array.isArray(data?.members) ? data.members : []).map((member) => {
+          const id = member.membership_id || member.id;
+          const directory = directoryMap.get(id);
+          const prior = previousMemberMap.get(id);
+          return {
+            ...member,
+            membership_id: id,
+            name: member.name || directory?.member_name || prior?.name || 'সদস্য',
+            status: member.status || directory?.member_status || prior?.status || 'active',
+            role: member.role || directory?.role || prior?.role || 'member',
+            is_assistant_manager: Boolean(member.is_assistant_manager ?? directory?.is_assistant_manager ?? prior?.is_assistant_manager),
+            is_primary_manager: Boolean(member.is_primary_manager ?? directory?.is_primary_manager ?? prior?.is_primary_manager ?? (directory?.role === 'manager')),
+            meal_activity: hasRunningPeriod
+              ? (member.meal_activity || directory?.meal_activity || prior?.meal_activity || 'এই মাসে মিল নেই')
+              : 'এখনো মাস শুরু হয়নি',
+            meals: hasRunningPeriod ? safeNumber(member.meals ?? directory?.final_meals ?? prior?.meals) : 0,
+            deposit: hasRunningPeriod ? safeNumber(member.deposit ?? directory?.deposit ?? prior?.deposit) : 0,
+            meal_cost: hasRunningPeriod ? safeNumber(member.meal_cost ?? directory?.meal_cost ?? prior?.meal_cost) : 0,
+            other_expense: hasRunningPeriod ? safeNumber(member.other_expense ?? directory?.other_expense ?? prior?.other_expense) : 0,
+            balance: hasRunningPeriod ? safeNumber(member.balance ?? directory?.balance ?? prior?.balance) : 0,
+          };
+        });
+
+        let nextMembers;
+        if (!hasRunningPeriod) {
+          nextMembers = fromDirectory.length ? fromDirectory : (Array.isArray(data?.members) ? fromDashboard : (previous?.members || []));
+        } else if (fromDashboard.length || Array.isArray(data?.members)) {
+          nextMembers = fromDashboard;
+        } else {
+          nextMembers = fromDirectory.length ? fromDirectory : (previous?.members || []);
+        }
+
+        if (!data && !directoryRows.length) {
+          // Keep a previously rendered/cached dashboard during a transient silent
+          // refresh failure; do not retry-log or blank the UI in a background loop.
+          if (silent && previous) return previous;
+          throw dashboardResult.status === 'rejected'
+            ? dashboardResult.reason
+            : (directoryResult.status === 'rejected' ? directoryResult.reason : new Error('ড্যাশবোর্ডের তথ্য পাওয়া যায়নি।'));
+        }
+
+        const ownDirectoryRow = directoryRows.find((row) => row.membership_id === membership?.membership_id);
+        const mappedOwn = ownDirectoryRow
+          ? mapDirectoryMember(ownDirectoryRow, hasRunningPeriod)
+          : nextMembers.find((member) => member.membership_id === membership?.membership_id) || null;
+        const normalized = {
+          ...(data || previous || {}),
+          period: hasRunningPeriod ? (resolvedPeriod || data?.period || previous?.period || null) : null,
+          has_running_period: hasRunningPeriod,
+          members: nextMembers,
+          meal_card: hasRunningPeriod ? (data?.meal_card || previous?.meal_card || null) : null,
+          summary: hasRunningPeriod ? (data?.summary || previous?.summary || null) : null,
+          my_account: hasRunningPeriod
+            ? (data?.my_account || previous?.my_account || (mappedOwn ? {
+                name: mappedOwn.name || mappedOwn.member_name,
+                meals: mappedOwn.meals ?? mappedOwn.final_meals ?? 0,
+                deposit: mappedOwn.deposit ?? 0,
+                meal_cost: mappedOwn.meal_cost ?? 0,
+                other_expense: mappedOwn.other_expense ?? 0,
+                balance: mappedOwn.balance ?? 0,
+              } : null))
+            : (mappedOwn ? { name: mappedOwn.name || mappedOwn.member_name, meals: 0, deposit: 0, meal_cost: 0, other_expense: 0, balance: 0 } : (data?.my_account || previous?.my_account)),
         };
-      });
-      let nextMembers;
-      if (!hasRunningPeriod) {
-        nextMembers = fromDirectory.length ? fromDirectory : fromDashboard;
-      } else if (fromDashboard.length) {
-        nextMembers = fromDashboard;
-      } else {
-        nextMembers = fromDirectory;
+        latestDashboardRef.current = normalized;
+        setDashboard(normalized);
+        if (dashboardResult.status === 'rejected') {
+          setDashboardError('ড্যাশবোর্ডের সারসংক্ষেপ সাময়িকভাবে লোড হয়নি; সদস্য তালিকা ও মাসের অবস্থা আলাদাভাবে লোড করা হয়েছে।');
+        }
+        const refreshMealBundle = options.refreshMealBundle ?? !silent;
+        await syncOfflineSnapshot(normalized, { refreshMealBundle });
+        return normalized;
+      } catch (error) {
+        if (!silent) {
+          console.error('Dashboard load failed:', error);
+          setDashboardError(error?.message || 'ড্যাশবোর্ডের তথ্য লোড করা যায়নি।');
+        } else if (!latestDashboardRef.current && !latestCachedDashboardRef.current) {
+          setDashboardError(error?.message || 'ড্যাশবোর্ডের তথ্য লোড করা যায়নি।');
+        }
+        return null;
+      } finally {
+        setLoading(false);
       }
+    })();
 
-      if (!data && !directoryRows.length) {
-        throw dashboardResult.status === 'rejected'
-          ? dashboardResult.reason
-          : (directoryResult.status === 'rejected' ? directoryResult.reason : new Error('ড্যাশবোর্ডের তথ্য পাওয়া যায়নি।'));
-      }
-
-      const ownDirectoryRow = directoryRows.find((row) => row.membership_id === membership?.membership_id);
-      const mappedOwn = ownDirectoryRow
-        ? mapDirectoryMember(ownDirectoryRow, hasRunningPeriod)
-        : nextMembers.find((member) => member.membership_id === membership?.membership_id) || null;
-      const normalized = {
-        ...(data || {}),
-        period: hasRunningPeriod ? (resolvedPeriod || data?.period || null) : null,
-        has_running_period: hasRunningPeriod,
-        members: nextMembers,
-        meal_card: hasRunningPeriod ? data?.meal_card || null : null,
-        summary: hasRunningPeriod ? data?.summary || null : null,
-        my_account: hasRunningPeriod
-          ? (data?.my_account || (mappedOwn ? {
-              name: mappedOwn.name || mappedOwn.member_name,
-              meals: mappedOwn.meals ?? mappedOwn.final_meals ?? 0,
-              deposit: mappedOwn.deposit ?? 0,
-              meal_cost: mappedOwn.meal_cost ?? 0,
-              other_expense: mappedOwn.other_expense ?? 0,
-              balance: mappedOwn.balance ?? 0,
-            } : null))
-          : (mappedOwn ? { name: mappedOwn.name || mappedOwn.member_name, meals: 0, deposit: 0, meal_cost: 0, other_expense: 0, balance: 0 } : data?.my_account),
-      };
-      setDashboard(normalized);
-      if (dashboardResult.status === 'rejected') {
-        setDashboardError('ড্যাশবোর্ডের সারসংক্ষেপ সাময়িকভাবে লোড হয়নি; সদস্য তালিকা ও মাসের অবস্থা আলাদাভাবে লোড করা হয়েছে।');
-      }
-      await syncOfflineSnapshot(normalized);
-    } catch (error) {
-      console.error('Dashboard load failed:', error);
-      setDashboardError(error?.message || 'ড্যাশবোর্ডের তথ্য লোড করা যায়নি।');
+    loadInFlightRef.current = task;
+    try {
+      return await task;
     } finally {
-      setLoading(false);
+      if (loadInFlightRef.current === task) loadInFlightRef.current = null;
     }
   }, [hostelId, online, syncOfflineSnapshot, membership?.membership_id]);
 
@@ -659,61 +731,32 @@ export function DashboardPage() {
       setLoading(false);
       return;
     }
-    if (online) loadDashboard();
-    else {
+    if (online) {
+      loadDashboard(false, { refreshMealBundle: true });
+    } else {
       setDashboard(cachedDashboard);
       setLoading(false);
     }
-  }, [cachedDashboard, hostelId, online, loadDashboard]);
+  }, [hostelId, online, loadDashboard]);
 
+  // Cache hydration is local-only. It must never trigger another online dashboard
+  // fetch, otherwise each IndexedDB write can cause an RPC/render loop.
   useEffect(() => {
-    if (!online) return undefined;
-    const onOnline = () => loadDashboard(true);
-    const onVisibility = () => {
-      if (document.visibilityState === 'visible') loadDashboard(true);
-    };
-    const timer = window.setInterval(() => {
-      if (!document.hidden && navigator.onLine) loadDashboard(true);
-    }, 600000);
-    window.addEventListener('online', onOnline);
-    document.addEventListener('visibilitychange', onVisibility);
-    const onFocus = () => loadDashboard(true);
-    window.addEventListener('focus', onFocus);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('online', onOnline);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [loadDashboard, online]);
+    if (!online && hostelId && !offlineLoading) {
+      setDashboard(cachedDashboard);
+      setLoading(false);
+    }
+  }, [cachedDashboard, offlineLoading, online, hostelId]);
 
   useRealtimeRefresh({
     enabled: online,
     hostelId,
-    tables: ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests', 'market_entries', 'ledger_transactions', 'khala_money_entries', 'monthly_periods', 'notifications'],
-    onRefresh: () => loadDashboard(true),
+    tables: ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests', 'market_entries', 'ledger_transactions', 'khala_money_entries', 'monthly_periods'],
+    onRefresh: ({ tables = [], reason = 'realtime' } = {}) => loadDashboard(true, {
+      force: reason !== 'realtime',
+      refreshMealBundle: reason !== 'realtime' || tables.some((table) => ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests'].includes(table)),
+    }),
   });
-
-  useEffect(() => {
-    if (!online) return undefined;
-    let timer = null;
-    const scheduleNextBoundary = () => {
-      const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).formatToParts(new Date()).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]));
-      const nowMinutes = Number(parts.hour) * 60 + Number(parts.minute) + Number(parts.second) / 60;
-      const targets = [21 * 60, 22 * 60];
-      let deltaMinutes = Infinity;
-      for (const target of targets) {
-        let delta = target - nowMinutes;
-        if (delta <= 0) delta += 24 * 60;
-        deltaMinutes = Math.min(deltaMinutes, delta);
-      }
-      timer = window.setTimeout(() => {
-        loadDashboard(true).finally(scheduleNextBoundary);
-      }, Math.max(15000, Math.ceil(deltaMinutes * 60 * 1000)));
-    };
-    scheduleNextBoundary();
-    return () => { if (timer) window.clearTimeout(timer); };
-  }, [loadDashboard, online]);
 
   const effectiveDashboard = online ? (dashboard || cachedDashboard) : cachedDashboard;
   const dashboardHasRunningPeriod = effectiveDashboard?.has_running_period ?? Boolean(effectiveDashboard?.period?.period_id || effectiveDashboard?.period?.id);
@@ -851,7 +894,7 @@ export function DashboardPage() {
             {hasCachedDashboard ? (
               <p className="muted-note">আগের সংরক্ষিত তথ্য থাকলে উপরের অংশে সেটি দেখানো হবে।</p>
             ) : (
-              <button className="secondary-button compact" onClick={loadDashboard}>আবার চেষ্টা করুন</button>
+              <button className="secondary-button compact" onClick={() => loadDashboard(false, { force: true, refreshMealBundle: true })}>আবার চেষ্টা করুন</button>
             )}
           </div>
         </section>

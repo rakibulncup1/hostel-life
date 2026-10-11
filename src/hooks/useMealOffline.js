@@ -46,7 +46,6 @@ export function useMealOffline({ hostelId, isOnline }) {
   }, [hostelId, isOnline]);
 
   useEffect(() => {
-    let active = true;
     if (!hostelId) {
       setOfflineLoading(false);
       setOfflineRecord(null);
@@ -54,12 +53,11 @@ export function useMealOffline({ hostelId, isOnline }) {
       return undefined;
     }
 
-    loadCached().then(() => {
-      if (active && isOnline) sync().catch(() => undefined);
-    });
-
-    return () => { active = false; };
-  }, [hostelId, isOnline, loadCached, sync]);
+    // Hydrate from IndexedDB only. The owning page must explicitly request sync
+    // while visible; mounting a cache hook must never create a background RPC.
+    loadCached();
+    return undefined;
+  }, [hostelId, loadCached]);
 
   useEffect(() => {
     if (!offlineRecord) return undefined;
