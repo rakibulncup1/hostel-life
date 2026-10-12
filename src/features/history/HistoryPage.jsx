@@ -13,6 +13,7 @@ import { printReport } from '../../services/reportService';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { ledgerRowIsEditable, ledgerRowIsPositive } from '../../utils/accounting';
+import { isCurrentPeriodManager } from '../../utils/historyPermissions';
 
 const TABS = [
   { key: 'market', label: 'বাজার ইতিহাস', icon: 'dining' },
@@ -28,6 +29,7 @@ export function HistoryPage() {
   const [archiveEditPeriods, setArchiveEditPeriods] = useState([]);
   const [periods, setPeriods] = useState([]);
   const [hasRunningMonth, setHasRunningMonth] = useState(false);
+  const [runningPeriodContext, setRunningPeriodContext] = useState(null);
   const [periodLoadError, setPeriodLoadError] = useState(null);
   const [marketRows, setMarketRows] = useState([]);
   const [accountRows, setAccountRows] = useState([]);
@@ -35,7 +37,12 @@ export function HistoryPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [marketDetail, setMarketDetail] = useState(null);
   const [monthDetail, setMonthDetail] = useState(null);
-  const { isManager, membership } = useAuth();
+  const { isManager, membership, operationalRole } = useAuth();
+  // Role flags are useful for quick UI state, but the canonical period context is the
+  // source of truth for primary-manager membership. The backend re-checks authorization
+  // on save; this helper makes sure the edit controls do not disappear due to an RPC
+  // payload using `id` instead of `membership_id`.
+  const canManageHistory = Boolean(isManager || operationalRole?.can_manage_month || operationalRole?.is_assistant_manager || operationalRole?.is_primary_manager);
   const [accountFilter, setAccountFilter] = useState('');
   const [accountScope, setAccountScope] = useState('all');
   const [members, setMembers] = useState([]);
@@ -79,9 +86,11 @@ export function HistoryPage() {
       const runningMonth = runningResult.status === 'fulfilled' ? runningResult.value : null;
       if (runningResult.status === 'fulfilled') {
         setHasRunningMonth(Boolean(runningMonth?.period_id || runningMonth?.id));
+        setRunningPeriodContext(runningMonth || null);
         setPeriodLoadError(null);
       } else {
         setHasRunningMonth(false);
+        setRunningPeriodContext(null);
         const message = getFriendlySupabaseError(runningResult.reason, 'চলমান মাসের তথ্য যাচাই করা যায়নি।');
         setPeriodLoadError(message);
         toast.error(message);
@@ -92,7 +101,17 @@ export function HistoryPage() {
         throw new Error('নির্বাচিত মাস পাওয়া যায়নি।');
       }
       const periodId = selectedArchivePeriodId || null;
-      const canEditVisibleRows = Boolean(isManager && (!selectedArchivePeriodId || archivePermission));
+      // For a running month, use the canonical RPC payload to recognize the period's
+      // primary manager even if membership.role is still `member`. Archived periods
+      // remain gated by an explicit archive-edit grant.
+      const currentPeriodManager = Boolean(runningMonth && isCurrentPeriodManager({
+        isManager: canManageHistory,
+        membership,
+        period: runningMonth,
+      }));
+      const canEditVisibleRows = Boolean(selectedArchivePeriodId
+        ? (canManageHistory && archivePermission)
+        : currentPeriodManager);
       if (tab !== 'months' && !selectedArchivePeriodId && runningResult.status === 'rejected') {
         setMarketRows([]); setAccountRows([]); setMembers([]); return;
       }
@@ -122,7 +141,7 @@ export function HistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [accountFilter, accountScope, isManager, isOnline, membership?.membership_id, selectedArchivePeriodId, tab, toast]);
+  }, [accountFilter, accountScope, canManageHistory, isOnline, membership, selectedArchivePeriodId, tab, toast]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -134,7 +153,13 @@ export function HistoryPage() {
     window.history.replaceState({}, '', nextUrl);
     setAccountFilter('');
   };
-  const canEditVisibleRows = Boolean(isManager && (selectedArchivePeriodId
+  const canManageHistoryEffective = isCurrentPeriodManager({
+    isManager,
+    operationalRole,
+    membership,
+    period: runningPeriodContext,
+  });
+  const canEditVisibleRows = Boolean(canManageHistoryEffective && (selectedArchivePeriodId
     ? archiveEditPeriods.some((period) => period.period_id === selectedArchivePeriodId)
     : hasRunningMonth));
   const selectedArchivePeriod = archiveEditPeriods.find((period) => period.period_id === selectedArchivePeriodId);
@@ -185,6 +210,22 @@ export function HistoryPage() {
     try { setMarketDetail(await fetchMarketDetail(id)); }
     catch (error) { toast.error(getFriendlySupabaseError(error, 'বাজারের বিস্তারিত খোলা যায়নি।')); }
     finally { setDetailLoading(false); }
+  };
+
+  const openMarketForEdit = async (id) => {
+    if (!canEditVisibleRows) {
+      toast.warning('এই হিসাবের পরিসরে বাজার সম্পাদনার অনুমতি নেই।');
+      return;
+    }
+    setDetailLoading(true);
+    try {
+      const detail = await fetchMarketDetail(id);
+      if (!detail) throw new Error('বাজারের বিস্তারিত পাওয়া যায়নি।');
+      if (detail.status === 'void') throw new Error('বাতিল করা বাজার এন্ট্রি সম্পাদনা করা যায় না।');
+      setMarketEdit(detail);
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'বাজার সম্পাদনার ফর্ম খোলা যায়নি।'));
+    } finally { setDetailLoading(false); }
   };
 
   const openMonth = async (period) => {
@@ -242,7 +283,7 @@ export function HistoryPage() {
       ) : !selectedArchivePeriodId && !hasRunningMonth && tab !== 'months' ? (
         <div className="card" style={{ padding: 24 }}>বর্তমানে কোনো চলমান মাস নেই। পূর্ববর্তী মাসের ইতিহাস দেখতে উপরের মাস নির্বাচন করুন।</div>
       ) : tab === 'market' ? (
-        <><section className="card history-filter-card market-history-filters"><div><strong>বাজার ফিল্টার</strong><small>{visibleMarketRows.length}টি এন্ট্রি · সক্রিয় বাজারের মোট {formatCurrency(marketTotal)}</small></div><div className="history-filter-controls"><select value={marketMemberFilter} onChange={(event)=>setMarketMemberFilter(event.target.value)} aria-label="বাজারকারী সদস্য ফিল্টার"><option value="">সব বাজারকারী</option>{members.map((member)=><option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select><label className="field-label compact-field"><span>শুরু</span><input type="date" value={marketDateFrom} max={marketDateTo || undefined} onChange={(event)=>setMarketDateFrom(event.target.value)}/></label><label className="field-label compact-field"><span>শেষ</span><input type="date" value={marketDateTo} min={marketDateFrom || undefined} onChange={(event)=>setMarketDateTo(event.target.value)}/></label><button type="button" className="secondary-button compact" onClick={()=>{setMarketMemberFilter('');setMarketDateFrom('');setMarketDateTo('');}}>রিসেট</button></div></section><MarketHistoryList rows={visibleMarketRows} serialById={marketSerialById} onOpen={openMarket} /></>
+        <><section className="card history-filter-card market-history-filters"><div><strong>বাজার ফিল্টার</strong><small>{visibleMarketRows.length}টি এন্ট্রি · সক্রিয় বাজারের মোট {formatCurrency(marketTotal)}</small></div><div className="history-filter-controls"><select value={marketMemberFilter} onChange={(event)=>setMarketMemberFilter(event.target.value)} aria-label="বাজারকারী সদস্য ফিল্টার"><option value="">সব বাজারকারী</option>{members.map((member)=><option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select><label className="field-label compact-field"><span>শুরু</span><input type="date" value={marketDateFrom} max={marketDateTo || undefined} onChange={(event)=>setMarketDateFrom(event.target.value)}/></label><label className="field-label compact-field"><span>শেষ</span><input type="date" value={marketDateTo} min={marketDateFrom || undefined} onChange={(event)=>setMarketDateTo(event.target.value)}/></label><button type="button" className="secondary-button compact" onClick={()=>{setMarketMemberFilter('');setMarketDateFrom('');setMarketDateTo('');}}>রিসেট</button></div></section><MarketHistoryList rows={visibleMarketRows} serialById={marketSerialById} onOpen={openMarket} canEdit={canEditVisibleRows} onEdit={openMarketForEdit} /></>
       ) : tab === 'account' ? (
         <AccountHistoryList rows={accountGrouped} canEdit={Boolean(canEditVisibleRows)} onOpenDetail={(row) => setTransactionDetail(row)} />
       ) : (
@@ -260,15 +301,18 @@ export function HistoryPage() {
   );
 }
 
-function MarketHistoryList({ rows, serialById = new Map(), onOpen }) {
+function MarketHistoryList({ rows, serialById = new Map(), onOpen, canEdit = false, onEdit }) {
   if (!rows.length) return <EmptyHistory icon="dining" title="কোনো বাজার ইতিহাস নেই" text="এই ফিল্টারে কোনো বাজার এন্ট্রি পাওয়া যায়নি।" />;
   return <div className="history-list">{rows.map((row, index) => (
-    <button className={`card history-item-card ${row.status === 'void' ? 'is-void' : ''}`} type="button" key={row.market_entry_id} onClick={() => onOpen(row.market_entry_id)}>
-      <div className="history-leading-icon market-serial-badge"><span>{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
-      <div className="history-item-copy"><strong>{row.buyer_name}</strong><small>{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><span>{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span></div>
-      <div className="history-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
-      <Icon name="chevron" size={17} />
-    </button>
+    <div className="market-history-row-shell" key={row.market_entry_id}>
+      <button className={`card history-item-card ${row.status === 'void' ? 'is-void' : ''}`} type="button" onClick={() => onOpen(row.market_entry_id)}>
+        <div className="history-leading-icon market-serial-badge"><span>{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
+        <div className="history-item-copy"><strong>{row.buyer_name}</strong><small>{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><span>{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span></div>
+        <div className="history-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
+        <Icon name="chevron" size={17} />
+      </button>
+      {canEdit && row.status !== 'void' && <button className="secondary-button compact market-row-edit-button" type="button" onClick={() => onEdit(row.market_entry_id)} aria-label={`${row.entry_date} বাজার সম্পাদনা`}><Icon name="edit" size={14}/> সম্পাদনা</button>}
+    </div>
   ))}</div>;
 }
 

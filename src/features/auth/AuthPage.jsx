@@ -140,6 +140,12 @@ function RegisterForm() {
       toast.error('নাম কমপক্ষে ২ অক্ষরের হতে হবে।');
       return;
     }
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 8 || phoneDigits.length > 15) {
+      toast.error('সঠিক মোবাইল নম্বর দিন (৮–১৫টি সংখ্যা)।');
+      return;
+    }
+
     if (password.length < 8) {
       toast.error('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন।');
       return;
@@ -176,8 +182,8 @@ function RegisterForm() {
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="আপনার নাম" autoComplete="name" required />
           </label>
           <label className="field-label">
-            <span>মোবাইল নম্বর <em>(ঐচ্ছিক)</em></span>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" />
+            <span>মোবাইল নম্বর <em>(বাধ্যতামূলক)</em></span>
+            <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" required minLength={8} maxLength={20} />
           </label>
         </div>
         <label className="field-label">

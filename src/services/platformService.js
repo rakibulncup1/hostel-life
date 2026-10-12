@@ -45,14 +45,14 @@ export async function platformAdminGetOverview() {
 
 export async function platformAdminListHostels() {
   assertSupabase();
-  const { data, error } = await supabase.rpc('platform_admin_list_hostels');
+  const { data, error } = await supabase.rpc('platform_admin_list_hostels_v3');
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
 
 export async function platformAdminListHostelMembers(hostelId) {
   assertSupabase();
-  const { data, error } = await supabase.rpc('platform_admin_list_hostel_members', { p_hostel_id: hostelId });
+  const { data, error } = await supabase.rpc('platform_admin_list_hostel_members_v3', { p_hostel_id: hostelId });
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }
@@ -108,4 +108,83 @@ export async function platformAdminGenerateAccessCode(purpose, ttlMinutes, maxUs
   });
   if (error) throw error;
   return firstRow(data) || data;
+}
+
+
+export async function platformAdminSetHostelFlag(hostelId, flag, enabled) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_set_hostel_flag', {
+    p_hostel_id: hostelId, p_flag: flag, p_enabled: Boolean(enabled),
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+export async function platformAdminSetUserFlag(userId, flag, enabled) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_set_user_flag', {
+    p_user_id: userId, p_flag: flag, p_enabled: Boolean(enabled),
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+export async function platformAdminPermanentlyDeleteHostel(hostelId, deleteMemberAccounts, confirmation) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_permanently_delete_hostel', {
+    p_hostel_id: hostelId,
+    p_delete_member_accounts: Boolean(deleteMemberAccounts),
+    p_confirmation: confirmation,
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+export async function platformAdminPermanentlyDeleteMember(hostelId, membershipId, deleteAuthAccount, confirmation) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_permanently_delete_member', {
+    p_hostel_id: hostelId,
+    p_membership_id: membershipId,
+    p_delete_auth_account: Boolean(deleteAuthAccount),
+    p_confirmation: confirmation,
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+export async function uploadDeveloperPhoto(userId, file) {
+  assertSupabase();
+  if (!userId) throw new Error('অ্যাডমিন পরিচয় পাওয়া যায়নি।');
+  if (!(file instanceof File) || !/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+    throw new Error('শুধু JPG, PNG বা WEBP ছবি ব্যবহার করুন।');
+  }
+  if (file.size > 5 * 1024 * 1024) throw new Error('ছবির আকার ৫ MB-এর কম হতে হবে।');
+  const toJpeg = async (input) => {
+    const url = URL.createObjectURL(input);
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('ছবিটি পড়া যায়নি।')); img.src = url;
+      });
+      const scale = Math.min(1, 1600 / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const ctx = canvas.getContext('2d', { alpha: false });
+      if (!ctx) throw new Error('ছবি প্রস্তুত করা যায়নি।');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise((resolve, reject) => canvas.toBlob((b) => b ? resolve(b) : reject(new Error('ছবি compress করা যায়নি।')), 'image/jpeg', 0.88));
+      if (blob.size > 3 * 1024 * 1024) throw new Error('ছবিটি compress করার পরও বড়। ছোট ছবি ব্যবহার করুন।');
+      return blob;
+    } finally { URL.revokeObjectURL(url); }
+  };
+  const blob = await toJpeg(file);
+  const path = 'developer-info/developer-photo.jpg';
+  const { error } = await supabase.storage.from('developer-assets').upload(path, blob, {
+    upsert: true, contentType: 'image/jpeg', cacheControl: '3600',
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from('developer-assets').getPublicUrl(path);
+  if (!data?.publicUrl) throw new Error('ছবির URL তৈরি করা যায়নি।');
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
