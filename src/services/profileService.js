@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
+import { invalidateRequestCache } from '../lib/requestCache';
 
-const BUCKET = 'hostel_documents';
+// Keep personal avatars isolated from general hostel documents and their policies.
+const BUCKET = 'profile-avatars';
 const TARGET_FILE_SIZE = 190 * 1024;
 const MAX_INPUT_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -95,6 +97,7 @@ export async function updateMyProfile({ fullName, phone = null, avatarUrl = null
     p_avatar_url: avatarUrl || null,
   });
   if (error) throw error;
+  invalidateRequestCache('dining:memberDirectory', 'dashboard:');
   return Array.isArray(data) ? data[0] ?? null : data ?? null;
 }
 
@@ -106,7 +109,10 @@ export async function uploadProfileAvatar(userId, file) {
   if (file.size > MAX_INPUT_FILE_SIZE) throw new Error('ছবির মূল ফাইল ১০ MB-এর বেশি হতে পারবে না।');
 
   const compressed = await compressProfileImage(file);
-  const path = `${userId}/profile-avatar`;
+  // Keep one stable object per user so replacing an avatar does not accumulate
+  // a new permanent Storage object on every upload. Matching own-folder SELECT,
+  // INSERT, UPDATE and DELETE policies are installed by the SQL migration.
+  const path = `${userId}/profile-avatar.jpg`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, compressed, {
     upsert: true,
     contentType: 'image/jpeg',

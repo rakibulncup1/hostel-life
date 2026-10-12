@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { rpcWithFallback } from '../lib/rpcCompatibility';
 import { normalizeLedgerRow } from '../utils/accounting';
 
 function assertSupabase() {
@@ -10,37 +11,25 @@ function unwrap(data) {
   return data;
 }
 
-function missingFunction(error) {
-  const code = String(error?.code || '').toUpperCase();
-  const message = String(error?.message || '');
-  return code === '42883'
-    || code === 'PGRST202'
-    || code === 'PGRST203'
-    || /function .* does not exist/i.test(message)
-    || /could not find the function .* in the schema cache/i.test(message)
-    || /schema cache.*function/i.test(message);
-}
 
 export async function fetchMarketHistory({ periodId = null, limit = 100 } = {}) {
   assertSupabase();
-  const primary = await supabase.rpc('get_market_history_v2', { p_period_id: periodId, p_limit: limit });
-  if (!primary.error) return Array.isArray(primary.data) ? primary.data : [];
-  if (!missingFunction(primary.error)) throw primary.error;
-
-  const fallback = await supabase.rpc('get_market_history', { p_period_id: periodId, p_limit: limit });
-  if (fallback.error) throw fallback.error;
-  return Array.isArray(fallback.data) ? fallback.data : [];
+  const { data, error } = await rpcWithFallback(supabase, [
+    { name: 'get_market_history_v2', params: { p_period_id: periodId, p_limit: limit } },
+    { name: 'get_market_history', params: { p_period_id: periodId, p_limit: limit } },
+  ]);
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
 
 export async function fetchMarketDetail(marketEntryId) {
   assertSupabase();
-  const primary = await supabase.rpc('get_market_detail_v2', { p_market_entry_id: marketEntryId });
-  if (!primary.error) return unwrap(primary.data) ?? null;
-  if (!missingFunction(primary.error)) throw primary.error;
-
-  const fallback = await supabase.rpc('get_market_detail', { p_market_entry_id: marketEntryId });
-  if (fallback.error) throw fallback.error;
-  return unwrap(fallback.data) ?? null;
+  const { data, error } = await rpcWithFallback(supabase, [
+    { name: 'get_market_detail_v2', params: { p_market_entry_id: marketEntryId } },
+    { name: 'get_market_detail', params: { p_market_entry_id: marketEntryId } },
+  ]);
+  if (error) throw error;
+  return unwrap(data) ?? null;
 }
 
 export async function fetchAccountHistory({ periodId = null, memberId = null, limit = 200 } = {}) {
@@ -56,13 +45,12 @@ export async function fetchAccountHistory({ periodId = null, memberId = null, li
 
 export async function fetchKhalaMoneyHistory({ periodId = null, limit = 200 } = {}) {
   assertSupabase();
-  const primary = await supabase.rpc('get_khala_money_history_v2', { p_period_id: periodId, p_limit: limit });
-  if (!primary.error) return Array.isArray(primary.data) ? primary.data : [];
-  if (!missingFunction(primary.error)) throw primary.error;
-
-  const fallback = await supabase.rpc('get_khala_money_history', { p_period_id: periodId, p_limit: limit });
-  if (fallback.error) throw fallback.error;
-  return Array.isArray(fallback.data) ? fallback.data : [];
+  const { data, error } = await rpcWithFallback(supabase, [
+    { name: 'get_khala_money_history_v2', params: { p_period_id: periodId, p_limit: limit } },
+    { name: 'get_khala_money_history', params: { p_period_id: periodId, p_limit: limit } },
+  ]);
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
 
 export async function fetchPreviousMonths() {

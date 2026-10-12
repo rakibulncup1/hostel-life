@@ -3,7 +3,7 @@ import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { fetchMemberDirectory } from '../../services/diningService';
+import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { fetchAccountHistory, fetchArchivedMonthDetail, fetchMarketDetail, fetchMarketHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
 import { adjustTransaction, updateMarketEntry, voidMarketEntry } from '../../services/managerService';
@@ -27,6 +27,8 @@ export function HistoryPage() {
   const [selectedArchivePeriodId, setSelectedArchivePeriodId] = useState(() => new URLSearchParams(window.location.search).get('archive_period') || '');
   const [archiveEditPeriods, setArchiveEditPeriods] = useState([]);
   const [periods, setPeriods] = useState([]);
+  const [hasRunningMonth, setHasRunningMonth] = useState(false);
+  const [periodLoadError, setPeriodLoadError] = useState(null);
   const [marketRows, setMarketRows] = useState([]);
   const [accountRows, setAccountRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,7 @@ export function HistoryPage() {
   const load = useCallback(async () => {
     if (!isOnline) return;
     setLoading(true);
+    setPeriodLoadError(null);
     try {
       let editablePeriods = [];
       try {
@@ -60,12 +63,42 @@ export function HistoryPage() {
         // History still remains usable when the optional archive-permission RPC has not yet been applied.
         console.warn('Archive edit options are unavailable:', archiveError);
       }
+      // Resolve archive periods and running period independently. An unrelated
+      // archive-list failure must never be misreported as “no current month”.
+      const [periodsResult, runningResult] = await Promise.allSettled([
+        fetchPreviousMonths(),
+        fetchRunningPeriod(),
+      ]);
+      const allPeriods = periodsResult.status === 'fulfilled' && Array.isArray(periodsResult.value)
+        ? periodsResult.value : [];
+      setPeriods(allPeriods);
+      if (periodsResult.status === 'rejected') {
+        console.warn('Previous month list could not load:', periodsResult.reason);
+        toast.error(getFriendlySupabaseError(periodsResult.reason, 'পূর্ববর্তী মাসের তালিকা লোড করা যায়নি।'));
+      }
+      const runningMonth = runningResult.status === 'fulfilled' ? runningResult.value : null;
+      if (runningResult.status === 'fulfilled') {
+        setHasRunningMonth(Boolean(runningMonth?.period_id || runningMonth?.id));
+        setPeriodLoadError(null);
+      } else {
+        setHasRunningMonth(false);
+        const message = getFriendlySupabaseError(runningResult.reason, 'চলমান মাসের তথ্য যাচাই করা যায়নি।');
+        setPeriodLoadError(message);
+        toast.error(message);
+      }
       const archivePermission = editablePeriods.some((period) => period.period_id === selectedArchivePeriodId);
-      if (selectedArchivePeriodId && !archivePermission) {
-        throw new Error('এই আর্কাইভ সম্পাদনার অনুমতি নেই বা মেয়াদ শেষ হয়েছে। আর্কাইভ মেনু থেকে বৈধ মাস নির্বাচন করুন।');
+      if (selectedArchivePeriodId && periodsResult.status === 'fulfilled'
+          && !allPeriods.some((period) => period.period_id === selectedArchivePeriodId)) {
+        throw new Error('নির্বাচিত মাস পাওয়া যায়নি।');
       }
       const periodId = selectedArchivePeriodId || null;
-      const canEditVisibleRows = Boolean(selectedArchivePeriodId ? archivePermission : isManager);
+      const canEditVisibleRows = Boolean(isManager && (!selectedArchivePeriodId || archivePermission));
+      if (tab !== 'months' && !selectedArchivePeriodId && runningResult.status === 'rejected') {
+        setMarketRows([]); setAccountRows([]); setMembers([]); return;
+      }
+      if (tab !== 'months' && !selectedArchivePeriodId && !runningMonth?.period_id && !runningMonth?.id) {
+        setMarketRows([]); setAccountRows([]); setMembers([]); return;
+      }
       if (tab === 'market') {
         const [marketResult, memberResult] = await Promise.allSettled([
           fetchMarketHistory({ periodId, limit: 500 }),
@@ -81,11 +114,9 @@ export function HistoryPage() {
           : (accountScope === 'mine' ? (membership?.membership_id || null) : null);
         const accounts = await fetchAccountHistory({ periodId, memberId, limit: 500 });
         setAccountRows(accounts);
-        if (isManager || selectedArchivePeriodId) {
-          try { setMembers(await fetchMemberDirectory()); }
-          catch (memberError) { console.warn('Account member filter unavailable:', memberError); }
-        }
-      } else setPeriods(await fetchPreviousMonths());
+        try { setMembers(await fetchMemberDirectory()); }
+        catch (memberError) { console.warn('Account member filter unavailable:', memberError); }
+      }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'হিস্টরি লোড করা যায়নি।'));
     } finally {
@@ -103,9 +134,9 @@ export function HistoryPage() {
     window.history.replaceState({}, '', nextUrl);
     setAccountFilter('');
   };
-  const canEditVisibleRows = selectedArchivePeriodId
+  const canEditVisibleRows = Boolean(isManager && (selectedArchivePeriodId
     ? archiveEditPeriods.some((period) => period.period_id === selectedArchivePeriodId)
-    : isManager;
+    : hasRunningMonth));
   const selectedArchivePeriod = archiveEditPeriods.find((period) => period.period_id === selectedArchivePeriodId);
 
   const accountGrouped = useMemo(() => {
@@ -177,13 +208,13 @@ export function HistoryPage() {
         <div className="history-title-actions"><button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>{tab !== 'months' && <button className="secondary-button compact" type="button" onClick={exportCurrentTab} disabled={loading || exportBusy || !accountGrouped.length && tab === 'account' || !visibleMarketRows.length && tab === 'market'}><Icon name="download" size={15} /> PDF / প্রিন্ট</button>}</div>
       </div>
 
-      {(archiveEditPeriods.length > 0 || selectedArchivePeriodId) && <section className={`card history-archive-scope ${selectedArchivePeriodId ? 'is-archive-scope' : ''}`}>
+      <section className={`card history-archive-scope ${selectedArchivePeriodId ? 'is-archive-scope' : ''}`}>
         <label className="field-label"><span>হিসাবের পরিসর</span><select value={selectedArchivePeriodId} onChange={(event) => chooseArchivePeriod(event.target.value)}>
-          <option value="">বর্তমান / সাধারণ হিস্টরি</option>
-          {archiveEditPeriods.map((period) => <option value={period.period_id} key={period.period_id}>{period.label} · {formatDateBangla(period.start_date)} – {formatDateBangla(period.end_date)}</option>)}
+          <option value="">বর্তমান মাস{hasRunningMonth ? '' : (periodLoadError ? ' (যাচাই করা যায়নি)' : ' (চলমান মাস নেই)')}</option>
+          {periods.map((period) => <option value={period.period_id} key={period.period_id}>{period.label} · {formatDateBangla(period.start_date)} – {formatDateBangla(period.end_date)}</option>)}
         </select></label>
         {selectedArchivePeriod && <div className="archive-scope-note"><Icon name="shield" size={16}/><span><strong>{selectedArchivePeriod.label}</strong> আর্কাইভ সম্পাদনা মোড · অনুমতি: {selectedArchivePeriod.access_kind}{selectedArchivePeriod.expires_at ? ` · মেয়াদ ${formatDateTime12(selectedArchivePeriod.expires_at)}` : ''}</span></div>}
-      </section>}
+      </section>
 
       <div className="history-tabbar" role="tablist" aria-label="হিস্টরি বিভাগ">
         {TABS.map((item) => <button key={item.key} className={tab === item.key ? 'active' : ''} type="button" onClick={() => setTab(item.key)}><Icon name={item.icon} size={16} /> {item.label}</button>)}
@@ -206,7 +237,11 @@ export function HistoryPage() {
         <AccountSummary rows={accountRows} selectedType={accountType} onSelect={setAccountType} />
       )}
 
-      {loading ? <LoadingSpinner label="হিস্টরি লোড হচ্ছে..." /> : tab === 'market' ? (
+      {loading ? <LoadingSpinner label="হিস্টরি লোড হচ্ছে..." /> : !selectedArchivePeriodId && !hasRunningMonth && tab !== 'months' && periodLoadError ? (
+        <div className="card state-card-warning" style={{ padding: 24 }}><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError}</p><button className="secondary-button compact" type="button" onClick={load}>আবার চেষ্টা করুন</button></div>
+      ) : !selectedArchivePeriodId && !hasRunningMonth && tab !== 'months' ? (
+        <div className="card" style={{ padding: 24 }}>বর্তমানে কোনো চলমান মাস নেই। পূর্ববর্তী মাসের ইতিহাস দেখতে উপরের মাস নির্বাচন করুন।</div>
+      ) : tab === 'market' ? (
         <><section className="card history-filter-card market-history-filters"><div><strong>বাজার ফিল্টার</strong><small>{visibleMarketRows.length}টি এন্ট্রি · সক্রিয় বাজারের মোট {formatCurrency(marketTotal)}</small></div><div className="history-filter-controls"><select value={marketMemberFilter} onChange={(event)=>setMarketMemberFilter(event.target.value)} aria-label="বাজারকারী সদস্য ফিল্টার"><option value="">সব বাজারকারী</option>{members.map((member)=><option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select><label className="field-label compact-field"><span>শুরু</span><input type="date" value={marketDateFrom} max={marketDateTo || undefined} onChange={(event)=>setMarketDateFrom(event.target.value)}/></label><label className="field-label compact-field"><span>শেষ</span><input type="date" value={marketDateTo} min={marketDateFrom || undefined} onChange={(event)=>setMarketDateTo(event.target.value)}/></label><button type="button" className="secondary-button compact" onClick={()=>{setMarketMemberFilter('');setMarketDateFrom('');setMarketDateTo('');}}>রিসেট</button></div></section><MarketHistoryList rows={visibleMarketRows} serialById={marketSerialById} onOpen={openMarket} /></>
       ) : tab === 'account' ? (
         <AccountHistoryList rows={accountGrouped} canEdit={Boolean(canEditVisibleRows)} onOpenDetail={(row) => setTransactionDetail(row)} />
@@ -322,14 +357,14 @@ function ReasonModal({ title, description, busy, onClose, onConfirm }) {
 
 function TransactionEditModal({ row, busy, onClose, onSaved, onBusy }) {
   const toast = useToast();
-  const original = row.transaction_type === 'অন্যান্য খরচ' ? Math.abs(Number(row.amount || 0)) : Number(row.amount || 0);
+  const original = row.transaction_type_raw === 'other_expense' || row.transaction_type === 'অন্যান্য খরচ' ? Math.abs(Number(row.amount || 0)) : Number(row.amount || 0);
   const [amount, setAmount] = useState(String(original));
   const [description, setDescription] = useState(row.description || 'ম্যানেজার সংশোধন');
   const save = async () => {
     const value = Number(amount);
-    if (!Number.isFinite(value) || value < 0 || (row.transaction_type === 'অন্যান্য খরচ' && value <= 0)) return toast.warning('সংশোধিত টাকার পরিমাণ সঠিকভাবে দিন।');
+    if (!Number.isFinite(value) || value < 0 || ((row.transaction_type_raw === 'other_expense' || row.transaction_type === 'অন্যান্য খরচ') && value <= 0)) return toast.warning('সংশোধিত টাকার পরিমাণ সঠিকভাবে দিন।');
     onBusy(true);
-    try { await adjustTransaction({ transactionId: row.transaction_id, newAmount: row.transaction_type === 'অন্যান্য খরচ' ? -value : value, description: description.trim() || 'ম্যানেজার সংশোধন' }); toast.success('হিসাবের পরিমাণ সফলভাবে সংশোধন হয়েছে।'); await onSaved(); }
+    try { await adjustTransaction({ transactionId: row.transaction_id, newAmount: (row.transaction_type_raw === 'other_expense' || row.transaction_type === 'অন্যান্য খরচ') ? -value : value, description: description.trim() || 'ম্যানেজার সংশোধন' }); toast.success('হিসাবের পরিমাণ সফলভাবে সংশোধন হয়েছে।'); await onSaved(); }
     catch (error) { toast.error(getFriendlySupabaseError(error, 'হিসাব সংশোধন করা যায়নি।')); }
     finally { onBusy(false); }
   };

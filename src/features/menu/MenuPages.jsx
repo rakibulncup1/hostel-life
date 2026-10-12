@@ -15,6 +15,7 @@ import { fetchTopEaters, fetchTopShoppers } from '../../services/rankingService'
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+import { fetchPlatformPublicSettings } from '../../services/platformService';
 
 function PageHeader({ eyebrow = 'হোস্টেল লাইফ', title, description, back = true }) {
   return (
@@ -340,29 +341,31 @@ export function TopEatersPage() { return <RankingPage kind="eater" />; }
 export function TopShoppersPage() { return <RankingPage kind="shopper" />; }
 
 export function DeveloperInfoPage() {
+  const [info, setInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    fetchPlatformPublicSettings().then((settings) => { if (active) setInfo(settings || {}); })
+      .catch(() => { if (active) setFailed(true); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const phoneDigits = String(info?.developer_phone || '').replace(/[^0-9+]/g, '');
+  const photo = info?.developer_photo_url || '';
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Hostel Life" title="ডেভেলপার ইনফো" />
       <section className="card developer-card">
-        <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>
-        <div className="developer-name">RAKIBUL ISLAM SAMRAT</div>
-        <div className="developer-subtitle">ময়মনসিংহ সরকারি পলিটেকনিক ইনস্টিটিউটের শিক্ষার্থী</div>
+        {photo ? <img className="developer-photo-placeholder developer-photo-image" src={photo} alt={info?.developer_name || 'ডেভেলপার'} loading="lazy" /> : <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>}
+        <div className="developer-name">{loading ? 'তথ্য লোড হচ্ছে…' : info?.developer_name || 'Hostel Life Support'}</div>
+        {info?.developer_title && <div className="developer-subtitle">{info.developer_title}</div>}
+        {failed && <div className="developer-note">ডেভেলপার তথ্য লোড করা যায়নি। ডাটাবেজের Phase 2 public settings migration যাচাই করুন।</div>}
         <div className="developer-contact-list">
-          <a className="developer-contact" href="mailto:support.sec1.info@gmail.com">
-            <span className="developer-contact-icon"><Icon name="mail" size={18} /></span>
-            <span><small>ইমেইল</small><strong>support.sec1.info@gmail.com</strong></span>
-            <Icon name="external-link" size={16} />
-          </a>
-          <a className="developer-contact" href="https://wa.me/8801965787790" target="_blank" rel="noreferrer">
-            <span className="developer-contact-icon"><Icon name="phone" size={18} /></span>
-            <span><small>হোয়াটসঅ্যাপ</small><strong>01965787790</strong></span>
-            <Icon name="external-link" size={16} />
-          </a>
-          <a className="developer-contact" href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noreferrer">
-            <span className="developer-contact-icon"><Icon name="external-link" size={18} /></span>
-            <span><small>পোর্টফোলিও</small><strong>rakibul-sec1.vercel.app</strong></span>
-            <Icon name="external-link" size={16} />
-          </a>
+          {info?.developer_email && <a className="developer-contact" href={`mailto:${info.developer_email}`}><span className="developer-contact-icon"><Icon name="mail" size={18} /></span><span><small>ইমেইল</small><strong>{info.developer_email}</strong></span><Icon name="external-link" size={16} /></a>}
+          {info?.developer_phone && <a className="developer-contact" href={`https://wa.me/${phoneDigits.replace(/^\+/, '')}`} target="_blank" rel="noreferrer"><span className="developer-contact-icon"><Icon name="phone" size={18} /></span><span><small>ফোন / হোয়াটসঅ্যাপ</small><strong>{info.developer_phone}</strong></span><Icon name="external-link" size={16} /></a>}
+          {info?.developer_portfolio_url && <a className="developer-contact" href={info.developer_portfolio_url} target="_blank" rel="noreferrer"><span className="developer-contact-icon"><Icon name="external-link" size={18} /></span><span><small>Portfolio</small><strong>{info.developer_portfolio_url.replace(/^https?:\/\//, '')}</strong></span><Icon name="external-link" size={16} /></a>}
+          {!loading && !failed && !info?.developer_email && !info?.developer_phone && !info?.developer_portfolio_url && <div className="developer-note">যোগাযোগের তথ্য এখনো সেট করা হয়নি।</div>}
         </div>
       </section>
     </div>

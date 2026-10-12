@@ -4,9 +4,9 @@ import { supabase } from '../lib/supabase';
 // Keep realtime-driven RPC refreshes bounded. Multiple row events are coalesced,
 // and a page will request at most one refresh per 15 seconds while visible.
 const REFRESH_DEBOUNCE_MS = 700;
-const MIN_REFRESH_INTERVAL_MS = 15000;
+const MIN_REFRESH_INTERVAL_MS = 30000;
 
-export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRefresh }) {
+export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRefresh, minRefreshIntervalMs = MIN_REFRESH_INTERVAL_MS }) {
   const onRefreshRef = useRef(onRefresh);
 
   useEffect(() => {
@@ -20,7 +20,9 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
 
     let channel = null;
     let debounceTimer = null;
-    let lastRefreshAt = Date.now();
+    // Allow the first event to refresh promptly, then cap bursts to one per 30 seconds.
+    const refreshInterval = Math.max(5000, Number(minRefreshIntervalMs) || MIN_REFRESH_INTERVAL_MS);
+    let lastRefreshAt = Date.now() - refreshInterval;
     const pendingTables = new Set();
     let pendingReason = 'realtime';
 
@@ -68,10 +70,11 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
       if (reason !== 'realtime') pendingReason = reason;
       if (!isPageActive()) return;
       if (debounceTimer) window.clearTimeout(debounceTimer);
+      // Realtime, focus, visibility, and online events all share the same throttle.
+      // Browsers often emit several of these together; bypassing the throttle for
+      // resume events caused duplicate RPC refreshes during tab/network changes.
       const elapsed = Date.now() - lastRefreshAt;
-      const delay = reason !== 'realtime'
-        ? REFRESH_DEBOUNCE_MS
-        : Math.max(REFRESH_DEBOUNCE_MS, MIN_REFRESH_INTERVAL_MS - elapsed);
+      const delay = Math.max(REFRESH_DEBOUNCE_MS, refreshInterval - elapsed);
       debounceTimer = window.setTimeout(dispatchRefresh, delay);
     };
 
@@ -136,5 +139,5 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
       window.removeEventListener('blur', handleBlur);
       disconnect();
     };
-  }, [enabled, hostelId, tableKey]);
+  }, [enabled, hostelId, tableKey, minRefreshIntervalMs]);
 }

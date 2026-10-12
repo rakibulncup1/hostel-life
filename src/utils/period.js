@@ -1,0 +1,58 @@
+/** Normalize the canonical running-period RPC payload across deployed RPC versions. */
+export function normalizeRunningPeriodPayload(payload) {
+  let value = payload;
+  if (Array.isArray(value)) value = value[0] ?? null;
+  if (typeof value === 'string') {
+    try { value = JSON.parse(value); } catch { return null; }
+  }
+  let period = value?.period ?? null;
+  if (Array.isArray(period)) period = period[0] ?? null;
+  // Compatibility with deployments that return the period object directly.
+  if (!period && value && typeof value === 'object' && (value.period_id || value.id)) period = value;
+  if (!period || typeof period !== 'object') return null;
+  const periodId = period.period_id || period.id;
+  if (!periodId) return null;
+  return { ...period, period_id: periodId };
+}
+
+
+
+export function dashboardNeedsPeriodFallback(data) {
+  const hasPeriod = Boolean(data?.period?.period_id || data?.period?.id);
+  // `false` without a period object is common in older RPC payloads, and must be
+  // checked against the canonical period lookup before showing “month not started”.
+  return data?.has_running_period === false && !hasPeriod;
+}
+
+
+/**
+ * Tri-state period status for the dashboard: unknown must never be rendered as
+ * “month not started”. Only a successful canonical lookup may authoritatively say none.
+ */
+export function resolveDashboardPeriodStatus({
+  periodWasResolved = false,
+  periodResultStatus = 'fulfilled',
+  resolvedPeriod = null,
+  data = null,
+  previous = null,
+}) {
+  const hasId = (period) => Boolean(period?.period_id || period?.id);
+  const priorStatus = previous?.period_status;
+
+  if (periodWasResolved && periodResultStatus === 'fulfilled') {
+    return hasId(resolvedPeriod) ? 'running' : 'none';
+  }
+  if (data?.has_running_period === true || hasId(data?.period)) return 'running';
+  if (priorStatus === 'running' || priorStatus === 'none') return priorStatus;
+  if (periodWasResolved && periodResultStatus === 'rejected') {
+    // Do not trust a legacy cached `false` unless it was confirmed by the current
+    // canonical lookup; an old bundle may have stored a stale negative flag.
+    if (previous?.has_running_period === true || hasId(previous?.period)) return 'running';
+    return 'unknown';
+  }
+  if (typeof previous?.has_running_period === 'boolean') {
+    return previous.has_running_period ? 'running' : 'none';
+  }
+  if (data?.has_running_period === false) return 'unknown';
+  return 'unknown';
+}

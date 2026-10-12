@@ -5,6 +5,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { signIn, signUp, requestPasswordReset, updatePassword } from '../../services/authService';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
+import { fetchPlatformPublicSettings } from '../../services/platformService';
 
 function go(path, replace = false) {
   if (replace) window.history.replaceState({}, '', path);
@@ -117,7 +118,17 @@ function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [permissionCode, setPermissionCode] = useState('');
+  const [registrationCodeRequired, setRegistrationCodeRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchPlatformPublicSettings().then((settings) => {
+      if (active) setRegistrationCodeRequired(Boolean(settings?.registration_code_required));
+    }).catch(() => { /* Older installations have no platform settings RPC; DB remains authoritative. */ });
+    return () => { active = false; };
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -140,7 +151,7 @@ function RegisterForm() {
 
     setSubmitting(true);
     try {
-      const { data, error } = await signUp({ fullName: name, phone, email, password });
+      const { data, error } = await signUp({ fullName: name, phone, email, password, permissionCode });
       if (error) throw error;
 
       if (data.session) {
@@ -181,6 +192,7 @@ function RegisterForm() {
           <span>পাসওয়ার্ড আবার দিন</span>
           <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
         </label>
+        {registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
         <button className="primary-button large" type="submit" disabled={submitting || !online}>
           {submitting ? 'অ্যাকাউন্ট তৈরি হচ্ছে...' : 'রেজিস্ট্রেশন করুন'}
         </button>

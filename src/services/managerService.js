@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { invalidateRequestCache } from '../lib/requestCache';
 
 function assertSupabase() {
   if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
@@ -13,6 +14,8 @@ async function rpc(name, params) {
   assertSupabase();
   const { data, error } = await supabase.rpc(name, params);
   if (error) throw error;
+  // Manager RPCs here are mutations except explicit get_* context/read methods.
+  if (!/^get_/.test(name)) invalidateRequestCache('dashboard:', 'dining:', 'manager:context');
   return data;
 }
 
@@ -165,10 +168,11 @@ export async function saveManagerMyMeal({ startDate, endDate, days }) {
 }
 
 
-export async function managerEditApprovedMealRequest({ requestId, days }) {
+export async function managerEditApprovedMealRequest({ requestId, days, note = null }) {
   return unwrap(await rpc('manager_edit_approved_meal_request', {
     p_request_id: requestId,
     p_days: days,
+    p_note: note || null,
   }));
 }
 

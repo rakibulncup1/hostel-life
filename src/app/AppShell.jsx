@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '../components/Header';
+import { Icon } from '../components/Icon';
 import { BottomNav } from '../components/BottomNav';
 import { MenuDrawer } from '../components/MenuDrawer';
 import { NotificationsPopover } from '../components/NotificationsPopover';
@@ -11,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useManagementContext } from '../hooks/useManagementContext';
 import { fetchNotifications } from '../services/notificationService';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+import { fetchPlatformPublicSettings } from '../services/platformService';
 
 export function keyToPath(key) {
   return `/app/${key}`;
@@ -42,11 +44,20 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [platformSettings, setPlatformSettings] = useState(null);
   const unreadFetchInFlightRef = useRef(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('hostel-life-theme') || 'system');
 
   const active = pathToKey(pathname);
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
+
+  useEffect(() => {
+    let active = true;
+    fetchPlatformPublicSettings().then((settings) => {
+      if (active) setPlatformSettings(settings || null);
+    }).catch(() => { /* Older database deployments have no platform settings endpoint yet. */ });
+    return () => { active = false; };
+  }, [user?.id]);
 
   useEffect(() => {
     const syncTheme = () => setTheme(localStorage.getItem('hostel-life-theme') || 'system');
@@ -195,6 +206,12 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         <div className="offline-banner" role="status">
           <span className="offline-banner-dot" />
           <span>ইন্টারনেট সংযোগ নেই — সর্বশেষ সংরক্ষিত ড্যাশবোর্ড, মিল ও লেট রিকোয়েস্ট দেখা যাবে।</span>
+        </div>
+      )}
+      {platformSettings?.announcement_enabled && (platformSettings.announcement_title || platformSettings.announcement_body) && (
+        <div className="global-announcement" role="status" aria-live="polite">
+          <span className="global-announcement-icon"><Icon name="info" size={18} /></span>
+          <div><strong>{platformSettings.announcement_title || 'Hostel Life ঘোষণা'}</strong>{platformSettings.announcement_body && <p>{platformSettings.announcement_body}</p>}</div>
         </div>
       )}
 

@@ -5,6 +5,7 @@ import { useToast } from '../../components/Toast';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchDashboardData, fetchMealDetails } from '../../services/dashboardService';
+import { invalidateRequestCache } from '../../lib/requestCache';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
 import { useDashboardOffline } from '../../hooks/useDashboardOffline';
 import { formatDateTime12, formatTime12 } from '../../utils/time';
@@ -13,6 +14,7 @@ import { useManagementContext } from '../../hooks/useManagementContext';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatMeal } from '../../utils/meal';
 import { navigateTo } from '../../app/AppShell';
+import { dashboardNeedsPeriodFallback, resolveDashboardPeriodStatus } from '../../utils/period';
 
 function safeNumber(value) {
   const number = Number(value ?? 0);
@@ -562,6 +564,9 @@ export function DashboardPage() {
   const lastLoadStartedAtRef = useRef(0);
   const latestDashboardRef = useRef(null);
   const latestCachedDashboardRef = useRef(null);
+  // The deployed RPC payload may not include member/period detail in older schema versions.
+  // Do not call both fallback RPCs on every realtime event; refresh them at most every 5 minutes.
+  const lastFallbackRefreshAtRef = useRef(0);
 
   useEffect(() => { latestDashboardRef.current = dashboard; }, [dashboard]);
   useEffect(() => { latestCachedDashboardRef.current = cachedDashboard; }, [cachedDashboard]);
@@ -585,6 +590,7 @@ export function DashboardPage() {
         let dashboardResult;
         let periodResult = { status: 'fulfilled', value: null };
         let directoryResult = { status: 'fulfilled', value: [] };
+        let periodWasResolved = false;
 
         if (fullRead) {
           // The first page load (or a resume before any cache exists) performs the full fallback-safe read.
@@ -593,20 +599,36 @@ export function DashboardPage() {
             fetchRunningPeriod(),
             fetchMemberDirectory(),
           ]);
+          periodWasResolved = true;
         } else {
-          // For realtime/foreground updates, fetch the dashboard RPC first. Only
-          // call the two fallback RPCs if the dashboard response lacks key data.
+          // For realtime/foreground updates, fetch the dashboard RPC first. A bare
+          // `has_running_period: false` from an older RPC is ambiguous, so verify it
+          // against the canonical period endpoint rather than hiding the current month.
           [dashboardResult] = await Promise.allSettled([fetchDashboardData()]);
           const quickData = dashboardResult.status === 'fulfilled' ? dashboardResult.value : null;
-          const hasPeriodShape = typeof quickData?.has_running_period === 'boolean'
-            || Boolean(quickData?.period?.period_id || quickData?.period?.id);
+          const hasPeriodObject = Boolean(quickData?.period?.period_id || quickData?.period?.id);
+          const hasPeriodShape = quickData?.has_running_period === true || hasPeriodObject;
           const hasMembersShape = Array.isArray(quickData?.members);
+          const reportedNoPeriod = dashboardNeedsPeriodFallback(quickData);
 
-          if (dashboardResult.status === 'rejected' || !hasPeriodShape || !hasMembersShape) {
+          const fallbackNeeded = dashboardResult.status === 'rejected' || !hasPeriodShape || !hasMembersShape;
+          const fallbackRefreshDue = !previous
+            || Boolean(options.force)
+            || Boolean(options.forcePeriodCheck)
+            || now - lastFallbackRefreshAtRef.current >= 5 * 60 * 1000
+            || (reportedNoPeriod && (previous?.has_running_period === true || !previous?.period_status));
+
+          if (fallbackNeeded && fallbackRefreshDue) {
+            lastFallbackRefreshAtRef.current = now;
             [periodResult, directoryResult] = await Promise.allSettled([
               fetchRunningPeriod(),
               fetchMemberDirectory(),
             ]);
+            periodWasResolved = true;
+          } else if (fallbackNeeded) {
+            // Preserve the last known state instead of trusting a stale negative flag.
+            periodResult = { status: 'fulfilled', value: previous?.period ?? null };
+            directoryResult = { status: 'fulfilled', value: [] };
           } else {
             periodResult = {
               status: 'fulfilled',
@@ -619,13 +641,14 @@ export function DashboardPage() {
         const resolvedPeriod = periodResult.status === 'fulfilled'
           ? periodResult.value
           : (data?.period || previous?.period || null);
-        const hasRunningPeriod = fullRead && periodResult.status === 'fulfilled'
-          ? Boolean(resolvedPeriod?.period_id || resolvedPeriod?.id)
-          : (typeof data?.has_running_period === 'boolean'
-            ? data.has_running_period
-            : (periodResult.status === 'fulfilled'
-              ? Boolean(resolvedPeriod?.period_id || resolvedPeriod?.id)
-              : Boolean(previous?.has_running_period ?? previous?.period?.period_id ?? previous?.period?.id)));
+        const periodStatus = resolveDashboardPeriodStatus({
+          periodWasResolved,
+          periodResultStatus: periodResult.status,
+          resolvedPeriod,
+          data,
+          previous,
+        });
+        const hasRunningPeriod = periodStatus === 'running';
         const directoryRows = directoryResult.status === 'fulfilled' && Array.isArray(directoryResult.value)
           ? directoryResult.value
           : [];
@@ -641,7 +664,7 @@ export function DashboardPage() {
             ...member,
             membership_id: id,
             name: member.name || directory?.member_name || prior?.name || 'সদস্য',
-            status: member.status || directory?.member_status || prior?.status || 'active',
+            status: directory?.member_status || member.status || prior?.status || 'active',
             role: member.role || directory?.role || prior?.role || 'member',
             is_assistant_manager: Boolean(member.is_assistant_manager ?? directory?.is_assistant_manager ?? prior?.is_assistant_manager),
             is_primary_manager: Boolean(member.is_primary_manager ?? directory?.is_primary_manager ?? prior?.is_primary_manager ?? (directory?.role === 'manager')),
@@ -665,6 +688,8 @@ export function DashboardPage() {
           nextMembers = fromDirectory.length ? fromDirectory : (previous?.members || []);
         }
 
+        nextMembers = nextMembers.filter((member) => member.status !== 'inactive' && member.member_status !== 'inactive');
+
         if (!data && !directoryRows.length) {
           // Keep a previously rendered/cached dashboard during a transient silent
           // refresh failure; do not retry-log or blank the UI in a background loop.
@@ -682,6 +707,7 @@ export function DashboardPage() {
           ...(data || previous || {}),
           period: hasRunningPeriod ? (resolvedPeriod || data?.period || previous?.period || null) : null,
           has_running_period: hasRunningPeriod,
+          period_status: periodStatus,
           members: nextMembers,
           meal_card: hasRunningPeriod ? (data?.meal_card || previous?.meal_card || null) : null,
           summary: hasRunningPeriod ? (data?.summary || previous?.summary || null) : null,
@@ -702,7 +728,7 @@ export function DashboardPage() {
           setDashboardError('ড্যাশবোর্ডের সারসংক্ষেপ সাময়িকভাবে লোড হয়নি; সদস্য তালিকা ও মাসের অবস্থা আলাদাভাবে লোড করা হয়েছে।');
         }
         const refreshMealBundle = options.refreshMealBundle ?? !silent;
-        await syncOfflineSnapshot(normalized, { refreshMealBundle });
+        await syncOfflineSnapshot(normalized, { refreshMealBundle, forceMealBundle: Boolean(options.force) });
         return normalized;
       } catch (error) {
         if (!silent) {
@@ -750,16 +776,28 @@ export function DashboardPage() {
 
   useRealtimeRefresh({
     enabled: online,
+    minRefreshIntervalMs: 60000,
     hostelId,
     tables: ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests', 'market_entries', 'ledger_transactions', 'khala_money_entries', 'monthly_periods'],
-    onRefresh: ({ tables = [], reason = 'realtime' } = {}) => loadDashboard(true, {
-      force: reason !== 'realtime',
-      refreshMealBundle: reason !== 'realtime' || tables.some((table) => ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests'].includes(table)),
-    }),
+    onRefresh: ({ tables = [], reason = 'realtime' } = {}) => {
+      const mealDataChanged = tables.some((table) => ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests'].includes(table));
+      invalidateRequestCache('dashboard:data', 'dining:memberDirectory', 'dining:runningPeriod');
+      if (mealDataChanged) invalidateRequestCache('dashboard:offlineMealBundle');
+      return loadDashboard(true, {
+        force: false,
+        forcePeriodCheck: tables.includes('monthly_periods'),
+        refreshMealBundle: mealDataChanged,
+      });
+    },
   });
 
   const effectiveDashboard = online ? (dashboard || cachedDashboard) : cachedDashboard;
-  const dashboardHasRunningPeriod = effectiveDashboard?.has_running_period ?? Boolean(effectiveDashboard?.period?.period_id || effectiveDashboard?.period?.id);
+  // While the first live lookup is still loading, a cached false flag is not proof
+  // that the current month is closed. Render a loading/error state instead of a false banner.
+  const dashboardPeriodStatus = online && loading && !dashboard
+    ? 'unknown'
+    : (effectiveDashboard?.period_status || ((effectiveDashboard?.has_running_period ?? Boolean(effectiveDashboard?.period?.period_id || effectiveDashboard?.period?.id)) ? 'running' : 'none'));
+  const dashboardHasRunningPeriod = dashboardPeriodStatus === 'running';
   const mealCard = dashboardHasRunningPeriod
     ? (online ? (dashboard?.meal_card || cachedDashboard?.meal_card) : (offlineMealCard || cachedDashboard?.meal_card))
     : null;
@@ -820,14 +858,14 @@ export function DashboardPage() {
           cachedError={dashboardError || offlineError?.message}
         />
         <LateRequestCard meal={mealCard} isOnline={online} lastSync={lastSync} />
-      </> : effectiveDashboard ? <MealCard meal={null} noRunningPeriod isOnline={online} /> : <MealCard
+      </> : dashboardPeriodStatus === 'none' && effectiveDashboard ? <MealCard meal={null} noRunningPeriod isOnline={online} /> : <MealCard
         meal={mealCard}
         isOnline={online}
         hasOfflineDetails={false}
         lastSync={lastSync}
         onDetails={openDetails}
-        loading={online ? loading && !effectiveDashboard : offlineLoading}
-        cachedError={dashboardError || offlineError?.message}
+        loading={online ? loading && dashboardPeriodStatus === 'unknown' : offlineLoading}
+        cachedError={dashboardError || (dashboardPeriodStatus === 'unknown' ? 'চলমান মাসের অবস্থা যাচাই করা যায়নি। আবার চেষ্টা করুন।' : offlineError?.message)}
       />}
 
       {effectiveDashboard ? (
@@ -860,7 +898,7 @@ export function DashboardPage() {
                 <Icon name="offline" size={15} /> সর্বশেষ সংরক্ষিত তথ্য · {lastSync ? formatDateTime12(lastSync) : 'সময় পাওয়া যায়নি'}
               </div>
             )}
-          </section> : <div className="no-period-summary-note"><Icon name="info" size={16} /> নতুন মাস শুরু না হওয়া পর্যন্ত এই মাসের জমা, মিল ও খরচের সারসংক্ষেপ দেখানো হবে না।</div>}
+          </section> : dashboardPeriodStatus === 'none' ? <div className="no-period-summary-note"><Icon name="info" size={16} /> নতুন মাস শুরু না হওয়া পর্যন্ত এই মাসের জমা, মিল ও খরচের সারসংক্ষেপ দেখানো হবে না।</div> : <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>মাসের অবস্থা যাচাই করা যায়নি</strong><p>সার্ভার থেকে চলমান মাসের নিশ্চয়তা পাওয়া যায়নি, তাই ভুল করে “মাস শুরু হয়নি” দেখানো হচ্ছে না।</p><button className="secondary-button compact" type="button" onClick={() => loadDashboard(false, { force: true, refreshMealBundle: true })}>আবার যাচাই করুন</button></div></div>}
 
           <MyAccountCard account={account} onClick={() => openMember(membership?.membership_id)} />
 
@@ -876,7 +914,7 @@ export function DashboardPage() {
               <div className="empty-state-card">
                 <Icon name="user" size={24} />
                 <strong>সদস্যের তালিকা দেখানো যাচ্ছে না</strong>
-                <span>{dashboardHasRunningPeriod ? 'সদস্য তালিকা পুনরায় লোড করুন বা ইন্টারনেট সংযোগ পরীক্ষা করুন।' : 'মাস বন্ধ হলেও মেসের সদস্যরা থেকে যান। নতুন মাস শুরু না হওয়া পর্যন্ত বর্তমান হিসাব শূন্য দেখানো হচ্ছে।'}</span>
+                <span>{dashboardHasRunningPeriod ? 'সদস্য তালিকা পুনরায় লোড করুন বা ইন্টারনেট সংযোগ পরীক্ষা করুন।' : dashboardPeriodStatus === 'none' ? 'মাস বন্ধ হলেও মেসের সদস্যরা থেকে যান। নতুন মাস শুরু না হওয়া পর্যন্ত বর্তমান হিসাব শূন্য দেখানো হচ্ছে।' : 'মাসের অবস্থা যাচাই করা যাচ্ছে না। অনুগ্রহ করে আবার চেষ্টা করুন।'}</span>
               </div>
             ) : (
               <div className="member-preview-grid member-detail-grid">

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { rpcWithFallback } from '../lib/rpcCompatibility';
+import { cachedRequest } from '../lib/requestCache';
 import { useAuth } from '../contexts/AuthContext';
 import { useOnlineStatus } from './useOnlineStatus';
 
@@ -25,17 +27,20 @@ export function useManagementContext() {
     const task = (async () => {
       setLoading(true);
       try {
-      const { data, error } = await supabase.rpc('get_month_management_context');
-      if (!error) {
+      const { data, error, functionName } = await cachedRequest('manager:context', () => rpcWithFallback(supabase, [
+        { name: 'get_month_management_context' },
+        { name: 'get_running_period_context' },
+      ]), { ttlMs: 30000, force });
+      if (error) throw error;
+      if (functionName === 'get_month_management_context') {
         setContext(data ?? null);
         return data ?? null;
       }
 
-      // A manager's role is authoritative from AuthContext/operationalRole. If the
-      // richer management context is temporarily unavailable, fall back to
-      // the running-period context so manager features do not disappear.
-      const { data: periodData, error: periodError } = await supabase.rpc('get_running_period_context');
-      if (periodError) throw error;
+      // Older database deployments only have running-period context. The shared
+      // RPC resolver remembers missing variants for this tab, so later focus/resume
+      // refreshes do not repeatedly generate failed function-lookup logs.
+      const periodData = data;
       const fallbackPeriod = periodData?.period
         ? {
             ...periodData.period,

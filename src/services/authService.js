@@ -7,7 +7,7 @@ export async function signIn({ email, password }) {
   });
 }
 
-export async function signUp({ fullName, phone, email, password }) {
+export async function signUp({ fullName, phone, email, password, permissionCode = '' }) {
   return supabase.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
@@ -15,6 +15,7 @@ export async function signUp({ fullName, phone, email, password }) {
       data: {
         full_name: fullName.trim(),
         phone: phone.trim() || null,
+        ...(permissionCode.trim() ? { permission_code: permissionCode.trim().toUpperCase() } : {}),
       },
     },
   });

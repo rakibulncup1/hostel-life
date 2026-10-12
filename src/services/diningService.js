@@ -1,4 +1,7 @@
 import { supabase } from '../lib/supabase';
+import { rpcWithFallback } from '../lib/rpcCompatibility';
+import { cachedRequest, invalidateRequestCache } from '../lib/requestCache';
+import { normalizeRunningPeriodPayload } from '../utils/period';
 
 function assertSupabase() {
   if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
@@ -9,79 +12,66 @@ function unwrapData(data) {
   return data;
 }
 
-export async function fetchMemberDirectory() {
+export async function fetchMemberDirectory({ force = false } = {}) {
   assertSupabase();
-  const v4 = await supabase.rpc('get_member_directory_v4');
-  if (!v4.error) return Array.isArray(v4.data) ? v4.data : [];
-  if (!(await isMissingFunctionError(v4.error))) throw v4.error;
-
-  const latest = await supabase.rpc('get_member_directory_v3');
-  if (!latest.error) return Array.isArray(latest.data) ? latest.data : [];
-  if (!(await isMissingFunctionError(latest.error))) throw latest.error;
-
-  const primary = await supabase.rpc('get_member_directory_v2');
-  if (!primary.error) return Array.isArray(primary.data) ? primary.data : [];
-  if (!(await isMissingFunctionError(primary.error))) throw primary.error;
-
-  const fallback = await supabase.rpc('get_member_directory');
-  if (fallback.error) throw fallback.error;
-  return Array.isArray(fallback.data) ? fallback.data : [];
+  return cachedRequest('dining:memberDirectory', async () => {
+    const { data, error } = await rpcWithFallback(supabase, [
+      { name: 'get_member_directory_v4' },
+      { name: 'get_member_directory_v3' },
+      { name: 'get_member_directory_v2' },
+      { name: 'get_member_directory' },
+    ]);
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  }, { ttlMs: 60000, force });
 }
 
 export async function fetchManagerMemberDirectory() {
   return fetchMemberDirectory();
 }
 
-export async function fetchMyMealRequests(limit = 100) {
+export async function fetchMyMealRequests(limit = 100, { force = false } = {}) {
   assertSupabase();
-  const latest = await supabase.rpc('get_my_meal_requests_v2', { p_limit: limit });
-  if (!latest.error) return Array.isArray(latest.data) ? latest.data : [];
-  if (!(await isMissingFunctionError(latest.error))) throw latest.error;
-  const { data, error } = await supabase.rpc('get_my_meal_requests', { p_limit: limit });
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  return cachedRequest(`dining:myMealRequests:${limit}`, async () => {
+    const { data, error } = await rpcWithFallback(supabase, [
+      { name: 'get_my_meal_requests_v2', params: { p_limit: limit } },
+      { name: 'get_my_meal_requests', params: { p_limit: limit } },
+    ]);
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  }, { ttlMs: 15000, force });
 }
 
-async function isMissingFunctionError(error) {
-  const code = String(error?.code || '').toUpperCase();
-  const message = String(error?.message || '');
-  // PostgREST may report an absent RPC as PGRST202/PGRST203 rather than PostgreSQL 42883.
-  // Only treat genuine missing-function/schema-cache lookup errors as fallback cases.
-  return code === '42883'
-    || code === 'PGRST202'
-    || code === 'PGRST203'
-    || /function .* does not exist/i.test(message)
-    || /could not find the function .* in the schema cache/i.test(message)
-    || /schema cache.*function/i.test(message);
-}
-
-export async function fetchManagerMealRequests({ periodId = null, requestType = null, status = null, lateOnly = null, limit = 200 } = {}) {
+export async function fetchManagerMealRequests({ periodId = null, requestType = null, status = null, lateOnly = null, limit = 200, force = false } = {}) {
   assertSupabase();
-  const resolvedPeriod = periodId || (await fetchRunningPeriod())?.period_id || null;
-  const v3 = await supabase.rpc('get_manager_meal_requests_v3', {
+  return cachedRequest(`dining:managerMealRequests:${periodId || 'running'}:${requestType || 'all'}:${status || 'all'}:${lateOnly ?? 'all'}:${limit}`, async () => {
+  // get_manager_meal_requests_v3 resolves the active period on the server. Avoid an
+  // extra get_running_period_context RPC every time the manager opens/refreshes this list.
+  const resolvedPeriod = periodId || null;
+  const paramsV3 = {
     p_period_id: resolvedPeriod,
     p_request_type: requestType,
     p_status: status,
     p_late_only: lateOnly,
     p_limit: limit,
-  });
-  if (!v3.error) return Array.isArray(v3.data) ? v3.data : [];
-  if (!(await isMissingFunctionError(v3.error))) throw v3.error;
-
-  const primary = await supabase.rpc('get_manager_meal_requests_v2', {
-    p_period_id: resolvedPeriod, p_request_type: requestType, p_status: status, p_limit: limit,
-  });
-  if (!primary.error) {
-    const rows = Array.isArray(primary.data) ? primary.data : [];
-    return lateOnly === true ? rows.filter((row) => row.is_late_request) : rows;
-  }
-  if (!(await isMissingFunctionError(primary.error))) throw primary.error;
-  const fallback = await supabase.rpc('manager_get_meal_requests', {
-    p_period_id: resolvedPeriod, p_request_type: requestType, p_status: status, p_limit: limit,
-  });
-  if (fallback.error) throw fallback.error;
-  const rows = Array.isArray(fallback.data) ? fallback.data : [];
-  return lateOnly === true ? rows.filter((row) => row.is_late_request) : rows;
+  };
+  const paramsV2 = {
+    p_period_id: resolvedPeriod,
+    p_request_type: requestType,
+    p_status: status,
+    p_limit: limit,
+  };
+  const { data, error, functionName } = await rpcWithFallback(supabase, [
+    { name: 'get_manager_meal_requests_v3', params: paramsV3 },
+    { name: 'get_manager_meal_requests_v2', params: paramsV2 },
+    { name: 'manager_get_meal_requests', params: paramsV2 },
+  ]);
+  if (error) throw error;
+  const rows = Array.isArray(data) ? data : [];
+  return functionName === 'get_manager_meal_requests_v3'
+    ? rows
+    : (lateOnly === true ? rows.filter((row) => row.is_late_request) : rows);
+  }, { ttlMs: 12000, force });
 }
 
 export async function createLateMealRequest({ mealDate, breakfast, lunch, dinner, reason = null }) {
@@ -90,6 +80,7 @@ export async function createLateMealRequest({ mealDate, breakfast, lunch, dinner
     p_meal_date: mealDate, p_breakfast: breakfast, p_lunch: lunch, p_dinner: dinner, p_reason: reason,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -99,6 +90,7 @@ export async function reviewLateMealRequest({ requestId, approve, reason = null 
     p_request_id: requestId, p_approve: approve, p_reason: reason,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -108,6 +100,7 @@ export async function createMemberMealRequest({ memberId, startDate, endDate, da
     p_member_id: memberId, p_start_date: startDate, p_end_date: endDate, p_days: days,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -119,6 +112,7 @@ export async function createMealRequest({ startDate, endDate, days }) {
     p_days: days,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -131,6 +125,7 @@ export async function editApprovedMealRequest({ requestId, startDate, endDate, d
     p_days: days,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -143,6 +138,7 @@ export async function createMealCorrectionRequest({ startDate, endDate, days, pa
     p_parent_request_id: parentRequestId,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -154,6 +150,19 @@ export async function reviewMealCorrection({ requestId, approve, reason = null }
     p_reason: reason,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
+  return unwrapData(data);
+}
+
+export async function updateSubmittedMealRequest({ requestId, days, note = null }) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('manager_update_submitted_meal_request', {
+    p_request_id: requestId,
+    p_days: days,
+    p_note: note,
+  });
+  if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -166,6 +175,7 @@ export async function createMarketEntry({ entryDate, buyerMembershipId, items, c
     p_credit_to_buyer: creditToBuyer,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -178,6 +188,7 @@ export async function addManagerDeposit({ memberId, amount, date, description })
     p_description: description || null,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return data;
 }
 
@@ -190,6 +201,7 @@ export async function addManagerOtherExpense({ memberId, amount, date, descripti
     p_description: description,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return data;
 }
 
@@ -199,6 +211,7 @@ export async function setManagerMealEntries(entries) {
     p_entries: entries,
   });
   if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
   return unwrapData(data);
 }
 
@@ -237,12 +250,44 @@ export async function fetchMealEntryData(date, periodId = null) {
   return { day, records: Array.isArray(records) ? records : [] };
 }
 
-export async function fetchRunningPeriod() {
-  assertSupabase();
-  const { data, error } = await supabase.rpc('get_running_period_context');
+async function fetchRunningPeriodFromRlsTable() {
+  // Fallback is deliberately read-only. monthly_periods has same-hostel RLS;
+  // only rows with status=running can be returned to the current member.
+  const { data, error } = await supabase
+    .from('monthly_periods')
+    .select('id, label, start_date, end_date, status, primary_manager_membership_id')
+    .eq('status', 'running')
+    .order('start_date', { ascending: false })
+    .limit(1)
+    .maybeSingle();
   if (error) throw error;
-  const period = data?.period || null;
-  return period ? { ...period, period_id: period.period_id || period.id } : null;
+  return data ? { ...data, period_id: data.id } : null;
+}
+
+export async function fetchRunningPeriod({ force = false } = {}) {
+  assertSupabase();
+  return cachedRequest('dining:runningPeriod', async () => {
+    const { data, error } = await supabase.rpc('get_running_period_context');
+    if (!error) {
+      const period = normalizeRunningPeriodPayload(data);
+      if (period) return period;
+      // A null/malformed context can be caused by stale deployments or an old
+      // RPC contract. Verify against the RLS-protected source of truth before
+      // telling the user that no month exists.
+      return fetchRunningPeriodFromRlsTable();
+    }
+
+    // If the RPC is unavailable, the secure same-hostel RLS query can still
+    // resolve an existing running period. If that query also fails, preserve
+    // the original RPC error so the UI shows a recoverable error—not “no month”.
+    try {
+      const fallbackPeriod = await fetchRunningPeriodFromRlsTable();
+      if (fallbackPeriod) return fallbackPeriod;
+    } catch {
+      // Keep the primary RPC error below; it is the first failing contract.
+    }
+    throw error;
+  }, { ttlMs: 30000, force });
 }
 
 export async function fetchMonthClosePreflight() {

@@ -10,6 +10,7 @@ import { AuthPage } from '../features/auth/AuthPage';
 import { OnboardingPage } from '../features/onboarding/OnboardingPage';
 import { InactiveMembershipPage } from '../features/account/InactiveMembershipPage';
 import { IdentityErrorPage } from '../features/account/IdentityErrorPage';
+import { SuperAdminPage } from '../features/platform/SuperAdminPage';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -56,6 +57,10 @@ export function App() {
 
   useEffect(() => {
     if (auth.authLoading) return;
+    if (pathname === '/super-admin') {
+      if (!auth.isAuthenticated) navigateTo('/auth/login', true);
+      return;
+    }
 
     const inAuth = pathname.startsWith('/auth/');
     const inApp = pathname.startsWith('/app/');
@@ -114,6 +119,7 @@ export function App() {
     else if (pathname.includes('/menu/khala-money')) title = 'Hostel Life — খালার টাকা';
     else if (pathname.includes('/menu/member-management')) title = 'Hostel Life — সদস্য ব্যবস্থাপনা';
     else if (pathname.includes('/onboarding')) title = 'Hostel Life — মেস সেটআপ';
+    else if (pathname === '/super-admin') title = 'Hostel Life — Super Admin';
     document.title = title;
   }, [pathname]);
 
@@ -127,6 +133,8 @@ export function App() {
   if (auth.authLoading) return <LoadingSpinner label="সেশন যাচাই হচ্ছে..." />;
 
   if (!auth.isAuthenticated) return <AuthPage pathname="/auth/login" />;
+
+  if (pathname === '/super-admin') return <SuperAdminPage user={auth.user} />;
 
   if (auth.identityLoading) return <LoadingSpinner label="আপনার মেসের তথ্য লোড হচ্ছে..." />;
 

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useToast } from '../../components/Toast';
 import { Icon } from '../../components/Icon';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { supabase } from '../../lib/supabase';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
+import { fetchPlatformPublicSettings } from '../../services/platformService';
 
 function SetupCard({ icon, title, description, active, onClick, children }) {
   return (
@@ -29,8 +30,16 @@ export function OnboardingPage() {
   const [mode, setMode] = useState('join');
   const [joinCode, setJoinCode] = useState('');
   const [hostelName, setHostelName] = useState('');
+  const [hostelPermissionCode, setHostelPermissionCode] = useState('');
+  const [hostelCodeRequired, setHostelCodeRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [createdHostel, setCreatedHostel] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchPlatformPublicSettings().then((settings) => { if (active) setHostelCodeRequired(Boolean(settings?.hostel_creation_code_required)); }).catch(() => { /* Compatibility with pre-Phase-2 projects. */ });
+    return () => { active = false; };
+  }, []);
 
   const join = async (event) => {
     event.preventDefault();
@@ -68,7 +77,11 @@ export function OnboardingPage() {
     }
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.rpc('create_hostel', { p_name: hostelName.trim() });
+      let { data, error } = await supabase.rpc('create_hostel_secure', { p_name: hostelName.trim(), p_permission_code: hostelPermissionCode.trim().toUpperCase() || null });
+      if (error && (error.code === 'PGRST202' || /could not find the function|schema cache/i.test(error.message || ''))) {
+        if (hostelCodeRequired) throw new Error('অনুমতি কোড যাচাই করার backend migration অনুপস্থিত। Super Admin Phase 2 SQL প্রয়োগ করুন।');
+        ({ data, error } = await supabase.rpc('create_hostel', { p_name: hostelName.trim() }));
+      }
       if (error) throw error;
       setCreatedHostel(data ?? null);
       toast.success(`“${data?.name ?? hostelName.trim()}” মেস সফলভাবে তৈরি হয়েছে।`);
@@ -157,6 +170,7 @@ export function OnboardingPage() {
                 <span>মেসের নাম</span>
                 <input type="text" value={hostelName} onChange={(e) => setHostelName(e.target.value)} placeholder="যেমন: আল-আমিন মেস" maxLength={120} required />
               </label>
+              {hostelCodeRequired && <label className="field-label"><span>মেস তৈরির অনুমতি কোড</span><input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">কোডটি সার্ভারে যাচাই হবে এবং নির্দিষ্ট ব্যবহারের পর শেষ হবে।</small></label>}
               <button type="submit" className="primary-button large" disabled={submitting || !online}>
                 {submitting ? 'তৈরি হচ্ছে...' : 'মেস তৈরি করুন'}
               </button>

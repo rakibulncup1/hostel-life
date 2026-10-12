@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase, supabaseConfigReady } from '../lib/supabase';
 import { getFriendlySupabaseError } from '../utils/supabaseErrors';
+import { invalidateRequestCache } from '../lib/requestCache';
 import { readIdentitySnapshot, requestPersistentStorage, saveIdentitySnapshot } from '../services/offlineStore';
 
 const AuthContext = createContext(null);
@@ -37,6 +38,7 @@ export function AuthProvider({ children }) {
   const [offlineIdentity, setOfflineIdentity] = useState(false);
 
   const clearIdentity = useCallback(() => {
+    invalidateRequestCache();
     setProfile(null);
     setMembership(null);
     setOperationalRole(null);
@@ -97,7 +99,10 @@ export function AuthProvider({ children }) {
         setIdentityError(getFriendlySupabaseError(error, 'লগইন সেশন যাচাই করা যায়নি।'));
       }
 
-      setSession((current) => (current?.user?.id === data.session?.user?.id ? current : (data.session ?? null)));
+      setSession((current) => {
+        if (current?.user?.id !== data.session?.user?.id) invalidateRequestCache();
+        return current?.user?.id === data.session?.user?.id ? current : (data.session ?? null);
+      });
       setAuthLoading(false);
     };
 
@@ -110,8 +115,12 @@ export function AuthProvider({ children }) {
       // access token from React state, so do not re-run three identity RPCs for it.
       if (event === 'TOKEN_REFRESHED') return;
       if (event === 'INITIAL_SESSION') {
-        setSession((current) => (current?.user?.id === nextSession?.user?.id ? current : (nextSession ?? null)));
+        setSession((current) => {
+          if (current?.user?.id !== nextSession?.user?.id) invalidateRequestCache();
+          return current?.user?.id === nextSession?.user?.id ? current : (nextSession ?? null);
+        });
       } else {
+        invalidateRequestCache();
         setSession(nextSession ?? null);
       }
       setAuthLoading(false);

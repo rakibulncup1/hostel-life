@@ -8,6 +8,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToast } from '../../components/Toast';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { fetchManagerMemberDirectory } from '../../services/diningService';
+import { fetchPreviousMonths, fetchArchivedMonthDetail } from '../../services/historyService';
 
 import {
   addManagerDeposit,
@@ -26,6 +27,7 @@ import {
   fetchMyMealRequests,
   fetchRunningPeriod,
   reviewMealCorrection,
+  updateSubmittedMealRequest,
   setManagerMealEntries,
 } from '../../services/diningService';
 import { emergencyOverrideMyMeal, saveManagerMyMeal, checkManagerMealEntryConflicts, managerEditApprovedMealRequest } from '../../services/managerService';
@@ -607,9 +609,7 @@ function RequestHistory({ onEdit, onCorrect }) {
                   <strong>{requestTypeText(request.request_type, request.is_late_request)}</strong>
                   <small>{formatDateWithWeekday(request.start_date)} → {formatDateWithWeekday(request.end_date)}</small>
                 </span>
-                <span className={`request-status request-status-${request.status}`}>
-                  {statusText(request.status)}
-                </span>
+                <span className="request-status-group">{request.manager_edited && <span className="request-status request-status-updated" title={request.manager_updated_at ? `আপডেট: ${formatDateTime12(request.manager_updated_at)}` : 'ম্যানেজার অনুরোধ আপডেট করেছেন'}>আপডেটেড</span>}<span className={`request-status request-status-${request.status}`}>{statusText(request.status)}</span></span>
               </button>
               <div className="request-history-meta">
                 <span>সাবমিট: {formatDateTime12(request.submitted_at)}</span>
@@ -623,6 +623,7 @@ function RequestHistory({ onEdit, onCorrect }) {
                       <MealDayCard key={day.meal_date} day={day} onChange={() => {}} readOnly compact />
                     ))}
                   </div>
+                  {request.manager_edited && <div className="inline-success"><Icon name="check-circle" size={16}/><span>এই অনুরোধ ম্যানেজার আপডেট করেছেন{request.manager_updated_at ? ` · ${formatDateTime12(request.manager_updated_at)}` : ''}। এটি নতুন/ডুপ্লিকেট অনুরোধ নয়।</span></div>}
                   {request.rejection_reason && <div className="inline-error"><Icon name="warning" size={16} /> {request.rejection_reason}</div>}
                   {request.status === 'approved' && request.request_type === 'normal' && request.is_late_request && (
                     <div className="late-request-locked-note">
@@ -1134,6 +1135,7 @@ function ManagerMealRequests() {
   const [editDays, setEditDays] = useState([]);
   const [editDefaults, setEditDefaults] = useState(DEFAULT_MEALS);
   const [editBusy, setEditBusy] = useState(false);
+  const [editNote, setEditNote] = useState('ম্যানেজার কর্তৃক অনুরোধ সংশোধন');
   const loadInFlightRef = useRef(null);
 
   const load = useCallback(async ({ silent = false } = {}) => {
@@ -1202,6 +1204,7 @@ function ManagerMealRequests() {
 
   const openEdit = (request) => {
     setEditRequest(request);
+    setEditNote('ম্যানেজার কর্তৃক অনুরোধ সংশোধন');
     setEditDays((request.days || []).map((day) => ({
       meal_date: String(day.meal_date).slice(0, 10),
       breakfast: Number(day.breakfast ?? 0),
@@ -1218,8 +1221,19 @@ function ManagerMealRequests() {
     if (!editRequest || !editDays.length) return;
     setEditBusy(true);
     try {
-      await managerEditApprovedMealRequest({ requestId: editRequest.request_id, days: editDays });
-      toast.success('অনুরোধের মিল সফলভাবে পরিবর্তন হয়েছে। cutoff অনুযায়ী এটি ৯টার finalization-এ যুক্ত হবে অথবা ইতিমধ্যে final হলে এখনই final update হয়েছে।');
+      const isWaitingForReview = editRequest.status === 'submitted'
+        && (editRequest.request_type === 'correction' || editRequest.is_late_request);
+      if (isWaitingForReview) {
+        await updateSubmittedMealRequest({
+          requestId: editRequest.request_id,
+          days: editDays,
+          note: editNote.trim() || null,
+        });
+        toast.success('একই অনুরোধে পরিবর্তন সংরক্ষিত হয়েছে। এখন চাইলে এই পরিবর্তিত অনুরোধ অনুমোদন করুন।');
+      } else {
+        await managerEditApprovedMealRequest({ requestId: editRequest.request_id, days: editDays, note: editNote.trim() || null });
+        toast.success('অনুরোধের মিল সফলভাবে পরিবর্তন হয়েছে। সার্ভারের cutoff/finalization নিয়ম অনুযায়ী হিসাব আপডেট হয়েছে।');
+      }
       setEditRequest(null);
       setEditDays([]);
       await load();
@@ -1255,7 +1269,9 @@ function ManagerMealRequests() {
         <div className="manager-request-list">
           {requests.map((request) => {
             const expanded = expandedId === request.request_id;
-            const canEdit = request.request_type === 'normal' && !request.is_late_request && request.status === 'approved' && request.origin !== 'manager_self';
+            const isApprovedNormalRequest = request.request_type === 'normal' && !request.is_late_request && request.status === 'approved' && request.origin !== 'manager_self';
+            const isPendingManagerRequest = request.status === 'submitted' && (request.request_type === 'correction' || request.is_late_request);
+            const canEdit = isApprovedNormalRequest || isPendingManagerRequest;
             const needsReview = request.status === 'submitted' && (request.request_type === 'correction' || request.is_late_request);
             return (
               <article className="manager-request-card" key={request.request_id}>
@@ -1264,7 +1280,7 @@ function ManagerMealRequests() {
                     <strong>{request.member_name}</strong>
                     <small>{requestTypeText(request.request_type, request.is_late_request)} · {formatDateTime12(request.submitted_at)}</small>
                   </div>
-                  <span className={`request-status request-status-${request.status}`}>{statusText(request.status)}</span>
+                  {request.manager_edited && <span className="request-status" title="ম্যানেজার অনুরোধ সংশোধন করেছেন">আপডেটেড</span>}<span className={`request-status request-status-${request.status}`}>{statusText(request.status)}</span>
                 </button>
                 <div className="manager-request-date">{formatDateWithWeekday(request.start_date)} → {formatDateWithWeekday(request.end_date)}</div>
                 {expanded && (
@@ -1277,7 +1293,7 @@ function ManagerMealRequests() {
                         </div>
                       ))}
                     </div>
-                    {canEdit && <div className="request-action-row"><button className="primary-button" type="button" onClick={() => openEdit(request)}><Icon name="edit" size={16} /> মিল এডিট করুন</button></div>}
+                    {canEdit && <div className="request-action-row"><button className="primary-button" type="button" onClick={() => openEdit(request)}><Icon name="edit" size={16} /> {isPendingManagerRequest ? 'অনুরোধের মিল সমন্বয় করুন' : 'মিল এডিট করুন'}</button></div>}
                     {needsReview && (
                       <>
                         <div className="request-action-row">
@@ -1314,6 +1330,7 @@ function ManagerMealRequests() {
               <div><span className="eyebrow">ম্যানেজার এডিট</span><h2>{editRequest.member_name}-এর মিল</h2><p>{formatDateWithWeekday(editRequest.start_date)} → {formatDateWithWeekday(editRequest.end_date)}</p></div>
               <button className="icon-button" type="button" disabled={editBusy} onClick={() => setEditRequest(null)} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
             </div>
+            <div className="manager-warning-box"><Icon name="info" size={18}/><div><strong>{editRequest.status === 'submitted' ? 'একই অনুরোধে পরিবর্তন হবে' : 'অনুমোদিত অনুরোধ আপডেট হবে'}</strong><p>{editRequest.status === 'submitted' ? 'পরিবর্তনটি নতুন অনুরোধ তৈরি করবে না। সংরক্ষণের পর মূল অনুরোধেই আপডেট দেখাবে; এরপর অনুমোদন/বাতিল করতে পারবেন। চূড়ান্ত হয়ে যাওয়া দিনের জন্য এই পথ ব্যবহার করা যাবে না।' : 'পরিবর্তনটি মূল অনুরোধেই সংরক্ষিত হবে এবং প্রয়োজনীয় meal record ও snapshot আপডেট হবে।'}</p></div></div>
             <div className="default-meal-box">
               <div><strong>ডিফল্ট মিল</strong><small>একবার সেট করে নিচের সব দিনেই প্রয়োগ করুন।</small></div>
               <div className="default-meal-controls">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label]) => <label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={editDefaults[key]} onChange={(e) => setEditDefaults((current) => ({ ...current, [key]: clampMeal(e.target.value) }))} /></label>)}</div>
@@ -1322,7 +1339,8 @@ function ManagerMealRequests() {
             <div className="meal-days-stack">
               {editDays.map((day, index) => <MealDayCard key={day.meal_date} day={day} onChange={(next) => setEditDays((current) => current.map((item, i) => i === index ? next : item))} />)}
             </div>
-            <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>সার্ভারের নিয়ম</strong><p>নির্ধারিত সময়সীমার আগে পরিবর্তন করলে রাত ৯টায় হিসাব চূড়ান্ত হওয়া পর্যন্ত অপেক্ষমাণ থাকবে। সময়সীমার পরে বা দিনটির হিসাব চূড়ান্ত হয়ে গেলে পরিবর্তনটি সঙ্গে সঙ্গে প্রয়োগ হবে।</p></div></div>
+            <label className="field-label"><span>সংশোধনের নোট <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={editNote} onChange={(event) => setEditNote(event.target.value)} placeholder="যেমন: সদস্যের আবেদনের ভিত্তিতে পরিবর্তন" /></label>
+            <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>সার্ভারের নিয়ম</strong><p>{editRequest.status === 'submitted' ? 'এই আবেদনটির প্রতিটি তারিখ এখনো final না হলে পরিবর্তন হবে। তারপর একই আবেদন অনুমোদন করলে সার্ভার নির্ধারিত নিয়মে কার্যকর হবে।' : 'সার্ভার cutoff/finalization যাচাই করে পরিবর্তন প্রয়োগ করবে। কোনো finalized দিনের পরিবর্তন হলে তা audit-সহ final record ও snapshot আপডেট করবে।'}</p></div></div>
             <div className="confirm-actions"><button className="secondary-button" type="button" disabled={editBusy} onClick={() => setEditRequest(null)}>বাতিল</button><button className="primary-button" type="button" disabled={editBusy || !editDays.length} onClick={saveEdit}>{editBusy ? 'সংরক্ষণ হচ্ছে...' : 'পরিবর্তন সংরক্ষণ করুন'}</button></div>
           </section>
         </div>
@@ -1500,6 +1518,66 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
   );
 }
 
+
+function DiningArchiveBrowser({ onBack }) {
+  const toast = useToast();
+  const [periods, setPeriods] = useState([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState('');
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetchPreviousMonths().then((rows) => {
+      if (!alive) return;
+      const safeRows = Array.isArray(rows) ? rows : [];
+      setPeriods(safeRows);
+      setLoading(false);
+    }).catch((error) => {
+      if (!alive) return;
+      setLoading(false);
+      toast.error(getFriendlySupabaseError(error, 'পূর্ববর্তী মাসের তালিকা লোড করা যায়নি।'));
+    });
+    return () => { alive = false; };
+  }, [toast]);
+
+  const choosePeriod = async (periodId) => {
+    setSelectedPeriodId(periodId);
+    setDetail(null);
+    if (!periodId) return;
+    setDetailLoading(true);
+    try {
+      const next = await fetchArchivedMonthDetail(periodId);
+      setDetail(next || null);
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'নির্বাচিত মাসের বিস্তারিত লোড করা যায়নি।'));
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const markets = Array.isArray(detail?.markets) ? detail.markets : [];
+  const meals = Array.isArray(detail?.meals) ? detail.meals : [];
+  const activeMarketTotal = markets.filter((row) => row.status !== 'void').reduce((total, row) => total + Number(row.total || row.total_amount || 0), 0);
+  const totalMeals = meals.reduce((total, row) => total + Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0), 0);
+
+  return <div className="page-stack">
+    <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={onBack}><Icon name="arrow-left" size={15}/> ডাইনিংয়ে ফিরে যান</button></div>
+    <section className="card dining-panel">
+      <div className="panel-header"><div><span className="eyebrow">শুধু দেখার জন্য</span><h2>পূর্ববর্তী মাসের ডাইনিং</h2><p>আগের মাস বেছে তারিখভিত্তিক মিল ও বাজার দেখুন। আর্কাইভের এই স্ক্রিন থেকে কোনো নতুন অনুরোধ বা এন্ট্রি তৈরি করা যাবে না।</p></div></div>
+      {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..."/> : periods.length === 0 ? <div className="empty-state-card"><Icon name="calendar" size={26}/><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>ম্যানেজার নতুন বা আগের মাস বন্ধ/আর্কাইভ করলে এখানে তালিকা দেখা যাবে।</span></div> : <label className="field-label"><span>মাস নির্বাচন করুন</span><select value={selectedPeriodId} onChange={(event) => choosePeriod(event.target.value)}><option value="">পূর্ববর্তী মাস নির্বাচন করুন</option>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label} · {formatDateWithWeekday(period.start_date)} – {formatDateWithWeekday(period.end_date)}</option>)}</select></label>}
+    </section>
+    {detailLoading && <div className="card"><LoadingSpinner label="মাসের বিস্তারিত লোড হচ্ছে..."/></div>}
+    {detail && !detailLoading && <>
+      <div className="archive-detail-grid"><div className="metric"><span>মাস</span><strong>{detail.label || periods.find((period) => period.period_id === selectedPeriodId)?.label || 'পূর্ববর্তী মাস'}</strong></div><div className="metric"><span>সক্রিয় বাজার</span><strong>{formatCurrency(activeMarketTotal)}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(totalMeals)}</strong></div></div>
+      <section className="card archive-detail-section"><div className="section-heading"><h3>দৈনিক মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.length ? meals.slice(0,200).map((row) => <div className="archive-list-row" key={row.date}><div><strong>{formatDateWithWeekday(row.date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} · লাঞ্চ {formatNumber(row.lunch)} · ডিনার {formatNumber(row.dinner)}</small></div><span className="member-badge subtle">{row.status || 'সংরক্ষিত'}</span></div>) : <div className="empty-state-card"><strong>মিলের বিস্তারিত নেই</strong></div>}</section>
+      <section className="card archive-detail-section"><div className="section-heading"><h3>বাজার</h3><span>{formatNumber(markets.length)}টি</span></div>{markets.length ? markets.slice(0,200).map((row) => <div className={`archive-list-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.id}><div><strong>{row.member_name || 'সদস্য'}</strong><small>{formatDateWithWeekday(row.entry_date)}</small></div><div><strong>{formatCurrency(row.total ?? row.total_amount)}</strong><span className="member-badge subtle">{row.status === 'void' ? 'বাতিল' : 'সক্রিয়'}</span></div></div>) : <div className="empty-state-card"><strong>বাজারের বিস্তারিত নেই</strong></div>}</section>
+      <div className="archive-scope-note"><Icon name="lock" size={16}/><span>পূর্ববর্তী মাসটি read-only। পরিবর্তনের দরকার হলে History → পূর্ববর্তী মাস ও অনুমোদিত manager archive-edit workflow ব্যবহার করুন।</span></div>
+    </>}
+  </div>;
+}
+
 export function DiningPage() {
   const toast = useToast();
   const { isManager, membership, profile } = useAuth();
@@ -1512,13 +1590,18 @@ export function DiningPage() {
   const [memberDirectoryError, setMemberDirectoryError] = useState(null);
   const [runningPeriod, setRunningPeriod] = useState(null);
   const [periodLoadError, setPeriodLoadError] = useState(null);
+  const [periodLookupSucceeded, setPeriodLookupSucceeded] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const periodFallback = useMemo(() => {
     if (!(managementPeriod?.period_id || managementPeriod?.id)) return null;
     if (managementPeriod?.status && managementPeriod.status !== 'running') return null;
     return { ...managementPeriod, period_id: managementPeriod.period_id || managementPeriod.id };
   }, [managementPeriod?.period_id, managementPeriod?.id, managementPeriod?.label, managementPeriod?.start_date, managementPeriod?.end_date, managementPeriod?.status]);
-  const hasRunningManagerPeriod = Boolean(runningPeriod?.period_id || runningPeriod?.id || periodFallback?.period_id);
+  // A successful period lookup is authoritative, including a successful null.
+  // Only use management-context fallback when the canonical lookup failed.
+  const hasRunningManagerPeriod = periodLookupSucceeded
+    ? Boolean(runningPeriod?.period_id || runningPeriod?.id)
+    : Boolean(periodFallback?.period_id);
   const isPrimaryDiningManager = hasRunningManagerPeriod ? Boolean(isPrimaryManager) : Boolean(isManager);
   const canOperateDining = Boolean(isPrimaryDiningManager || isAssistantManager || (!hasRunningManagerPeriod && isOperationalManager));
 
@@ -1536,10 +1619,11 @@ export function DiningPage() {
       ]);
 
       if (periodResult.status === 'fulfilled') {
-        // A successful null response is authoritative: no month is running. Only use
-        // the management-context copy when the period RPC itself fails.
+        // A successful null response is authoritative: no month is running.
+        setPeriodLookupSucceeded(true);
         setRunningPeriod(periodResult.value || null);
       } else {
+        setPeriodLookupSucceeded(false);
         setRunningPeriod(periodFallback);
         const message = getFriendlySupabaseError(periodResult.reason, 'চলমান মাসের তথ্য লোড করা যায়নি।');
         setPeriodLoadError(message);
@@ -1607,6 +1691,10 @@ export function DiningPage() {
         />
       </div>
     );
+  }
+
+  if (view === 'period-history') {
+    return <DiningArchiveBrowser onBack={backToHome} />;
   }
 
   if (view === 'meal-request') {
@@ -1702,6 +1790,8 @@ export function DiningPage() {
     <div className="page-stack dining-stack">
       <SectionHeader eyebrow="মূল সেকশন" title="ডাইনিং" description={isManager ? 'খাবার, বাজার ও মেসের হিসাবের সব কার্যক্রম এখানে পরিচালনা করুন।' : 'বাজার ও মিল সম্পর্কিত দৈনন্দিন কাজগুলো এখানে করুন।'} />
 
+      {periodLoadError && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="warning" size={20}/><div><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError} মাস নেই বলে নিশ্চিত না হওয়া পর্যন্ত এই বার্তাকে প্রকৃত no-month অবস্থা হিসেবে দেখানো হচ্ছে না।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
+      {!loadingMembers && !periodLoadError && !hasRunningManagerPeriod && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="calendar" size={20}/><div><strong>বর্তমানে কোনো চলমান মাস নেই</strong><p>নতুন মাস শুরু না হওয়া পর্যন্ত নতুন মিল/বাজার এন্ট্রি বন্ধ থাকবে। আগের মাসের তথ্য দেখতে “পূর্ববর্তী মাস” বেছে নিন।</p></div></div>}
       <div className="dining-action-grid">
         {canOperateDining && <DiningOptionCard icon="shield" title="এডমিন এন্ট্রি" description="ফাইনাল মিল সংশোধন বা সদস্যের হয়ে ম্যানুয়াল মিল অনুরোধ তৈরি করুন।" badge onClick={() => setView('admin-entry')} />}
         {isPrimaryDiningManager && <DiningOptionCard icon="user" title="আমার মিল" description="সাধারণ সদস্যের মতো অনুরোধ, হিস্টরি ও সংশোধন ব্যবহার করুন।" badge onClick={() => setView('meal-request')} />}
@@ -1711,6 +1801,7 @@ export function DiningPage() {
         {canOperateDining && <DiningOptionCard icon="wallet" title="ডিপোজিট" description="যেকোনো সদস্যের নামে ডিপোজিট যোগ করুন।" badge onClick={() => setView('deposit')} />}
         {canOperateDining && <DiningOptionCard icon="wallet" title="অন্যান্য খরচ" description="নির্বাচিত সদস্যের হিসাব থেকে অন্যান্য খরচ বাদ দিন।" badge onClick={() => setView('other-expense')} />}
         {!isManager && !isAssistantManager && <DiningOptionCard icon="history" title="মিল অনুরোধ" description="নতুন অনুরোধ দিন বা আগের অনুরোধের ইতিহাস দেখুন।" onClick={() => setView('meal-request')} />}
+        <DiningOptionCard icon="history" title="পূর্ববর্তী মাস" description="আগের মাসের মিল ও বাজার read-only অবস্থায় দেখুন।" onClick={() => setView('period-history')} />
       </div>
 
       {canOperateDining && (

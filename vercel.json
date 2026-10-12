@@ -1,8 +1,32 @@
 {
   "rewrites": [
-    { "source": "/app/(.*)", "destination": "/index.html" },
-    { "source": "/auth/(.*)", "destination": "/index.html" },
-    { "source": "/onboarding/(.*)", "destination": "/index.html" },
-    { "source": "/account/(.*)", "destination": "/index.html" }
+    {
+      "source": "/super-admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/super-admin/",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/super-admin/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/app/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/auth/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/onboarding/(.*)",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/account/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }

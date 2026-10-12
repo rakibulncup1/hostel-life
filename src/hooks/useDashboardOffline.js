@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchOfflineMealBundle } from '../services/dashboardService';
 import { pickOfflineMealCard } from '../services/mealOfflineStore';
 import { readDashboardSnapshot, saveDashboardSnapshot } from '../services/offlineStore';
@@ -7,6 +7,7 @@ export function useDashboardOffline({ userId, hostelId, isOnline }) {
   const [snapshot, setSnapshot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const lastMealBundleFetchAtRef = useRef(0);
 
   const loadCached = useCallback(async () => {
     if (!userId || !hostelId) {
@@ -31,7 +32,7 @@ export function useDashboardOffline({ userId, hostelId, isOnline }) {
   // This function only persists a dashboard result already fetched by the page.
   // It must not fetch dashboard data itself: doing so duplicated RPC calls and,
   // when used by DashboardPage's effect, could start a fetch/cache/render loop.
-  const sync = useCallback(async (freshDashboard, { refreshMealBundle = false } = {}) => {
+  const sync = useCallback(async (freshDashboard, { refreshMealBundle = false, forceMealBundle = false } = {}) => {
     if (!userId || !hostelId || !isOnline || !freshDashboard) return null;
     try {
       const previous = await readDashboardSnapshot({ userId, hostelId }).catch(() => null);
@@ -39,10 +40,17 @@ export function useDashboardOffline({ userId, hostelId, isOnline }) {
 
       if (freshDashboard.has_running_period === false) {
         mealBundle = null;
-      } else if (refreshMealBundle || !mealBundle) {
-        // Never discard a good cached bundle just because this fetch temporarily fails.
-        const latestBundle = await fetchOfflineMealBundle().catch(() => null);
-        if (latestBundle) mealBundle = latestBundle;
+        lastMealBundleFetchAtRef.current = 0;
+      } else {
+        const now = Date.now();
+        const bundleRefreshDue = now - lastMealBundleFetchAtRef.current >= 5 * 60 * 1000;
+        if (!mealBundle || (refreshMealBundle && (forceMealBundle || bundleRefreshDue))) {
+          // The service-level per-user cache also bounds calls across component
+          // remounts. Only an explicit user-forced refresh may bypass that cache.
+          lastMealBundleFetchAtRef.current = now;
+          const latestBundle = await fetchOfflineMealBundle({ force: forceMealBundle }).catch(() => null);
+          if (latestBundle) mealBundle = latestBundle;
+        }
       }
 
       await saveDashboardSnapshot({ userId, hostelId, dashboard: freshDashboard, mealBundle });
