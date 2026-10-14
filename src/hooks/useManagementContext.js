@@ -4,6 +4,7 @@ import { rpcWithFallback } from '../lib/rpcCompatibility';
 import { cachedRequest } from '../lib/requestCache';
 import { useAuth } from '../contexts/AuthContext';
 import { useOnlineStatus } from './useOnlineStatus';
+import { normalizeRunningPeriodPayload, reconcileManagementContextWithPeriod } from '../utils/period';
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
@@ -18,7 +19,10 @@ export function useManagementContext() {
   const lastRefreshAtRef = useRef(0);
 
   const refresh = useCallback(async ({ force = false } = {}) => {
-    if (!supabase || !online || !membership?.hostel_id || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) return null;
+    if (!supabase || !online || !membership?.hostel_id || !navigator.onLine) return null;
+    // Explicit refreshes after month start/close must update the shared header/context even
+    // if the browser is processing a focus/visibility transition. Passive refreshes stay gated.
+    if (!force && (document.visibilityState !== 'visible' || !document.hasFocus())) return null;
     if (refreshInFlightRef.current) return refreshInFlightRef.current;
     const now = Date.now();
     if (!force && now - lastRefreshAtRef.current < 15000) return null;
@@ -32,26 +36,60 @@ export function useManagementContext() {
         { name: 'get_running_period_context' },
       ]), { ttlMs: 30000, force });
       if (error) throw error;
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
+
       if (functionName === 'get_month_management_context') {
-        setContext(data ?? null);
-        return data ?? null;
+        const directPeriod = normalizeRunningPeriodPayload(data);
+        if (directPeriod) {
+          const normalized = {
+            ...(data && typeof data === 'object' ? data : {}),
+            has_running_period: true,
+            period: {
+              ...directPeriod,
+              assistant_managers: asArray(directPeriod.assistant_managers),
+            },
+          };
+          setContext(normalized);
+          return normalized;
+        }
+
+        // Some deployed RPC versions can return a successful but stale/partial
+        // management payload with no period even though the canonical period RPC
+        // still finds a running month. Verify before rendering “no month started”.
+        const { data: verifiedPayload, error: verifiedError } = await cachedRequest(
+          'manager:running-period-verification',
+          () => rpcWithFallback(supabase, [{ name: 'get_running_period_context' }]),
+          { ttlMs: 10000, force },
+        );
+        // A verified empty result is different from a failed verification: the first
+        // may say no month is running; the second must stay unknown and block month-start.
+        const reconciled = reconcileManagementContextWithPeriod(data, verifiedPayload, {
+          verificationSucceeded: !verifiedError,
+          today,
+          canManageMonth: Boolean(isManager || operationalRole?.can_manage_month),
+        });
+        if (reconciled.period) {
+          reconciled.period = {
+            ...reconciled.period,
+            assistant_managers: asArray(reconciled.period.assistant_managers),
+          };
+        }
+        setContext(reconciled);
+        return reconciled;
       }
 
       // Older database deployments only have running-period context. The shared
       // RPC resolver remembers missing variants for this tab, so later focus/resume
       // refreshes do not repeatedly generate failed function-lookup logs.
       const periodData = data;
-      const fallbackPeriod = periodData?.period
-        ? {
-            ...periodData.period,
-            period_id: periodData.period.period_id || periodData.period.id,
-            assistant_managers: asArray(periodData.period.assistant_managers),
-          }
-        : null;
+      const fallbackPeriod = normalizeRunningPeriodPayload(periodData);
       const fallback = {
-        today: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date()),
+        today,
         has_running_period: Boolean(fallbackPeriod),
-        period: fallbackPeriod,
+        period: fallbackPeriod ? {
+          ...fallbackPeriod,
+          assistant_managers: asArray(fallbackPeriod.assistant_managers),
+        } : null,
         can_manage_month: Boolean(isManager || operationalRole?.can_manage_month),
       };
       setContext(fallback);
@@ -72,7 +110,7 @@ export function useManagementContext() {
     if (!online || !membership?.hostel_id) return undefined;
     refresh().catch(() => undefined);
     const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') refresh().catch(() => undefined);
+      if (document.visibilityState === 'visible') refresh({ force: true }).catch(() => undefined);
     };
     window.addEventListener('focus', refreshIfVisible);
     window.addEventListener('online', refreshIfVisible);

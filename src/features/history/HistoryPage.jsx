@@ -21,6 +21,13 @@ const TABS = [
   { key: 'months', label: 'পূর্ববর্তী মাস', icon: 'history' },
 ];
 
+function formatHistoryPeriodRange(period) {
+  const start = period?.start_date ? formatDateBangla(period.start_date) : '';
+  const end = period?.end_date ? formatDateBangla(period.end_date) : '';
+  if (start && end) return `${start} – ${end}`;
+  return start || end || '';
+}
+
 export function HistoryPage() {
   const isOnline = useOnlineStatus();
   const toast = useToast();
@@ -163,6 +170,15 @@ export function HistoryPage() {
     ? archiveEditPeriods.some((period) => period.period_id === selectedArchivePeriodId)
     : hasRunningMonth));
   const selectedArchivePeriod = archiveEditPeriods.find((period) => period.period_id === selectedArchivePeriodId);
+  // Separate the archived period record from the optional edit grant. The period
+  // label must remain visible even when a viewer has no permission to edit it.
+  const selectedArchiveRecord = periods.find((period) => period.period_id === selectedArchivePeriodId) || selectedArchivePeriod || null;
+  const displayedHistoryPeriod = selectedArchivePeriodId ? selectedArchiveRecord : runningPeriodContext;
+  const displayedHistoryPeriodLabel = selectedArchivePeriodId
+    ? (selectedArchiveRecord?.label || 'পূর্ববর্তী মাস')
+    : hasRunningMonth ? (runningPeriodContext?.label || 'চলমান মাস')
+      : periodLoadError ? 'মাসের অবস্থা যাচাই করা যাচ্ছে না' : 'কোনো চলমান মাস নেই';
+  const displayedHistoryPeriodRange = formatHistoryPeriodRange(displayedHistoryPeriod);
 
   const accountGrouped = useMemo(() => {
     const rows = (Array.isArray(accountRows) ? accountRows : []).map((row) => ({ ...row, source: row.source || 'ledger' }));
@@ -191,12 +207,24 @@ export function HistoryPage() {
     setExportBusy(true);
     try {
       const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+      const selectedReportPeriod = periods.find((period) => period.period_id === selectedArchivePeriodId)
+        || periods.find((period) => period.period_id === (runningPeriodContext?.period_id || runningPeriodContext?.id))
+        || runningPeriodContext;
+      const reportManagerId = selectedReportPeriod?.manager_at_close_membership_id || selectedReportPeriod?.primary_manager_membership_id;
+      const reportManager = members.find((member) => member.membership_id === reportManagerId)
+        || (selectedReportPeriod?.status === 'running' ? members.find((member) => member.is_primary_manager || member.role === 'manager') : null);
+      const reportMeta = {
+        periodLabel: selectedReportPeriod?.label || '',
+        managerName: reportManager?.member_name || reportManager?.full_name || '',
+        managerPhone: reportManager?.phone || reportManager?.phone_number || reportManager?.mobile || '',
+        pageOrientation: tab === 'market' ? 'landscape' : 'portrait',
+      };
       if (tab === 'market') {
-        const body = visibleMarketRows.map((row, index) => `<tr><td>${marketSerialById.get(row.market_entry_id) || visibleMarketRows.length - index}</td><td>${esc(formatDateWithWeekday(row.entry_date))}</td><td>${esc(row.buyer_name)}</td><td>${esc(formatCurrency(row.total_amount))}</td><td>${esc(row.status === 'void' ? 'বাতিল' : 'সক্রিয়')}</td><td>${esc((row.items || []).map((item) => item.item_name).join(', '))}</td></tr>`).join('');
-        printReport('বাজার ইতিহাস', `ফিল্টার করা বাজার · ${visibleMarketRows.length}টি এন্ট্রি · মোট ${formatCurrency(marketTotal)}`, `<table><thead><tr><th>ক্রম</th><th>তারিখ</th><th>বাজারকারী</th><th>মোট</th><th>অবস্থা</th><th>আইটেম</th></tr></thead><tbody>${body}</tbody><tfoot><tr><th colspan=3>সক্রিয় বাজারের মোট</th><th>${esc(formatCurrency(marketTotal))}</th><th colspan=2></th></tr></tfoot></table>`);
+        const body = visibleMarketRows.map((row, index) => `<tr><td>${marketSerialById.get(row.market_entry_id) || visibleMarketRows.length - index}</td><td>${esc(formatDateWithWeekday(row.entry_date))}</td><td>${esc(row.buyer_name)}</td><td>${esc(formatCurrency(row.total_amount))}</td><td>${esc(row.status === 'void' ? 'বাতিল' : 'কার্যকর')}</td><td>${esc((row.items || []).map((item) => item.item_name).join(', '))}</td></tr>`).join('');
+        printReport('বাজার ইতিহাস', `ফিল্টার করা বাজার · ${visibleMarketRows.length}টি এন্ট্রি · মোট ${formatCurrency(marketTotal)}`, `<table><thead><tr><th>ক্রম</th><th>তারিখ</th><th>বাজারকারী</th><th>মোট</th><th>অবস্থা</th><th>আইটেম</th></tr></thead><tbody>${body}</tbody><tfoot><tr><th colspan=3>বাজারের মোট</th><th>${esc(formatCurrency(marketTotal))}</th><th colspan=2></th></tr></tfoot></table>`, null, reportMeta);
       } else if (tab === 'account') {
         const body = accountGrouped.map((row) => `<tr><td>${esc(formatDateWithWeekday(row.entry_date || row.created_at))}</td><td>${esc(row.member_name)}</td><td>${esc(row.transaction_type)}</td><td>${esc(formatCurrency(row.amount))}</td><td>${esc(row.description || '')}</td></tr>`).join('');
-        printReport('হিসাব ইতিহাস', `লেনদেন ${accountGrouped.length}টি`, `<table><thead><tr><th>তারিখ</th><th>সদস্য</th><th>ধরন</th><th>পরিমাণ</th><th>বিবরণ</th></tr></thead><tbody>${body}</tbody></table>`);
+        printReport('হিসাব ইতিহাস', `লেনদেন ${accountGrouped.length}টি`, `<table><thead><tr><th>তারিখ</th><th>সদস্য</th><th>ধরন</th><th>পরিমাণ</th><th>বিবরণ</th></tr></thead><tbody>${body}</tbody></table>`, null, reportMeta);
       }
     } catch (error) {
       toast.error(error.message || 'PDF/প্রিন্ট খোলা যায়নি।');
@@ -210,22 +238,6 @@ export function HistoryPage() {
     try { setMarketDetail(await fetchMarketDetail(id)); }
     catch (error) { toast.error(getFriendlySupabaseError(error, 'বাজারের বিস্তারিত খোলা যায়নি।')); }
     finally { setDetailLoading(false); }
-  };
-
-  const openMarketForEdit = async (id) => {
-    if (!canEditVisibleRows) {
-      toast.warning('এই হিসাবের পরিসরে বাজার সম্পাদনার অনুমতি নেই।');
-      return;
-    }
-    setDetailLoading(true);
-    try {
-      const detail = await fetchMarketDetail(id);
-      if (!detail) throw new Error('বাজারের বিস্তারিত পাওয়া যায়নি।');
-      if (detail.status === 'void') throw new Error('বাতিল করা বাজার এন্ট্রি সম্পাদনা করা যায় না।');
-      setMarketEdit(detail);
-    } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'বাজার সম্পাদনার ফর্ম খোলা যায়নি।'));
-    } finally { setDetailLoading(false); }
   };
 
   const openMonth = async (period) => {
@@ -250,11 +262,24 @@ export function HistoryPage() {
       </div>
 
       <section className={`card history-archive-scope ${selectedArchivePeriodId ? 'is-archive-scope' : ''}`}>
-        <label className="field-label"><span>হিসাবের পরিসর</span><select value={selectedArchivePeriodId} onChange={(event) => chooseArchivePeriod(event.target.value)}>
-          <option value="">বর্তমান মাস{hasRunningMonth ? '' : (periodLoadError ? ' (যাচাই করা যায়নি)' : ' (চলমান মাস নেই)')}</option>
+        <div className={`history-period-overview ${selectedArchivePeriodId ? 'is-archive' : hasRunningMonth ? 'is-running' : 'is-unavailable'}`}>
+          <span className="history-period-icon"><Icon name={selectedArchivePeriodId ? 'history' : 'calendar'} size={20} /></span>
+          <div className="history-period-overview-copy">
+            <span className="eyebrow">{selectedArchivePeriodId ? 'নির্বাচিত আর্কাইভ' : 'হিসাবের বর্তমান অবস্থা'}</span>
+            <strong>{displayedHistoryPeriodLabel}</strong>
+            <small>{displayedHistoryPeriodRange || (selectedArchivePeriodId ? 'সংরক্ষিত মাসের হিসাব' : hasRunningMonth ? 'চলমান মাসের হিসাব' : periodLoadError ? 'আবার চেষ্টা করে মাসের অবস্থা যাচাই করুন।' : 'আগের মাস দেখতে তালিকা থেকে একটি মাস নির্বাচন করুন।')}</small>
+          </div>
+          <span className={`history-period-state ${selectedArchivePeriodId ? (selectedArchivePeriod ? 'is-editable' : 'is-readonly') : hasRunningMonth ? 'is-running' : periodLoadError ? 'is-checking' : 'is-unavailable'}`}>
+            {selectedArchivePeriodId ? (selectedArchivePeriod ? 'সম্পাদনার অনুমতি আছে' : 'শুধু দেখুন') : hasRunningMonth ? 'চলমান' : periodLoadError ? 'যাচাই প্রয়োজন' : 'চালু নেই'}
+          </span>
+        </div>
+        <label className="field-label history-period-select"><span>{selectedArchivePeriodId ? 'অন্য মাসের হিসাব দেখতে' : 'অন্য মাস নির্বাচন করুন'}</span><select value={selectedArchivePeriodId} onChange={(event) => chooseArchivePeriod(event.target.value)}>
+          <option value="">{hasRunningMonth ? `${runningPeriodContext?.label || 'চলমান মাস'}${formatHistoryPeriodRange(runningPeriodContext) ? ` · ${formatHistoryPeriodRange(runningPeriodContext)}` : ''}` : periodLoadError ? 'চলমান মাসের অবস্থা যাচাই হচ্ছে' : 'কোনো চলমান মাস নেই'}</option>
           {periods.map((period) => <option value={period.period_id} key={period.period_id}>{period.label} · {formatDateBangla(period.start_date)} – {formatDateBangla(period.end_date)}</option>)}
         </select></label>
-        {selectedArchivePeriod && <div className="archive-scope-note"><Icon name="shield" size={16}/><span><strong>{selectedArchivePeriod.label}</strong> আর্কাইভ সম্পাদনা মোড · অনুমতি: {selectedArchivePeriod.access_kind}{selectedArchivePeriod.expires_at ? ` · মেয়াদ ${formatDateTime12(selectedArchivePeriod.expires_at)}` : ''}</span></div>}
+        {selectedArchivePeriodId && (selectedArchivePeriod
+          ? <div className="archive-scope-note is-editable"><Icon name="shield" size={16}/><span><strong>{selectedArchivePeriod.label || selectedArchiveRecord?.label || 'আর্কাইভ'}</strong> সম্পাদনা মোড · অনুমতি: {selectedArchivePeriod.access_kind}{selectedArchivePeriod.expires_at ? ` · মেয়াদ ${formatDateTime12(selectedArchivePeriod.expires_at)}` : ''}</span></div>
+          : <div className="archive-scope-note is-readonly"><Icon name="lock" size={16}/><span><strong>{selectedArchiveRecord?.label || 'নির্বাচিত আর্কাইভ'}</strong> শুধু দেখার জন্য খোলা আছে। এই মাস সম্পাদনার অনুমতি নেই।</span></div>)}
       </section>
 
       <div className="history-tabbar" role="tablist" aria-label="হিস্টরি বিভাগ">
@@ -283,7 +308,7 @@ export function HistoryPage() {
       ) : !selectedArchivePeriodId && !hasRunningMonth && tab !== 'months' ? (
         <div className="card" style={{ padding: 24 }}>বর্তমানে কোনো চলমান মাস নেই। পূর্ববর্তী মাসের ইতিহাস দেখতে উপরের মাস নির্বাচন করুন।</div>
       ) : tab === 'market' ? (
-        <><section className="card history-filter-card market-history-filters"><div><strong>বাজার ফিল্টার</strong><small>{visibleMarketRows.length}টি এন্ট্রি · সক্রিয় বাজারের মোট {formatCurrency(marketTotal)}</small></div><div className="history-filter-controls"><select value={marketMemberFilter} onChange={(event)=>setMarketMemberFilter(event.target.value)} aria-label="বাজারকারী সদস্য ফিল্টার"><option value="">সব বাজারকারী</option>{members.map((member)=><option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select><label className="field-label compact-field"><span>শুরু</span><input type="date" value={marketDateFrom} max={marketDateTo || undefined} onChange={(event)=>setMarketDateFrom(event.target.value)}/></label><label className="field-label compact-field"><span>শেষ</span><input type="date" value={marketDateTo} min={marketDateFrom || undefined} onChange={(event)=>setMarketDateTo(event.target.value)}/></label><button type="button" className="secondary-button compact" onClick={()=>{setMarketMemberFilter('');setMarketDateFrom('');setMarketDateTo('');}}>রিসেট</button></div></section><MarketHistoryList rows={visibleMarketRows} serialById={marketSerialById} onOpen={openMarket} canEdit={canEditVisibleRows} onEdit={openMarketForEdit} /></>
+        <><section className="card history-filter-card market-history-filters"><div><strong>বাজার ফিল্টার</strong><small>{visibleMarketRows.length}টি এন্ট্রি · বাজারের মোট {formatCurrency(marketTotal)}</small></div><div className="history-filter-controls"><select value={marketMemberFilter} onChange={(event)=>setMarketMemberFilter(event.target.value)} aria-label="বাজারকারী সদস্য ফিল্টার"><option value="">সব বাজারকারী</option>{members.map((member)=><option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select><label className="field-label compact-field"><span>শুরু</span><input type="date" value={marketDateFrom} max={marketDateTo || undefined} onChange={(event)=>setMarketDateFrom(event.target.value)}/></label><label className="field-label compact-field"><span>শেষ</span><input type="date" value={marketDateTo} min={marketDateFrom || undefined} onChange={(event)=>setMarketDateTo(event.target.value)}/></label><button type="button" className="secondary-button compact" onClick={()=>{setMarketMemberFilter('');setMarketDateFrom('');setMarketDateTo('');}}>রিসেট</button></div></section><MarketHistoryList rows={visibleMarketRows} serialById={marketSerialById} onOpen={openMarket} /></>
       ) : tab === 'account' ? (
         <AccountHistoryList rows={accountGrouped} canEdit={Boolean(canEditVisibleRows)} onOpenDetail={(row) => setTransactionDetail(row)} />
       ) : (
@@ -291,7 +316,7 @@ export function HistoryPage() {
       )}
 
       {detailLoading && <div className="modal-backdrop"><div className="modal-panel card"><LoadingSpinner label="বিস্তারিত লোড হচ্ছে..." /></div></div>}
-      {marketDetail && !detailLoading && <MarketDetailModal detail={marketDetail} isManager={canEditVisibleRows} onEdit={() => setMarketEdit(marketDetail)} onVoid={() => setMarketVoid(marketDetail)} onClose={() => setMarketDetail(null)} />}
+      {marketDetail && !detailLoading && <MarketDetailModal detail={marketDetail} isManager={canEditVisibleRows} onEdit={() => { setMarketEdit(marketDetail); setMarketDetail(null); }} onVoid={() => setMarketVoid(marketDetail)} onClose={() => setMarketDetail(null)} />}
       {monthDetail && !detailLoading && <MonthDetailModal detail={monthDetail} onClose={() => setMonthDetail(null)} />}
       {marketEdit && <MarketEditModal detail={marketEdit} members={members} busy={managerBusy} onClose={() => setMarketEdit(null)} onSaved={async () => { setMarketEdit(null); setMarketDetail(null); await load(); }} onBusy={setManagerBusy} />}
       {marketVoid && <ReasonModal title="বাজার এন্ট্রি বাতিল" description="বাতিল করার কারণ লিখুন। ইতিহাস থাকবে, কিন্তু এটি আর active market হিসেবে গণনা হবে না।" busy={managerBusy} onClose={() => setMarketVoid(null)} onConfirm={async (reason) => { setManagerBusy(true); try { await voidMarketEntry(marketVoid.market_entry_id, reason); toast.success('বাজার এন্ট্রি সফলভাবে বাতিল হয়েছে।'); setMarketVoid(null); setMarketDetail(null); await load(); } catch (error) { toast.error(getFriendlySupabaseError(error, 'বাজার বাতিল করা যায়নি।')); } finally { setManagerBusy(false); } }} />}
@@ -301,17 +326,16 @@ export function HistoryPage() {
   );
 }
 
-function MarketHistoryList({ rows, serialById = new Map(), onOpen, canEdit = false, onEdit }) {
+function MarketHistoryList({ rows, serialById = new Map(), onOpen }) {
   if (!rows.length) return <EmptyHistory icon="dining" title="কোনো বাজার ইতিহাস নেই" text="এই ফিল্টারে কোনো বাজার এন্ট্রি পাওয়া যায়নি।" />;
   return <div className="history-list">{rows.map((row, index) => (
     <div className="market-history-row-shell" key={row.market_entry_id}>
-      <button className={`card history-item-card ${row.status === 'void' ? 'is-void' : ''}`} type="button" onClick={() => onOpen(row.market_entry_id)}>
+      <button className={`card history-item-card ${row.status === 'void' ? 'is-void' : ''}`} type="button" onClick={() => onOpen(row.market_entry_id)} aria-label={`${row.buyer_name || 'বাজার'} — ${formatDateBangla(row.entry_date)}-এর বিস্তারিত খুলুন`}>
         <div className="history-leading-icon market-serial-badge"><span>{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
-        <div className="history-item-copy"><strong>{row.buyer_name}</strong><small>{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><span>{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span></div>
+        <div className="history-item-copy"><strong>{row.buyer_name}</strong><small>{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><span>{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span><small className="history-row-open-hint">বিস্তারিত দেখতে চাপ দিন <Icon name="chevron" size={12}/></small></div>
         <div className="history-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
         <Icon name="chevron" size={17} />
       </button>
-      {canEdit && row.status !== 'void' && <button className="secondary-button compact market-row-edit-button" type="button" onClick={() => onEdit(row.market_entry_id)} aria-label={`${row.entry_date} বাজার সম্পাদনা`}><Icon name="edit" size={14}/> সম্পাদনা</button>}
     </div>
   ))}</div>;
 }
@@ -447,9 +471,10 @@ function MonthDetailModal({ detail, onClose }) {
   const totalMarket = activeMarkets.reduce((sum, row) => sum + Number(row.total || 0), 0);
   const totalMeals = meals.reduce((sum, row) => sum + Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0), 0);
   const printArchive = () => {
-    const marketRows = markets.map((row) => `<tr><td>${formatDateWithWeekday(row.entry_date)}</td><td>${row.member_name}</td><td>${formatCurrency(row.total)}</td><td>${row.status === 'void' ? 'বাতিল' : 'active'}</td></tr>`).join('');
-    const mealRows = meals.map((row) => `<tr><td>${formatDateWithWeekday(row.date)}</td><td>${row.breakfast}</td><td>${row.lunch}</td><td>${row.dinner}</td><td>${Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0)}</td></tr>`).join('');
-    printReport(`Hostel Life — ${detail.label}`, `${formatDateBangla(detail.start_date)} → ${formatDateBangla(detail.end_date)}`, `<h3>বাজার</h3><table><thead><tr><th>তারিখ</th><th>সদস্য</th><th>মোট</th><th>অবস্থা</th></tr></thead><tbody>${marketRows}</tbody></table><br/><h3>দৈনিক মিল</h3><table><thead><tr><th>তারিখ</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${mealRows}</tbody></table>`);
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    const marketRows = markets.map((row) => `<tr><td>${esc(formatDateWithWeekday(row.entry_date))}</td><td>${esc(row.member_name)}</td><td>${esc(formatCurrency(row.total))}</td><td>${row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</td></tr>`).join('');
+    const mealRows = meals.map((row) => `<tr><td>${esc(formatDateWithWeekday(row.date))}</td><td>${esc(row.breakfast)}</td><td>${esc(row.lunch)}</td><td>${esc(row.dinner)}</td><td>${Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0)}</td></tr>`).join('');
+    printReport(`Hostel Life — ${detail.label}`, `${formatDateBangla(detail.start_date)} → ${formatDateBangla(detail.end_date)}`, `<h3>বাজার</h3><table><thead><tr><th>তারিখ</th><th>বাজারকারী</th><th>মোট</th><th>অবস্থা</th></tr></thead><tbody>${marketRows}</tbody></table><br/><h3>দৈনিক মিল</h3><table><thead><tr><th>তারিখ</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${mealRows}</tbody></table>`, null, { periodLabel: detail.label || '', managerName: detail.manager_at_close_name || detail.manager_name || '', managerPhone: detail.manager_at_close_phone || '', pageOrientation: 'landscape' });
   };
-  return <div className="modal-backdrop"><div className="modal-panel card large-modal"><div className="modal-head"><div><span className="eyebrow">পূর্ববর্তী মাস</span><h2>{detail.label}</h2><small>{formatDateBangla(detail.start_date)} → {formatDateBangla(detail.end_date)}</small></div><div className="modal-head-actions"><button className="secondary-button compact" type="button" onClick={printArchive}><Icon name="file-text" size={15} /> PDF / প্রিন্ট</button><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button></div></div>{Array.isArray(detail.edit_audit) && detail.edit_audit.some((item) => /^(insert|update|delete):/.test(item.action || '')) && <div className="archive-last-edit-note"><Icon name="clock" size={16}/><span>শেষ সংশোধন: <strong>{detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).actor_name}</strong> · {formatDateTime12(detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).created_at)} — {detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).summary}</span></div>}{isDetail ? <div className="archive-detail-body"><div className="archive-detail-grid"><div className="metric"><span>সক্রিয় বাজার</span><strong>{formatCurrency(totalMarket)}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(totalMeals)}</strong></div><div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div></div><section className="archive-detail-section"><div className="section-heading"><h3>বাজার</h3><span>{formatNumber(markets.length)}টি</span></div>{markets.slice(0, 100).map((row) => <div className={`archive-list-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.id}><div><strong>{row.member_name}</strong><small>{formatDateWithWeekday(row.entry_date)}</small></div><div><strong>{formatCurrency(row.total)}</strong><span className="member-badge subtle">{row.status === 'void' ? 'বাতিল' : 'active'}</span></div></div>)}</section><section className="archive-detail-section"><div className="section-heading"><h3>দৈনিক মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.slice(0, 100).map((row) => <div className="archive-list-row" key={row.date}><div><strong>{formatDateWithWeekday(row.date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} · লাঞ্চ {formatNumber(row.lunch)} · ডিনার {formatNumber(row.dinner)}</small></div><span className="member-badge subtle">{row.status}</span></div>)}</section></div> : <div className="archive-summary-grid"><div className="metric"><span>মোট জমা</span><strong>{formatCurrency(detail.total_deposit)}</strong></div><div className="metric"><span>মোট বাজার</span><strong>{formatCurrency(detail.total_market_expense)}</strong></div><div className="metric"><span>মোট খরচ</span><strong>{formatCurrency(Number(detail.total_market_expense || 0) + Number(detail.total_other_expense || 0))}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(detail.total_meals)}</strong></div><div className="metric"><span>মিল রেট</span><strong>৳{formatNumber(detail.meal_rate, { maximumFractionDigits: 4 })}</strong></div><div className="metric"><span>অবশিষ্ট ফান্ড</span><strong>{formatCurrency(detail.fund_remaining)}</strong></div></div>}</div></div>;
+  return <div className="modal-backdrop"><div className="modal-panel card large-modal"><div className="modal-head"><div><span className="eyebrow">পূর্ববর্তী মাস</span><h2>{detail.label}</h2><small>{formatDateBangla(detail.start_date)} → {formatDateBangla(detail.end_date)}</small></div><div className="modal-head-actions"><button className="secondary-button compact" type="button" onClick={printArchive}><Icon name="file-text" size={15} /> PDF / প্রিন্ট</button><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button></div></div>{Array.isArray(detail.edit_audit) && detail.edit_audit.some((item) => /^(insert|update|delete):/.test(item.action || '')) && <div className="archive-last-edit-note"><Icon name="clock" size={16}/><span>শেষ সংশোধন: <strong>{detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).actor_name}</strong> · {formatDateTime12(detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).created_at)} — {detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).summary}</span></div>}{isDetail ? <div className="archive-detail-body"><div className="archive-detail-grid"><div className="metric"><span>মোট বাজার</span><strong>{formatCurrency(totalMarket)}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(totalMeals)}</strong></div><div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div></div><section className="archive-detail-section"><div className="section-heading"><h3>বাজার</h3><span>{formatNumber(markets.length)}টি</span></div>{markets.slice(0, 100).map((row) => <div className={`archive-list-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.id}><div><strong>{row.member_name}</strong><small>{formatDateWithWeekday(row.entry_date)}</small></div><div><strong>{formatCurrency(row.total)}</strong><span className="member-badge subtle">{row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</span></div></div>)}</section><section className="archive-detail-section"><div className="section-heading"><h3>দৈনিক মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.slice(0, 100).map((row) => <div className="archive-list-row" key={row.date}><div><strong>{formatDateWithWeekday(row.date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} · লাঞ্চ {formatNumber(row.lunch)} · ডিনার {formatNumber(row.dinner)}</small></div><span className="member-badge subtle">{row.status}</span></div>)}</section></div> : <div className="archive-summary-grid"><div className="metric"><span>মোট জমা</span><strong>{formatCurrency(detail.total_deposit)}</strong></div><div className="metric"><span>মোট বাজার</span><strong>{formatCurrency(detail.total_market_expense)}</strong></div><div className="metric"><span>মোট খরচ</span><strong>{formatCurrency(Number(detail.total_market_expense || 0) + Number(detail.total_other_expense || 0))}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(detail.total_meals)}</strong></div><div className="metric"><span>মিল রেট</span><strong>৳{formatNumber(detail.meal_rate, { maximumFractionDigits: 4 })}</strong></div><div className="metric"><span>অবশিষ্ট ফান্ড</span><strong>{formatCurrency(detail.fund_remaining)}</strong></div></div>}</div></div>;
 }

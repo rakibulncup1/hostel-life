@@ -1,45 +1,20 @@
-# Hostel Life — Module 06
+# Hostel Life — Combined Frontend Recovery
 
-## Final Manager Power + Archive + Reports + Final Integration
+এই ZIP-টি Vercel deploy এবং local-host frontend-এর তুলনা করে তৈরি করা সমন্বিত frontend source package।
 
-Module 06 is the cumulative final integration layer on top of Module 05. It completes the manager-only controls, archive permissions, month lifecycle, member status management, cook/khala money management, reports, manager-side history corrections, and final route integration.
+**প্রথমে পড়ুন:** `COMBINED-RECOVERY-README-BN.md` — পরিবর্তন, local setup, deployment checklist ও সীমাবদ্ধতা।
 
-### Included
-- New month start / archive transition
-- Manager change with immediate role refresh
-- Member deactivate / reactivate
-- Hostel name update and Join Code regeneration
-- Temporary archived-month edit permissions
-- Khala/cook money add, edit, void
-- Manager corrections for market entries, eligible ledger transactions and khala entries
-- Current running-month meal sheet
-- CSV report downloads
-- Print / browser PDF flow
-- Manager-only protected screens
-- Service worker cache version `v6`
+**কোড তুলনা:** `COMPARISON-REPORT-BN.md`
 
-### Database patch included
-Module 06 includes `supabase/MODULE-06-DATABASE-PATCH.sql`. Run this small patch once in the Supabase SQL Editor before testing Manager market edit/void. It makes repeated market corrections safe without rerunning the full Master SQL.
+**পরীক্ষার ফল:** `TEST-RESULTS-BN.md`
 
-**Do not rerun the full Master SQL just for this module.**
+## Local run
 
-### Run
+1. `.env.example`-এর কপি `.env.local` নামে তৈরি করুন।
+2. আপনার Supabase project URL ও public publishable/anon key দিন। `service_role` key কখনো frontend-এ দেবেন না।
+3. `npm ci`
+4. `npm test`
+5. `npm run dev`
+6. Production bundle যাচাই করতে `npm run build` চালান।
 
-```powershell
-cd "D:\MY PROJECTS\Hostel Life"
-npm install
-npm run dev
-```
-
-For a production-like PWA test:
-
-```powershell
-npm run build
-npm run preview
-```
-
-### Important
-- Keep `.env.local` in place and never commit secret/service-role keys.
-- Reports are generated on demand and are not permanently stored in Supabase.
-- Only the Dashboard Meal Card is offline-capable; all Module 06 management/report operations require internet.
-- The SQL patch is an additive function replacement and does not require a schema reset.
+`diagnostics/`-এ শুধু read-only SQL আছে। এই প্যাকেজে Supabase migration অন্তর্ভুক্ত নয় এবং frontend পরীক্ষা করতে কোনো নতুন SQL চালানোর দরকার নেই। নতুন মেসে বাজার edit-এ database permission error হলে আগে read-only diagnostic চালিয়ে ফলাফল যাচাই করুন; অনুমান করে SQL function/policy পরিবর্তন করবেন না।

@@ -16,7 +16,6 @@ import {
   fetchArchivePermissions,
   fetchKhalaPeriods,
   fetchMealRequestOverlapDetails,
-  fetchMonthManagementContext,
   fetchPeriodAssistants,
   grantArchiveEditPermission,
   reactivateMember,
@@ -26,16 +25,18 @@ import {
   saveManagerMyMeal,
   setPeriodAssistants,
   setRunningPeriodEndDate,
+  startNewMonth,
   updateHostel,
   voidKhalaMoney,
 } from '../../services/managerService';
 import { fetchKhalaMoneyHistory, fetchPreviousMonths, fetchArchivedMonthDetail } from '../../services/historyService';
-import { buildDailyMealRows, buildMemberSettlementRows, calculateMealTotals, fetchCurrentReportBundle, getActiveMarketRows, getVoidMarketRows, mergeFinancialRows, openPrintReportWindow, printReport, summarizeFinancialRows } from '../../services/reportService';
+import { buildDailyMealRows, buildMemberSettlementRows, calculateMealTotals, fetchCurrentReportBundle, getActiveMarketRows, getVoidMarketRows, printReport } from '../../services/reportService';
 import { fetchManagerMemberDirectory, fetchMonthClosePreflight } from '../../services/diningService';
 import { formatDateBangla, formatDateWithWeekday, toDateInputValue } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+import { deriveNextRequiredStartDate, dhakaDateInputValue } from '../../utils/monthStart';
 
 
 function AccessNotice({ title, text }) {
@@ -167,33 +168,65 @@ export function NewMonthPage() {
   const toast = useToast();
   const online = useOnlineStatus();
   const { context, refresh, isPrimaryManager } = useManagementContext();
-  const [startDate, setStartDate] = useState(toDateInputValue());
+  const [startDate, setStartDate] = useState('');
+  const [derivedRequiredStart, setDerivedRequiredStart] = useState('');
+  const [periodDateError, setPeriodDateError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setPeriodDateError('');
     try {
-      const data = await fetchMonthManagementContext();
-      if (data) {
-        setStartDate(data.next_required_start_date || toDateInputValue());
+      const data = await refresh({ force: true });
+      if (!data) {
+        setDerivedRequiredStart('');
+        setPeriodDateError('মাসের তথ্য সার্ভার থেকে নিশ্চিত করা যায়নি। সংযোগ যাচাই করে আবার চেষ্টা করুন।');
+        return;
       }
+      if (data.has_running_period === true) {
+        setDerivedRequiredStart('');
+        setStartDate('');
+        return;
+      }
+      if (data.has_running_period !== false) {
+        setDerivedRequiredStart('');
+        setPeriodDateError('মাসের অবস্থা নিশ্চিত করা যায়নি। নিরাপত্তার জন্য নতুন মাস শুরুর তারিখ নির্ধারণ বন্ধ রাখা হয়েছে।');
+        return;
+      }
+
+      let requiredStart = /^\d{4}-\d{2}-\d{2}$/.test(String(data.next_required_start_date || ''))
+        ? data.next_required_start_date
+        : '';
+      // The bundled Master SQL's management-context RPC doesn't expose this field.
+      // Derive it from the read-only archive RPC: latest closed end + 1; if there is
+      // no history, use day 1 of the current Asia/Dhaka calendar month.
+      if (!requiredStart) {
+        const archives = await fetchArchiveManagementItems();
+        requiredStart = deriveNextRequiredStartDate(archives, data.today || dhakaDateInputValue());
+      }
+      if (!requiredStart) throw new Error('পরবর্তী মাসের শুরুর তারিখ নির্ধারণ করা যায়নি।');
+      setDerivedRequiredStart(requiredStart);
+      setStartDate(requiredStart);
     } catch (error) {
+      setDerivedRequiredStart('');
+      setPeriodDateError(getFriendlySupabaseError(error, 'নতুন মাসের শুরুর তারিখ নির্ধারণ করা যায়নি।'));
       toast.error(getFriendlySupabaseError(error, 'নতুন মাসের তথ্য লোড করা যায়নি।'));
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [refresh, toast]);
 
   useEffect(() => { if (online) load(); }, [online, load]);
 
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="নতুন মাস শুরু করতে অনলাইন সংযোগ প্রয়োজন।" />;
   if (loading) return <LoadingSpinner label="নতুন মাসের নিয়ম যাচাই হচ্ছে..." />;
 
-  const requiredStart = context?.next_required_start_date || '';
-  const hasRunning = Boolean(context?.has_running_period);
-  const canStart = Boolean(isPrimaryManager && !hasRunning && requiredStart && startDate === requiredStart);
+  const requiredStart = context?.next_required_start_date || derivedRequiredStart || '';
+  const periodStatusKnown = typeof context?.has_running_period === 'boolean';
+  const hasRunning = context?.has_running_period === true;
+  const canStart = Boolean(periodStatusKnown && isPrimaryManager && !hasRunning && requiredStart && startDate === requiredStart && !periodDateError);
 
   const submit = async () => {
     setBusy(true);
@@ -201,8 +234,8 @@ export function NewMonthPage() {
       const result = await startNewMonth(startDate);
       setConfirmOpen(false);
       toast.success(`${result?.label || 'নতুন মাস'} সফলভাবে শুরু হয়েছে।`);
-      await refresh();
       await load();
+      await refresh({ force: true });
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'নতুন মাস শুরু করা যায়নি।'));
     } finally { setBusy(false); }
@@ -211,18 +244,21 @@ export function NewMonthPage() {
   return (
     <PrimaryManagerGuard>
       <div className="page-stack">
-        <PageHeader title="নতুন মাস শুরু" icon="calendar" description="বন্ধ হওয়া মাসের পরের দিন থেকে নতুন চলমান মাস শুরু হবে।" />
+        <PageHeader title="নতুন মাস শুরু" icon="calendar" description="বন্ধ হওয়া মাসের পরের দিন থেকে নতুন চলমান মাস শুরু হবে। কোনো পূর্ববর্তী মাস না থাকলে চলতি ক্যালেন্ডার মাসের প্রথম দিন থেকে শুরু হবে।" />
         <section className="card manager-form-card">
-          {hasRunning ? (
+          {periodDateError && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>নতুন মাসের তারিখ যাচাই করা যায়নি।</strong><p>{periodDateError}</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
+          {!periodStatusKnown ? (
+            <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মাসের অবস্থা যাচাই করা যায়নি।</strong><p>নিরাপত্তার জন্য নতুন মাস শুরুর বোতাম বন্ধ রাখা হয়েছে। আবার যাচাই করুন।</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>
+          ) : hasRunning ? (
             <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>আগের মাস এখনও চলমান।</strong><p>নতুন মাস শুরু করার আগে বর্তমান মাস বন্ধ করুন।</p></div></div>
-          ) : (
+          ) : !periodDateError && requiredStart ? (
             <>
-              <div className="manager-current-period"><span>নতুন মাসের নির্ধারিত শুরুর তারিখ</span><strong>{formatDateBangla(requiredStart)}</strong><small>শুরুর তারিখ সিস্টেম নিজে নির্ধারণ করেছে। এটি পরিবর্তন করা যাবে না।</small></div>
+              <div className="manager-current-period"><span>নতুন মাসের নির্ধারিত শুরুর তারিখ</span><strong>{formatDateBangla(requiredStart)}</strong><small>{derivedRequiredStart && !context?.next_required_start_date ? 'পূর্ববর্তী মাসের ইতিহাস অথবা প্রথম মাসের নিয়ম থেকে তারিখ নির্ধারণ করা হয়েছে।' : 'শুরুর তারিখ সিস্টেম নিজে নির্ধারণ করেছে। এটি পরিবর্তন করা যাবে না।'}</small></div>
               <label className="field-label"><span>শুরুর তারিখ</span><input type="date" value={startDate} min={requiredStart} max={requiredStart} readOnly /></label>
-              <div className="form-hint"><Icon name="info" size={15} /> শেষ তারিখ আলাদা কোনো তারিখ দিয়ে এখানে দেওয়া হবে না। নতুন period-এর default end হবে ওই calendar month-এর শেষ দিন।</div>
+              <div className="form-hint"><Icon name="info" size={15} /> প্রথম মাস হলে চলতি বাংলাদেশি ক্যালেন্ডার মাসের ১ তারিখ থেকে শুরু হবে। পূর্ববর্তী মাস থাকলে তার শেষ দিনের পরের দিন থেকে শুরু হবে।</div>
               <button className="primary-button large" type="button" disabled={!canStart || busy} onClick={() => setConfirmOpen(true)}><Icon name="calendar" size={17} /> নতুন মাস শুরু করুন</button>
             </>
-          )}
+          ) : null}
         </section>
         {confirmOpen && <ConfirmModal title="নতুন মাস শুরু করবেন?" description={`${formatDateBangla(startDate)} থেকে নতুন মাস শুরু হবে। এর আলাদা period ID তৈরি হবে এবং আগের মাসের history অক্ষত থাকবে।`} confirmLabel="হ্যাঁ, শুরু করুন" busy={busy} onClose={() => setConfirmOpen(false)} onConfirm={submit} />}
       </div>
@@ -245,7 +281,7 @@ export function CloseCurrentMonthPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, preflightData] = await Promise.all([fetchMonthManagementContext(), fetchMonthClosePreflight().catch(() => null)]);
+      const [data, preflightData] = await Promise.all([refresh({ force: true }), fetchMonthClosePreflight().catch(() => null)]);
       if (data?.period?.start_date) {
         const todayValue = data.today || toDateInputValue();
         const naturalEnd = calendarMonthEnd(data.period.start_date);
@@ -266,14 +302,17 @@ export function CloseCurrentMonthPage() {
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'বর্তমান মাসের তথ্য লোড করা যায়নি।'));
     } finally { setLoading(false); }
-  }, [toast]);
+  }, [refresh, toast]);
 
   useEffect(() => { if (online) load(); }, [online, load]);
 
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="মাস বন্ধ করতে অনলাইন সংযোগ প্রয়োজন।" />;
   if (loading) return <LoadingSpinner label="বর্তমান মাস লোড হচ্ছে..." />;
-  if (!context?.has_running_period || !context?.period) {
-    return <div className="state-card state-card-warning"><Icon name="calendar" size={27} /><div><h2>কোনো চলমান মাস নেই</h2><p>নতুন মাস শুরু করতে ৩ লাইনের মেনু থেকে নতুন মাস শুরু করুন ব্যবহার করুন।</p></div></div>;
+  if (context?.has_running_period !== true || !context?.period) {
+    if (context?.has_running_period === false) {
+      return <div className="state-card state-card-warning"><Icon name="calendar" size={27} /><div><h2>কোনো চলমান মাস নেই</h2><p>নতুন মাস শুরু করতে ৩ লাইনের মেনু থেকে নতুন মাস শুরু করুন ব্যবহার করুন।</p></div></div>;
+    }
+    return <div className="state-card state-card-warning"><Icon name="warning" size={27} /><div><h2>চলমান মাসের অবস্থা যাচাই করা যায়নি</h2><p>ভুল করে মাস নেই ধরে নেওয়া হচ্ছে না। ইন্টারনেট ও ডাটাবেজ সংযোগ যাচাই করে আবার চেষ্টা করুন।</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>;
   }
 
   const today = context.today || toDateInputValue();
@@ -300,7 +339,6 @@ export function CloseCurrentMonthPage() {
       }
       setFutureWarning(false);
       setConfirmOpen(false);
-      await refresh();
       await load();
     } catch (error) {
       const message = getFriendlySupabaseError(error, 'মাসের শেষ তারিখ পরিবর্তন করা যায়নি।');
@@ -585,11 +623,10 @@ export function KhalaMoneyPage() {
   const toast = useToast();
   const online = useOnlineStatus();
   const { context, isPrimaryManager, isOperationalManager } = useManagementContext();
-  const [members, setMembers] = useState([]);
   const [periods, setPeriods] = useState([]);
   const [rows, setRows] = useState([]);
   const [periodId, setPeriodId] = useState('');
-  const [form, setForm] = useState({ memberId: '', amount: '', paymentDate: toDateInputValue(), description: '' });
+  const [form, setForm] = useState({ amount: '', paymentDate: toDateInputValue(), description: '' });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [voidTarget, setVoidTarget] = useState(null);
@@ -598,12 +635,9 @@ export function KhalaMoneyPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [memberRows, periodRows, khalaRows] = await Promise.all([
-        fetchManagerMemberDirectory(),
-        fetchKhalaPeriods(),
-        fetchKhalaMoneyHistory({ limit: 300 }),
-      ]);
-      setMembers(memberRows);
+      const periodRows = await fetchKhalaPeriods();
+      const historyByPeriod = await Promise.all(periodRows.map((period) => fetchKhalaMoneyHistory({ periodId: period.period_id, limit: 300 })));
+      const khalaRows = historyByPeriod.flat().sort((a, b) => String(b.entry_date || '').localeCompare(String(a.entry_date || '')) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
       setPeriods(periodRows);
       const currentPeriod = context?.period?.period_id;
       setPeriodId((currentPeriod && periodRows.some((p) => p.period_id === currentPeriod)) ? currentPeriod : (periodRows[0]?.period_id || ''));
@@ -615,14 +649,9 @@ export function KhalaMoneyPage() {
 
   useEffect(() => { if (online && isOperationalManager) load(); }, [online, isOperationalManager, load]);
 
-  const activeMembers = useMemo(() => members.filter((m) => m.member_status === 'active'), [members]);
   const selectedPeriod = periods.find((p) => p.period_id === periodId) || null;
   const visibleRows = selectedPeriod ? rows.filter((row) => row.period_id === selectedPeriod.period_id) : rows;
   const total = visibleRows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
-
-  useEffect(() => {
-    if (!form.memberId) setForm((current) => ({ ...current, memberId: activeMembers[0]?.membership_id || '' }));
-  }, [activeMembers, form.memberId]);
 
   useEffect(() => {
     if (selectedPeriod) setForm((current) => ({ ...current, paymentDate: current.paymentDate || toDateInputValue() }));
@@ -631,15 +660,16 @@ export function KhalaMoneyPage() {
   const save = async (event) => {
     event.preventDefault();
     if (!periodId) return toast.warning('কাজের মাস নির্বাচন করুন।');
-    if (!form.memberId) return toast.warning('সদস্য নির্বাচন করুন।');
     const amount = Number(form.amount);
     if (!(amount > 0)) return toast.warning('টাকার পরিমাণ শূন্যের বেশি হতে হবে।');
     if (!form.paymentDate) return toast.warning('প্রদানের তারিখ নির্বাচন করুন।');
     if (form.paymentDate > toDateInputValue()) return toast.warning('প্রদানের তারিখ ভবিষ্যতের হতে পারবে না।');
+    if (selectedPeriod?.start_date && form.paymentDate < selectedPeriod.start_date) return toast.warning('প্রদানের তারিখ নির্বাচিত মাসের শুরুর আগের হতে পারবে না।');
+    if (selectedPeriod?.end_date && form.paymentDate > selectedPeriod.end_date) return toast.warning('প্রদানের তারিখ নির্বাচিত মাসের শেষের পরের হতে পারবে না।');
     setBusy(true);
     try {
-      await addKhalaMoney({ periodId, memberId: form.memberId, amount, paymentDate: form.paymentDate, description: form.description.trim() || null });
-      toast.success('খালার টাকার এন্ট্রি সফলভাবে যোগ হয়েছে।');
+      await addKhalaMoney({ periodId, memberId: null, amount, paymentDate: form.paymentDate, description: form.description.trim() || null });
+      toast.success('খালার টাকার এন্ট্রি আলাদা হিসাব হিসেবে সংরক্ষণ হয়েছে।');
       setForm((current) => ({ ...current, amount: '', description: '' }));
       await load();
     } catch (error) { toast.error(getFriendlySupabaseError(error, 'খালার টাকার এন্ট্রি যোগ করা যায়নি।')); }
@@ -648,13 +678,13 @@ export function KhalaMoneyPage() {
 
   const doVoid = async () => {
     if (!voidTarget) return;
-    if (!voidReason.trim()) return toast.warning('মুছে ফেলার কারণ লিখুন।');
+    if (!voidReason.trim()) return toast.warning('বাতিলের কারণ লিখুন।');
     setBusy(true);
     try {
       await voidKhalaMoney(voidTarget.entry_id, voidReason.trim());
-      toast.success('খালার টাকার এন্ট্রি সফলভাবে মুছে দেওয়া হয়েছে।');
+      toast.success('খালার টাকার এন্ট্রি বাতিল হয়েছে।');
       setVoidTarget(null); setVoidReason(''); await load();
-    } catch (error) { toast.error(getFriendlySupabaseError(error, 'এন্ট্রিটি মুছে ফেলা যায়নি।')); }
+    } catch (error) { toast.error(getFriendlySupabaseError(error, 'এন্ট্রিটি বাতিল করা যায়নি।')); }
     finally { setBusy(false); }
   };
 
@@ -665,40 +695,39 @@ export function KhalaMoneyPage() {
   return (
     <ManagerGuard>
       <div className="page-stack">
-        <PageHeader title="খালার টাকা" icon="dining" description={isPrimaryManager ? 'কাজের মাস নির্বাচন করে খালার টাকার এন্ট্রি দিন।' : 'আপনার জন্য অনুমোদিত কাজের মাস অনুযায়ী খালার টাকার এন্ট্রি দিন।'} />
+        <PageHeader title="খালার টাকা" icon="wallet" description={isPrimaryManager ? 'মাসের বাজার বা সদস্যের ব্যক্তিগত খরচের সঙ্গে না মিশিয়ে খালার পারিশ্রমিক আলাদাভাবে লিখুন।' : 'অনুমোদিত কাজের মাসে খালার পারিশ্রমিকের আলাদা হিসাব যোগ করুন।'} />
         {periods.length === 0 ? (
           <div className="empty-state-card"><Icon name="wallet" size={26} /><strong>এখনো কোনো কাজের মাস পাওয়া যায়নি</strong><span>বর্তমান বা নির্ধারিত পুরোনো মাস থাকলে এখানে দেখা যাবে।</span></div>
         ) : (
           <>
-            <form className="card manager-form-card" onSubmit={save}>
+            <form className="card manager-form-card khala-entry-form" onSubmit={save}>
               <div className="form-grid-2">
                 <label className="field-label"><span>কাজের মাস</span><select value={periodId} onChange={(e) => setPeriodId(e.target.value)}>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label}</option>)}</select></label>
-                <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={toDateInputValue()} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} /></label>
+                <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={toDateInputValue()} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} required /></label>
               </div>
-              {selectedPeriod && <div className="form-hint"><Icon name="info" size={15} /> কাজের মাস: <strong>{selectedPeriod.label}</strong> · প্রদানের তারিখ আলাদা হতে পারে, কিন্তু ভবিষ্যতের তারিখ দেওয়া যাবে না।</div>}
+              {selectedPeriod && <div className="form-hint"><Icon name="info" size={15} /> এই খরচটি খালার আলাদা হিসাব হবে; কোনো সদস্যের ব্যক্তিগত ব্যালেন্স বা অন্যান্য খরচে যোগ হবে না।</div>}
               <div className="form-grid-2">
-                <label className="field-label"><span>সদস্য</span><select value={form.memberId} onChange={(e) => setForm((current) => ({ ...current, memberId: e.target.value }))}>{activeMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label>
-                <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => setForm((current) => ({ ...current, amount: e.target.value }))} placeholder="০" /></label>
+                <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => setForm((current) => ({ ...current, amount: e.target.value }))} placeholder="০" required /></label>
+                <label className="field-label"><span>বিবরণ <em>(ঐচ্ছিক)</em></span><input value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} placeholder="যেমন: মাসিক পারিশ্রমিক" /></label>
               </div>
-              <label className="field-label"><span>বিবরণ <em>(ঐচ্ছিক)</em></span><input value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} placeholder="যেমন: অক্টোবরের মাসিক টাকা" /></label>
               <button className="primary-button large" type="submit" disabled={busy}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'খালার টাকা যোগ করুন'}</button>
             </form>
 
             <section className="card manager-form-card">
-              <div className="section-heading"><div><span className="eyebrow">নির্বাচিত কাজের মাস</span><h2>{selectedPeriod?.label || '—'}</h2></div><strong>{formatCurrency(total)}</strong></div>
+              <div className="section-heading"><div><span className="eyebrow">নির্বাচিত কাজের মাস</span><h2>{selectedPeriod?.label || '—'}</h2></div><div className="khala-total-heading"><small>মোট কার্যকর পারিশ্রমিক</small><strong>{formatCurrency(total)}</strong></div></div>
               <div className="manager-list-stack">
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
                   <article className={`card manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
-                    <div><strong>{row.member_name}</strong><small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'কোনো বিবরণ নেই'}</span></div>
+                    <div><strong>খালার পারিশ্রমিক</strong><small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'খালার টাকা'}</span></div>
                     <strong>{formatCurrency(row.amount)}</strong>
-                    {row.status !== 'void' ? <button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="মুছে দিন"><Icon name="trash" size={15} /></button> : <span className="member-badge inactive">বাতিল</span>}
+                    {row.status !== 'void' ? <button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button> : <span className="member-badge inactive">বাতিল</span>}
                   </article>
                 ))}
               </div>
             </section>
           </>
         )}
-        {voidTarget && <ConfirmModal danger title="এই এন্ট্রি মুছে দেবেন?" description={`${voidTarget.member_name}-এর ${formatCurrency(voidTarget.amount)} এন্ট্রি কার্যকর হিসাব থেকে বাদ যাবে। history-তে তার অবস্থার রেকর্ড থাকবে।`} confirmLabel="মুছে দিন" busy={busy} onClose={() => { setVoidTarget(null); setVoidReason(''); }} onConfirm={doVoid}><label className="field-label"><span>মুছে ফেলার কারণ</span><textarea rows="3" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="ভুল এন্ট্রি" /></label></ConfirmModal>}
+        {voidTarget && <ConfirmModal danger title="এই এন্ট্রি বাতিল করবেন?" description={`${formatCurrency(voidTarget.amount)} খালার পারিশ্রমিক কার্যকর হিসাব থেকে বাদ যাবে। ইতিহাসে বাতিলের রেকর্ড থাকবে।`} confirmLabel="এন্ট্রি বাতিল করুন" busy={busy} onClose={() => { setVoidTarget(null); setVoidReason(''); }} onConfirm={doVoid}><label className="field-label"><span>বাতিলের কারণ</span><textarea rows="3" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="ভুল এন্ট্রি" /></label></ConfirmModal>}
       </div>
     </ManagerGuard>
   );
@@ -873,14 +902,15 @@ export function MealSheetPage() {
       const rows = filteredDailyTotals.map((r) => `<tr><td>${escapeReportHtml(formatDateWithWeekday(r.date))}</td><td>${reportStatusLabel(r.status)}</td><td>${r.breakfast}</td><td>${r.lunch}</td><td>${r.dinner}</td><td>${r.breakfast+r.lunch+r.dinner}</td></tr>`).join('');
       const memberTotal = selectedMember ? memberTotals.find((row) => row.key === selectedMemberId) : null;
       const memberSummary = memberTotal ? `<p><strong>${escapeReportHtml(memberTotal.name)}</strong> — সকালের মিল ${memberTotal.breakfast}, দুপুরের মিল ${memberTotal.lunch}, রাতের মিল ${memberTotal.dinner}, মোট ${memberTotal.breakfast + memberTotal.lunch + memberTotal.dinner}</p>` : '<p>সব সদস্য</p>' ;
-      printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, `${memberSummary}<table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows}</tbody></table>`);
+      const reportManager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
+      printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, `${memberSummary}<table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows}</tbody></table>`, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: 'landscape' });
     } catch (error) { toast.error(error.message || 'রিপোর্ট প্রিন্ট করা যায়নি।'); }
     finally { setPrintBusy(false); }
   };
 
   return (
     <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} — দৈনিক মিলের সারসংক্ষেপ এবং সদস্যভিত্তিক মোট হিসাব।`} />
-      <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{formatDateBangla(bundle.period.start_date)} → {formatDateBangla(bundle.period.end_date)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="primary-button compact" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
+      <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{formatDateBangla(bundle.period.start_date)} → {formatDateBangla(bundle.period.end_date)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact report-pdf-button" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
       <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
       <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
     </div>
@@ -893,7 +923,6 @@ export function ReportsPage() {
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exportBusy, setExportBusy] = useState(false);
-  const [selectedDetailMemberId, setSelectedDetailMemberId] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -912,121 +941,137 @@ export function ReportsPage() {
   const dailyRows = buildDailyMealRows(bundle.days, bundle.mealRows);
   const members = buildMemberSettlementRows(bundle.members);
   const activeMarkets = getActiveMarketRows(bundle.marketRows);
-  const voidMarkets = getVoidMarketRows(bundle.marketRows);
-  const financialRows = mergeFinancialRows(bundle.accountRows, bundle.khalaRows);
-  const finances = summarizeFinancialRows(financialRows);
+  const allMarkets = Array.isArray(bundle.marketRows) ? bundle.marketRows : [];
+  const activeKhalaRows = (bundle.khalaRows || []).filter((row) => row.status !== 'void');
   const totalMarket = activeMarkets.reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
-  const marketDeposit = activeMarkets.filter((row) => row.credit_to_buyer).reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
-  const negativeBalances = members.filter((row) => row.balance < 0);
-  const positiveBalances = members.filter((row) => row.balance > 0);
+  const depositRows = (bundle.accountRows || []).filter((row) => {
+    const type = row.transaction_type_raw || row.ledger_type || row.transaction_type || '';
+    return ['deposit', 'market_deposit'].includes(type) && row.status !== 'void' && Number(row.amount || 0) > 0;
+  }).map((row) => ({ ...row, member_name: row.member_name || members.find((member) => member.membershipId === row.member_id)?.name || 'সদস্য' }));
+  const otherExpenses = (bundle.accountRows || []).filter((row) => (row.transaction_type_raw || row.ledger_type || '') === 'other_expense' && row.status !== 'void')
+    .reduce((sum, row) => sum + Math.abs(Math.min(Number(row.amount || 0), 0)), 0);
+  const totalDeposit = depositRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const totalKhala = activeKhalaRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const fundRemaining = totalDeposit - totalMarket - otherExpenses - totalKhala;
+  const mealRate = meals.total > 0 ? totalMarket / meals.total : 0;
+  const manager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
+  const pdfMeta = {
+    periodLabel: bundle.period.label,
+    managerName: manager?.member_name || manager?.full_name || '',
+    managerPhone: manager?.phone || manager?.phone_number || manager?.mobile || '',
+  };
 
+  const money = (value) => escapeReportHtml(formatCurrency(value));
+  const date = (value) => escapeReportHtml(value ? formatDateWithWeekday(value) : '—');
+  const cellTable = (columns, rows) => {
+    const head = columns.map((column) => `<th>${escapeReportHtml(column.label)}</th>`).join('');
+    const body = rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeReportHtml(column.value(row) ?? '—')}</td>`).join('')}</tr>`).join('');
+    return `<div class="report-table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${columns.length}">কোনো তথ্য পাওয়া যায়নি</td></tr>`}</tbody></table></div>`;
+  };
+  const summaryTable = `<table class="report-summary"><tbody><tr>
+    <td><small>মোট মিল</small><strong>${escapeReportHtml(formatNumber(meals.total))}</strong></td>
+    <td><small>মোট বাজার</small><strong>${money(totalMarket)}</strong></td>
+    <td><small>মিল রেট</small><strong>${money(mealRate)}</strong></td>
+    <td><small>মেসের অবশিষ্ট</small><strong>${money(fundRemaining)}</strong></td>
+  </tr></tbody></table>`;
+
+  const finalAccountRows = members.map((member) => ({
+    ...member,
+    totalCost: Number(member.mealCost || 0) + Number(member.otherExpense || 0),
+  }));
+  const finalAccountTable = cellTable([
+    { label: 'সদস্যের নাম', value: (row) => row.name },
+    { label: 'মোট জমা', value: (row) => formatCurrency(row.deposit) },
+    { label: 'মোট মিল', value: (row) => formatNumber(row.meals) },
+    { label: 'মোট খরচ', value: (row) => formatCurrency(row.totalCost) },
+    { label: 'বকেয়া / অবশিষ্ট', value: (row) => Number(row.balance) < 0 ? `বকেয়া ${formatCurrency(Math.abs(Number(row.balance)))}` : `অবশিষ্ট ${formatCurrency(row.balance)}` },
+  ], finalAccountRows);
+
+  const marketRows = allMarkets.map((row) => ({ ...row, itemCount: Array.isArray(row.items) ? row.items.length : 0 }));
+  const marketTable = cellTable([
+    { label: 'তারিখ', value: (row) => formatDateWithWeekday(row.entry_date) },
+    { label: 'বাজারকারী', value: (row) => row.buyer_name || row.member_name || 'সদস্য' },
+    { label: 'টাকার পরিমাণ', value: (row) => formatCurrency(row.total_amount) },
+    { label: 'আইটেম সংখ্যা', value: (row) => formatNumber(row.itemCount) },
+    { label: 'অবস্থা', value: (row) => row.status === 'void' ? 'বাতিল' : 'কার্যকর' },
+  ], marketRows);
+  const marketTableWithTotal = marketTable.replace('</tbody></table>', `</tbody><tfoot><tr><th colspan="2">মোট কার্যকর বাজার</th><th>${money(totalMarket)}</th><th>${formatNumber(activeMarkets.reduce((sum, row) => sum + (Array.isArray(row.items) ? row.items.length : 0), 0))} আইটেম</th><th></th></tr></tfoot></table>`);
+
+  const depositsByMember = new Map();
+  for (const row of depositRows) {
+    const key = row.member_id || row.member_name || 'unknown';
+    if (!depositsByMember.has(key)) depositsByMember.set(key, { name: row.member_name || 'সদস্য', entries: [], total: 0 });
+    const group = depositsByMember.get(key);
+    group.entries.push(row);
+    group.total += Number(row.amount || 0);
+  }
+  const depositGroups = [...depositsByMember.values()].map((group) => ({
+    ...group,
+    entries: group.entries.sort((a, b) => String(a.entry_date || '').localeCompare(String(b.entry_date || ''))),
+  })).sort((a, b) => a.name.localeCompare(b.name, 'bn'));
+  const maxDeposits = Math.max(1, ...depositGroups.map((group) => group.entries.length));
+  const depositHead = `<th>সদস্যের নাম</th>${Array.from({ length: maxDeposits }, (_, i) => `<th>জমা ${i + 1}</th>`).join('')}<th>মোট জমা</th>`;
+  const depositBody = depositGroups.map((group) => `<tr><td>${escapeReportHtml(group.name)}</td>${Array.from({ length: maxDeposits }, (_, i) => {
+    const entry = group.entries[i];
+    return `<td>${entry ? `<small>${date(entry.entry_date)}</small><br><strong>${money(entry.amount)}</strong><br><small>${entry.transaction_type_raw === 'market_deposit' ? 'বাজার বাবদ' : 'জমা'}</small>` : '—'}</td>`;
+  }).join('')}<td><strong>${money(group.total)}</strong></td></tr>`).join('');
+  const depositTable = `<div class="report-table-wrap"><table><thead><tr>${depositHead}</tr></thead><tbody>${depositBody || `<tr><td colspan="${maxDeposits + 2}">কোনো জমার তথ্য নেই</td></tr>`}</tbody><tfoot><tr><th colspan="${maxDeposits + 1}">সর্বমোট জমা</th><th>${money(totalDeposit)}</th></tr></tfoot></table></div>`;
+
+  const khalaRows = activeKhalaRows.map((row) => ({ date: row.entry_date || row.payment_date, amount: Number(row.amount || 0), description: row.description || 'খালার পারিশ্রমিক' }));
+  const khalaTable = cellTable([
+    { label: 'প্রদানের তারিখ', value: (row) => formatDateWithWeekday(row.date) },
+    { label: 'বিবরণ', value: (row) => row.description },
+    { label: 'পরিমাণ', value: (row) => formatCurrency(row.amount) },
+  ], khalaRows).replace('</tbody></table>', `</tbody><tfoot><tr><th colspan="2">খালার টাকার মোট</th><th>${money(totalKhala)}</th></tr></tfoot></table>`);
+
+  const dailyTable = cellTable([
+    { label: 'তারিখ', value: (row) => formatDateWithWeekday(row.date) },
+    { label: 'সকালের মিল', value: (row) => formatNumber(row.breakfast) },
+    { label: 'দুপুরের মিল', value: (row) => formatNumber(row.lunch) },
+    { label: 'রাতের মিল', value: (row) => formatNumber(row.dinner) },
+    { label: 'মোট মিল', value: (row) => formatNumber(Number(row.breakfast) + Number(row.lunch) + Number(row.dinner)) },
+  ], dailyRows);
+
+  const openPdf = (title, subtitle, content) => {
+    const pageOrientation = ['ডিপোজিট হিসাব', 'পূর্ণ মাসিক প্রতিবেদন'].includes(title) ? 'landscape' : 'portrait';
+    printReport(title, subtitle, content, null, { ...pdfMeta, pageOrientation });
+  };
   const runExport = (callback) => {
     setExportBusy(true);
     try { callback(); } catch (error) { toast.error(error.message || 'রিপোর্ট তৈরি করা যায়নি।'); }
     finally { window.setTimeout(() => setExportBusy(false), 350); }
   };
-
-  const openPdf = (title, rows, columns, subtitle = bundle.period.label) => {
-    const head = columns.map((column) => `<th>${escapeReportHtml(column.label)}</th>`).join('');
-    const body = rows.map((row) => `<tr>${columns.map((column) => `<td>${escapeReportHtml(column.value(row))}</td>`).join('')}</tr>`).join('');
-    printReport(title, subtitle, `<table><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${columns.length}">কোনো তথ্য পাওয়া যায়নি</td></tr>`}</tbody></table>`);
-  };
-
-  const downloadMeal = () => openPdf(`মিল রিপোর্ট — ${bundle.period.label}`, bundle.mealRows.filter((r) => r.date), [
-    { label:'তারিখ', value:r=>formatDateWithWeekday(r.date) },
-    { label:'সদস্য', value:r=>r.memberName },
-    { label:'সকালের মিল', value:r=>r.breakfast },
-    { label:'দুপুরের মিল', value:r=>r.lunch },
-    { label:'রাতের মিল', value:r=>r.dinner },
-    { label:'মোট মিল', value:r=>Number(r.breakfast)+Number(r.lunch)+Number(r.dinner) },
-    { label:'অবস্থা', value:r=>r.finalized?'চূড়ান্ত':'অপেক্ষমাণ' },
-  ], `তারিখ ${formatDateBangla(bundle.period.start_date)} থেকে ${formatDateBangla(bundle.period.end_date)} পর্যন্ত`);
-
-  const downloadMarket = () => openPdf(`বাজার রিপোর্ট — ${bundle.period.label}`, bundle.marketRows, [
-    { label:'তারিখ', value:r=>formatDateWithWeekday(r.entry_date) },
-    { label:'বাজারকারী', value:r=>r.buyer_name },
-    { label:'মোট মূল্য', value:r=>formatCurrency(r.total_amount) },
-    { label:'অবস্থা', value:r=>r.status === 'void' ? 'বাতিল' : 'সক্রিয়' },
-    { label:'জমায় যুক্ত', value:r=>r.credit_to_buyer?'হ্যাঁ':'না' },
-    { label:'পণ্যের সংখ্যা', value:r=>Array.isArray(r.items)?r.items.length:0 },
-  ]);
-
-  const downloadAccount = () => openPdf(`হিসাব রিপোর্ট — ${bundle.period.label}`, financialRows, [
-    { label:'তারিখ', value:r=>formatDateWithWeekday(r.entry_date || r.created_at) },
-    { label:'সদস্য', value:r=>r.member_name },
-    { label:'লেনদেনের ধরন', value:r=>reportTransactionLabel(r.transaction_type) },
-    { label:'পরিমাণ', value:r=>formatCurrency(r.amount) },
-    { label:'বিবরণ', value:r=>r.description || '—' },
-  ]);
-
-  const downloadSettlement = () => openPdf(`সদস্যভিত্তিক হিসাব — ${bundle.period.label}`, members, [
-    { label:'সদস্য', value:r=>r.name },
-    { label:'অবস্থা', value:r=>reportStatusLabel(r.status) },
-    { label:'মোট মিল', value:r=>r.meals },
-    { label:'মোট জমা', value:r=>formatCurrency(r.deposit) },
-    { label:'মিলের খরচ', value:r=>formatCurrency(r.mealCost) },
-    { label:'অন্যান্য খরচ', value:r=>formatCurrency(r.otherExpense) },
-    { label:'বর্তমান বকেয়া/অবশিষ্ট', value:r=>formatCurrency(r.balance) },
-  ]);
-
-  const selectedDetailMember = bundle.members.find((member) => member.membership_id === selectedDetailMemberId) || null;
-  const selectedDailyMealRows = selectedDetailMemberId
-    ? bundle.mealRows.filter((row) => row.memberId === selectedDetailMemberId && row.date).sort((a, b) => String(a.date).localeCompare(String(b.date)))
-    : [];
-  const downloadMemberDailyMeals = () => {
-    if (!selectedDetailMember) { toast.warning('আগে একজন সদস্য নির্বাচন করুন।'); return; }
-    openPdf(`${selectedDetailMember.member_name} — প্রতিদিনের মিল`, selectedDailyMealRows, [
-      { label:'তারিখ', value:r=>formatDateWithWeekday(r.date) },
-      { label:'অবস্থা', value:r=>r.finalized?'চূড়ান্ত':'অপেক্ষমাণ' },
-      { label:'সকালের মিল', value:r=>r.breakfast },
-      { label:'দুপুরের মিল', value:r=>r.lunch },
-      { label:'রাতের মিল', value:r=>r.dinner },
-      { label:'মোট মিল', value:r=>Number(r.breakfast)+Number(r.lunch)+Number(r.dinner) },
-    ], `${bundle.period.label} · ${selectedDailyMealRows.length} দিনের তথ্য`);
-  };
-
-  const printFullReport = (existingWindow = null) => {
-    const memberRows = members.map((row)=>`<tr><td>${escapeReportHtml(row.name)}</td><td>${row.meals}</td><td>${formatCurrency(row.deposit)}</td><td>${formatCurrency(row.mealCost)}</td><td>${formatCurrency(row.otherExpense)}</td><td>${formatCurrency(row.balance)}</td></tr>`).join('');
-    const daily = dailyRows.map((row)=>`<tr><td>${escapeReportHtml(formatDateWithWeekday(row.date))}</td><td>${reportStatusLabel(row.status)}</td><td>${row.breakfast}</td><td>${row.lunch}</td><td>${row.dinner}</td><td>${row.breakfast+row.lunch+row.dinner}</td></tr>`).join('');
-    const html = `<h2>মাসিক সারসংক্ষেপ</h2><table><tr><th>বিষয়</th><th>পরিমাণ</th></tr><tr><td>মোট মিল</td><td>${meals.total}</td></tr><tr><td>কার্যকর বাজারের মোট</td><td>${formatCurrency(totalMarket)}</td></tr><tr><td>বাজার থেকে জমায় যোগ</td><td>${formatCurrency(marketDeposit)}</td></tr><tr><td>মোট জমা</td><td>${formatCurrency(finances.inflow)}</td></tr><tr><td>মোট খরচ</td><td>${formatCurrency(finances.outflow)}</td></tr><tr><td>জমা ও খরচের পার্থক্য</td><td>${formatCurrency(finances.net)}</td></tr><tr><td>প্রতি মিলের খরচ</td><td>৳${formatNumber(bundle.period && meals.total > 0 ? totalMarket / meals.total : 0, { maximumFractionDigits: 4 })}</td></tr></table><br/><h2>সদস্যভিত্তিক হিসাব</h2><table><thead><tr><th>সদস্য</th><th>মিল</th><th>মোট জমা</th><th>মিলের খরচ</th><th>অন্যান্য খরচ</th><th>বকেয়া/অবশিষ্ট</th></tr></thead><tbody>${memberRows}</tbody></table><br/><h2>দৈনিক মিল</h2><table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>সকালের মিল</th><th>দুপুরের মিল</th><th>রাতের মিল</th><th>মোট</th></tr></thead><tbody>${daily}</tbody></table>`;
-    printReport(`Hostel Life — ${bundle.period.label} পূর্ণ রিপোর্ট`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, html, existingWindow);
-  };
-
-  const startPdfExport = () => {
-    try {
-      const printWindow = openPrintReportWindow();
-      setExportBusy(true);
-      printFullReport(printWindow);
-    } catch (error) {
-      toast.error(error.message || 'রিপোর্টের PDF উইন্ডো খোলা যায়নি।');
-    } finally {
-      window.setTimeout(() => setExportBusy(false), 350);
-    }
-  };
+  const reportSubtitle = `${formatDateBangla(bundle.period.start_date)} থেকে ${formatDateBangla(bundle.period.end_date)} পর্যন্ত · ${bundle.period.label}`;
+  const downloadFinalAccount = () => openPdf('ফাইনাল হিসাব', reportSubtitle, `${summaryTable}<h2 class="report-section-title">সদস্যভিত্তিক ফাইনাল হিসাব</h2>${finalAccountTable}<p class="report-note">বকেয়া/অবশিষ্ট হলো প্রত্যেক সদস্যের নিজস্ব জমা, মিলের খরচ ও অন্যান্য ব্যক্তিগত খরচ অনুযায়ী হিসাব। খালার পারিশ্রমিক সদস্যের ব্যালেন্সে অন্তর্ভুক্ত নয়।</p>`);
+  const downloadMarket = () => openPdf('বাজার হিসাব', reportSubtitle, `${summaryTable}<h2 class="report-section-title">বাজারের বিবরণ</h2>${marketTableWithTotal}`);
+  const downloadDeposits = () => openPdf('ডিপোজিট হিসাব', reportSubtitle, `${summaryTable}<h2 class="report-section-title">সদস্যভিত্তিক জমা</h2>${depositTable}`);
+  const downloadFullMonthly = () => openPdf('পূর্ণ মাসিক প্রতিবেদন', reportSubtitle,
+    `${summaryTable}<h2 class="report-section-title">১. সদস্যভিত্তিক ফাইনাল হিসাব</h2>${finalAccountTable}` +
+    `<h2 class="report-section-title">২. বাজার হিসাব</h2>${marketTableWithTotal}` +
+    `<h2 class="report-section-title">৩. ডিপোজিট হিসাব</h2>${depositTable}` +
+    `<h2 class="report-section-title">৪. খালার পারিশ্রমিক — পৃথক হিসাব</h2>${khalaTable}` +
+    `<h2 class="report-section-title">৫. দৈনিক মিলের সারসংক্ষেপ</h2>${dailyTable}`);
 
   return (
-    <div className="page-stack">
-      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" eyebrow="রিপোর্ট" description="বর্তমান মাসের মিল, বাজার, হিসাব ও সদস্যভিত্তিক প্রতিবেদন এক জায়গা থেকে PDF হিসেবে সংরক্ষণ করুন।" />
-      <section className="report-kpi-grid">
-        <div className="card report-kpi"><span>মোট মিল</span><strong>{formatNumber(meals.total)}</strong><small>ব্রেকফাস্ট {formatNumber(meals.breakfast)} · লাঞ্চ {formatNumber(meals.lunch)} · ডিনার {formatNumber(meals.dinner)}</small></div>
-        <div className="card report-kpi"><span>সক্রিয় বাজার</span><strong>{formatCurrency(totalMarket)}</strong><small>{formatNumber(activeMarkets.length)}টি কার্যকর · {formatNumber(voidMarkets.length)}টি বাতিল</small></div>
-        <div className="card report-kpi"><span>মোট জমা</span><strong>{formatCurrency(finances.inflow)}</strong><small>জমা ও সংশোধনী যোগফল</small></div>
-        <div className="card report-kpi"><span>মোট খরচ</span><strong>{formatCurrency(finances.outflow)}</strong><small>খরচ ও বিয়োগ সমন্বয়</small></div>
+    <div className="page-stack reports-page">
+      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" eyebrow="রিপোর্ট" description="সহজ ও পরিষ্কার ফরম্যাটে মাসিক হিসাব দেখুন এবং PDF হিসেবে সংরক্ষণ করুন।" />
+      <section className="report-summary-strip card" aria-label="মাসের সারসংক্ষেপ">
+        <div><small>মোট মিল</small><strong>{formatNumber(meals.total)}</strong></div>
+        <div><small>মোট বাজার</small><strong>{formatCurrency(totalMarket)}</strong></div>
+        <div><small>মিল রেট</small><strong>{formatCurrency(mealRate)}</strong></div>
+        <div><small>মেসের অবশিষ্ট</small><strong>{formatCurrency(fundRemaining)}</strong></div>
       </section>
-      <section className="card report-health-card">
-        <div><span className="eyebrow">হিসাবের অবস্থা</span><h2>মাসিক হিসাবের সারসংক্ষেপ</h2><p>{members.length} জন সদস্য · {negativeBalances.length} জনের বকেয়া · {positiveBalances.length} জনের অতিরিক্ত জমা।</p></div>
-        <div className="report-health-metrics"><div><span>জমা ও খরচের পার্থক্য</span><strong>{formatCurrency(finances.net)}</strong></div><div><span>বাজার থেকে জমায় যোগ</span><strong>{formatCurrency(marketDeposit)}</strong></div><div><span>চূড়ান্ত মিলের সারি</span><strong>{formatNumber(meals.finalizedRows)}</strong></div><div><span>অপেক্ষমাণ মিলের সারি</span><strong>{formatNumber(meals.pendingRows)}</strong></div></div>
+      <section className="report-download-grid report-download-grid-four">
+        <button className="card report-option" type="button" onClick={() => runExport(downloadFinalAccount)} disabled={exportBusy}><span className="report-option-icon"><Icon name="users" size={21} /></span><strong>ফাইনাল হিসাব</strong><small>সদস্য, জমা, মিল, খরচ ও বকেয়া/অবশিষ্ট</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={() => runExport(downloadMarket)} disabled={exportBusy}><span className="report-option-icon"><Icon name="shopping-bag" size={21} /></span><strong>বাজার হিসাব</strong><small>তারিখ, বাজারকারী, টাকার পরিমাণ ও আইটেম সংখ্যা</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={() => runExport(downloadDeposits)} disabled={exportBusy}><span className="report-option-icon"><Icon name="wallet" size={21} /></span><strong>ডিপোজিট হিসাব</strong><small>সদস্যপ্রতি জমার তারিখ, পরিমাণ ও সর্বমোট</small><b>PDF</b></button>
+        <button className="card report-option" type="button" onClick={() => runExport(downloadFullMonthly)} disabled={exportBusy}><span className="report-option-icon"><Icon name="file-text" size={21} /></span><strong>পূর্ণ মাসিক প্রতিবেদন</strong><small>ফাইনাল হিসাব, বাজার, ডিপোজিট, খালা ও দৈনিক মিল একসঙ্গে</small><b>PDF</b></button>
       </section>
-      <div className="report-download-grid">
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadMeal)} disabled={exportBusy}><span className="report-option-icon"><Icon name="dining" size={21} /></span><strong>মিল প্রতিবেদন</strong><small>সদস্যভিত্তিক দৈনিক মিল</small><b>PDF</b></button>
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadMarket)} disabled={exportBusy}><span className="report-option-icon"><Icon name="shopping-bag" size={21} /></span><strong>বাজার প্রতিবেদন</strong><small>কার্যকর ও বাতিল বাজারসহ</small><b>PDF</b></button>
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadAccount)} disabled={exportBusy}><span className="report-option-icon"><Icon name="wallet" size={21} /></span><strong>হিসাব প্রতিবেদন</strong><small>জমা, খরচ, খালার টাকা ও সংশোধনী</small><b>PDF</b></button>
-        <button className="card report-option" type="button" onClick={()=>runExport(downloadSettlement)} disabled={exportBusy}><span className="report-option-icon"><Icon name="users" size={21} /></span><strong>সদস্যভিত্তিক হিসাব</strong><small>মিল, খরচ ও বকেয়া/অবশিষ্ট</small><b>PDF</b></button>
-        <button className="card report-option" type="button" onClick={startPdfExport} disabled={exportBusy}><span className="report-option-icon"><Icon name="file-text" size={21} /></span><strong>পূর্ণ মাসিক প্রতিবেদন</strong><small>সারসংক্ষেপ, সদস্যভিত্তিক হিসাব ও দৈনিক মিল</small><b>PDF</b></button>
-      </div>
-      <section className="card report-section-card member-daily-report-card"><div className="section-heading"><div><h2>একজন সদস্যের প্রতিদিনের মিল</h2><small>সদস্য ও দিনভিত্তিক মিলের বিস্তারিত দেখুন এবং PDF সংরক্ষণ করুন।</small></div><div className="member-daily-report-actions"><label className="field-label"><span>সদস্য নির্বাচন</span><select value={selectedDetailMemberId} onChange={(event) => setSelectedDetailMemberId(event.target.value)}><option value="">একজন সদস্য বেছে নিন</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact" type="button" disabled={!selectedDetailMember || !selectedDailyMealRows.length} onClick={downloadMemberDailyMeals}><Icon name="file-text" size={15}/> PDF সংরক্ষণ</button></div></div>{selectedDetailMember ? <Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'finalized',label:'অবস্থা',render:(r)=>r.finalized?'চূড়ান্ত':'অপেক্ষমাণ'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট মিল',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={selectedDailyMealRows.map((row,index)=>({...row,key:`${row.date}-${index}`}))}/> : <div className="empty-state-card compact-empty"><Icon name="user" size={22}/><span>বিস্তারিত দেখতে তালিকা থেকে একজন সদস্য নির্বাচন করুন।</span></div>}</section>
-      <section className="card report-section-card"><div className="section-heading"><div><h2>সদস্যভিত্তিক মাসিক হিসাব</h2><small>বর্তমান মাসের মিলের খরচ, জমা ও বকেয়া/অবশিষ্টের হিসাব</small></div><span>{formatNumber(members.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'meals',label:'মিল',render:(r)=>formatNumber(r.meals)},{key:'deposit',label:'জমা',render:(r)=>formatCurrency(r.deposit)},{key:'mealCost',label:'মিল খরচ',render:(r)=>formatCurrency(r.mealCost)},{key:'otherExpense',label:'অন্যান্য',render:(r)=>formatCurrency(r.otherExpense)},{key:'balance',label:'বকেয়া/অবশিষ্ট',render:(r)=>formatCurrency(r.balance)}]} rows={members} /></section>
-      <section className="card report-section-card"><div className="section-heading"><div><h2>দৈনিক মিল</h2><small>চূড়ান্ত হিসাব থাকলে সেটি, না হলে নির্ধারিত বা বাস্তব হিসাব</small></div><span>{formatNumber(dailyRows.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={dailyRows} /></section>
+      <section className="card report-section-card report-final-preview">
+        <div className="section-heading"><div><h2>ফাইনাল হিসাবের প্রিভিউ</h2><small>{bundle.period.label} · {formatNumber(members.length)} জন সদস্য</small></div><button className="secondary-button compact report-preview-download" type="button" onClick={() => runExport(downloadFinalAccount)} disabled={exportBusy}><Icon name="download" size={15}/> PDF সংরক্ষণ</button></div>
+        <Table columns={[{ key:'name', label:'সদস্যের নাম' },{ key:'deposit', label:'জমা', render:(r)=>formatCurrency(r.deposit) },{ key:'meals', label:'মিল', render:(r)=>formatNumber(r.meals) },{ key:'totalCost', label:'মোট খরচ', render:(r)=>formatCurrency(r.totalCost) },{ key:'balance', label:'বকেয়া / অবশিষ্ট', render:(r)=>Number(r.balance)<0?`বকেয়া ${formatCurrency(Math.abs(Number(r.balance)))}`:`অবশিষ্ট ${formatCurrency(r.balance)}` }]} rows={finalAccountRows.map((row) => ({ ...row, key: row.key || row.membershipId }))} />
+      </section>
+      <p className="report-page-note">সব রিপোর্টে প্রতিবেদন প্রস্তুতের তারিখ ও সময় এবং বর্তমান বছর অনুযায়ী কপিরাইট দেখানো হয়। খালার পারিশ্রমিক মেসের আলাদা খরচ; এটি কোনো সদস্যের ব্যক্তিগত ব্যালেন্সে যোগ হয় না।</p>
     </div>
   );
 }

@@ -182,7 +182,7 @@ function RegisterForm() {
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="আপনার নাম" autoComplete="name" required />
           </label>
           <label className="field-label">
-            <span>মোবাইল নম্বর <em>(বাধ্যতামূলক)</em></span>
+            <span>মোবাইল নম্বর</span>
             <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" required minLength={8} maxLength={20} />
           </label>
         </div>

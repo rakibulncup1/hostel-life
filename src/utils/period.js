@@ -56,3 +56,41 @@ export function resolveDashboardPeriodStatus({
   if (data?.has_running_period === false) return 'unknown';
   return 'unknown';
 }
+
+
+/**
+ * Resolve a running-period mismatch without treating a partial management RPC payload
+ * as proof that no month exists. A successful canonical empty lookup may say "none";
+ * a failed verification must leave the state unknown.
+ */
+export function reconcileManagementContextWithPeriod(
+  managementContext,
+  runningPeriodPayload,
+  { verificationSucceeded = false, today = null, canManageMonth = false } = {},
+) {
+  const base = managementContext && typeof managementContext === 'object' && !Array.isArray(managementContext)
+    ? managementContext
+    : {};
+  const directPeriod = normalizeRunningPeriodPayload(base);
+  if (directPeriod) {
+    return { ...base, has_running_period: true, period: directPeriod };
+  }
+
+  const verifiedPeriod = verificationSucceeded ? normalizeRunningPeriodPayload(runningPeriodPayload) : null;
+  if (verifiedPeriod) {
+    return {
+      ...base,
+      today: base.today || today || undefined,
+      has_running_period: true,
+      period: verifiedPeriod,
+      can_manage_month: Boolean(base.can_manage_month ?? canManageMonth),
+    };
+  }
+
+  return {
+    ...base,
+    today: base.today || today || undefined,
+    has_running_period: verificationSucceeded ? false : undefined,
+    period: null,
+  };
+}

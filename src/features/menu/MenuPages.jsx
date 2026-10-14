@@ -147,7 +147,6 @@ export function AllMembersPage() {
 
 export function KhalaMoneyViewPage() {
   const toast = useToast();
-  const { membership } = useAuth();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -202,33 +201,29 @@ export function KhalaMoneyViewPage() {
     }
     return [...groups.values()].map((group) => ({
       ...group,
-      rows: [...group.rows].sort((a, b) => {
-        const aMine = a.membership_id === membership?.membership_id ? 0 : 1;
-        const bMine = b.membership_id === membership?.membership_id ? 0 : 1;
-        if (aMine !== bMine) return aMine - bMine;
-        return String(b.entry_date || b.created_at || '').localeCompare(String(a.entry_date || a.created_at || ''));
-      }),
+      rows: [...group.rows].sort((a, b) => String(b.entry_date || b.created_at || '').localeCompare(String(a.entry_date || a.created_at || ''))),
       total: group.rows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0),
+      count: group.rows.filter((row) => row.status !== 'void').length,
     }));
-  }, [rows, membership?.membership_id]);
+  }, [rows]);
 
-  const myCount = rows.filter((row) => row.membership_id === membership?.membership_id && row.status !== 'void').length;
-  const myTotal = rows.filter((row) => row.membership_id === membership?.membership_id && row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const totalKhalaPaid = rows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const activeEntryCount = rows.filter((row) => row.status !== 'void').length;
 
   return (
     <div className="page-stack">
       <PageHeader
         eyebrow="মেসের স্বচ্ছতা"
         title="খালার টাকা"
-        description="প্রতিটি মাসে কার কত টাকা জমা হয়েছে দেখুন। আপনার এন্ট্রি আগে থাকবে; এই পেজটি শুধু দেখার জন্য।"
+        description="প্রতিটি মাসে খালার পারিশ্রমিকের পৃথক হিসাব দেখুন। এটি কোনো সদস্যের ব্যক্তিগত হিসাব নয়।"
       />
 
       <section className="card khala-view-hero">
         <div>
-          <span className="eyebrow">আপনার হিসাব</span>
-          <h2>{myCount ? `${formatCurrency(myTotal)} জমা` : 'আপনার নামে এখনো কোনো এন্ট্রি নেই'}</h2>
-          <p>{myCount ? `সকল উপলভ্য মাসে ${formatNumber(myCount)}টি কার্যকর এন্ট্রি` : 'ম্যানেজার আপনার নামে এন্ট্রি যোগ করলে সেটি এখানে ও নিচের ইতিহাসে দেখা যাবে।'}</p>
-          <div className="khala-view-hero-metrics"><div><span>আপনার কার্যকর এন্ট্রি</span><strong>{formatNumber(myCount)}টি</strong></div><div><span>আপনার মোট অবদান</span><strong>{formatCurrency(myTotal)}</strong></div></div>
+          <span className="eyebrow">খালার আলাদা হিসাব</span>
+          <h2>{formatCurrency(totalKhalaPaid)} মোট কার্যকর পারিশ্রমিক</h2>
+          <p>এই তালিকার কোনো এন্ট্রি সদস্যের ব্যক্তিগত ব্যালেন্স, মিল বা অন্যান্য ব্যক্তিগত খরচের অংশ নয়।</p>
+          <div className="khala-view-hero-metrics"><div><span>কার্যকর এন্ট্রি</span><strong>{formatNumber(activeEntryCount)}টি</strong></div><div><span>অন্তর্ভুক্ত মাস</span><strong>{formatNumber(grouped.length)}টি</strong></div></div>
         </div>
         <button className="secondary-button compact" type="button" onClick={load} disabled={loading}>
           <Icon name="refresh" size={15} /> রিফ্রেশ
@@ -255,26 +250,23 @@ export function KhalaMoneyViewPage() {
             </div>
 
             <div className="khala-public-list">
-              {group.rows.map((row) => {
-                const isMine = row.membership_id === membership?.membership_id;
-                return (
-                  <article className={`khala-public-row ${isMine ? 'is-mine' : ''} ${row.status === 'void' ? 'is-void' : ''}`} key={row.entry_id}>
-                    <div className="khala-public-person">
-                      <Avatar member={{ member_name: row.member_name }} />
-                      <div>
-                        <strong>{isMine ? 'আপনি' : row.member_name || 'সদস্য'}</strong>
-                        <small>{formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
-                      </div>
+              {group.rows.map((row) => (
+                <article className={`khala-public-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.entry_id}>
+                  <div className="khala-public-person">
+                    <span className="khala-ledger-mark"><Icon name="wallet" size={17} /></span>
+                    <div>
+                      <strong>খালার পারিশ্রমিক</strong>
+                      <small>{formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
                     </div>
-                    <div className="khala-public-amount">
-                      <strong>{formatCurrency(row.amount)}</strong>
-                      <span className={`member-badge ${row.status === 'void' ? 'inactive' : isMine ? 'active' : 'subtle'}`}>
-                        {row.status === 'void' ? 'বাতিল' : isMine ? 'আপনার এন্ট্রি' : 'পরিশোধিত'}
-                      </span>
-                    </div>
-                  </article>
-                );
-              })}
+                  </div>
+                  <div className="khala-public-amount">
+                    <strong>{formatCurrency(row.amount)}</strong>
+                    <span className={`member-badge ${row.status === 'void' ? 'inactive' : 'subtle'}`}>
+                      {row.status === 'void' ? 'বাতিল' : 'পরিশোধিত'}
+                    </span>
+                  </div>
+                </article>
+              ))}
             </div>
           </section>
         ))
@@ -373,20 +365,31 @@ export function DeveloperInfoPage() {
 }
 
 export function PrivacyPolicyPage() {
-  return <div className="page-stack"><PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা ও নীতিমালা" description="Hostel Life-এ তথ্য ব্যবহারের প্রাথমিক ধারণা। পূর্ণ নীতিমালা পরবর্তী সংস্করণে বিস্তারিত করা হবে।" />
-    <section className="card policy-content-card"><div className="policy-note"><Icon name="info" size={18}/><span>এটি প্রাথমিক নমুনা লেখা—প্রকাশের আগে চূড়ান্ত নীতিমালা যাচাই করে হালনাগাদ করতে হবে।</span></div>
-      <h2>কোন তথ্য ব্যবহৃত হয়</h2><p>অ্যাপটি মেসের সদস্যপরিচয়, মিলের রেকর্ড, জমা, বাজার, খরচ ও সংশ্লিষ্ট হিসাব পরিচালনার জন্য প্রয়োজনীয় তথ্য ব্যবহার করে।</p>
-      <h2>তথ্যের গোপনীয়তা</h2><p>ব্যবহারকারীর অ্যাক্সেস অ্যাপের অনুমতি ও মেসের ব্যবস্থাপনা-নিয়মের মধ্যে সীমাবদ্ধ থাকা উচিত। লগইন তথ্য, পাসওয়ার্ড বা ব্যক্তিগত অ্যাক্সেস লিংক অন্যের সঙ্গে ভাগ করবেন না।</p>
-      <h2>সঠিক তথ্য ও সহায়তা</h2><p>কোনো হিসাব ভুল মনে হলে অনুমোদিত ম্যানেজারকে জানান। চূড়ান্ত নীতিমালায় তথ্য সংরক্ষণ, মুছে ফেলা ও যোগাযোগের পদ্ধতি পরে স্পষ্ট করা হবে।</p>
+  return <div className="page-stack"><PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তার নীতি" description="Hostel Life ব্যবহারের সময় আপনার তথ্য কীভাবে ব্যবহৃত ও সুরক্ষিত রাখা হয়।" />
+    <section className="card policy-content-card policy-document-card">
+      <div className="policy-document-lead"><Icon name="shield" size={24}/><div><strong>আপনার তথ্যের গোপনীয়তা গুরুত্বপূর্ণ</strong><p>এই নীতিতে অ্যাপের সাধারণ তথ্য-ব্যবহার, অ্যাক্সেস ও নিরাপদ ব্যবহারের নীতিগুলো সহজ ভাষায় তুলে ধরা হয়েছে।</p></div></div>
+      <h2>১. কোন তথ্য ব্যবহার করা হয়</h2><p>অ্যাকাউন্ট তৈরি ও অ্যাপ পরিচালনার জন্য নাম, যোগাযোগের তথ্য, মেসের সদস্যপদ এবং ব্যবহারকারীর দেওয়া মিল, বাজার, জমা ও খরচের রেকর্ড ব্যবহার করা হতে পারে। এসব তথ্য অ্যাপের কাজ সম্পন্ন করা, হিসাব দেখানো এবং অনুমোদিত কার্যক্রম পরিচালনার জন্য ব্যবহৃত হয়।</p>
+      <h2>২. তথ্য কীভাবে দেখা যায়</h2><p>আপনার অ্যাকাউন্টের অনুমতি ও মেসের ভূমিকা অনুযায়ী তথ্য দেখানো হয়। সাধারণ সদস্য নিজের প্রাসঙ্গিক হিসাব দেখতে পারবেন; মেস পরিচালনার জন্য অনুমোদিত ম্যানেজার প্রয়োজনীয় সামগ্রিক রেকর্ড দেখতে পারবেন। সংবেদনশীল কাজের অনুমতি ভূমিকা ও নিরাপত্তা নিয়ম দ্বারা সীমিত থাকা উচিত।</p>
+      <h2>৩. তথ্যের সঠিকতা</h2><p>মিল, বাজার, ডিপোজিট ও অন্যান্য রেকর্ড সঠিকভাবে দেওয়ার দায় ব্যবহারকারীর। কোনো ভুল চোখে পড়লে সংশ্লিষ্ট ম্যানেজারকে জানান এবং অ্যাপে থাকা অনুমোদিত সংশোধন-পদ্ধতি অনুসরণ করুন।</p>
+      <h2>৪. তথ্য সুরক্ষায় আপনার ভূমিকা</h2><p>নিজের পাসওয়ার্ড ও লগইন-সুবিধা গোপন রাখুন, অন্য কাউকে নিজের অ্যাকাউন্ট ব্যবহার করতে দেবেন না এবং শেয়ার করা ডিভাইস ব্যবহার শেষে লগ আউট করুন। অচেনা লিংক বা সন্দেহজনক অনুরোধে ব্যক্তিগত তথ্য দেবেন না।</p>
+      <h2>৫. তথ্য সংরক্ষণ ও অপসারণ</h2><p>মেসের হিসাবের ধারাবাহিকতা ও বিরোধ নিষ্পত্তির প্রয়োজনে কিছু রেকর্ড নির্দিষ্ট সময় ধরে রাখা হতে পারে। কোনো অ্যাকাউন্ট বা রেকর্ড সংশোধন/অপসারণের অনুরোধ থাকলে মেসের অনুমোদিত ম্যানেজার বা অ্যাপের নির্ধারিত সহায়তা-যোগাযোগের সঙ্গে যোগাযোগ করুন। আইনগত বা হিসাব-সংক্রান্ত কারণে কিছু রেকর্ড তাৎক্ষণিকভাবে অপসারণযোগ্য নাও হতে পারে।</p>
+      <h2>৬. নীতির পরিবর্তন</h2><p>অ্যাপের ফিচার বা প্রযোজ্য প্রয়োজন বদলালে এই নীতির ভাষা হালনাগাদ হতে পারে। গুরুত্বপূর্ণ পরিবর্তনের পর নীতির নতুন সংস্করণ পর্যালোচনা করুন।</p>
+      <div className="policy-note"><Icon name="info" size={18}/><span>এই নীতিটি অ্যাপের ব্যবহারকারীদের জন্য সাধারণ তথ্য। কোনো প্রতিষ্ঠানের আইনি প্রয়োজন অনুযায়ী প্রকাশের আগে স্থানীয় আইন ও প্রয়োজনের সঙ্গে মিলিয়ে পর্যালোচনা করা উচিত।</span></div>
     </section></div>;
 }
 
 export function TermsPage() {
-  return <div className="page-stack"><PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="অ্যাপ ব্যবহারের প্রাথমিক নিয়মের নমুনা। বিস্তারিত শর্তাবলী পরে চূড়ান্ত করা হবে।" />
-    <section className="card policy-content-card"><div className="policy-note"><Icon name="info" size={18}/><span>এটি ডেমো কনটেন্ট; চূড়ান্ত ব্যবহারের আগে আপনার প্রয়োজন অনুযায়ী সম্পাদনা করতে হবে।</span></div>
-      <h2>সঠিকভাবে ব্যবহার</h2><p>মিল, বাজার, জমা ও খরচের তথ্য যথাসম্ভব সঠিকভাবে দিন। ভুল তথ্য ধরা পড়লে অনুমোদিত সংশোধনের প্রক্রিয়া অনুসরণ করুন।</p>
-      <h2>অনুমতি ও দায়িত্ব</h2><p>কোনো কাজ কেবল নিজের অ্যাকাউন্টের অনুমতি অনুযায়ী করবেন। অনুমোদন-প্রয়োজনীয় অনুরোধ ম্যানেজারের পর্যালোচনা ছাড়া চূড়ান্ত বলে গণ্য হবে না।</p>
-      <h2>হিসাব যাচাই</h2><p>অ্যাপে প্রদর্শিত হিসাব নিয়ে প্রশ্ন থাকলে সংশ্লিষ্ট রেকর্ড ও তারিখসহ ম্যানেজারকে জানান। এই পৃষ্ঠাটি পূর্ণ চুক্তির বিকল্প নয়।</p>
+  return <div className="page-stack"><PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="Hostel Life সুষ্ঠু ও দায়িত্বশীলভাবে ব্যবহারের নিয়ম।" />
+    <section className="card policy-content-card policy-document-card">
+      <div className="policy-document-lead"><Icon name="book-open" size={24}/><div><strong>সবার জন্য স্বচ্ছ হিসাব ও দায়িত্বশীল ব্যবহার</strong><p>অ্যাপ ব্যবহার করলে নিচের সাধারণ নিয়মগুলো মেনে চলতে সম্মত হওয়া প্রত্যাশিত।</p></div></div>
+      <h2>১. অ্যাকাউন্টের দায়িত্ব</h2><p>অ্যাকাউন্টের তথ্য সঠিক রাখুন এবং নিজের লগইন-সুবিধা নিরাপদে সংরক্ষণ করুন। নিজের পরিচয়ে অন্য কাউকে ব্যবহার করতে দেওয়া বা অন্যের অ্যাকাউন্টে অননুমোদিত প্রবেশ করা যাবে না।</p>
+      <h2>২. মিল ও আর্থিক রেকর্ড</h2><p>মিলের অনুরোধ, বাজার, জমা, খরচ ও অন্যান্য হিসাব বাস্তব তথ্য অনুযায়ী দিতে হবে। ইচ্ছাকৃতভাবে ভুল, বিভ্রান্তিকর বা অন্য সদস্যের ক্ষতি করে এমন তথ্য দেওয়া যাবে না।</p>
+      <h2>৩. অনুমতি ও ভূমিকা</h2><p>শুধু নিজের ভূমিকার আওতায় থাকা কাজ করুন। ম্যানেজারের অনুমোদন প্রয়োজন এমন লেট অনুরোধ, সময়সীমা পার হওয়ার পরের সংশোধন অথবা বন্ধ মাসের পরিবর্তন অনুমোদিত প্রক্রিয়া ছাড়া চূড়ান্ত হবে না। Super Admin বা ম্যানেজারের ক্ষমতা ব্যক্তিগত সুবিধায় অপব্যবহার করা যাবে না।</p>
+      <h2>৪. হিসাব যাচাই ও বিরোধ</h2><p>লেনদেন বা মিলের হিসাবে ভুল মনে হলে তারিখ, পরিমাণ ও সংশ্লিষ্ট বিবরণ দিয়ে মেসের ম্যানেজারকে জানান। অনুমোদিত পদ্ধতিতে সংশোধন করুন; হিসাবের ইতিহাস লুকানো বা ভুল তথ্য দিয়ে বদলানোর চেষ্টা করবেন না।</p>
+      <h2>৫. গ্রহণযোগ্য ব্যবহার</h2><p>অ্যাপের নিরাপত্তা নষ্ট করা, স্বয়ংক্রিয়ভাবে অতিরিক্ত অনুরোধ পাঠানো, অন্যের তথ্য সংগ্রহের চেষ্টা করা বা অন্য ব্যবহারকারীর স্বাভাবিক ব্যবহার বাধাগ্রস্ত করা যাবে না। নিরাপত্তাজনিত সন্দেহ হলে অ্যাপের নির্ধারিত যোগাযোগের মাধ্যমে জানান।</p>
+      <h2>৬. সেবা ও তথ্যের সীমা</h2><p>অ্যাপের প্রদর্শিত হিসাব প্রদত্ত ও সংরক্ষিত রেকর্ডের ওপর নির্ভরশীল। কোনো গুরুত্বপূর্ণ আর্থিক সিদ্ধান্তের আগে সংশ্লিষ্ট রেকর্ড মিলিয়ে নিন। নেটওয়ার্ক, ডিভাইস বা রক্ষণাবেক্ষণের কারণে সাময়িকভাবে সেবা ব্যাহত হতে পারে।</p>
+      <h2>৭. শর্তাবলীর হালনাগাদ</h2><p>সেবা বা পরিচালনাপদ্ধতি বদলালে শর্তাবলী সংশোধন করা হতে পারে। অ্যাপ নিয়মিত ব্যবহার করার সময় হালনাগাদ সংস্করণ পর্যালোচনা করুন।</p>
+      <div className="policy-note"><Icon name="info" size={18}/><span>এই শর্তগুলো সাধারণ ব্যবহার নির্দেশিকা; প্রয়োজনে মেস/প্রতিষ্ঠানের নির্দিষ্ট নিয়ম যুক্ত করে চূড়ান্ত সংস্করণ প্রকাশ করুন।</span></div>
     </section></div>;
 }
 
@@ -396,7 +399,7 @@ export function HowToUsePage() {
       <div className="policy-step"><span>২</span><div><h2>ডাইনিং</h2><p>নিজের মিলের অনুরোধ দিন, অনুরোধের ইতিহাস দেখুন এবং অনুমোদিত কাজের মধ্যে বাজার বা অন্যান্য এন্ট্রি পরিচালনা করুন।</p></div></div>
       <div className="policy-step"><span>৩</span><div><h2>হিস্টরি</h2><p>বাজার ইতিহাস, জমা-খরচের লেনদেন এবং আগের মাসের তথ্য দেখুন। অনুমতি থাকলেই কেবল লেনদেন সম্পাদনা করা যাবে।</p></div></div>
       <div className="policy-step"><span>৪</span><div><h2>রিপোর্ট ও মিল শিট</h2><p>প্রয়োজনীয় মাস বা সদস্য বেছে রিপোর্ট তৈরি করুন। PDF সংরক্ষণের জন্য প্রিন্ট উইন্ডোতে “Save as PDF / PDF হিসেবে সংরক্ষণ” নির্বাচন করুন।</p></div></div>
-      <div className="policy-note"><Icon name="info" size={18}/><span>অ্যাপের কিছু নির্দেশনা বর্তমানে সংক্ষিপ্ত নমুনা হিসেবে আছে; পরবর্তী পর্যায়ে আরও বিস্তারিত করা হবে।</span></div>
+      <div className="policy-note"><Icon name="info" size={18}/><span>কোনো লেনদেন, মিল বা অনুমোদনের ফল বুঝতে অসুবিধা হলে স্ক্রিনে দেখানো বার্তা পড়ুন এবং প্রয়োজনে মেসের ম্যানেজারের সঙ্গে যোগাযোগ করুন।</span></div>
     </section></div>;
 }
 

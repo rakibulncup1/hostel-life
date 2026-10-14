@@ -8,7 +8,6 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToast } from '../../components/Toast';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { fetchManagerMemberDirectory } from '../../services/diningService';
-import { fetchPreviousMonths, fetchArchivedMonthDetail } from '../../services/historyService';
 
 import {
   addManagerDeposit,
@@ -36,6 +35,7 @@ import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { canCorrectMealDay, canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
+import { findActiveMealRequestForDate, getLateMealRequestTargetDate } from '../../utils/mealRequestPolicy';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -130,11 +130,7 @@ function normalRequestTimeLeft() {
 }
 
 function lateMealRequestTargetDate() {
-  const parts = dhakaNowParts();
-  const nowMinutes = Number(parts.hour || 0) * 60 + Number(parts.minute || 0);
-  // 9–10 PM is a transition gap: today's card is finalized, tomorrow's normal cutoff has not started.
-  if (nowMinutes >= 21 * 60 && nowMinutes < 22 * 60) return null;
-  return nowMinutes >= 22 * 60 ? tomorrowValue() : todayValue();
+  return getLateMealRequestTargetDate(new Date());
 }
 
 function MealValuePills({ day, compact = false }) {
@@ -271,7 +267,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   useEffect(() => {
     if (request?.days?.length) {
       const initial = normalizeDays(request.days);
-      const usable = mode === 'correction' ? initial.filter((day) => day.meal_date <= today) : mode === 'edit' ? initial.filter((day) => day.meal_date > today) : initial;
+      const usable = mode === 'correction' ? initial : mode === 'edit' ? initial.filter((day) => day.meal_date > today) : initial;
       const firstUsable = usable[0]?.meal_date || tomorrowValue();
       const lastUsable = usable.at(-1)?.meal_date || firstUsable;
       setStartDate(mode === 'correction' || mode === 'edit' ? firstUsable : (request.start_date || initial[0]?.meal_date || tomorrowValue()));
@@ -291,6 +287,16 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   const dayStateMap = useMemo(() => new Map(dayStates.map((day) => [String(day.meal_date).slice(0, 10), day])), [dayStates]);
   const correctionEligibleDays = useMemo(() => originalDays.filter((day) => canCorrectMealDay(dayStateMap.get(day.meal_date))), [originalDays, dayStateMap]);
   const editEligibleDays = useMemo(() => originalDays.filter((day) => canSubmitMealDay(dayStateMap.get(day.meal_date)) && day.meal_date > today), [originalDays, dayStateMap, today]);
+  useEffect(() => {
+    if (mode !== 'correction' || !request?.days?.length || dayStateLoading || !dayStates.length) return;
+    const eligible = originalDays.filter((day) => canCorrectMealDay(dayStateMap.get(day.meal_date)));
+    if (!eligible.length) return;
+    const first = eligible[0].meal_date;
+    const last = eligible[eligible.length - 1].meal_date;
+    setStartDate(first);
+    setEndDate(last);
+    setDays(eligible);
+  }, [mode, request, originalDays, dayStateLoading, dayStates.length, dayStateMap]);
   const title = isCorrection ? 'মিল সংশোধন অনুরোধ' : isEdit ? 'অনুমোদিত অনুরোধ এডিট' : 'নতুন মিল অনুরোধ';
   const helper = isCorrection
     ? 'কাট-অফ পার হওয়া দিনের জন্য ম্যানেজারের অনুমোদন প্রয়োজন।'
@@ -340,12 +346,19 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         return;
       }
       if (payloadDates.some((day) => !eligible.includes(day))) {
-        toast.warning('শুধু সার্ভার নির্ধারিত সময়সীমা পার হওয়া দিনের জন্য সংশোধনের অনুরোধ করা যাবে। দিনটির মিল ইতিমধ্যে চূড়ান্ত হলেও ম্যানেজার অনুমোদন দিলে চূড়ান্ত হিসাব আপডেট হবে।');
+        toast.warning('শুধু কাট-অফ পার হয়েছে কিন্তু রাত ৯টায় চূড়ান্ত হয়নি—এমন দিনের জন্য সংশোধন অনুরোধ করা যাবে। চূড়ান্ত দিনের জন্য এই অনুরোধ গ্রহণ করা হয় না।');
         return;
       }
-      const fullRange = buildDateRange(startDate, endDate).map((day) => day.meal_date);
-      if (fullRange.some((day) => !eligible.includes(day)) || payloadDates.length !== fullRange.length) {
-        toast.warning('নির্বাচিত তারিখের পরিসরের প্রতিটি দিনের সময়সীমা পার হওয়া থাকতে হবে।');
+      // A multi-day original request can contain days already finalized and days
+      // still inside the correction window. Submit only the eligible days; do not
+      // reject the entire correction just because a finalized day lies between them.
+      if (!payloadDates.length || payloadDates.some((day) => !eligible.includes(day))) {
+        toast.warning('শুধু কাট-অফ পার হলেও রাত ৯টায় চূড়ান্ত না হওয়া দিনগুলো সংশোধনে নির্বাচন করুন।');
+        return;
+      }
+      const sortedPayloadDates = [...payloadDates].sort();
+      if (startDate !== sortedPayloadDates[0] || endDate !== sortedPayloadDates[sortedPayloadDates.length - 1]) {
+        toast.warning('সংশোধনের তারিখের পরিসর নির্বাচিত দিনগুলোর সঙ্গে মিলছে না।');
         return;
       }
     }
@@ -568,13 +581,31 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
 function RequestHistory({ onEdit, onCorrect }) {
   const toast = useToast();
   const [requests, setRequests] = useState([]);
+  const [dayStates, setDayStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const dayStateMap = useMemo(() => new Map(dayStates.map((day) => [String(day.meal_date).slice(0, 10), day])), [dayStates]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRequests(await fetchMyMealRequests(100));
+      const rows = await fetchMyMealRequests(100);
+      setRequests(rows);
+      const dates = rows
+        .filter((row) => row.status === 'approved' && row.request_type === 'normal' && !row.is_late_request)
+        .flatMap((row) => (row.days || []).map((day) => String(day.meal_date || '').slice(0, 10)))
+        .filter(Boolean)
+        .sort();
+      if (dates.length) {
+        try {
+          setDayStates(await fetchMealDayStates(dates[0], dates[dates.length - 1]));
+        } catch (stateError) {
+          setDayStates([]);
+          console.warn('Meal-day cutoff metadata could not be loaded for request history:', stateError);
+        }
+      } else {
+        setDayStates([]);
+      }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'মিল অনুরোধের ইতিহাস লোড করা যায়নি।'));
     } finally {
@@ -631,12 +662,15 @@ function RequestHistory({ onEdit, onCorrect }) {
                       <div><strong>এটি সংশোধনযোগ্য নয়</strong><span>ম্যানেজার এই আবেদনটি লেট অনুরোধ হিসেবে অনুমোদন করেছেন। এটি আর সম্পাদনা বা নতুন সংশোধনের অনুরোধের মাধ্যমে পরিবর্তন করা যাবে না। চূড়ান্ত মিল হয়ে গেলে পরিবর্তনের জন্য প্রধান ম্যানেজারের সঙ্গে যোগাযোগ করুন।</span></div>
                     </div>
                   )}
-                  {request.status === 'approved' && request.request_type === 'normal' && !request.is_late_request && (
-                    <div className="request-action-row">
-                      {request.days?.some((day) => String(day.meal_date).slice(0, 10) > todayValue()) && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="refresh" size={16} /> এডিট করুন</button>}
-                      {request.days?.some((day) => String(day.meal_date).slice(0, 10) <= todayValue()) && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="warning" size={16} /> সংশোধন অনুরোধ</button>}
-                    </div>
-                  )}
+                  {request.status === 'approved' && request.request_type === 'normal' && !request.is_late_request && (() => {
+                    const days = request.days || [];
+                    const canEdit = days.some((day) => String(day.meal_date).slice(0, 10) > todayValue() && canSubmitMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
+                    const canCorrect = days.some((day) => canCorrectMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
+                    return (canEdit || canCorrect) ? <div className="request-action-row">
+                      {canEdit && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="refresh" size={16} /> এডিট করুন</button>}
+                      {canCorrect && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="warning" size={16} /> সংশোধন অনুরোধ</button>}
+                    </div> : null;
+                  })()}
                   {needsReview && (
                     <div className="inline-success"><Icon name="clock" size={16} /> {request.is_late_request ? 'লেট অনুরোধ ম্যানেজারের অনুমোদনের অপেক্ষায় আছে। এই আবেদন পাঠানোর পর এডিট বা আলাদা সংশোধন অনুরোধ করা যাবে না।' : 'ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।'}</div>
                   )}
@@ -1354,12 +1388,47 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   const [values, setValues] = useState(DEFAULT_MEALS);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [existingTargetRequest, setExistingTargetRequest] = useState(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
+  const [duplicateCheckFailed, setDuplicateCheckFailed] = useState(false);
   const [, setClock] = useState(0);
   useEffect(() => { const timer = window.setInterval(() => setClock((value) => value + 1), 30000); return () => window.clearInterval(timer); }, []);
   const targetDate = lateMealRequestTargetDate();
+
+  useEffect(() => {
+    let alive = true;
+    setExistingTargetRequest(null);
+    setDuplicateCheckFailed(false);
+    if (!targetDate) {
+      setCheckingExisting(false);
+      return () => { alive = false; };
+    }
+    setCheckingExisting(true);
+    fetchMyMealRequests(200, { force: true }).then((rows) => {
+      if (!alive) return;
+      const active = findActiveMealRequestForDate(Array.isArray(rows) ? rows : [], targetDate);
+      setExistingTargetRequest(active);
+    }).catch((error) => {
+      if (!alive) return;
+      // The SQL migration is authoritative and rejects duplicate requests under an advisory lock.
+      // A failed pre-check must not pretend that a duplicate was found.
+      console.warn('Late request duplicate pre-check failed; the server will enforce uniqueness:', error);
+      setDuplicateCheckFailed(true);
+    }).finally(() => {
+      if (alive) setCheckingExisting(false);
+    });
+    return () => { alive = false; };
+  }, [targetDate]);
+
   const submit = async () => {
     if (busy) return;
     if (!targetDate) return toast.warning('রাত ৯টায় হিসাব চূড়ান্ত হওয়া এবং রাত ১০টার নতুন সময়সীমা শুরুর মাঝখানে লেট অনুরোধ দেওয়া যায় না।');
+    if (existingTargetRequest) {
+      const message = existingTargetRequest.is_late_request
+        ? 'এই দিনের জন্য আপনার একটি লেট অনুরোধ আগে থেকেই জমা হয়েছে। অনুরোধের ইতিহাসে সেটির অবস্থা দেখুন।'
+        : 'এই দিনের জন্য আগের একটি মিল অনুরোধ রয়েছে। কাট-অফ পার হলে অনুরোধের ইতিহাস থেকে সংশোধনের আবেদন দিন।';
+      return toast.warning(message);
+    }
     setBusy(true);
     try {
       await createLateMealRequest({ mealDate: targetDate, breakfast: clampMeal(values.breakfast), lunch: clampMeal(values.lunch), dinner: clampMeal(values.dinner), reason: reason.trim() || null });
@@ -1372,9 +1441,12 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   return <section className="dining-panel card late-request-form">
     <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর স্বাভাবিক রাত ১০টার সময়সীমা পার হলে এখানে আবেদন দিন।` : 'আজকের মিল রাত ৯টায় চূড়ান্ত হয়েছে; আগামী দিনের লেট অনুরোধ রাত ১০টার সময়সীমার পরে দেওয়া যাবে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
     <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট অনুরোধ কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট অনুরোধ পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন অনুরোধ পাঠানো যাবে না। অনুমোদিত হলে নতুন করে পরিবর্তনের সুযোগ থাকবে না। ফাইনাল মিল হয়ে যাওয়ার পরে পরিবর্তন দরকার হলে প্রধান ম্যানেজারকে জানাতে হবে; তিনি Admin Entry → Final Meal Correction ব্যবহার করে সংশোধন করতে পারবেন।</p></div></div>
+    {checkingExisting && targetDate && <div className="state-card"><Icon name="clock" size={17}/><div><strong>আগের অনুরোধ যাচাই করা হচ্ছে</strong><p>একই দিনের লেট অনুরোধ পুনরায় জমা না দিতে আপনার অনুরোধের ইতিহাস পরীক্ষা করা হচ্ছে।</p></div></div>}
+    {existingTargetRequest && <div className="state-card state-card-warning"><Icon name="alert-triangle" size={17}/><div><strong>এই দিনের জন্য আগের অনুরোধ রয়েছে</strong><p>{existingTargetRequest.is_late_request ? `লেট অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'ম্যানেজারের অনুমোদনের অপেক্ষায়'}।` : `আগের অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'অপেক্ষমাণ'}।`} একই দিনের জন্য আরেকটি অনুরোধ দেওয়া যাবে না। মিল পরিবর্তন করতে অনুরোধের ইতিহাস দেখুন।</p></div></div>}
+    {!checkingExisting && duplicateCheckFailed && !existingTargetRequest && <div className="state-card state-card-warning"><Icon name="info" size={17}/><div><strong>ডুপ্লিকেট যাচাই সম্পন্ন হয়নি</strong><p>সংযোগের সমস্যা থাকায় আগের অনুরোধ যাচাই করা যায়নি। সাবমিট করলে সার্ভার চূড়ান্তভাবে ডুপ্লিকেট পরীক্ষা করবে।</p></div></div>}
     <div className="manager-meal-grid">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><div key={key}><MealStepper label={label} value={values[key]} onChange={(value)=>setValues((old)=>({...old,[key]:value}))}/></div>)}</div>
     <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={reason} onChange={(event)=>setReason(event.target.value)} placeholder="কেন স্বাভাবিক সময়সীমার পরে অনুরোধ দিচ্ছেন"/></label>
-    <button className="primary-button large dining-submit" type="button" onClick={submit} disabled={busy || !targetDate}>{busy?'আবেদন পাঠানো হচ্ছে...':'লেট অনুরোধ পাঠান'}</button>
+    <button className="primary-button large dining-submit" type="button" onClick={submit} disabled={busy || checkingExisting || Boolean(existingTargetRequest) || !targetDate}>{busy?'আবেদন পাঠানো হচ্ছে...':checkingExisting?'আগের অনুরোধ যাচাই হচ্ছে...':existingTargetRequest?'এই দিনের অনুরোধ আগে আছে':'লেট অনুরোধ পাঠান'}</button>
   </section>;
 }
 
@@ -1519,64 +1591,6 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
 }
 
 
-function DiningArchiveBrowser({ onBack }) {
-  const toast = useToast();
-  const [periods, setPeriods] = useState([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState('');
-  const [detail, setDetail] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    fetchPreviousMonths().then((rows) => {
-      if (!alive) return;
-      const safeRows = Array.isArray(rows) ? rows : [];
-      setPeriods(safeRows);
-      setLoading(false);
-    }).catch((error) => {
-      if (!alive) return;
-      setLoading(false);
-      toast.error(getFriendlySupabaseError(error, 'পূর্ববর্তী মাসের তালিকা লোড করা যায়নি।'));
-    });
-    return () => { alive = false; };
-  }, [toast]);
-
-  const choosePeriod = async (periodId) => {
-    setSelectedPeriodId(periodId);
-    setDetail(null);
-    if (!periodId) return;
-    setDetailLoading(true);
-    try {
-      const next = await fetchArchivedMonthDetail(periodId);
-      setDetail(next || null);
-    } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'নির্বাচিত মাসের বিস্তারিত লোড করা যায়নি।'));
-    } finally {
-      setDetailLoading(false);
-    }
-  };
-
-  const markets = Array.isArray(detail?.markets) ? detail.markets : [];
-  const meals = Array.isArray(detail?.meals) ? detail.meals : [];
-  const activeMarketTotal = markets.filter((row) => row.status !== 'void').reduce((total, row) => total + Number(row.total || row.total_amount || 0), 0);
-  const totalMeals = meals.reduce((total, row) => total + Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0), 0);
-
-  return <div className="page-stack">
-    <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={onBack}><Icon name="arrow-left" size={15}/> ডাইনিংয়ে ফিরে যান</button></div>
-    <section className="card dining-panel">
-      <div className="panel-header"><div><span className="eyebrow">শুধু দেখার জন্য</span><h2>পূর্ববর্তী মাসের ডাইনিং</h2><p>আগের মাস বেছে তারিখভিত্তিক মিল ও বাজার দেখুন। আর্কাইভের এই স্ক্রিন থেকে কোনো নতুন অনুরোধ বা এন্ট্রি তৈরি করা যাবে না।</p></div></div>
-      {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..."/> : periods.length === 0 ? <div className="empty-state-card"><Icon name="calendar" size={26}/><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>ম্যানেজার নতুন বা আগের মাস বন্ধ/আর্কাইভ করলে এখানে তালিকা দেখা যাবে।</span></div> : <label className="field-label"><span>মাস নির্বাচন করুন</span><select value={selectedPeriodId} onChange={(event) => choosePeriod(event.target.value)}><option value="">পূর্ববর্তী মাস নির্বাচন করুন</option>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label} · {formatDateWithWeekday(period.start_date)} – {formatDateWithWeekday(period.end_date)}</option>)}</select></label>}
-    </section>
-    {detailLoading && <div className="card"><LoadingSpinner label="মাসের বিস্তারিত লোড হচ্ছে..."/></div>}
-    {detail && !detailLoading && <>
-      <div className="archive-detail-grid"><div className="metric"><span>মাস</span><strong>{detail.label || periods.find((period) => period.period_id === selectedPeriodId)?.label || 'পূর্ববর্তী মাস'}</strong></div><div className="metric"><span>সক্রিয় বাজার</span><strong>{formatCurrency(activeMarketTotal)}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(totalMeals)}</strong></div></div>
-      <section className="card archive-detail-section"><div className="section-heading"><h3>দৈনিক মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.length ? meals.slice(0,200).map((row) => <div className="archive-list-row" key={row.date}><div><strong>{formatDateWithWeekday(row.date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} · লাঞ্চ {formatNumber(row.lunch)} · ডিনার {formatNumber(row.dinner)}</small></div><span className="member-badge subtle">{row.status || 'সংরক্ষিত'}</span></div>) : <div className="empty-state-card"><strong>মিলের বিস্তারিত নেই</strong></div>}</section>
-      <section className="card archive-detail-section"><div className="section-heading"><h3>বাজার</h3><span>{formatNumber(markets.length)}টি</span></div>{markets.length ? markets.slice(0,200).map((row) => <div className={`archive-list-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.id}><div><strong>{row.member_name || 'সদস্য'}</strong><small>{formatDateWithWeekday(row.entry_date)}</small></div><div><strong>{formatCurrency(row.total ?? row.total_amount)}</strong><span className="member-badge subtle">{row.status === 'void' ? 'বাতিল' : 'সক্রিয়'}</span></div></div>) : <div className="empty-state-card"><strong>বাজারের বিস্তারিত নেই</strong></div>}</section>
-      <div className="archive-scope-note"><Icon name="lock" size={16}/><span>পূর্ববর্তী মাসটি read-only। পরিবর্তনের দরকার হলে History → পূর্ববর্তী মাস ও অনুমোদিত manager archive-edit workflow ব্যবহার করুন।</span></div>
-    </>}
-  </div>;
-}
 
 export function DiningPage() {
   const toast = useToast();
@@ -1693,10 +1707,6 @@ export function DiningPage() {
     );
   }
 
-  if (view === 'period-history') {
-    return <DiningArchiveBrowser onBack={backToHome} />;
-  }
-
   if (view === 'meal-request') {
     return (
       <div className="page-stack">
@@ -1716,7 +1726,7 @@ export function DiningPage() {
           <button className="card request-choice-card request-choice-late" type="button" onClick={() => setView('late-request')}>
             <span className="dining-option-icon"><Icon name="clock" size={22} /></span>
             <strong>লেট অনুরোধ</strong>
-            <small>স্বাভাবিক রাত ১০টার সময়সীমা পার হলে আজকের মিলের জন্য আবেদন করুন। এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হবে না; ম্যানেজার বা সহকারী ম্যানেজারের পর্যালোচনা প্রয়োজন।</small>
+            <small>যে দিনের স্বাভাবিক রাত ১০টার cutoff পার হয়েছে, সেই দিনের জন্য লেট অনুরোধ দিন। এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হবে না; ম্যানেজার বা সহকারী ম্যানেজারের পর্যালোচনা প্রয়োজন।</small>
           </button>
         </div>
       </div>
@@ -1791,7 +1801,7 @@ export function DiningPage() {
       <SectionHeader eyebrow="মূল সেকশন" title="ডাইনিং" description={isManager ? 'খাবার, বাজার ও মেসের হিসাবের সব কার্যক্রম এখানে পরিচালনা করুন।' : 'বাজার ও মিল সম্পর্কিত দৈনন্দিন কাজগুলো এখানে করুন।'} />
 
       {periodLoadError && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="warning" size={20}/><div><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError} মাস নেই বলে নিশ্চিত না হওয়া পর্যন্ত এই বার্তাকে প্রকৃত no-month অবস্থা হিসেবে দেখানো হচ্ছে না।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
-      {!loadingMembers && !periodLoadError && !hasRunningManagerPeriod && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="calendar" size={20}/><div><strong>বর্তমানে কোনো চলমান মাস নেই</strong><p>নতুন মাস শুরু না হওয়া পর্যন্ত নতুন মিল/বাজার এন্ট্রি বন্ধ থাকবে। আগের মাসের তথ্য দেখতে “পূর্ববর্তী মাস” বেছে নিন।</p></div></div>}
+      {!loadingMembers && !periodLoadError && !hasRunningManagerPeriod && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="calendar" size={20}/><div><strong>বর্তমানে কোনো চলমান মাস নেই</strong><p>নতুন মাস শুরু না হওয়া পর্যন্ত নতুন মিল/বাজার এন্ট্রি বন্ধ থাকবে। আগের মাসের তথ্য দেখতে হিস্টরি সেকশনের ‘পূর্ববর্তী মাস’ অপশন ব্যবহার করুন।</p></div></div>}
       <div className="dining-action-grid">
         {canOperateDining && <DiningOptionCard icon="shield" title="এডমিন এন্ট্রি" description="ফাইনাল মিল সংশোধন বা সদস্যের হয়ে ম্যানুয়াল মিল অনুরোধ তৈরি করুন।" badge onClick={() => setView('admin-entry')} />}
         {isPrimaryDiningManager && <DiningOptionCard icon="user" title="আমার মিল" description="সাধারণ সদস্যের মতো অনুরোধ, হিস্টরি ও সংশোধন ব্যবহার করুন।" badge onClick={() => setView('meal-request')} />}
@@ -1801,7 +1811,6 @@ export function DiningPage() {
         {canOperateDining && <DiningOptionCard icon="wallet" title="ডিপোজিট" description="যেকোনো সদস্যের নামে ডিপোজিট যোগ করুন।" badge onClick={() => setView('deposit')} />}
         {canOperateDining && <DiningOptionCard icon="wallet" title="অন্যান্য খরচ" description="নির্বাচিত সদস্যের হিসাব থেকে অন্যান্য খরচ বাদ দিন।" badge onClick={() => setView('other-expense')} />}
         {!isManager && !isAssistantManager && <DiningOptionCard icon="history" title="মিল অনুরোধ" description="নতুন অনুরোধ দিন বা আগের অনুরোধের ইতিহাস দেখুন।" onClick={() => setView('meal-request')} />}
-        <DiningOptionCard icon="history" title="পূর্ববর্তী মাস" description="আগের মাসের মিল ও বাজার read-only অবস্থায় দেখুন।" onClick={() => setView('period-history')} />
       </div>
 
       {canOperateDining && (

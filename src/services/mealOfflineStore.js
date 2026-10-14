@@ -96,21 +96,59 @@ export function getOfflineTargetDate({ bundle, now = new Date(), timeZone = 'Asi
 
 export function pickOfflineMealCard(record, now = new Date()) {
   if (!record?.bundle) return null;
-  const targetDate = getOfflineTargetDate({ bundle: record.bundle, now });
-  const today = record.bundle.today;
-  const tomorrow = record.bundle.tomorrow;
-  const selected = [today, tomorrow].find((item) => item?.meal_date === targetDate);
+  const bundle = record.bundle;
+  const targetDate = getOfflineTargetDate({ bundle, now });
+  if (!targetDate) return null;
 
-  if (selected) {
-    return {
-      ...selected,
-      label: selected.meal_date === today?.meal_date ? 'আজকের মিল' : 'আগামীকালের মিল',
-      member_details: Array.isArray(selected.member_details) ? selected.member_details : [],
+  // Current server response contains `days` + `mealRows` and a snapshot `meal_card`;
+  // older frontend code expected pre-shaped `today`/`tomorrow` objects that the RPC
+  // never returned. Build the selected card from the real RPC contract instead.
+  const selectedDay = (Array.isArray(bundle.days) ? bundle.days : [])
+    .find((item) => String(item?.meal_date || '').slice(0, 10) === targetDate);
+  if (!selectedDay) {
+    const legacySelected = [bundle.today, bundle.tomorrow]
+      .find((item) => String(item?.meal_date || '').slice(0, 10) === targetDate);
+    return legacySelected ? {
+      ...legacySelected,
+      label: legacySelected.meal_date === bundle.today?.meal_date ? 'আজকের মিল' : 'আগামীকালের মিল',
+      member_details: Array.isArray(legacySelected.member_details) ? legacySelected.member_details : [],
       client_synced_at: record.clientSyncedAt,
-      server_fetched_at: record.bundle.server_fetched_at,
+      server_fetched_at: bundle.server_fetched_at,
       offline: true,
-    };
+    } : null;
   }
 
-  return null;
+  const rows = (Array.isArray(bundle.mealRows) ? bundle.mealRows : [])
+    .filter((row) => String(row?.meal_date || row?.date || '').slice(0, 10) === targetDate && !row?.cancelled);
+  const member_details = rows.map((row) => ({
+    membership_id: row.member_id || row.memberId,
+    member_id: row.member_id || row.memberId,
+    member_name: row.member_name || row.memberName || 'সদস্য',
+    name: row.member_name || row.memberName || 'সদস্য',
+    breakfast: Number(row.breakfast || 0),
+    lunch: Number(row.lunch || 0),
+    dinner: Number(row.dinner || 0),
+    finalized: Boolean(row.finalized || selectedDay.status === 'finalized'),
+  }));
+  const matchingSnapshot = String(bundle.meal_card?.meal_date || '').slice(0, 10) === targetDate
+    ? bundle.meal_card
+    : null;
+  const localToday = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+
+  return {
+    ...selectedDay,
+    ...(matchingSnapshot || {}),
+    meal_date: targetDate,
+    label: targetDate === localToday ? 'আজকের মিল' : 'আগামীকালের মিল',
+    breakfast: matchingSnapshot ? Number(matchingSnapshot.breakfast || 0) : member_details.reduce((sum, row) => sum + row.breakfast, 0),
+    lunch: matchingSnapshot ? Number(matchingSnapshot.lunch || 0) : member_details.reduce((sum, row) => sum + row.lunch, 0),
+    dinner: matchingSnapshot ? Number(matchingSnapshot.dinner || 0) : member_details.reduce((sum, row) => sum + row.dinner, 0),
+    member_details: matchingSnapshot && Array.isArray(matchingSnapshot.member_details) ? matchingSnapshot.member_details : member_details,
+    late_requests: matchingSnapshot && Array.isArray(matchingSnapshot.late_requests) ? matchingSnapshot.late_requests : [],
+    client_synced_at: record.clientSyncedAt,
+    server_fetched_at: bundle.server_fetched_at,
+    offline: true,
+  };
 }

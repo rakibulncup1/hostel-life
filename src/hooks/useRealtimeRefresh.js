@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 const REFRESH_DEBOUNCE_MS = 700;
 const MIN_REFRESH_INTERVAL_MS = 30000;
 
-export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRefresh, minRefreshIntervalMs = MIN_REFRESH_INTERVAL_MS }) {
+export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRefresh, minRefreshIntervalMs = MIN_REFRESH_INTERVAL_MS, immediateTables = [] }) {
   const onRefreshRef = useRef(onRefresh);
 
   useEffect(() => {
@@ -14,6 +14,8 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
   }, [onRefresh]);
 
   const tableKey = Array.isArray(tables) ? tables.filter(Boolean).join('|') : '';
+  const immediateTableKey = Array.isArray(immediateTables) ? immediateTables.filter(Boolean).join('|') : '';
+  const immediateTableSet = new Set(immediateTableKey.split('|').filter(Boolean));
 
   useEffect(() => {
     if (!enabled || !supabase || !hostelId || !tableKey) return undefined;
@@ -74,7 +76,8 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
       // Browsers often emit several of these together; bypassing the throttle for
       // resume events caused duplicate RPC refreshes during tab/network changes.
       const elapsed = Date.now() - lastRefreshAt;
-      const delay = Math.max(REFRESH_DEBOUNCE_MS, refreshInterval - elapsed);
+      const isImmediate = [...pendingTables].some((name) => immediateTableSet.has(name));
+      const delay = isImmediate ? REFRESH_DEBOUNCE_MS : Math.max(REFRESH_DEBOUNCE_MS, refreshInterval - elapsed);
       debounceTimer = window.setTimeout(dispatchRefresh, delay);
     };
 
@@ -139,5 +142,5 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
       window.removeEventListener('blur', handleBlur);
       disconnect();
     };
-  }, [enabled, hostelId, tableKey, minRefreshIntervalMs]);
+  }, [enabled, hostelId, tableKey, minRefreshIntervalMs, immediateTableKey]);
 }

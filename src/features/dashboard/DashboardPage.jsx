@@ -572,7 +572,8 @@ export function DashboardPage() {
   useEffect(() => { latestCachedDashboardRef.current = cachedDashboard; }, [cachedDashboard]);
 
   const loadDashboard = useCallback(async (silent = false, options = {}) => {
-    if (!online || !hostelId || !navigator.onLine || document.visibilityState !== 'visible' || !document.hasFocus()) return null;
+    if (!online || !hostelId || !navigator.onLine) return null;
+    if (!options.force && (document.visibilityState !== 'visible' || !document.hasFocus())) return null;
     if (loadInFlightRef.current) return loadInFlightRef.current;
 
     const now = Date.now();
@@ -596,8 +597,8 @@ export function DashboardPage() {
           // The first page load (or a resume before any cache exists) performs the full fallback-safe read.
           [dashboardResult, periodResult, directoryResult] = await Promise.allSettled([
             fetchDashboardData(),
-            fetchRunningPeriod(),
-            fetchMemberDirectory(),
+            fetchRunningPeriod({ force: Boolean(options.force || options.forcePeriodCheck) }),
+            fetchMemberDirectory({ force: Boolean(options.force) }),
           ]);
           periodWasResolved = true;
         } else {
@@ -621,8 +622,8 @@ export function DashboardPage() {
           if (fallbackNeeded && fallbackRefreshDue) {
             lastFallbackRefreshAtRef.current = now;
             [periodResult, directoryResult] = await Promise.allSettled([
-              fetchRunningPeriod(),
-              fetchMemberDirectory(),
+              fetchRunningPeriod({ force: Boolean(options.force || options.forcePeriodCheck) }),
+              fetchMemberDirectory({ force: Boolean(options.force) }),
             ]);
             periodWasResolved = true;
           } else if (fallbackNeeded) {
@@ -776,7 +777,8 @@ export function DashboardPage() {
 
   useRealtimeRefresh({
     enabled: online,
-    minRefreshIntervalMs: 60000,
+    minRefreshIntervalMs: 15000,
+    immediateTables: ['monthly_periods'],
     hostelId,
     tables: ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests', 'market_entries', 'ledger_transactions', 'khala_money_entries', 'monthly_periods'],
     onRefresh: ({ tables = [], reason = 'realtime' } = {}) => {
@@ -803,6 +805,13 @@ export function DashboardPage() {
     : null;
   const lastSync = snapshot?.savedAt || null;
   const summary = effectiveDashboard?.summary;
+  // Older dashboard RPC payloads expose total_market/other_expense, while newer
+  // payloads may expose total_expense/fund_remaining. Keep the UI correct with either.
+  const dashboardMarketCost = Number(summary?.total_market ?? summary?.total_market_expense ?? 0) || 0;
+  const dashboardOtherExpense = Number(summary?.other_expense ?? summary?.total_other_expense ?? 0) || 0;
+  const dashboardKhalaMoney = Number(summary?.khala_money ?? summary?.total_khala_money ?? 0) || 0;
+  const dashboardTotalExpense = Number(summary?.total_expense ?? (dashboardMarketCost + dashboardOtherExpense + dashboardKhalaMoney)) || 0;
+  const dashboardFundRemaining = Number(summary?.fund_remaining ?? (Number(summary?.total_deposit || 0) - dashboardTotalExpense)) || 0;
   const account = effectiveDashboard?.my_account;
   const members = effectiveDashboard?.members ?? [];
 
@@ -882,14 +891,14 @@ export function DashboardPage() {
             </div>
             <div className="metric-grid four-grid">
               <MetricCard label="মোট জমা" value={formatCurrency(summary?.total_deposit)} />
-              <MetricCard label="মোট খরচ" value={formatCurrency(summary?.total_expense)} />
+              <MetricCard label="মোট খরচ" value={formatCurrency(dashboardTotalExpense)} />
               <MetricCard label="মোট মিল" value={formatNumber(summary?.total_meals)} />
-              <MetricCard label="অবশিষ্ট ফান্ড" value={formatCurrency(summary?.fund_remaining)} />
+              <MetricCard label="অবশিষ্ট ফান্ড" value={formatCurrency(dashboardFundRemaining)} />
             </div>
             <div className="rate-strip">
               <div>
                 <span>বর্তমান মিল রেট</span>
-                <small>খাবারের বাজারের খরচ ÷ চূড়ান্ত মিল</small>
+                <small>বাজার {formatCurrency(dashboardMarketCost)} ÷ চূড়ান্ত মিল</small>
               </div>
               <strong>{formatCurrency(summary?.meal_rate)}</strong>
             </div>

@@ -36,11 +36,21 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const isOnline = useOnlineStatus();
   const { canInstall, install } = useInstallPrompt();
   const { signOut } = useAuth();
-  const { period, isPrimaryManager, isAssistantManager, isOperationalManager } = useManagementContext();
+  const { context: managementContext, period, isPrimaryManager, isAssistantManager, isOperationalManager, refresh: refreshManagementContext } = useManagementContext();
   const hasRunningPeriod = Boolean(period?.period_id || period?.id);
   const effectivePrimaryManager = hasRunningPeriod ? Boolean(isPrimaryManager) : Boolean(isManager);
   const effectiveOperationalManager = Boolean(effectivePrimaryManager || isAssistantManager || (!hasRunningPeriod && isManager));
   const toast = useToast();
+
+  // Keep the header's running-month label and manager guards synced when another
+  // browser/device starts or closes a period or changes manager assignments.
+  useRealtimeRefresh({
+    enabled: isOnline,
+    hostelId: membership?.hostel_id,
+    tables: ['monthly_periods', 'hostel_memberships'],
+    immediateTables: ['monthly_periods', 'hostel_memberships'],
+    onRefresh: () => refreshManagementContext({ force: true }),
+  });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -189,7 +199,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         hostelName={membership?.hostel_name || 'Hostel Life'}
         profileName={profile?.full_name || null}
         role={effectivePrimaryManager ? 'ম্যানেজার' : isAssistantManager ? 'সহকারী ম্যানেজার' : 'সদস্য'}
-        periodLabel={period?.label || null}
+        periodLabel={period?.label || (managementContext?.has_running_period === false ? null : 'মাসের অবস্থা যাচাই হচ্ছে')}
         isOnline={isOnline}
         unreadCount={unreadCount}
         onMenu={() => setDrawerOpen(true)}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeRunningPeriodPayload, resolveDashboardPeriodStatus, dashboardNeedsPeriodFallback } from '../src/utils/period.js';
+import { normalizeRunningPeriodPayload, resolveDashboardPeriodStatus, dashboardNeedsPeriodFallback, reconcileManagementContextWithPeriod } from '../src/utils/period.js';
 
 test('normalizes canonical nested running-period context', () => {
   const result = normalizeRunningPeriodPayload({
@@ -57,4 +57,35 @@ test('does not trust a legacy cached false when canonical lookup fails', () => {
     periodWasResolved: true, periodResultStatus: 'rejected',
     data: { has_running_period: false }, previous: { has_running_period: false },
   }), 'unknown');
+});
+
+
+test('recovers the running period when management context falsely omits it', () => {
+  const result = reconcileManagementContextWithPeriod(
+    { has_running_period: false, period: null, next_required_start_date: '2026-10-13' },
+    { period: { id: 'new-period', label: 'October 2026', status: 'running' }, has_running_period: true },
+    { verificationSucceeded: true, today: '2026-10-13', canManageMonth: true },
+  );
+  assert.equal(result.has_running_period, true);
+  assert.equal(result.period.period_id, 'new-period');
+  assert.equal(result.next_required_start_date, '2026-10-13');
+  assert.equal(result.can_manage_month, true);
+});
+
+test('reports no running month only after a successful empty canonical lookup', () => {
+  const result = reconcileManagementContextWithPeriod(
+    { has_running_period: false, period: null }, null,
+    { verificationSucceeded: true, today: '2026-10-13' },
+  );
+  assert.equal(result.has_running_period, false);
+  assert.equal(result.period, null);
+});
+
+test('keeps month state unknown when canonical verification fails', () => {
+  const result = reconcileManagementContextWithPeriod(
+    { has_running_period: false, period: null }, null,
+    { verificationSucceeded: false, today: '2026-10-13' },
+  );
+  assert.equal(result.has_running_period, undefined);
+  assert.equal(result.period, null);
 });

@@ -6,6 +6,8 @@ import { supabase } from '../../lib/supabase';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
+import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
+import { normalizeRunningPeriodPayload } from '../../utils/period';
 
 function SetupCard({ icon, title, description, active, onClick, children }) {
   return (
@@ -34,6 +36,8 @@ export function OnboardingPage() {
   const [hostelCodeRequired, setHostelCodeRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [createdHostel, setCreatedHostel] = useState(null);
+  const [initialMonthStatus, setInitialMonthStatus] = useState('not-started');
+  const [initialMonthError, setInitialMonthError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -83,10 +87,64 @@ export function OnboardingPage() {
         ({ data, error } = await supabase.rpc('create_hostel', { p_name: hostelName.trim() }));
       }
       if (error) throw error;
-      setCreatedHostel(data ?? null);
-      toast.success(`“${data?.name ?? hostelName.trim()}” মেস সফলভাবে তৈরি হয়েছে।`);
+
+      // Hostel creation has succeeded. A failure to initialize its first period must
+      // not falsely tell the user that hostel creation itself failed.
+      const newHostel = data ?? { name: hostelName.trim() };
+      setCreatedHostel(newHostel);
+      try {
+        await ensureInitialRunningMonth();
+        setInitialMonthStatus('started');
+        setInitialMonthError('');
+        toast.success(`“${newHostel?.name ?? hostelName.trim()}” মেস তৈরি হয়েছে এবং ${firstDayOfMonth(dhakaDateInputValue())} থেকে চলমান মাস শুরু হয়েছে।`);
+      } catch (periodError) {
+        setInitialMonthStatus('failed');
+        setInitialMonthError(getFriendlySupabaseError(periodError, 'প্রথম মাস স্বয়ংক্রিয়ভাবে শুরু করা যায়নি।'));
+        toast.warning('মেস তৈরি হয়েছে, কিন্তু প্রথম মাস শুরু হয়নি। নিচের “প্রথম মাস আবার শুরু করুন” বোতাম ব্যবহার করুন।');
+      }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'মেস তৈরি করা যায়নি। আবার চেষ্টা করুন।'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  async function ensureInitialRunningMonth() {
+    if (!supabase) throw new Error('Supabase সংযোগ সেট করা নেই।');
+
+    // Check first to avoid duplicate periods, including a previous request whose
+    // database commit succeeded but whose response was interrupted by the network.
+    const current = await supabase.rpc('get_running_period_context');
+    if (!current.error) {
+      const payload = current.data;
+      if (payload?.has_running_period === true || normalizeRunningPeriodPayload(payload)) return payload;
+    }
+
+    const startDate = firstDayOfMonth(dhakaDateInputValue());
+    if (!startDate) throw new Error('বাংলাদেশের সময় অনুযায়ী মাসের শুরুর তারিখ নির্ধারণ করা যায়নি।');
+    const { error } = await supabase.rpc('start_new_month', { p_start_date: startDate });
+    if (error) {
+      const verification = await supabase.rpc('get_running_period_context');
+      if (!verification.error && (verification.data?.has_running_period === true || normalizeRunningPeriodPayload(verification.data))) {
+        return verification.data;
+      }
+      throw error;
+    }
+    return true;
+  }
+
+  const retryInitialMonth = async () => {
+    setSubmitting(true);
+    try {
+      await ensureInitialRunningMonth();
+      setInitialMonthStatus('started');
+      setInitialMonthError('');
+      toast.success('চলমান মাস সফলভাবে শুরু হয়েছে।');
+    } catch (error) {
+      const message = getFriendlySupabaseError(error, 'প্রথম মাস শুরু করা যায়নি।');
+      setInitialMonthStatus('failed');
+      setInitialMonthError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -101,6 +159,9 @@ export function OnboardingPage() {
             <span className="eyebrow">মেস তৈরি সম্পন্ন</span>
             <h1>“{createdHostel.name}” প্রস্তুত!</h1>
             <p>আপনি ম্যানেজার হিসেবে যুক্ত হয়েছেন। অন্য সদস্যদের এই Join Code দিন।</p>
+            {initialMonthStatus === 'started' && <div className="inline-success"><Icon name="check-circle" size={17} /><span>চলতি মাসের ১ তারিখ থেকে প্রথম মাস চালু হয়েছে।</span></div>}
+            {initialMonthStatus === 'failed' && <div className="inline-error"><Icon name="warning" size={17} /><span>মেস তৈরি হয়েছে, তবে প্রথম মাস চালু করা যায়নি। {initialMonthError || 'ইন্টারনেট ও Backend RPC যাচাই করে আবার চেষ্টা করুন।'}</span></div>}
+            {initialMonthStatus === 'failed' && <button type="button" className="secondary-button" disabled={submitting || !online} onClick={retryInitialMonth}>{submitting ? 'চেষ্টা হচ্ছে...' : 'প্রথম মাস আবার শুরু করুন'}</button>}
             <div className="join-code-box">
               <span>Join Code</span>
               <strong>{createdHostel.join_code}</strong>

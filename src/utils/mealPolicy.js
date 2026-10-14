@@ -16,7 +16,7 @@ export function canSubmitMealDay(day, now = Date.now()) {
 
 export function canCorrectMealDay(day, now = Date.now()) {
   if (!day) return false;
-  return Boolean(day.meal_date) && isCutoffPassed(day, now);
+  return Boolean(day.meal_date) && day.status !== 'finalized' && day.status !== 'cancelled' && isCutoffPassed(day, now);
 }
 
 export function getMealDayStatusText(day, now = Date.now()) {
