@@ -1722,3 +1722,7 @@ body {
 .platform-recovery-panel .platform-generated-code code { overflow-wrap: anywhere; user-select: text; }
 .forced-password-change { width: min(100% - 2rem, 470px); margin: max(5vh, 1rem) auto; padding: clamp(1.2rem, 4vw, 2rem); }
 @media(max-width:650px) { .platform-recovery-panel .platform-action-row { display:flex; flex-wrap:wrap; gap:.65rem; } .platform-member-action-buttons { flex-wrap:wrap; } }
+
+/* Module A: responsive admin navigation and existing public avatar images */
+.member-avatar-photo{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+@media(max-width:640px){.platform-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:8px;width:100%;margin:12px 0}.platform-tabs button{min-width:0;width:100%;white-space:normal;overflow-wrap:anywhere;font-size:12px;padding:10px 7px;text-align:center;line-height:1.45}.platform-tabs button:last-child:nth-child(odd){grid-column:1/-1}}

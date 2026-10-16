@@ -206,7 +206,7 @@ function MyAccountCard({ account, onClick }) {
           <span className="eyebrow">আমার হিসাব</span>
           <h2><button className="dashboard-member-name" type="button" onClick={onClick}>{account?.name || 'আমার হিসাব'}</button></h2>
         </div>
-        <div className="avatar avatar-large">{initials(account?.name)}</div>
+        <div className="avatar avatar-large">{account?.avatar_url ? <img className="member-avatar-photo" src={account.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : initials(account?.name)}</div>
       </div>
       <div className="account-grid">
         <div><span>জমা</span><strong>{formatCurrency(account?.deposit)}</strong></div>
@@ -223,7 +223,7 @@ function MemberCard({ member, onClick }) {
   return (
     <article className={`card member-card detailed-member-card ${member?.status === 'inactive' ? 'member-inactive-card' : ''}`}>
       <div className="member-card-top">
-        <div className="avatar">{initials(member?.name)}</div>
+        <div className="avatar">{member?.avatar_url ? <img className="member-avatar-photo" src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : initials(member?.name)}</div>
         <div className="member-copy">
           <h3><button className="dashboard-member-name" type="button" onClick={onClick}>{member?.name || 'সদস্য'}</button></h3>
           <div className="member-badge-row">
@@ -516,6 +516,7 @@ function mapDirectoryMember(row, hasRunningPeriod = true) {
   return {
     membership_id: row.membership_id,
     name: row.member_name || 'সদস্য',
+    avatar_url: row.avatar_url || row.photo_url || row.profile_photo_url || null,
     status: row.member_status || 'active',
     role: row.role || 'member',
     is_assistant_manager: Boolean(row.is_assistant_manager),
@@ -665,6 +666,7 @@ export function DashboardPage() {
             ...member,
             membership_id: id,
             name: member.name || directory?.member_name || prior?.name || 'সদস্য',
+            avatar_url: member.avatar_url || directory?.avatar_url || directory?.photo_url || prior?.avatar_url || null,
             status: directory?.member_status || member.status || prior?.status || 'active',
             role: member.role || directory?.role || prior?.role || 'member',
             is_assistant_manager: Boolean(member.is_assistant_manager ?? directory?.is_assistant_manager ?? prior?.is_assistant_manager),
@@ -713,15 +715,16 @@ export function DashboardPage() {
           meal_card: hasRunningPeriod ? (data?.meal_card || previous?.meal_card || null) : null,
           summary: hasRunningPeriod ? (data?.summary || previous?.summary || null) : null,
           my_account: hasRunningPeriod
-            ? (data?.my_account || previous?.my_account || (mappedOwn ? {
+            ? (data?.my_account ? { ...data.my_account, avatar_url: data.my_account.avatar_url || mappedOwn?.avatar_url || null } : previous?.my_account ? { ...previous.my_account, avatar_url: mappedOwn?.avatar_url || previous.my_account.avatar_url || null } : (mappedOwn ? {
                 name: mappedOwn.name || mappedOwn.member_name,
+                avatar_url: mappedOwn.avatar_url || null,
                 meals: mappedOwn.meals ?? mappedOwn.final_meals ?? 0,
                 deposit: mappedOwn.deposit ?? 0,
                 meal_cost: mappedOwn.meal_cost ?? 0,
                 other_expense: mappedOwn.other_expense ?? 0,
                 balance: mappedOwn.balance ?? 0,
               } : null))
-            : (mappedOwn ? { name: mappedOwn.name || mappedOwn.member_name, meals: 0, deposit: 0, meal_cost: 0, other_expense: 0, balance: 0 } : (data?.my_account || previous?.my_account)),
+            : (mappedOwn ? { name: mappedOwn.name || mappedOwn.member_name, avatar_url: mappedOwn.avatar_url || null, meals: 0, deposit: 0, meal_cost: 0, other_expense: 0, balance: 0 } : (data?.my_account || previous?.my_account)),
         };
         latestDashboardRef.current = normalized;
         setDashboard(normalized);

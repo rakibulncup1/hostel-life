@@ -226,9 +226,14 @@ export function NewMonthPage() {
   const requiredStart = context?.next_required_start_date || derivedRequiredStart || '';
   const periodStatusKnown = typeof context?.has_running_period === 'boolean';
   const hasRunning = context?.has_running_period === true;
-  const canStart = Boolean(periodStatusKnown && isPrimaryManager && !hasRunning && requiredStart && startDate === requiredStart && !periodDateError);
+  // Do not activate a future period before its first day (Dhaka date).
+  // Database authorization must enforce the same boundary in Module B.
+  const todayForStart = context?.today || dhakaDateInputValue();
+  const isFutureStart = Boolean(requiredStart && requiredStart > todayForStart);
+  const canStart = Boolean(periodStatusKnown && isPrimaryManager && !hasRunning && requiredStart && startDate === requiredStart && !periodDateError && !isFutureStart);
 
   const submit = async () => {
+    if (startDate > dhakaDateInputValue()) { toast.warning('নির্ধারিত শুরুর দিন না আসা পর্যন্ত নতুন মাস চালু করা যাবে না।'); return; }
     setBusy(true);
     try {
       const result = await startNewMonth(startDate);
@@ -256,6 +261,7 @@ export function NewMonthPage() {
               <div className="manager-current-period"><span>নতুন মাসের নির্ধারিত শুরুর তারিখ</span><strong>{formatDateBangla(requiredStart)}</strong><small>{derivedRequiredStart && !context?.next_required_start_date ? 'পূর্ববর্তী মাসের ইতিহাস অথবা প্রথম মাসের নিয়ম থেকে তারিখ নির্ধারণ করা হয়েছে।' : 'শুরুর তারিখ সিস্টেম নিজে নির্ধারণ করেছে। এটি পরিবর্তন করা যাবে না।'}</small></div>
               <label className="field-label"><span>শুরুর তারিখ</span><input type="date" value={startDate} min={requiredStart} max={requiredStart} readOnly /></label>
               <div className="form-hint"><Icon name="info" size={15} /> প্রথম মাস হলে চলতি বাংলাদেশি ক্যালেন্ডার মাসের ১ তারিখ থেকে শুরু হবে। পূর্ববর্তী মাস থাকলে তার শেষ দিনের পরের দিন থেকে শুরু হবে।</div>
+              {isFutureStart && <div className="inline-info" role="status">নির্ধারিত তারিখ {formatDateBangla(requiredStart)} আসার আগে নতুন মাস চালু করা যাবে না। এতে পুরোনো মাসের মিল রেকর্ডের সঙ্গে সংঘর্ষ এড়ানো যায়।</div>}
               <button className="primary-button large" type="button" disabled={!canStart || busy} onClick={() => setConfirmOpen(true)}><Icon name="calendar" size={17} /> নতুন মাস শুরু করুন</button>
             </>
           ) : null}
@@ -498,7 +504,7 @@ export function AssistantManagersPage() {
           <div className="assistant-grid">
             {members.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="users" size={24} /><strong>সহকারী দেওয়ার মতো সক্রিয় সদস্য নেই।</strong></div> : members.map((member) => {
               const checked = selected.includes(member.membership_id);
-              return <label className={`assistant-choice-card ${checked ? 'selected' : ''}`} key={member.membership_id}><input type="checkbox" checked={checked} onChange={() => toggle(member.membership_id)} /><span className="assistant-choice-avatar" aria-hidden="true">{member.member_name?.trim()?.[0] || 'স'}</span><span><strong>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সদস্য'}</small></span></label>;
+              return <label className={`assistant-choice-card ${checked ? 'selected' : ''}`} key={member.membership_id}><input type="checkbox" checked={checked} onChange={() => toggle(member.membership_id)} /><span className="assistant-choice-avatar" aria-hidden="true"><Icon name="users" size={16} /></span><span><strong>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সদস্য'}</small></span></label>;
             })}
           </div>
           <button className="primary-button large" type="button" disabled={busy} onClick={save}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'সহকারী তালিকা সংরক্ষণ করুন'}</button>
@@ -900,10 +906,22 @@ export function MealSheetPage() {
     setPrintBusy(true);
     try {
       const rows = filteredDailyTotals.map((r) => `<tr><td>${escapeReportHtml(formatDateWithWeekday(r.date))}</td><td>${reportStatusLabel(r.status)}</td><td>${r.breakfast}</td><td>${r.lunch}</td><td>${r.dinner}</td><td>${r.breakfast+r.lunch+r.dinner}</td></tr>`).join('');
+      // All-members export uses one column per actual period day, not one row per day.
+      // Never infer dates from the calendar month: mess periods can cross month boundaries.
+      const allDays = [...bundle.days].sort((a, b) => String(a.meal_date).localeCompare(String(b.meal_date)));
+      const recordLookup = new Map(bundle.mealRows.map((row) => [`${row.memberId}:${row.date}`, row]));
+      const compact = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 1 });
+      const matrixHead = `<tr><th>সদস্য</th>${allDays.map((day) => `<th title="${escapeReportHtml(day.meal_date)}">${escapeReportHtml(String(Number(day.meal_date.slice(-2))))}</th>`).join('')}</tr>`;
+      const matrixBody = bundle.members.map((member) => `<tr><td>${escapeReportHtml(member.member_name || 'সদস্য')}</td>${allDays.map((day) => {
+        const meal = recordLookup.get(`${member.membership_id}:${day.meal_date}`);
+        return `<td>${meal ? `${compact(meal.breakfast)}/${compact(meal.lunch)}/${compact(meal.dinner)}` : '—'}</td>`;
+      }).join('')}</tr>`).join('');
+      const matrix = `<p class="report-note">প্রতি ঘরে: সকাল / দুপুর / রাত · উপরের কলামে দিনের তারিখ।</p><table class="meal-matrix"><thead>${matrixHead}</thead><tbody>${matrixBody}</tbody></table>`;
       const memberTotal = selectedMember ? memberTotals.find((row) => row.key === selectedMemberId) : null;
       const memberSummary = memberTotal ? `<p><strong>${escapeReportHtml(memberTotal.name)}</strong> — সকালের মিল ${memberTotal.breakfast}, দুপুরের মিল ${memberTotal.lunch}, রাতের মিল ${memberTotal.dinner}, মোট ${memberTotal.breakfast + memberTotal.lunch + memberTotal.dinner}</p>` : '<p>সব সদস্য</p>' ;
       const reportManager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
-      printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, `${memberSummary}<table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows}</tbody></table>`, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: 'landscape' });
+      const personalTable = `<table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows}</tbody></table>`;
+      printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
     } catch (error) { toast.error(error.message || 'রিপোর্ট প্রিন্ট করা যায়নি।'); }
     finally { setPrintBusy(false); }
   };
@@ -1033,7 +1051,7 @@ export function ReportsPage() {
   ], dailyRows);
 
   const openPdf = (title, subtitle, content) => {
-    const pageOrientation = ['ডিপোজিট হিসাব', 'পূর্ণ মাসিক প্রতিবেদন'].includes(title) ? 'landscape' : 'portrait';
+    const pageOrientation = 'portrait';
     printReport(title, subtitle, content, null, { ...pdfMeta, pageOrientation });
   };
   const runExport = (callback) => {
