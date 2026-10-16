@@ -498,7 +498,7 @@ export function AssistantManagersPage() {
           <div className="assistant-grid">
             {members.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="users" size={24} /><strong>সহকারী দেওয়ার মতো সক্রিয় সদস্য নেই।</strong></div> : members.map((member) => {
               const checked = selected.includes(member.membership_id);
-              return <label className={`assistant-choice-card ${checked ? 'selected' : ''}`} key={member.membership_id}><input type="checkbox" checked={checked} onChange={() => toggle(member.membership_id)} /><span className="assistant-choice-avatar">{member.member_name?.trim()?.[0] || 'স'}</span><span><strong>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সদস্য'}</small></span></label>;
+              return <label className={`assistant-choice-card ${checked ? 'selected' : ''}`} key={member.membership_id}><input type="checkbox" checked={checked} onChange={() => toggle(member.membership_id)} /><span className="assistant-choice-avatar" aria-hidden="true">{member.member_name?.trim()?.[0] || 'স'}</span><span><strong>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সদস্য'}</small></span></label>;
             })}
           </div>
           <button className="primary-button large" type="button" disabled={busy} onClick={save}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'সহকারী তালিকা সংরক্ষণ করুন'}</button>

@@ -436,7 +436,7 @@ function LateRequestCard({ meal, isOnline, lastSync }) {
         </div>
         <span className="count-badge">{formatNumber(preparedRows.length)} জন</span>
       </div>
-      <div className="late-request-summary-info"><Icon name="info" size={17}/><div><strong>{formatNumber(preparedRows.length)} জনের অনুমোদিত মিল পরিবর্তন</strong><p>নিচের +/− সংখ্যাগুলো মূল মিলের সঙ্গে সমন্বয় করতে হবে; এগুলো নতুন মোট মিল নয়।</p></div></div>
+      <p className="late-request-compact-note"><Icon name="info" size={15} /> +/− হলো মূল মিলের সঙ্গে যোগ-বিয়োগ; নতুন মোট নয়।</p>
       <div className="late-request-delta-grid">
         <LateDeltaStat label="ব্রেকফাস্ট" value={totals.breakfast} />
         <LateDeltaStat label="লাঞ্চ" value={totals.lunch} />
@@ -452,7 +452,7 @@ function LateRequestCard({ meal, isOnline, lastSync }) {
       </div>
       <div className="meal-detail-hint"><span>{isOnline ? 'ব্যক্তিভিত্তিক বিস্তারিত দেখুন' : 'সংরক্ষিত বিস্তারিত দেখুন'}</span><Icon name="chevron" size={17} /></div>
     </section>
-    <div className="late-request-counting-warning"><Icon name="warning" size={17} /><div><strong>মিল গণনার সময় খেয়াল রাখুন</strong><span>আজকের মিল কার্ডের তথ্যের সঙ্গে এই লেট রিকোয়েস্টের +/− সমন্বয় করে তারপর খালাকে মিলের হিসাব জানাবেন।</span></div></div>
+    <p className="late-request-counting-compact"><Icon name="warning" size={15} /> খালাকে হিসাব জানানোর আগে আজকের মিলের সঙ্গে এই সমন্বয় যোগ করুন।</p>
     {detailsOpen && <LateRequestDetailsModal
       date={targetDate}
       rows={preparedRows}
@@ -489,7 +489,7 @@ function LateRequestDetailsModal({ date, rows, totals, onClose }) {
       <div className="late-request-detail-totals">
         {mealItems.map(([key, label]) => <LateDeltaStat key={key} label={label} value={totals[key]} />)}
       </div>
-      <div className="late-request-detail-list">
+      <div className="late-request-detail-list" tabIndex={0} role="region" aria-label="লেট রিকোয়েস্টের সদস্য তালিকা">
         {rows.map((row, index) => <article className="late-request-detail-member" key={`${row.override_id || row.request_id || row.membership_id}-${index}`}>
           <div className="late-request-detail-member-head">
             <div><strong>{row.name || row.member_name || 'সদস্য'}</strong><small>{row.source === 'member_correction' ? 'সংশোধিত মিল' : 'লেট মিল রিকোয়েস্ট'}</small></div>
@@ -907,11 +907,11 @@ export function DashboardPage() {
                 <Icon name="offline" size={15} /> সর্বশেষ সংরক্ষিত তথ্য · {lastSync ? formatDateTime12(lastSync) : 'সময় পাওয়া যায়নি'}
               </div>
             )}
-          </section> : dashboardPeriodStatus === 'none' ? <div className="no-period-summary-note"><Icon name="info" size={16} /> নতুন মাস শুরু না হওয়া পর্যন্ত এই মাসের জমা, মিল ও খরচের সারসংক্ষেপ দেখানো হবে না।</div> : <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>মাসের অবস্থা যাচাই করা যায়নি</strong><p>সার্ভার থেকে চলমান মাসের নিশ্চয়তা পাওয়া যায়নি, তাই ভুল করে “মাস শুরু হয়নি” দেখানো হচ্ছে না।</p><button className="secondary-button compact" type="button" onClick={() => loadDashboard(false, { force: true, refreshMealBundle: true })}>আবার যাচাই করুন</button></div></div>}
+          </section> : dashboardPeriodStatus === 'none' ? null : <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>মাসের অবস্থা যাচাই করা যায়নি</strong><p>সার্ভার থেকে চলমান মাসের নিশ্চয়তা পাওয়া যায়নি, তাই ভুল করে “মাস শুরু হয়নি” দেখানো হচ্ছে না।</p><button className="secondary-button compact" type="button" onClick={() => loadDashboard(false, { force: true, refreshMealBundle: true })}>আবার যাচাই করুন</button></div></div>}
 
-          <MyAccountCard account={account} onClick={() => openMember(membership?.membership_id)} />
+          {online && <MyAccountCard account={account} onClick={() => openMember(membership?.membership_id)} />}
 
-          <section className="section-block">
+          {online && <section className="section-block">
             <div className="section-heading outside">
               <div>
                 <span className="eyebrow">এই মেসের সদস্যরা</span>
@@ -930,7 +930,7 @@ export function DashboardPage() {
                 {members.map((member) => <MemberCard member={member} key={member.membership_id} onClick={() => openMember(member.membership_id)} />)}
               </div>
             )}
-          </section>
+          </section>}
         </>
       ) : online && dashboardError ? (
         <section className="state-card state-card-error">

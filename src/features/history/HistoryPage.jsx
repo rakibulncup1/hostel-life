@@ -5,6 +5,7 @@ import { useToast } from '../../components/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { fetchRetentionNotice, fetchArchivedFinalSummaries } from '../../services/retentionService';
 import { fetchAccountHistory, fetchArchivedMonthDetail, fetchMarketDetail, fetchMarketHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
 import { adjustTransaction, updateMarketEntry, voidMarketEntry } from '../../services/managerService';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
@@ -35,6 +36,8 @@ export function HistoryPage() {
   const [selectedArchivePeriodId, setSelectedArchivePeriodId] = useState(() => new URLSearchParams(window.location.search).get('archive_period') || '');
   const [archiveEditPeriods, setArchiveEditPeriods] = useState([]);
   const [periods, setPeriods] = useState([]);
+  const [retentionNotice, setRetentionNotice] = useState(null);
+  const [finalSummaries, setFinalSummaries] = useState([]);
   const [hasRunningMonth, setHasRunningMonth] = useState(false);
   const [runningPeriodContext, setRunningPeriodContext] = useState(null);
   const [periodLoadError, setPeriodLoadError] = useState(null);
@@ -63,6 +66,18 @@ export function HistoryPage() {
   const [marketMemberFilter, setMarketMemberFilter] = useState('');
   const [marketDateFrom, setMarketDateFrom] = useState('');
   const [marketDateTo, setMarketDateTo] = useState('');
+
+
+  useEffect(() => {
+    if (!isOnline || tab !== 'months') return;
+    let active = true;
+    Promise.allSettled([fetchRetentionNotice(), fetchArchivedFinalSummaries()]).then(([policy, summaries]) => {
+      if (!active) return;
+      if (policy.status === 'fulfilled') setRetentionNotice(policy.value);
+      if (summaries.status === 'fulfilled') setFinalSummaries(summaries.value);
+    });
+    return () => { active = false; };
+  }, [isOnline, tab]);
 
   const load = useCallback(async () => {
     if (!isOnline) return;
@@ -117,7 +132,7 @@ export function HistoryPage() {
         period: runningMonth,
       }));
       const canEditVisibleRows = Boolean(selectedArchivePeriodId
-        ? (canManageHistory && archivePermission)
+        ? archivePermission
         : currentPeriodManager);
       if (tab !== 'months' && !selectedArchivePeriodId && runningResult.status === 'rejected') {
         setMarketRows([]); setAccountRows([]); setMembers([]); return;
@@ -166,9 +181,9 @@ export function HistoryPage() {
     membership,
     period: runningPeriodContext,
   });
-  const canEditVisibleRows = Boolean(canManageHistoryEffective && (selectedArchivePeriodId
+  const canEditVisibleRows = Boolean(selectedArchivePeriodId
     ? archiveEditPeriods.some((period) => period.period_id === selectedArchivePeriodId)
-    : hasRunningMonth));
+    : canManageHistoryEffective && hasRunningMonth);
   const selectedArchivePeriod = archiveEditPeriods.find((period) => period.period_id === selectedArchivePeriodId);
   // Separate the archived period record from the optional edit grant. The period
   // label must remain visible even when a viewer has no permission to edit it.
@@ -240,6 +255,24 @@ export function HistoryPage() {
     finally { setDetailLoading(false); }
   };
 
+  const printFinalSummary = (row) => {
+    const htmlSafe = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const summary = row.summary || {};
+    const items = [
+      ['মাস', row.period_label || summary.label || '—'],
+      ['শুরুর দিন', row.start_date || '—'],
+      ['শেষ দিন', row.end_date || '—'],
+      ['বাজারের মোট', formatCurrency(summary.market_total || 0)],
+      ['খালার মোট', formatCurrency(summary.khala_total || 0)],
+      ['সকালের মিল', formatNumber(summary.meal_total?.breakfast || 0)],
+      ['দুপুরের মিল', formatNumber(summary.meal_total?.lunch || 0)],
+      ['রাতের মিল', formatNumber(summary.meal_total?.dinner || 0)],
+    ];
+    const table = `<table><thead><tr><th>বিষয়</th><th>হিসাব</th></tr></thead><tbody>${items.map(([a,b]) => `<tr><td>${htmlSafe(a)}</td><td>${htmlSafe(b)}</td></tr>`).join('')}</tbody></table><p class="report-note">এটি সংরক্ষিত সামারি; বিস্তারিত লেনদেনের বিকল্প নয়।</p>`;
+    try { printReport('সংরক্ষিত চূড়ান্ত হিসাব', row.period_label || '', table, null, { periodLabel: row.period_label || 'পূর্ববর্তী মাস' }); }
+    catch (error) { toast.error(getFriendlySupabaseError(error, 'রিপোর্ট খোলা যায়নি।')); }
+  };
+
   const openMonth = async (period) => {
     setDetailLoading(true);
     try { setMonthDetail(await fetchArchivedMonthDetail(period.period_id)); }
@@ -286,6 +319,8 @@ export function HistoryPage() {
         {TABS.map((item) => <button key={item.key} className={tab === item.key ? 'active' : ''} type="button" onClick={() => setTab(item.key)}><Icon name={item.icon} size={16} /> {item.label}</button>)}
       </div>
 
+      {tab === 'months' && retentionNotice && <div className="card retention-member-notice" role="note"><strong>ইতিহাস সংরক্ষণ নীতি</strong><p>সর্বশেষ {retentionNotice.detail_months} মাস বিস্তারিত, এরপর আরও {retentionNotice.summary_months} মাসের চূড়ান্ত সারসংক্ষেপ সংরক্ষণের নীতি রয়েছে। কোনো আর্কাইভ স্বয়ংক্রিয়ভাবে মুছে ফেলা হয় না।</p></div>}
+      {tab === 'months' && finalSummaries.length > 0 && <section className="card retention-member-notice"><h2>সংরক্ষিত চূড়ান্ত সারসংক্ষেপ</h2><div className="history-final-summary-list">{finalSummaries.map(row => <details key={row.period_id}><summary>{row.period_label || row.summary?.label || 'পূর্ববর্তী মাস'} · {row.end_date || ''}</summary><div className="history-final-summary-body"><p>বাজারের মোট: {formatCurrency(row.summary?.market_total ?? 0)}</p><p>খালার মোট: {formatCurrency(row.summary?.khala_total ?? 0)}</p><p>মোট মিল (সকালের / দুপুরের / রাতের): {formatNumber(row.summary?.meal_total?.breakfast || 0)} / {formatNumber(row.summary?.meal_total?.lunch || 0)} / {formatNumber(row.summary?.meal_total?.dinner || 0)}</p><button type="button" className="secondary-button compact" onClick={() => printFinalSummary(row)}>A4 PDF / প্রিন্ট</button></div></details>)}</div></section>}
       {tab === 'account' && (
         <div className="card history-filter-card account-history-filter-card">
           <div><strong>হিসাব ইতিহাসের পরিসর</strong><small>{canEditVisibleRows ? 'সব সদস্য অথবা নির্দিষ্ট সদস্যের হিসাব দেখুন।' : 'সবার হিসাব অথবা শুধু নিজের হিসাব বেছে নিন। এরপর জমা, বাজার ও খরচের ধরন দিয়েও তালিকা ছেঁকে নিতে পারবেন।'}</small></div>

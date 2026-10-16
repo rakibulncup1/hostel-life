@@ -56,7 +56,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [unreadCount, setUnreadCount] = useState(0);
   const [platformSettings, setPlatformSettings] = useState(null);
   const unreadFetchInFlightRef = useRef(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('hostel-life-theme') || 'system');
+  const [theme, setTheme] = useState(() => localStorage.getItem('hostel-life-theme') || 'dark');
 
   const active = pathToKey(pathname);
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
@@ -70,7 +70,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   }, [user?.id]);
 
   useEffect(() => {
-    const syncTheme = () => setTheme(localStorage.getItem('hostel-life-theme') || 'system');
+    const syncTheme = () => setTheme(localStorage.getItem('hostel-life-theme') || 'dark');
     window.addEventListener('hostel-life-theme-change', syncTheme);
     return () => window.removeEventListener('hostel-life-theme-change', syncTheme);
   }, []);

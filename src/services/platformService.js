@@ -188,3 +188,59 @@ export async function uploadDeveloperPhoto(userId, file) {
   if (!data?.publicUrl) throw new Error('ছবির URL তৈরি করা যায়নি।');
   return `${data.publicUrl}?v=${Date.now()}`;
 }
+
+
+// Retention controls deliberately use authenticated admin-only RPCs. Missing SQL
+// fails closed; the browser never deletes archive rows directly.
+export async function platformAdminGetRetention() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_retention');
+  if (error) throw error;
+  return firstRow(data) || {};
+}
+
+export async function platformAdminUpdateRetention(detailMonths, summaryMonths) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_update_retention', {
+    p_detail_months: Number(detailMonths), p_summary_months: Number(summaryMonths),
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+export async function platformAdminListExpiredArchives() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_expired_archives');
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function platformAdminDeleteExpiredArchive(hostelId, periodId, confirmation) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_delete_expired_archive', {
+    p_hostel_id: hostelId, p_period_id: periodId, p_confirmation: confirmation,
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+// Pro Master SQL: these administrative functions are separate deliberate steps.
+export async function platformAdminFinalizeArchiveSummary(periodId) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_finalize_archive_summary', { p_period_id: periodId });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+export async function platformAdminVerifyArchiveSummary(periodId, confirmation) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_verify_archive_summary', { p_period_id: periodId, p_confirmation: confirmation });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+export async function platformAdminListSavedSummaries() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_saved_summaries');
+  if (error) throw error;
+  const value = firstRow(data) || data;
+  return Array.isArray(value) ? value : [];
+}

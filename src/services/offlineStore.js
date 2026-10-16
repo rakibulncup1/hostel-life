@@ -75,8 +75,14 @@ export async function saveDashboardSnapshot({ userId, hostelId, dashboard, mealB
     key: keyFor(userId, hostelId),
     userId,
     hostelId,
-    dashboard,
-    mealBundle: mealBundle || null,
+    // Store only the two requested offline cards, not entire financial/member dashboard.
+    dashboard: {
+      meal_card: dashboard.meal_card || null,
+      late_requests: dashboard.late_requests || null,
+      period_status: dashboard.period_status || null,
+      has_running_period: dashboard.has_running_period ?? null,
+    },
+    mealBundle: null,
     savedAt: new Date().toISOString(),
     schemaVersion: 2,
   });
@@ -84,7 +90,14 @@ export async function saveDashboardSnapshot({ userId, hostelId, dashboard, mealB
 
 export async function readDashboardSnapshot({ userId, hostelId }) {
   if (!userId || !hostelId) return null;
-  return get(DASHBOARD_STORE, keyFor(userId, hostelId));
+  const record = await get(DASHBOARD_STORE, keyFor(userId, hostelId));
+  if (!record) return null;
+  return { ...record, mealBundle: null, dashboard: {
+    meal_card: record.dashboard?.meal_card || null,
+    late_requests: record.dashboard?.late_requests || null,
+    period_status: record.dashboard?.period_status || null,
+    has_running_period: record.dashboard?.has_running_period ?? null,
+  } };
 }
 
 export async function clearDashboardSnapshot({ userId, hostelId }) {

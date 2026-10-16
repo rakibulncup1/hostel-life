@@ -1,6 +1,6 @@
 export const THEME_KEY = 'hostel-life-theme';
 
-export function applyTheme(theme) {
+export function applyTheme(theme = 'dark') {
   const root = document.documentElement;
   const effective = theme === 'system'
     ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')

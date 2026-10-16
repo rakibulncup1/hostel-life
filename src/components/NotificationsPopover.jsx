@@ -9,6 +9,11 @@ import { getFriendlySupabaseError } from '../utils/supabaseErrors';
 function typeLabel(type) {
   if (type === 'manager_message') return 'ম্যানেজারের বার্তা';
   if (type === 'market_entry') return 'বাজার আপডেট';
+  if (['new_month', 'month_started', 'period_started'].includes(type)) return 'নতুন মাস';
+  if (['manager_change', 'manager_changed'].includes(type)) return 'ম্যানেজার পরিবর্তন';
+  if (['membership_change', 'member_added', 'member_status'].includes(type)) return 'সদস্য আপডেট';
+  if (['meal_request_approved', 'meal_request_rejected', 'meal_request_update'].includes(type)) return 'মিল অনুরোধ';
+  if (['archive_deleted', 'retention_updated'].includes(type)) return 'আর্কাইভ ও সংরক্ষণ নীতি';
   return 'সিস্টেম নোটিফিকেশন';
 }
 
@@ -60,13 +65,24 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
     const unseen = items.filter((item) => !item.is_seen);
     if (!unseen.length) return toast.info('সব নোটিফিকেশন আগেই দেখা হয়েছে।');
     setBusyId('all');
+    const successes = new Set();
     try {
-      await Promise.all(unseen.map((item) => markNotificationSeen(item.notification_id)));
-      setItems((current) => current.map((row) => ({ ...row, is_seen: true, seen_at: row.seen_at || new Date().toISOString() })));
-      onUnreadChange?.(0);
-      toast.success('সব নোটিফিকেশন দেখা হয়েছে।');
+      // Small batches avoid a burst of 50 simultaneous Supabase writes on Free plan.
+      // Each successful acknowledgement is preserved even if a later request fails.
+      for (let offset = 0; offset < unseen.length; offset += 4) {
+        const batch = unseen.slice(offset, offset + 4);
+        const results = await Promise.allSettled(batch.map((item) => markNotificationSeen(item.notification_id)));
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') successes.add(batch[index].notification_id);
+        });
+      }
+      setItems((current) => current.map((row) => successes.has(row.notification_id)
+        ? { ...row, is_seen: true, seen_at: row.seen_at || new Date().toISOString() } : row));
+      onUnreadChange?.(items.filter((row) => !row.is_seen && !successes.has(row.notification_id)).length);
+      if (successes.size === unseen.length) toast.success('সব নোটিফিকেশন দেখা হয়েছে।');
+      else toast.warning(`${successes.size}টি দেখা হয়েছে, ${unseen.length - successes.size}টি বাকি। পরে আবার চেষ্টা করুন।`);
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'সব নোটিফিকেশন দেখা হিসেবে চিহ্নিত করা যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'নোটিফিকেশন আপডেট করা যায়নি।'));
     } finally {
       setBusyId('');
     }
@@ -114,7 +130,7 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
         <div className="notification-list">
           {items.map((item) => (
             <article className={`notification-item ${item.is_seen ? 'seen' : 'unseen'}`} key={item.notification_id}>
-              <button className="notification-main" type="button" onClick={() => seen(item)} disabled={busyId === item.notification_id}>
+              <button className="notification-main" type="button" onClick={() => seen(item)} disabled={Boolean(busyId)}>
                 <span className="notification-icon"><Icon name={item.notification_type === 'market_entry' ? 'dining' : item.notification_type === 'manager_message' ? 'bell' : 'info'} size={17} /></span>
                 <span className="notification-copy">
                   <strong>{item.title}</strong>
@@ -122,7 +138,7 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
                   <span>{item.body}</span>
                 </span>
               </button>
-              <button className="icon-button compact-icon ghost notification-delete" type="button" disabled={busyId === item.notification_id} onClick={() => remove(item)} aria-label="নোটিফিকেশন মুছুন"><Icon name="trash" size={16} /></button>
+              <button className="icon-button compact-icon ghost notification-delete" type="button" disabled={Boolean(busyId)} onClick={() => remove(item)} aria-label="নোটিফিকেশন মুছুন"><Icon name="trash" size={16} /></button>
             </article>
           ))}
         </div>

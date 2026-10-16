@@ -44,7 +44,7 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
         <div className="auth-brand-panel">
           <div className="auth-brand-mark"><Icon name="home" size={28} /></div>
           <span className="auth-eyebrow">HOSTEL LIFE</span>
-          <h1>মেসের কাজ, হিসাব আর মিল — এক জায়গায়।</h1>
+          <h1>মিল, বাজার ও মাসিক হিসাব — সব এক জায়গায়।</h1>
           <p>মিল, বাজার, জমা ও সদস্যদের হিসাব সহজভাবে পরিচালনা করুন।</p>
         </div>
         <div className="auth-form-panel">

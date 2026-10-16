@@ -7,6 +7,7 @@ import { ProfilePage } from '../features/profile/ProfilePage';
 import { AllMembersPage, KhalaMoneyViewPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage, ArchiveEditAccessPage } from '../features/menu/MenuPages';
 import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, ArchiveManagerPage, KhalaMoneyPage, MemberManagementPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
 import { AuthPage } from '../features/auth/AuthPage';
+import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange';
 import { OnboardingPage } from '../features/onboarding/OnboardingPage';
 import { InactiveMembershipPage } from '../features/account/InactiveMembershipPage';
 import { IdentityErrorPage } from '../features/account/IdentityErrorPage';
@@ -56,7 +57,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (auth.authLoading) return;
+    if (auth.authLoading || auth.user?.app_metadata?.must_change_password) return;
     if (pathname === '/super-admin') {
       if (!auth.isAuthenticated) navigateTo('/auth/login', true);
       return;
@@ -122,6 +123,8 @@ export function App() {
     else if (pathname === '/super-admin') title = 'Hostel Life — Super Admin';
     document.title = title;
   }, [pathname]);
+
+  if (!auth.authLoading && auth.isAuthenticated && auth.user?.app_metadata?.must_change_password) return <ForcedPasswordChange />;
 
   if (pathname.startsWith('/auth/') || pathname === '/auth') {
     if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.authLoading) {

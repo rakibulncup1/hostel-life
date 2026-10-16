@@ -14,7 +14,7 @@ function initials(name) {
 }
 
 export function ProfilePage() {
-  const { profile, membership, isManager, refreshIdentity } = useAuth();
+  const { profile, membership, isManager, refreshIdentity, user } = useAuth();
   const toast = useToast();
   const fileRef = useRef(null);
   const [editingInfo, setEditingInfo] = useState(false);
@@ -28,7 +28,7 @@ export function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'system');
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
 
   useEffect(() => {
     setName(profile?.full_name || '');
@@ -61,10 +61,12 @@ export function ProfilePage() {
   const uploadAvatar = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !profile?.user_id) return;
+    if (!file) return;
+    const avatarUserId = user?.id || profile?.user_id;
+    if (!avatarUserId) return toast.error('আপনার লগইন পরিচয় পাওয়া যায়নি। আবার লগইন করুন।');
     setUploading(true);
     try {
-      const url = await uploadProfileAvatar(profile.user_id, file);
+      const url = await uploadProfileAvatar(avatarUserId, file);
       setAvatarUrl(url);
       await updateMyProfile({ fullName: name.trim() || profile.full_name, phone: phone.trim() || null, avatarUrl: url });
       await refreshIdentity();
@@ -85,8 +87,9 @@ export function ProfilePage() {
     try {
       const { supabase } = await import('../../lib/supabase');
       if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
-      if (!profile?.email) throw new Error('অ্যাকাউন্টের ইমেইল পাওয়া যায়নি।');
-      const { error: verifyError } = await supabase.auth.signInWithPassword({ email: profile.email, password: currentPassword });
+      const accountEmail = user?.email || profile?.email;
+      if (!accountEmail) throw new Error('অ্যাকাউন্টের ইমেইল পাওয়া যায়নি।');
+      const { error: verifyError } = await supabase.auth.signInWithPassword({ email: accountEmail, password: currentPassword });
       if (verifyError) throw verifyError;
       await changePassword(newPassword);
       setCurrentPassword('');
@@ -128,11 +131,11 @@ export function ProfilePage() {
           <form className="profile-form" onSubmit={saveProfile}>
             <label className="field-label"><span>নাম</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required /></label>
             <label className="field-label"><span>মোবাইল নম্বর</span><input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} placeholder="ঐচ্ছিক" /></label>
-            <div className="profile-email-readonly"><Icon name="mail" size={16} /><div><small>ইমেইল</small><strong>{profile?.email || '—'}</strong><span>নিরাপত্তার কারণে ইমেইল পরিবর্তন করা যাবে না।</span></div></div>
+            <div className="profile-email-readonly"><Icon name="mail" size={16} /><div><small>ইমেইল</small><strong>{profile?.email || user?.email || '—'}</strong><span>নিরাপত্তার কারণে ইমেইল পরিবর্তন করা যাবে না।</span></div></div>
             <button className="primary-button" type="submit" disabled={savingInfo}>{savingInfo ? 'সংরক্ষণ হচ্ছে...' : 'পরিবর্তন সংরক্ষণ করুন'}</button>
           </form>
         ) : (
-          <div className="profile-detail-list"><div><span>নাম</span><strong>{profile?.full_name || '—'}</strong></div><div><span>মোবাইল</span><strong>{profile?.phone || 'যোগ করা হয়নি'}</strong></div><div><span>ইমেইল</span><strong>{profile?.email || '—'}</strong></div></div>
+          <div className="profile-detail-list"><div><span>নাম</span><strong>{profile?.full_name || '—'}</strong></div><div><span>মোবাইল</span><strong>{profile?.phone || 'যোগ করা হয়নি'}</strong></div><div><span>ইমেইল</span><strong>{profile?.email || user?.email || '—'}</strong></div></div>
         )}
       </section>
 
