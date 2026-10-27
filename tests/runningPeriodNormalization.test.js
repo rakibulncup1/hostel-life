@@ -16,6 +16,19 @@ test('supports older direct period payload and JSON encoded payload', () => {
   assert.equal(normalizeRunningPeriodPayload(JSON.stringify({ period: { period_id: 'period-3' } })).period_id, 'period-3');
 });
 
+test('hides the open-ended running-period sentinel and retains real closed dates', () => {
+  const running = normalizeRunningPeriodPayload({ period: {
+    id: 'running-open-ended', status: 'running', start_date: '2026-10-17', end_date: '9999-12-31',
+  } });
+  assert.equal(running.end_date, null);
+  assert.equal(running.start_date, '2026-10-17');
+
+  const closed = normalizeRunningPeriodPayload({ period: {
+    id: 'closed-period', status: 'closed', start_date: '2026-10-17', end_date: '2026-10-27',
+  } });
+  assert.equal(closed.end_date, '2026-10-27');
+});
+
 test('returns null for a successful empty context rather than inventing a month', () => {
   assert.equal(normalizeRunningPeriodPayload({ period: null, has_running_period: false }), null);
   assert.equal(normalizeRunningPeriodPayload(null), null);

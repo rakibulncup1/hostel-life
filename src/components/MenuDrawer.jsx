@@ -2,7 +2,7 @@ import { Icon } from './Icon';
 
 const commonItems = [
   { key: 'meal-sheet', label: 'মিল শিট', icon: 'history' },
-  { key: 'archive-edit-access', label: 'আর্কাইভ সম্পাদনা', icon: 'history' },
+  { key: 'archive', label: 'আর্কাইভ', icon: 'history' },
   { key: 'reports', label: 'রিপোর্ট ডাউনলোড', icon: 'download' },
   { key: 'members', label: 'সকল সদস্য', icon: 'user' },
   { key: 'khala-money-view', label: 'খালার টাকা', icon: 'wallet' },
@@ -23,7 +23,6 @@ const primaryItems = [
   { key: 'change-manager', label: 'ম্যানেজার পরিবর্তন', icon: 'shield' },
   { key: 'assistant-managers', label: 'সহকারী ম্যানেজার', icon: 'users' },
   { key: 'hostel-settings', label: 'মেস সেটিংস', icon: 'lock' },
-  { key: 'archive', label: 'আর্কাইভ', icon: 'history' },
   { key: 'send-notification', label: 'নোটিফিকেশন পাঠান', icon: 'bell' },
   { key: 'khala-money', label: 'খালার টাকা', icon: 'dining' },
   { key: 'member-management', label: 'সদস্য ব্যবস্থাপনা', icon: 'user' },

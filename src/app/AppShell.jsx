@@ -161,7 +161,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       'send-notification': '/app/menu/send-notification',
       'reports': '/app/menu/reports',
       'meal-sheet': '/app/menu/meal-sheet',
-      'archive-edit-access': '/app/menu/archive-edit-access',
+      'archive-edit-access': '/app/menu/archive',
       'current-month-close': '/app/menu/current-month-close',
       'new-month': '/app/menu/new-month',
       'change-manager': '/app/menu/change-manager',

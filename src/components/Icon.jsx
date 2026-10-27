@@ -1,4 +1,13 @@
 const paths = {
+  archive: 'M3 4h18v4H3zM5 8v12h14V8M9 12h6',
+  search: 'M11 3a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM17 17l4 4',
+  'chevron-right': 'm9 18 6-6-6-6',
+  'refresh-cw': 'M20 11a8 8 0 1 0 1.7 5M20 4v7h-7',
+  pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z',
+  utensils: 'M6 3v7a3 3 0 0 0 3 3h0V3M9 13v8M18 3v18M15 3v5h6',
+  'shopping-basket': 'M3 9h18l-2 11H5zM8 9l4-6 4 6M12 12v4',
+  'hand-coins': 'M3 13h5l3 3h5l5-5a1.5 1.5 0 0 0-2-2l-4 3h-3M3 13v7h15l3-6M8 7a3 3 0 1 0 6 0 3 3 0 1 0-6 0z',
+  receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3',
   menu: 'M4 7h16M4 12h16M4 17h16',
   bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4',
   home: 'M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5zM9 21v-6h6v6',

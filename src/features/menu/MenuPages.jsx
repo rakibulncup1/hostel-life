@@ -256,6 +256,7 @@ export function KhalaMoneyViewPage() {
                     <span className="khala-ledger-mark"><Icon name="wallet" size={17} /></span>
                     <div>
                       <strong>খালার পারিশ্রমিক</strong>
+                      <small>পরিশোধ করেছেন: {row.created_by_name || row.actor_name || row.manager_name || row.entered_by_name || 'নাম পাওয়া যায়নি'}</small>
                       <small>{formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
                     </div>
                   </div>
@@ -318,7 +319,7 @@ function RankingPage({ kind }) {
               <article className={`ranking-row ${row.is_first ? 'first-rank' : ''}`} key={row.membership_id}>
                 <div className={`rank-number ${row.rank_no <= 3 ? `rank-${row.rank_no}` : ''}`}>{row.rank_no}</div>
                 <div className="rank-avatar-wrap"><Avatar member={{ member_name: row.member_name }} />{row.is_first && <span className="rank-crown"><Icon name="crown" size={13} /></span>}</div>
-                <div className="rank-copy"><strong>{row.member_name}</strong><small>{row.is_first ? '🏆 সবার আগে' : `ক্রমিক ${formatNumber(row.rank_no)}`}</small></div>
+                <div className="rank-copy"><strong>{row.rank_no <= 3 ? '🏆 ' : ''}{row.member_name}</strong><small>{row.is_first ? '🏆 সবার আগে' : `ক্রমিক ${formatNumber(row.rank_no)}`}</small></div>
                 <div className="rank-value"><strong>{shopper ? formatCurrency(row.total_market_amount) : formatNumber(row.total_meals, { maximumFractionDigits: 1 })}</strong><span>{shopper ? 'বাজার' : 'মিল'}</span></div>
               </article>
             ))}
@@ -374,7 +375,7 @@ export function PrivacyPolicyPage() {
       <h2>৪. তথ্য সুরক্ষায় আপনার ভূমিকা</h2><p>নিজের পাসওয়ার্ড ও লগইন-সুবিধা গোপন রাখুন, অন্য কাউকে নিজের অ্যাকাউন্ট ব্যবহার করতে দেবেন না এবং শেয়ার করা ডিভাইস ব্যবহার শেষে লগ আউট করুন। অচেনা লিংক বা সন্দেহজনক অনুরোধে ব্যক্তিগত তথ্য দেবেন না।</p>
       <h2>৫. তথ্য সংরক্ষণ ও অপসারণ</h2><p>মেসের হিসাবের ধারাবাহিকতা ও বিরোধ নিষ্পত্তির প্রয়োজনে কিছু রেকর্ড নির্দিষ্ট সময় ধরে রাখা হতে পারে। কোনো অ্যাকাউন্ট বা রেকর্ড সংশোধন/অপসারণের অনুরোধ থাকলে মেসের অনুমোদিত ম্যানেজার বা অ্যাপের নির্ধারিত সহায়তা-যোগাযোগের সঙ্গে যোগাযোগ করুন। আইনগত বা হিসাব-সংক্রান্ত কারণে কিছু রেকর্ড তাৎক্ষণিকভাবে অপসারণযোগ্য নাও হতে পারে।</p>
       <h2>৬. নীতির পরিবর্তন</h2><p>অ্যাপের ফিচার বা প্রযোজ্য প্রয়োজন বদলালে এই নীতির ভাষা হালনাগাদ হতে পারে। গুরুত্বপূর্ণ পরিবর্তনের পর নীতির নতুন সংস্করণ পর্যালোচনা করুন।</p>
-      <div className="policy-note"><Icon name="info" size={18}/><span>এই নীতিটি অ্যাপের ব্যবহারকারীদের জন্য সাধারণ তথ্য। কোনো প্রতিষ্ঠানের আইনি প্রয়োজন অনুযায়ী প্রকাশের আগে স্থানীয় আইন ও প্রয়োজনের সঙ্গে মিলিয়ে পর্যালোচনা করা উচিত।</span></div>
+      
     </section></div>;
 }
 
@@ -501,7 +502,7 @@ export function PreviousMonthsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Archive" title="পূর্ববর্তী মাস" description="শেষ ৩ মাস বিস্তারিত এবং তার আগের ১২ মাসের সারসংক্ষেপ।" />
+      <PageHeader eyebrow="Archive" title="আর্কাইভ" description="বন্ধ মাসগুলোর রিপোর্ট দেখুন। সাধারণ সদস্যরা শুধু দেখতে পারবেন; সংশোধনের সুবিধা কেবল বর্তমান প্রধান ম্যানেজারের জন্য।" />
       {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..." /> : months.length === 0 ? (
         <div className="empty-state-card"><Icon name="history" size={28} /><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>মেসে এখনো archive করা মাস পাওয়া যায়নি।</span></div>
       ) : (

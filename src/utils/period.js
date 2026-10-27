@@ -12,7 +12,15 @@ export function normalizeRunningPeriodPayload(payload) {
   if (!period || typeof period !== 'object') return null;
   const periodId = period.period_id || period.id;
   if (!periodId) return null;
-  return { ...period, period_id: periodId };
+  const normalized = { ...period, period_id: periodId };
+  // The open-ended running period uses an internal far-future sentinel so older
+  // deployed SQL routines keep working. Never expose that implementation detail
+  // as a user-visible end date; the actual end date is written when the month closes.
+  const endDate = String(normalized.end_date || '').slice(0, 10);
+  if (String(normalized.status || '').toLowerCase() === 'running' && endDate >= '9999-01-01') {
+    normalized.end_date = null;
+  }
+  return normalized;
 }
 
 

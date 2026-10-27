@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
 import { useToast } from './Toast';
-import { deleteMyNotification, fetchNotifications, managerDeleteNotification, markNotificationSeen } from '../services/notificationService';
+import { deleteAllMyNotifications, deleteMyNotification, fetchNotifications, managerDeleteNotification, markNotificationSeen } from '../services/notificationService';
 import { formatDateTime12 } from '../utils/time';
 import { getFriendlySupabaseError } from '../utils/supabaseErrors';
 
@@ -88,15 +88,30 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
     }
   };
 
+  // Delete only the current recipient's inbox copy. The manager RPC still applies
+  // its manager permission check and is restricted to recipient_user_id = auth.uid().
+  const removeAllMine = async () => {
+    if (!items.length || !window.confirm('আপনার ইনবক্সের সব নোটিফিকেশন সার্ভার থেকে স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না। অন্য সদস্যদের ইনবক্স অক্ষত থাকবে।')) return;
+    setBusyId('delete-all');
+    try {
+      await deleteAllMyNotifications();
+      setItems([]);
+      onUnreadChange?.(0);
+      toast.success('আপনার নোটিফিকেশন স্থায়ীভাবে মুছে ফেলা হয়েছে।');
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'সব নোটিফিকেশন সরানো যায়নি।'));
+    } finally { setBusyId(''); }
+  };
+
   const remove = async (item) => {
-    if (isManager && !window.confirm('এই নোটিফিকেশনটি সব সদস্যের জন্য মুছে দিতে চান?')) return;
+    if (!window.confirm('এই নোটিফিকেশনটি আপনার ইনবক্স থেকে সার্ভারসহ স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না।')) return;
     setBusyId(item.notification_id);
     try {
       if (isManager) await managerDeleteNotification(item.notification_id);
       else await deleteMyNotification(item.notification_id);
       setItems((current) => current.filter((row) => row.notification_id !== item.notification_id));
       onUnreadChange?.(items.filter((row) => row.notification_id !== item.notification_id && !row.is_seen).length);
-      toast.success('নোটিফিকেশন মুছে দেওয়া হয়েছে।');
+      toast.success('নোটিফিকেশন স্থায়ীভাবে মুছে ফেলা হয়েছে।');
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'নোটিফিকেশন মুছে দেওয়া যায়নি।'));
     } finally {
@@ -120,6 +135,7 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
         </div>
         <div className="notification-panel-actions">
           {unreadCount > 0 && <button className="text-button" type="button" disabled={busyId === 'all'} onClick={markAllSeen}>সব দেখা</button>}
+          {items.length > 0 && <button className="text-button" type="button" disabled={Boolean(busyId)} onClick={removeAllMine}>সব ডিলিট</button>}
           <button className="icon-button ghost" type="button" onClick={load} aria-label="রিফ্রেশ"><Icon name="refresh" size={17} /></button>
         </div>
       </div>

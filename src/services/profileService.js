@@ -6,6 +6,21 @@ const BUCKET = 'profile-avatars';
 const TARGET_FILE_SIZE = 190 * 1024;
 const MAX_INPUT_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const MIME_BY_EXTENSION = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+
+function normalizedImageFile(file) {
+  const declared = String(file?.type || '').toLowerCase();
+  if (ALLOWED_TYPES.has(declared)) return file;
+  const extension = String(file?.name || '').split('.').pop()?.toLowerCase();
+  const inferred = MIME_BY_EXTENSION[extension];
+  if (inferred && (!declared || declared === 'application/octet-stream' || declared === 'image/jpg')) {
+    // Some Android gallery/file-provider implementations omit or mislabel MIME.
+    // The image is decoded by loadImage() before upload, so extension alone does
+    // not permit arbitrary bytes to be uploaded as an avatar.
+    return new File([file], file.name || `profile.${extension}`, { type: inferred, lastModified: file.lastModified || Date.now() });
+  }
+  throw new Error('শুধু JPG, PNG বা WEBP ছবি ব্যবহার করুন।');
+}
 const MAX_DIMENSION = 1280;
 
 function loadImage(file) {
@@ -104,11 +119,11 @@ export async function updateMyProfile({ fullName, phone = null, avatarUrl = null
 export async function uploadProfileAvatar(userId, file) {
   assertSupabase();
   if (!userId) throw new Error('ব্যবহারকারীর পরিচয় পাওয়া যায়নি।');
-  if (!(file instanceof File)) throw new Error('একটি ছবি নির্বাচন করুন।');
-  if (!ALLOWED_TYPES.has(file.type)) throw new Error('শুধু JPG, PNG বা WEBP ছবি ব্যবহার করুন।');
+  if (!file || typeof file.size !== 'number' || typeof file.name !== 'string') throw new Error('একটি ছবি নির্বাচন করুন।');
   if (file.size > MAX_INPUT_FILE_SIZE) throw new Error('ছবির মূল ফাইল ১০ MB-এর বেশি হতে পারবে না।');
+  const normalized = normalizedImageFile(file);
 
-  const compressed = await compressProfileImage(file);
+  const compressed = await compressProfileImage(normalized);
   // Keep one stable object per user so replacing an avatar does not accumulate
   // a new permanent Storage object on every upload. Matching own-folder SELECT,
   // INSERT, UPDATE and DELETE policies are installed by the SQL migration.

@@ -24,7 +24,6 @@ import {
   revokeArchiveEditPermission,
   saveManagerMyMeal,
   setPeriodAssistants,
-  setRunningPeriodEndDate,
   startNewMonth,
   updateHostel,
   voidKhalaMoney,
@@ -61,6 +60,13 @@ function PrimaryManagerGuard({ children }) {
   const canManagePrimary = period ? Boolean(isPrimaryManager) : Boolean(isManager);
   if (canManagePrimary) return children;
   return <AccessNotice title="প্রধান ম্যানেজারের অনুমতি প্রয়োজন" text="এই কাজটি শুধু বর্তমান প্রধান ম্যানেজার করতে পারবেন।" />;
+}
+
+function currentPeriodRange(period) {
+  const start = period?.start_date ? formatDateBangla(period.start_date) : 'তারিখ নেই';
+  return period?.end_date
+    ? `${start} → ${formatDateBangla(period.end_date)}`
+    : `${start} থেকে চলমান`;
 }
 
 function PageHeader({ title, description, icon = 'shield', eyebrow = 'ম্যানেজার ফিচার' }) {
@@ -155,14 +161,6 @@ function SelectMember({ members, value, onChange, includeInactive = false }) {
     </select>
   );
 }
-
-function calendarMonthEnd(dateValue) {
-  if (!dateValue) return '';
-  const [year, month] = String(dateValue).slice(0, 7).split('-').map(Number);
-  if (!year || !month) return '';
-  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-}
-
 
 export function NewMonthPage() {
   const toast = useToast();
@@ -276,7 +274,6 @@ export function CloseCurrentMonthPage() {
   const toast = useToast();
   const online = useOnlineStatus();
   const { context, refresh } = useManagementContext();
-  const [selectedEnd, setSelectedEnd] = useState(toDateInputValue());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -287,18 +284,10 @@ export function CloseCurrentMonthPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, preflightData] = await Promise.all([refresh({ force: true }), fetchMonthClosePreflight().catch(() => null)]);
-      if (data?.period?.start_date) {
-        const todayValue = data.today || toDateInputValue();
-        const naturalEnd = calendarMonthEnd(data.period.start_date);
-        const firstLegal = data.period.start_date;
-        const defaultEnd = todayValue < firstLegal
-          ? firstLegal
-          : todayValue <= naturalEnd
-            ? todayValue
-            : naturalEnd;
-        setSelectedEnd(defaultEnd);
-      }
+      const [data, preflightData] = await Promise.all([
+        refresh({ force: true }),
+        fetchMonthClosePreflight().catch(() => null),
+      ]);
       setPreflight(preflightData);
       if (preflightData?.overlap_pair_count > 0 && data?.period?.period_id) {
         setOverlaps(await fetchMealRequestOverlapDetails(data.period.period_id).catch(() => []));
@@ -307,7 +296,9 @@ export function CloseCurrentMonthPage() {
       }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'বর্তমান মাসের তথ্য লোড করা যায়নি।'));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [refresh, toast]);
 
   useEffect(() => { if (online) load(); }, [online, load]);
@@ -316,79 +307,77 @@ export function CloseCurrentMonthPage() {
   if (loading) return <LoadingSpinner label="বর্তমান মাস লোড হচ্ছে..." />;
   if (context?.has_running_period !== true || !context?.period) {
     if (context?.has_running_period === false) {
-      return <div className="state-card state-card-warning"><Icon name="calendar" size={27} /><div><h2>কোনো চলমান মাস নেই</h2><p>নতুন মাস শুরু করতে ৩ লাইনের মেনু থেকে নতুন মাস শুরু করুন ব্যবহার করুন।</p></div></div>;
+      return <div className="state-card state-card-warning"><Icon name="calendar" size={27} /><div><h2>কোনো চলমান মাস নেই</h2><p>নতুন মাস শুরু করতে মেনু থেকে “নতুন মাস শুরু” ব্যবহার করুন।</p></div></div>;
     }
     return <div className="state-card state-card-warning"><Icon name="warning" size={27} /><div><h2>চলমান মাসের অবস্থা যাচাই করা যায়নি</h2><p>ভুল করে মাস নেই ধরে নেওয়া হচ্ছে না। ইন্টারনেট ও ডাটাবেজ সংযোগ যাচাই করে আবার চেষ্টা করুন।</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>;
   }
 
-  const today = context.today || toDateInputValue();
-  const minEnd = context.period.start_date;
-  const maxEnd = calendarMonthEnd(context.period.start_date);
-  const monthAlreadyPassed = Boolean(maxEnd && today > maxEnd);
-  const isToday = selectedEnd === today;
-  const isBeforeToday = selectedEnd < today;
-  const isAfterToday = selectedEnd > today;
-  const closeNow = isToday || (monthAlreadyPassed && selectedEnd === maxEnd);
-  const selectablePastClose = monthAlreadyPassed && selectedEnd === maxEnd;
-  const invalidPastSelection = isBeforeToday && !selectablePastClose;
-  const inputMin = monthAlreadyPassed ? maxEnd : (today > minEnd ? today : minEnd);
-
-  const applyEndDate = async (confirmCancel = false) => {
+  const today = dhakaDateInputValue() || context.today || toDateInputValue();
+  const hasFutureRequests = Number(preflight?.future_active_request_count ?? preflight?.future_request_count ?? 0) > 0;
+  const closeMonth = async (confirmCancel = false) => {
+    const closingDate = dhakaDateInputValue() || today;
     setBusy(true);
     try {
-      if (closeNow) {
-        await closeCurrentMonth(confirmCancel);
-        toast.success(`${context.period.label} সফলভাবে বন্ধ হয়েছে।`);
-      } else {
-        await setRunningPeriodEndDate(selectedEnd, confirmCancel);
-        toast.success(`মাসের শেষ তারিখ ${formatDateBangla(selectedEnd)} করা হয়েছে।`);
-      }
+      await closeCurrentMonth(confirmCancel);
+      toast.success(`${context.period.label} সফলভাবে বন্ধ হয়েছে। ${formatDateBangla(closingDate)} তারিখটি শেষ দিন হিসেবে সংরক্ষিত হয়েছে।`);
       setFutureWarning(false);
       setConfirmOpen(false);
       await load();
+      await refresh({ force: true });
     } catch (error) {
-      const message = getFriendlySupabaseError(error, 'মাসের শেষ তারিখ পরিবর্তন করা যায়নি।');
-      if (!confirmCancel && /ভবিষ্যৎ|রিকোয়েস্ট|সতর্কতা/.test(message)) {
+      const message = getFriendlySupabaseError(error, 'মাস বন্ধ করা যায়নি।');
+      if (!confirmCancel && /ভবিষ্যৎ|অনুরোধ|রিকোয়েস্ট|request|সতর্কতা|প্রভাবিত/i.test(message)) {
         setFutureWarning(true);
         setConfirmOpen(true);
       } else {
         toast.error(message);
       }
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
-
 
   return (
     <PrimaryManagerGuard>
       <div className="page-stack">
-        <PageHeader title="বর্তমান মাস শেষ করুন" icon="calendar" description="আজকের তারিখ default থাকবে। প্রয়োজনে আগে বর্তমান মাসের শেষ তারিখ সামঞ্জস্য করুন।" />
+        <PageHeader
+          title="বর্তমান মাস শেষ করুন"
+          icon="calendar"
+          description="চলমান মাসের কোনো নির্ধারিত শেষ তারিখ থাকবে না। যেদিন মাস বন্ধ করবেন, সেদিনই সেটির শেষ দিন হিসেবে সংরক্ষিত হবে।"
+        />
         <section className="card manager-form-card">
-          <div className="manager-current-period"><span>চলমান মাস</span><strong>{context.period.label}</strong><small>{formatDateBangla(context.period.start_date)} → {formatDateBangla(context.period.end_date)}</small>{context.period.is_current_for_today === false && <em>এই period-এর সীমা আজকের তারিখের সঙ্গে মেলেনি; সিস্টেম recovery boundary প্রয়োগ করেছে।</em>}</div>
+          <div className="manager-current-period">
+            <span>চলমান মাস</span>
+            <strong>{context.period.label}</strong>
+            <small>{formatDateBangla(context.period.start_date)} থেকে · বন্ধ করলে {formatDateBangla(today)} শেষ দিন হবে</small>
+            <em>এখনো মাস বন্ধ করা হয়নি। আজকের আগে কোনো শেষ তারিখ নির্ধারণ করা নেই।</em>
+          </div>
           {preflight?.running_period_count > 1 && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মেসে একাধিক চলমান মাস পাওয়া গেছে।</strong><p>নতুন মাস শুরু করবেন না। আগে এই তথ্যের অবস্থা যাচাই করতে হবে।</p></div></div>}
-          {preflight && preflight.future_active_request_count > 0 && <div className="manager-warning-box"><Icon name="info" size={18} /><div><strong>{preflight.future_active_request_count}টি ভবিষ্যৎ active meal request আছে।</strong><p>আজ মাস বন্ধ করলে নিশ্চিত করার পরে এগুলো বাতিল হবে।</p></div></div>}
-          {preflight && preflight.overlap_pair_count > 0 && <div className="form-hint"><Icon name="info" size={16} /> {preflight.overlap_pair_count}টি পুরোনো overlapping normal request pair আছে। এগুলো মাস বন্ধের বাধা নয়; নতুন request দেওয়ার সময় শুধু conflict protection কাজ করবে।</div>}
+          {(hasFutureRequests || preflight?.future_day_count > 0) && <div className="manager-warning-box"><Icon name="info" size={18} /><div><strong>{hasFutureRequests ? `${Number(preflight?.future_active_request_count ?? preflight?.future_request_count)}টি ভবিষ্যৎ সক্রিয় মিল অনুরোধ আছে।` : 'ভবিষ্যতের কিছু মিল-দিন প্রস্তুত আছে।'}</strong><p>মাস বন্ধ করলে আজকের পরের তারিখের অনুরোধ/দিনগুলো বন্ধ হবে। চালিয়ে গেলে নিশ্চিতকরণে এগুলোর প্রভাব দেখানো হবে।</p></div></div>}
+          {preflight && preflight.overlap_pair_count > 0 && <div className="form-hint"><Icon name="info" size={16} /> {preflight.overlap_pair_count}টি পুরোনো overlapping normal request pair আছে। এগুলো মাস বন্ধের বাধা নয়; নতুন request দেওয়ার সময় conflict protection কাজ করবে।</div>}
           {overlaps.length > 0 && <div className="manager-overlap-list"><strong>ঐতিহাসিক overlap-এর বিবরণ</strong>{overlaps.map((item) => <div className="manager-overlap-row" key={`${item.request_id_a}-${item.request_id_b}`}><span>{item.member_name_a || 'সদস্য'} · {formatDateBangla(item.start_date_a)} → {formatDateBangla(item.end_date_a)}</span><span>{item.member_name_b || 'সদস্য'} · {formatDateBangla(item.start_date_b)} → {formatDateBangla(item.end_date_b)}</span></div>)}</div>}
-          <label className="field-label"><span>মাসের শেষ তারিখ</span><input type="date" min={inputMin} max={maxEnd || undefined} value={selectedEnd} onChange={(e) => setSelectedEnd(e.target.value)} /></label>
-          <div className="form-hint"><Icon name="info" size={15} /> আজকের তারিখ দিলে মাস আজই বন্ধ হবে। ভবিষ্যতের তারিখ দিলে শুধু নির্ধারিত শেষ তারিখ বদলাবে; মাস এখনই archive হবে না। অতীতের তারিখ নির্বাচন করা যাবে না; calendar month-এর শেষ দিনের পরেও নেওয়া যাবে না।</div>
-          {isAfterToday && <div className="manager-warning-box"><Icon name="calendar" size={18} /><div><strong>{formatDateBangla(selectedEnd)} পর্যন্ত মাস চলবে।</strong><p>এই তারিখের আগে মাস বন্ধ হবে না।</p></div></div>}
-          <button className="primary-button large" type="button" disabled={busy || invalidPastSelection || selectedEnd < minEnd || selectedEnd > maxEnd} onClick={() => {
-            if (closeNow && preflight?.future_active_request_count > 0) setFutureWarning(true);
+          <div className="archive-period-close-summary">
+            <div><span>মাস শুরু</span><strong>{formatDateBangla(context.period.start_date)}</strong></div>
+            <div><span>শেষ দিন</span><strong>{formatDateBangla(today)}</strong><small>শুধু বন্ধ করার সময় নির্ধারিত হবে</small></div>
+          </div>
+          <button className="primary-button large" type="button" disabled={busy || preflight?.running_period_count > 1} onClick={() => {
+            setFutureWarning(hasFutureRequests || Number(preflight?.future_day_count || 0) > 0);
             setConfirmOpen(true);
           }}>
-            <Icon name="calendar" size={17} /> {closeNow ? 'মাস বন্ধ করুন' : isAfterToday ? 'শেষ তারিখ নির্ধারণ করুন' : 'মাস শেষ করুন'}
+            <Icon name="calendar" size={17} /> {busy ? 'মাস বন্ধ হচ্ছে...' : 'আজকের তারিখে মাস বন্ধ করুন'}
           </button>
         </section>
-        {confirmOpen && (
-          <ConfirmModal
-            title={closeNow ? 'মাস বন্ধ করবেন?' : 'শেষ তারিখ পরিবর্তন করবেন?'}
-            description={futureWarning ? 'এই মাসের ভবিষ্যতের সক্রিয় মিল রিকোয়েস্টগুলো বাতিল হবে। নিশ্চিত করলে বর্তমান মাস বন্ধ/আপডেট হবে।' : closeNow ? `${formatDateBangla(selectedEnd)} তারিখে বর্তমান মাস বন্ধ হবে। নির্ধারিত শেষ তারিখের পরে চলে গেলে calendar month-এর শেষ দিনই কার্যকর close date হবে।` : `${formatDateBangla(selectedEnd)}-কে বর্তমান মাসের নির্ধারিত শেষ তারিখ করা হবে।`}
-            confirmLabel={closeNow ? 'হ্যাঁ, মাস বন্ধ করুন' : 'নিশ্চিত করুন'}
-            danger={closeNow || futureWarning}
-            busy={busy}
-            onClose={() => { setConfirmOpen(false); setFutureWarning(false); }}
-            onConfirm={() => applyEndDate(closeNow || futureWarning)}
-          />
-        )}
+        {confirmOpen && <ConfirmModal
+          title="মাস বন্ধ করবেন?"
+          description={futureWarning
+            ? `${context.period.label} মাসটি ${formatDateBangla(today)} তারিখে বন্ধ হবে। আজকের পরের তারিখের সক্রিয় মিল অনুরোধ/দিনগুলো বাতিল বা বন্ধ হবে; আজ পর্যন্ত হিসাব সংরক্ষিত থাকবে।`
+            : `${context.period.label} মাসটি ${formatDateBangla(today)} তারিখে বন্ধ হবে। এই তারিখটি শেষ দিন হিসেবে সংরক্ষিত হবে; তারপরই পরবর্তী মাস শুরু করা যাবে।`}
+          confirmLabel="হ্যাঁ, আজই মাস বন্ধ করুন"
+          danger={futureWarning}
+          busy={busy}
+          onClose={() => { setConfirmOpen(false); setFutureWarning(false); }}
+          onConfirm={() => closeMonth(futureWarning)}
+        />}
       </div>
     </PrimaryManagerGuard>
   );
@@ -436,6 +425,7 @@ export function ChangeManagerPage() {
     <PrimaryManagerGuard>
       <div className="page-stack">
         <PageHeader title="ম্যানেজার পরিবর্তন" icon="shield" description="নতুন ম্যানেজার নির্বাচন করলে আপনার বর্তমান ম্যানেজার ক্ষমতা সঙ্গে সঙ্গে চলে যাবে।" />
+        <div className="form-hint" role="note">মাস বন্ধের পর ম্যানেজার হস্তান্তর করতে Database-এর change_manager ফাংশনেও পরিবর্তন প্রয়োজন। বর্তমান সংস্করণে চলমান মাস ছাড়া অনুরোধ প্রত্যাখ্যাত হতে পারে; অনুমান করে কোনো ক্ষমতা পরিবর্তন করা হচ্ছে না।</div>
         <section className="card manager-form-card">
           <div className="manager-role-hero"><div className="role-person"><span>বর্তমান</span><strong>{currentName}</strong><small>ম্যানেজার</small></div><Icon name="arrow-right" size={24} /><div className="role-person"><span>নতুন</span><strong>{selected ? members.find((m) => m.membership_id === selected)?.member_name : 'নির্বাচন করুন'}</strong><small>ম্যানেজার হবে</small></div></div>
           <label className="field-label"><span>নতুন ম্যানেজার নির্বাচন করুন</span><select value={selected} onChange={(e) => setSelected(e.target.value)}><option value="">সদস্য নির্বাচন করুন</option>{candidates.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label>
@@ -467,7 +457,7 @@ export function AssistantManagersPage() {
         fetchManagerMemberDirectory(),
         fetchPeriodAssistants(context?.period?.period_id || null),
       ]);
-      setMembers(memberRows.filter((member) => member.member_status === 'active' && member.membership_id !== membership?.membership_id && member.role !== 'manager'));
+      setMembers(memberRows.filter((member) => member.member_status === 'active' && member.membership_id !== membership?.membership_id && member.role !== 'manager').sort((a, b) => String(a.member_name || '').localeCompare(String(b.member_name || ''), 'bn')));
       setSelected(assistantRows.map((row) => row.membership_id));
     } catch (error) { toast.error(getFriendlySupabaseError(error, 'সহকারী ম্যানেজারের তালিকা লোড করা যায়নি।')); }
     finally { setLoading(false); }
@@ -501,13 +491,22 @@ export function AssistantManagersPage() {
         <PageHeader title="সহকারী ম্যানেজার" icon="users" description="চলতি মাসের দৈনন্দিন কাজের জন্য একাধিক সহকারী ম্যানেজার নির্ধারণ করুন।" />
         <section className="card manager-form-card">
           <div className="manager-warning-box"><Icon name="info" size={18} /><div><strong>সহকারী ম্যানেজার শুধু দৈনন্দিন কাজের ক্ষমতা পাবেন।</strong><p>মাস শুরু/শেষ, সদস্য নিষ্ক্রিয় করা এবং ম্যানেজার পরিবর্তন শুধু প্রধান ম্যানেজার করতে পারবেন।</p></div></div>
-          <div className="assistant-grid">
+          <div className="assistant-selection-heading">
+            <div><strong>সক্রিয় সদস্য নির্বাচন</strong><small>চেক করে সহকারী ম্যানেজার করুন; নির্বাচন তুলে নিলে সহকারীর ক্ষমতা সরে যাবে।</small></div>
+            <span className="assistant-selection-count"><Icon name="shield-check" size={15} /> {selected.length} জন নির্বাচিত</span>
+          </div>
+          <div className="assistant-grid" role="group" aria-label="সহকারী ম্যানেজার নির্বাচন">
             {members.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="users" size={24} /><strong>সহকারী দেওয়ার মতো সক্রিয় সদস্য নেই।</strong></div> : members.map((member) => {
               const checked = selected.includes(member.membership_id);
-              return <label className={`assistant-choice-card ${checked ? 'selected' : ''}`} key={member.membership_id}><input type="checkbox" checked={checked} onChange={() => toggle(member.membership_id)} /><span className="assistant-choice-avatar" aria-hidden="true"><Icon name="users" size={16} /></span><span><strong>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সদস্য'}</small></span></label>;
+              return <label className={`assistant-choice-card ${checked ? 'selected' : ''}`} key={member.membership_id}>
+                <input type="checkbox" checked={checked} onChange={() => toggle(member.membership_id)} aria-label={`${member.member_name} ${checked ? 'সহকারী ম্যানেজার থেকে বাদ দিন' : 'সহকারী ম্যানেজার হিসেবে নির্বাচন করুন'}`} />
+                <span className="assistant-choice-avatar" aria-hidden="true"><Icon name={checked ? 'shield-check' : 'user-round'} size={18} /></span>
+                <span className="assistant-choice-copy"><strong>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সাধারণ সদস্য'}</small></span>
+                <span className="assistant-choice-state" aria-hidden="true"><Icon name={checked ? 'check-circle-2' : 'circle'} size={18} /></span>
+              </label>;
             })}
           </div>
-          <button className="primary-button large" type="button" disabled={busy} onClick={save}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'সহকারী তালিকা সংরক্ষণ করুন'}</button>
+          <button className="primary-button large assistant-save-button" type="button" disabled={busy} onClick={save}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'সহকারী তালিকা সংরক্ষণ করুন'}</button>
         </section>
       </div>
     </PrimaryManagerGuard>
@@ -632,16 +631,22 @@ export function KhalaMoneyPage() {
   const [periods, setPeriods] = useState([]);
   const [rows, setRows] = useState([]);
   const [periodId, setPeriodId] = useState('');
-  const [form, setForm] = useState({ amount: '', paymentDate: toDateInputValue(), description: '' });
+  const [form, setForm] = useState({ amount: '', memberId: '', paymentDate: toDateInputValue(), description: '' });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [voidTarget, setVoidTarget] = useState(null);
   const [voidReason, setVoidReason] = useState('');
+  const [eligibleMembers, setEligibleMembers] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const periodRows = await fetchKhalaPeriods();
+      // Separate optional directory lookup: a failure must not hide existing khala entries.
+      try {
+        const directory = await fetchManagerMemberDirectory();
+        setEligibleMembers((Array.isArray(directory) ? directory : []).filter((m) => m.member_status === 'active'));
+      } catch { setEligibleMembers([]); }
       const historyByPeriod = await Promise.all(periodRows.map((period) => fetchKhalaMoneyHistory({ periodId: period.period_id, limit: 300 })));
       const khalaRows = historyByPeriod.flat().sort((a, b) => String(b.entry_date || '').localeCompare(String(a.entry_date || '')) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
       setPeriods(periodRows);
@@ -666,6 +671,7 @@ export function KhalaMoneyPage() {
   const save = async (event) => {
     event.preventDefault();
     if (!periodId) return toast.warning('কাজের মাস নির্বাচন করুন।');
+    if (!form.memberId) return toast.warning('সংশ্লিষ্ট সদস্য নির্বাচন করুন।');
     const amount = Number(form.amount);
     if (!(amount > 0)) return toast.warning('টাকার পরিমাণ শূন্যের বেশি হতে হবে।');
     if (!form.paymentDate) return toast.warning('প্রদানের তারিখ নির্বাচন করুন।');
@@ -674,7 +680,7 @@ export function KhalaMoneyPage() {
     if (selectedPeriod?.end_date && form.paymentDate > selectedPeriod.end_date) return toast.warning('প্রদানের তারিখ নির্বাচিত মাসের শেষের পরের হতে পারবে না।');
     setBusy(true);
     try {
-      await addKhalaMoney({ periodId, memberId: null, amount, paymentDate: form.paymentDate, description: form.description.trim() || null });
+      await addKhalaMoney({ periodId, memberId: form.memberId, amount, paymentDate: form.paymentDate, description: form.description.trim() || null });
       toast.success('খালার টাকার এন্ট্রি আলাদা হিসাব হিসেবে সংরক্ষণ হয়েছে।');
       setForm((current) => ({ ...current, amount: '', description: '' }));
       await load();
@@ -711,6 +717,13 @@ export function KhalaMoneyPage() {
                 <label className="field-label"><span>কাজের মাস</span><select value={periodId} onChange={(e) => setPeriodId(e.target.value)}>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label}</option>)}</select></label>
                 <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={toDateInputValue()} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} required /></label>
               </div>
+              <label className="field-label"><span>যে সদস্যের নামে খালার পারিশ্রমিকটি নথিভুক্ত হবে</span>
+                <select value={form.memberId} required onChange={(e) => setForm((current) => ({ ...current, memberId: e.target.value }))}>
+                  <option value="">সদস্য নির্বাচন করুন</option>
+                  {eligibleMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name || member.full_name || 'সদস্য'}</option>)}
+                </select>
+                {!eligibleMembers.length && <small>সদস্য তালিকা পাওয়া যায়নি। তালিকা লোড না হওয়া পর্যন্ত এন্ট্রি করা যাবে না।</small>}
+              </label>
               {selectedPeriod && <div className="form-hint"><Icon name="info" size={15} /> এই খরচটি খালার আলাদা হিসাব হবে; কোনো সদস্যের ব্যক্তিগত ব্যালেন্স বা অন্যান্য খরচে যোগ হবে না।</div>}
               <div className="form-grid-2">
                 <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => setForm((current) => ({ ...current, amount: e.target.value }))} placeholder="০" required /></label>
@@ -724,7 +737,7 @@ export function KhalaMoneyPage() {
               <div className="manager-list-stack">
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
                   <article className={`card manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
-                    <div><strong>খালার পারিশ্রমিক</strong><small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'খালার টাকা'}</span></div>
+                    <div><strong>খালার পারিশ্রমিক</strong><small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'খালার টাকা'}</span><small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small></div>
                     <strong>{formatCurrency(row.amount)}</strong>
                     {row.status !== 'void' ? <button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button> : <span className="member-badge inactive">বাতিল</span>}
                   </article>
@@ -754,18 +767,22 @@ export function ArchiveManagerPage() {
   const loadMonths = useCallback(async () => {
     setLoading(true);
     try {
-      const [managementRows, memberRows] = await Promise.all([
-        fetchArchiveManagementItems(),
-        fetchManagerMemberDirectory(),
+      const results = await Promise.allSettled([
+        fetchArchiveManagementItems(), fetchManagerMemberDirectory(),
       ]);
-      setMonths(Array.isArray(managementRows) ? managementRows : []);
-      setMembers(Array.isArray(memberRows) ? memberRows : []);
-      if (selectedPeriod && !managementRows.some((row) => row.period_id === selectedPeriod)) setSelectedPeriod('');
-      if (!selectedPeriod && managementRows.length) setSelectedPeriod(managementRows[0].period_id);
+      if (results[0].status === 'rejected') throw results[0].reason;
+      const managementRows = results[0].value;
+      const safeRows = Array.isArray(managementRows) ? managementRows : [];
+      setMonths(safeRows);
+      if (results[1].status === 'fulfilled') {
+        setMembers(Array.isArray(results[1].value) ? results[1].value : []);
+      }
+      setSelectedPeriod(current => safeRows.some(row => String(row.period_id) === String(current))
+        ? current : String(safeRows[0]?.period_id || ''));
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'আর্কাইভের তথ্য লোড করা যায়নি।'));
     } finally { setLoading(false); }
-  }, [selectedPeriod, toast]);
+  }, [toast]);
 
   const loadPermissions = useCallback(async () => {
     if (!selectedPeriod) { setPermissions([]); return; }
@@ -830,7 +847,8 @@ export function ArchiveManagerPage() {
 
   return <PrimaryManagerGuard><div className="page-stack">
     <PageHeader title="আর্কাইভ" icon="history" description="প্রতিটি আর্কাইভের closing manager, temporary edit access ও নিরাপদ accidental-close recovery এখানে পরিচালনা করুন।" />
-    {months.length === 0 ? <div className="empty-state-card"><Icon name="history" size={28} /><strong>এখনো কোনো archive নেই</strong><span>মাস বন্ধ হলে তা এখানে দেখা যাবে।</span></div> : <>
+    <div className="archive-refresh-row"><button type="button" className="secondary-button compact" disabled={loading} onClick={loadMonths}>আর্কাইভ রিফ্রেশ</button></div>
+    {months.length === 0 ? <div className="empty-state-card"><Icon name="history" size={28} /><strong>সংরক্ষিত মাস পাওয়া যায়নি</strong><span>হিস্টরিতে বন্ধ মাস থাকলে রিফ্রেশ করে দেখুন।</span><button type="button" className="secondary-button compact" onClick={loadMonths}>আবার লোড করুন</button></div> : <>
       <section className="card manager-form-card">
         <label className="field-label"><span>আর্কাইভ করা মাস</span><select value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>{months.map((month) => <option value={month.period_id} key={month.period_id}>{month.label} — {formatDateBangla(month.start_date)} → {formatDateBangla(month.end_date)}</option>)}</select></label>
         {selected && <div className="archive-manager-detail-grid">
@@ -838,6 +856,7 @@ export function ArchiveManagerPage() {
           <div><span>অবস্থা</span><strong>{selected.closer_is_active ? 'Closing manager সক্রিয়' : 'Closing manager বর্তমানে inactive'}</strong></div>
           <div><span>শেষ পরিবর্তন</span><strong>{selected.last_edit_by ? `${selected.last_edit_by} · ${selected.last_edit_at ? formatDateTime12(selected.last_edit_at) : ''}` : 'এখনো কোনো edit audit নেই'}</strong><small>{selected.last_edit_summary || ''}</small></div>
         </div>}
+        {selected?.archive_read_only && <div className="state-card state-card-warning"><Icon name="info" size={17}/><div><strong>এই মাসটি শুধু দেখার জন্য পাওয়া গেছে</strong><p>ব্যবস্থাপনার অনুমতি সার্ভার থেকে পাওয়া যায়নি। নিরাপত্তার জন্য Reopen ও Edit Permission বন্ধ রাখা হয়েছে।</p></div></div>}
         {selected?.can_reopen && <div className="archive-reopen-warning"><Icon name="alert-circle" size={18}/><div><strong>ভুলবশত বন্ধ হয়ে থাকলে মাস আবার চালু করতে পারবেন</strong><p>শুধু একই calendar month-এ, নতুন period তৈরি না হলে এবং কোনো running period না থাকলে এটি সম্ভব। আগেই বাতিল হওয়া future request স্বয়ংক্রিয়ভাবে ফিরবে না।</p><button className="secondary-button compact" type="button" disabled={busy} onClick={reopen}>মাস আবার চালু করুন</button></div></div>}
       </section>
 
@@ -914,21 +933,21 @@ export function MealSheetPage() {
       const matrixHead = `<tr><th>সদস্য</th>${allDays.map((day) => `<th title="${escapeReportHtml(day.meal_date)}">${escapeReportHtml(String(Number(day.meal_date.slice(-2))))}</th>`).join('')}</tr>`;
       const matrixBody = bundle.members.map((member) => `<tr><td>${escapeReportHtml(member.member_name || 'সদস্য')}</td>${allDays.map((day) => {
         const meal = recordLookup.get(`${member.membership_id}:${day.meal_date}`);
-        return `<td>${meal ? `${compact(meal.breakfast)}/${compact(meal.lunch)}/${compact(meal.dinner)}` : '—'}</td>`;
+        return `<td>${meal ? `${compact(meal.breakfast)}+${compact(meal.lunch)}+${compact(meal.dinner)}` : '—'}</td>`;
       }).join('')}</tr>`).join('');
-      const matrix = `<p class="report-note">প্রতি ঘরে: সকাল / দুপুর / রাত · উপরের কলামে দিনের তারিখ।</p><table class="meal-matrix"><thead>${matrixHead}</thead><tbody>${matrixBody}</tbody></table>`;
+      const matrix = `<p class="report-note">প্রতি ঘরে: সকাল + দুপুর + রাত · তারিখের পূর্ণ মাস উপরের শিরোনামে রয়েছে।</p><table class="meal-matrix"><thead>${matrixHead}</thead><tbody>${matrixBody}</tbody></table>`;
       const memberTotal = selectedMember ? memberTotals.find((row) => row.key === selectedMemberId) : null;
       const memberSummary = memberTotal ? `<p><strong>${escapeReportHtml(memberTotal.name)}</strong> — সকালের মিল ${memberTotal.breakfast}, দুপুরের মিল ${memberTotal.lunch}, রাতের মিল ${memberTotal.dinner}, মোট ${memberTotal.breakfast + memberTotal.lunch + memberTotal.dinner}</p>` : '<p>সব সদস্য</p>' ;
       const reportManager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
       const personalTable = `<table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows}</tbody></table>`;
-      printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, `${formatDateBangla(bundle.period.start_date)} → ${formatDateBangla(bundle.period.end_date)}`, selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
+      printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, currentPeriodRange(bundle.period), selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
     } catch (error) { toast.error(error.message || 'রিপোর্ট প্রিন্ট করা যায়নি।'); }
     finally { setPrintBusy(false); }
   };
 
   return (
     <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} — দৈনিক মিলের সারসংক্ষেপ এবং সদস্যভিত্তিক মোট হিসাব।`} />
-      <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{formatDateBangla(bundle.period.start_date)} → {formatDateBangla(bundle.period.end_date)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact report-pdf-button" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
+      <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{currentPeriodRange(bundle.period)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact report-pdf-button" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
       <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
       <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
     </div>
@@ -1059,7 +1078,7 @@ export function ReportsPage() {
     try { callback(); } catch (error) { toast.error(error.message || 'রিপোর্ট তৈরি করা যায়নি।'); }
     finally { window.setTimeout(() => setExportBusy(false), 350); }
   };
-  const reportSubtitle = `${formatDateBangla(bundle.period.start_date)} থেকে ${formatDateBangla(bundle.period.end_date)} পর্যন্ত · ${bundle.period.label}`;
+  const reportSubtitle = `${currentPeriodRange(bundle.period)} · ${bundle.period.label}`;
   const downloadFinalAccount = () => openPdf('ফাইনাল হিসাব', reportSubtitle, `${summaryTable}<h2 class="report-section-title">সদস্যভিত্তিক ফাইনাল হিসাব</h2>${finalAccountTable}<p class="report-note">বকেয়া/অবশিষ্ট হলো প্রত্যেক সদস্যের নিজস্ব জমা, মিলের খরচ ও অন্যান্য ব্যক্তিগত খরচ অনুযায়ী হিসাব। খালার পারিশ্রমিক সদস্যের ব্যালেন্সে অন্তর্ভুক্ত নয়।</p>`);
   const downloadMarket = () => openPdf('বাজার হিসাব', reportSubtitle, `${summaryTable}<h2 class="report-section-title">বাজারের বিবরণ</h2>${marketTableWithTotal}`);
   const downloadDeposits = () => openPdf('ডিপোজিট হিসাব', reportSubtitle, `${summaryTable}<h2 class="report-section-title">সদস্যভিত্তিক জমা</h2>${depositTable}`);

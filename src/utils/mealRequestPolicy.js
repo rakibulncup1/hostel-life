@@ -8,6 +8,7 @@ function partsForDateTime(value) {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    second: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(value instanceof Date ? value : new Date(value));
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
@@ -20,14 +21,22 @@ function shiftIsoDate(dateString, amount) {
   return date.toISOString().slice(0, 10);
 }
 
+function minutesInDhaka(parts) {
+  return Number(parts.hour || 0) * 60 + Number(parts.minute || 0);
+}
+
+/** Normal member requests are accepted until 10:00 PM Bangladesh time. */
+export function isNormalMealRequestWindowOpen(now = new Date()) {
+  const parts = partsForDateTime(now);
+  return minutesInDhaka(parts) < 22 * 60;
+}
+
+/** Late requests are available only from 10:00 PM onward and always target tomorrow. */
 export function getLateMealRequestTargetDate(now = new Date()) {
   const parts = partsForDateTime(now);
+  if (minutesInDhaka(parts) < 22 * 60) return null;
   const today = `${parts.year}-${parts.month}-${parts.day}`;
-  const currentMinutes = Number(parts.hour || 0) * 60 + Number(parts.minute || 0);
-
-  // The day's normal card freezes at 9 PM. The next late-request window starts at 10 PM.
-  if (currentMinutes >= 21 * 60 && currentMinutes < 22 * 60) return null;
-  return currentMinutes >= 22 * 60 ? shiftIsoDate(today, 1) : today;
+  return shiftIsoDate(today, 1);
 }
 
 export function findActiveMealRequestForDate(requests, targetDate) {

@@ -35,7 +35,7 @@ import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { canCorrectMealDay, canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
-import { findActiveMealRequestForDate, getLateMealRequestTargetDate } from '../../utils/mealRequestPolicy';
+import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen } from '../../utils/mealRequestPolicy';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -204,9 +204,9 @@ function MealDayCard({ day, onChange, readOnly = false, compact = false }) {
       <div className="meal-day-card-header">
         <div>
           <strong>{formatDateWithWeekday(day.meal_date)}</strong>
-          <small>{weekend ? 'সাপ্তাহিক বন্ধ' : 'সাধারণ দিন'}</small>
+          <small>{weekend ? 'সাপ্তাহিক ছুটি' : 'সাধারণ দিন'}</small>
         </div>
-        {weekend && <span className="weekend-badge">বন্ধ</span>}
+        {weekend && <span className="weekend-badge">ছুটির দিন</span>}
       </div>
       <div className="meal-day-fields">
         {['breakfast', 'lunch', 'dinner'].map((key) => (
@@ -236,10 +236,17 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   const [dayStates, setDayStates] = useState([]);
   const [dayStateLoading, setDayStateLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const normalRequestOpen = isNormalMealRequestWindowOpen(new Date(clock));
+  const normalCreateLocked = mode === 'new' && !normalRequestOpen;
 
   useEffect(() => {
     let active = true;
-    fetchRunningPeriod()
+    fetchRunningPeriod({ force: true })
       .then((data) => { if (active) setPeriod(data); })
       .catch((error) => toast.error(getFriendlySupabaseError(error, 'চলমান মাসের তথ্য লোড করা যায়নি।')));
     return () => { active = false; };
@@ -329,6 +336,10 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (mode === 'new' && !isNormalMealRequestWindowOpen(new Date())) {
+      toast.warning('রাত ১০টার পর সাধারণ মিল অনুরোধ বন্ধ। আগামী দিনের জন্য লেট মিল অনুরোধ ব্যবহার করুন।');
+      return;
+    }
     if (!startDate || !endDate || startDate > endDate) {
       toast.error('শুরুর ও শেষের তারিখ সঠিকভাবে দিন।');
       return;
@@ -346,14 +357,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         return;
       }
       if (payloadDates.some((day) => !eligible.includes(day))) {
-        toast.warning('শুধু কাট-অফ পার হয়েছে কিন্তু রাত ৯টায় চূড়ান্ত হয়নি—এমন দিনের জন্য সংশোধন অনুরোধ করা যাবে। চূড়ান্ত দিনের জন্য এই অনুরোধ গ্রহণ করা হয় না।');
-        return;
-      }
-      // A multi-day original request can contain days already finalized and days
-      // still inside the correction window. Submit only the eligible days; do not
-      // reject the entire correction just because a finalized day lies between them.
-      if (!payloadDates.length || payloadDates.some((day) => !eligible.includes(day))) {
-        toast.warning('শুধু কাট-অফ পার হলেও রাত ৯টায় চূড়ান্ত না হওয়া দিনগুলো সংশোধনে নির্বাচন করুন।');
+        toast.warning('শুধু কাট-অফ পার হওয়া বা চূড়ান্ত হওয়া দিনের জন্য সংশোধন অনুরোধ পাঠানো যাবে। ম্যানেজার অনুমোদন করলে পরিবর্তন কার্যকর হবে।');
         return;
       }
       const sortedPayloadDates = [...payloadDates].sort();
@@ -403,13 +407,23 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         toast.warning('আজকের বা আগের দিনের জন্য সাধারণ মিল অনুরোধ দেওয়া যাবে না।');
         return;
       }
-      const unavailable = payloadDates.filter((day) => !canSubmitMealDay(dayStateMap.get(day)));
+      const unavailable = payloadDates.filter((day) => {
+        const dayState = dayStateMap.get(day);
+        // New future dates may not have a daily_meal_days row yet. The server
+        // creates that row during request validation; the server remains the
+        // final authority. Edited requests still require an existing eligible day.
+        return isEdit ? !canSubmitMealDay(dayState) : Boolean(dayState && !canSubmitMealDay(dayState));
+      });
       if (unavailable.length) {
         toast.warning('নির্বাচিত তারিখগুলোর অন্তত একটির সময়সীমা শেষ হয়েছে অথবা মিল চূড়ান্ত হয়েছে।');
         return;
       }
+      if (period?.start_date && startDate < period.start_date) {
+        toast.warning(`নির্বাচিত শুরুর তারিখ চলমান মাস শুরু হওয়ার আগে। বৈধ সীমা ${period.start_date} থেকে ${period.end_date || 'শেষ তারিখ নির্ধারিত নয়'}।`);
+        return;
+      }
       if (period?.end_date && endDate > period.end_date) {
-        toast.warning('মিল অনুরোধ চলমান মাসের শেষ তারিখের বাইরে দেওয়া যাবে না।');
+        toast.warning(`মিল অনুরোধ চলমান মাসের শেষ তারিখের বাইরে দেওয়া যাবে না। বর্তমান সীমা ${period.start_date} থেকে ${period.end_date}।`);
         return;
       }
     }
@@ -456,15 +470,22 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
 
+
+      {normalCreateLocked && (
+        <div className="meal-policy-note is-warning normal-request-closed-note" role="status">
+          <Icon name="shield" size={16} /> রাত ১০টার সাধারণ অনুরোধের সময় শেষ হয়েছে। এখন আগামী দিনের জন্য লেট অনুরোধ দিন; ম্যানেজারের অনুমোদন লাগবে।
+        </div>
+      )}
+
       {!isCorrection && (
         <div className="request-range-grid">
           <label className="field-label">
             <span>শুরুর তারিখ</span>
-            <input type="date" min={tomorrowValue()} max={period?.end_date || undefined} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <input type="date" min={period?.start_date && period.start_date > tomorrowValue() ? period.start_date : tomorrowValue()} max={period?.end_date || undefined} value={startDate} onChange={(e) => { const next = e.target.value; setStartDate(next); if (endDate < next) setEndDate(next); }} />
           </label>
           <label className="field-label">
             <span>শেষের তারিখ</span>
-            <input type="date" value={endDate} min={startDate} onChange={(e) => setEndDate(e.target.value)} />
+            <input type="date" value={endDate} min={startDate} max={period?.end_date || undefined} onChange={(e) => { const next = e.target.value; setEndDate(next); }} />
           </label>
           <button className="secondary-button" type="button" onClick={regenerateDays}>
             <Icon name="calendar" size={17} /> দিন তৈরি করুন
@@ -571,8 +592,8 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         <Icon name="clock" size={16} /> প্রতিটি দিনের সময়সীমা সার্ভার থেকে নির্ধারিত হয়। সময়সীমা পার হলে সরাসরি পরিবর্তনের বদলে সংশোধনের অনুরোধ করুন।
       </div>
 
-      <button className="primary-button large dining-submit" type="button" disabled={busy || dayStateLoading} onClick={submit}>
-        {busy ? 'সংরক্ষণ হচ্ছে...' : isCorrection ? 'সংশোধন অনুরোধ পাঠান' : isEdit ? 'পরিবর্তন সংরক্ষণ করুন' : 'চূড়ান্তভাবে সাবমিট করুন'}
+      <button className="primary-button large dining-submit" type="button" disabled={busy || dayStateLoading || normalCreateLocked} onClick={submit}>
+        {busy ? 'সংরক্ষণ হচ্ছে...' : isCorrection ? 'সংশোধন অনুরোধ পাঠান' : isEdit ? 'পরিবর্তন সংরক্ষণ করুন' : normalCreateLocked ? 'রাত ১০টার সাধারণ সময় শেষ' : 'চূড়ান্তভাবে সাবমিট করুন'}
       </button>
     </section>
   );
@@ -584,23 +605,50 @@ function RequestHistory({ onEdit, onCorrect }) {
   const [dayStates, setDayStates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [runningPeriod, setRunningPeriod] = useState(null);
+  const [periodVerified, setPeriodVerified] = useState(false);
+  const [periodCheckError, setPeriodCheckError] = useState('');
+  const [dayStateError, setDayStateError] = useState('');
+  const periodId = runningPeriod?.period_id || runningPeriod?.id || null;
   const dayStateMap = useMemo(() => new Map(dayStates.map((day) => [String(day.meal_date).slice(0, 10), day])), [dayStates]);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setPeriodCheckError('');
+    setDayStateError('');
     try {
-      const rows = await fetchMyMealRequests(100);
-      setRequests(rows);
-      const dates = rows
-        .filter((row) => row.status === 'approved' && row.request_type === 'normal' && !row.is_late_request)
+      const rows = await fetchMyMealRequests(100, { force: true });
+      setRequests(Array.isArray(rows) ? rows : []);
+
+      let activePeriod = null;
+      let verified = false;
+      try {
+        activePeriod = await fetchRunningPeriod({ force: true });
+        verified = true;
+      } catch (periodError) {
+        console.warn('Running period could not be verified; request history will remain read-only:', periodError);
+        setPeriodCheckError('চলমান মাস যাচাই করা যায়নি। নিরাপত্তার জন্য এডিট ও সংশোধনের অপশন আপাতত বন্ধ রাখা হয়েছে।');
+      }
+      setRunningPeriod(activePeriod || null);
+      setPeriodVerified(verified);
+
+      const activePeriodId = activePeriod?.period_id || activePeriod?.id || null;
+      const editableRequests = activePeriodId
+        ? rows.filter((row) => String(row.period_id || '') === String(activePeriodId)
+          && row.status === 'approved' && row.request_type === 'normal' && !row.is_late_request)
+        : [];
+      const dates = editableRequests
         .flatMap((row) => (row.days || []).map((day) => String(day.meal_date || '').slice(0, 10)))
         .filter(Boolean)
         .sort();
-      if (dates.length) {
+      if (dates.length && activePeriodId) {
         try {
-          setDayStates(await fetchMealDayStates(dates[0], dates[dates.length - 1]));
+          // Always scope status lookup to the current period. The same calendar
+          // date can exist in an older Part 2/month record and must not shadow it.
+          setDayStates(await fetchMealDayStates(dates[0], dates[dates.length - 1], activePeriodId));
         } catch (stateError) {
           setDayStates([]);
+          setDayStateError('দিনের সময়সীমার তথ্য লোড করা যায়নি। নিরাপত্তার জন্য এডিট/সংশোধন অপশন দেখানো হচ্ছে না; রিফ্রেশ করে আবার চেষ্টা করুন।');
           console.warn('Meal-day cutoff metadata could not be loaded for request history:', stateError);
         }
       } else {
@@ -608,6 +656,8 @@ function RequestHistory({ onEdit, onCorrect }) {
       }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'মিল অনুরোধের ইতিহাস লোড করা যায়নি।'));
+      setRequests([]);
+      setDayStates([]);
     } finally {
       setLoading(false);
     }
@@ -623,17 +673,21 @@ function RequestHistory({ onEdit, onCorrect }) {
         <div>
           <span className="eyebrow">মিল অনুরোধ</span>
           <h2>অনুরোধের ইতিহাস</h2>
-          <p>আপনার আগের ও বর্তমান অনুরোধগুলো এখানে থাকবে।</p>
+          <p>আপনার আগের ও বর্তমান অনুরোধগুলো এখানে থাকবে। অনুমোদিত সাধারণ অনুরোধে সময়সীমা অনুযায়ী এডিট বা সংশোধন করা যাবে।</p>
         </div>
         <button className="secondary-button compact" type="button" onClick={load}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
 
+      {periodCheckError && <div className="meal-policy-note is-warning" role="status"><Icon name="warning" size={16} /> {periodCheckError}</div>}
+      {dayStateError && <div className="meal-policy-note is-warning" role="status"><Icon name="warning" size={16} /> {dayStateError}</div>}
+      {periodVerified && !runningPeriod && requests.length > 0 && <div className="meal-policy-note" role="status"><Icon name="info" size={16} /> কোনো মাস চলমান নেই; আগের অনুরোধগুলো শুধু দেখা যাবে, এডিট/সংশোধন করা যাবে না।</div>}
       {requests.length === 0 ? (
         <div className="empty-state-card dining-empty"><Icon name="calendar" size={26} /><strong>এখনও কোনো অনুরোধ নেই</strong><span>নতুন মিল অনুরোধ দিলে এখানে দেখা যাবে।</span></div>
       ) : (
         <div className="request-history-list">
           {requests.map((request) => {
             const needsReview = request.status === 'submitted' && (request.request_type === 'correction' || request.is_late_request);
+            const requestIsInRunningPeriod = Boolean(periodVerified && periodId && String(request.period_id || '') === String(periodId));
             return <article className="request-history-card" key={request.request_id}>
               <button className="request-history-head" type="button" onClick={() => setSelected(selected === request.request_id ? null : request.request_id)}>
                 <span>
@@ -655,24 +709,24 @@ function RequestHistory({ onEdit, onCorrect }) {
                     ))}
                   </div>
                   {request.manager_edited && <div className="inline-success"><Icon name="check-circle" size={16}/><span>এই অনুরোধ ম্যানেজার আপডেট করেছেন{request.manager_updated_at ? ` · ${formatDateTime12(request.manager_updated_at)}` : ''}। এটি নতুন/ডুপ্লিকেট অনুরোধ নয়।</span></div>}
-                  {request.rejection_reason && <div className="inline-error"><Icon name="warning" size={16} /> {request.rejection_reason}</div>}
+                  {(request.rejection_reason || request.review_reason) && <div className="inline-error"><Icon name="warning" size={16} /> {request.rejection_reason || request.review_reason}</div>}
                   {request.status === 'approved' && request.request_type === 'normal' && request.is_late_request && (
                     <div className="late-request-locked-note">
                       <Icon name="lock" size={17} />
-                      <div><strong>এটি সংশোধনযোগ্য নয়</strong><span>ম্যানেজার এই আবেদনটি লেট অনুরোধ হিসেবে অনুমোদন করেছেন। এটি আর সম্পাদনা বা নতুন সংশোধনের অনুরোধের মাধ্যমে পরিবর্তন করা যাবে না। চূড়ান্ত মিল হয়ে গেলে পরিবর্তনের জন্য প্রধান ম্যানেজারের সঙ্গে যোগাযোগ করুন।</span></div>
+                      <div><strong>এটি সরাসরি সংশোধনযোগ্য নয়</strong><span>এই আবেদনটি লেট অনুরোধ হিসেবে অনুমোদিত হয়েছে। জরুরি পরিবর্তনের জন্য ম্যানেজারের সঙ্গে যোগাযোগ করুন।</span></div>
                     </div>
                   )}
                   {request.status === 'approved' && request.request_type === 'normal' && !request.is_late_request && (() => {
                     const days = request.days || [];
-                    const canEdit = days.some((day) => String(day.meal_date).slice(0, 10) > todayValue() && canSubmitMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
-                    const canCorrect = days.some((day) => canCorrectMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
+                    const canEdit = requestIsInRunningPeriod && days.some((day) => String(day.meal_date).slice(0, 10) > todayValue() && canSubmitMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
+                    const canCorrect = requestIsInRunningPeriod && days.some((day) => canCorrectMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
                     return (canEdit || canCorrect) ? <div className="request-action-row">
-                      {canEdit && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="refresh" size={16} /> এডিট করুন</button>}
-                      {canCorrect && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="warning" size={16} /> সংশোধন অনুরোধ</button>}
+                      {canEdit && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="edit" size={16} /> এডিট করুন</button>}
+                      {canCorrect && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="shield" size={16} /> সংশোধন অনুরোধ</button>}
                     </div> : null;
                   })()}
                   {needsReview && (
-                    <div className="inline-success"><Icon name="clock" size={16} /> {request.is_late_request ? 'লেট অনুরোধ ম্যানেজারের অনুমোদনের অপেক্ষায় আছে। এই আবেদন পাঠানোর পর এডিট বা আলাদা সংশোধন অনুরোধ করা যাবে না।' : 'ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।'}</div>
+                    <div className="inline-success"><Icon name="clock" size={16} /> {request.is_late_request ? 'লেট অনুরোধ ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।' : 'সংশোধন অনুরোধ ম্যানেজারের অনুমোদনের অপেক্ষায় আছে।'}</div>
                   )}
                 </div>
               )}
@@ -712,7 +766,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
     }));
     if (!period) return toast.warning('কোনো চলমান মাস নেই। আগে একটি চলমান মাস শুরু করুন।');
     if (!entryDate) return toast.error('বাজারের তারিখ দিন।');
-    if (entryDate < period.start_date || entryDate > period.end_date || entryDate > today) return toast.warning(`বাজারের তারিখ চলমান মাসের মধ্যে এবং আজ বা তার আগের হতে হবে।`);
+    if (entryDate < period.start_date || (period.end_date && entryDate > period.end_date) || entryDate > today) return toast.warning('বাজারের তারিখ চলমান মাস শুরু হওয়ার পরে এবং আজ বা তার আগের হতে হবে।');
     if (!buyerId) return toast.error('যার নামে বাজার হবে তাকে নির্বাচন করুন।');
     if (!cleaned.length || cleaned.some((item) => !item.item_name || !Number.isFinite(item.amount) || item.amount < 0)) {
       return toast.error('প্রতিটি আইটেমের নাম ও সঠিক টাকার পরিমাণ দিতে হবে।');
@@ -1163,6 +1217,8 @@ function ManagerMealRequests() {
   const [rejectReason, setRejectReason] = useState('');
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [runningPeriod, setRunningPeriod] = useState(null);
+  const [periodError, setPeriodError] = useState('');
   const [reviewBusy, setReviewBusy] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [editRequest, setEditRequest] = useState(null);
@@ -1178,18 +1234,33 @@ function ManagerMealRequests() {
     const task = (async () => {
       if (!silent) setLoading(true);
       try {
-        if (tab === 'correction') {
-          setRequests(await fetchManagerMealRequests({ requestType: 'correction', status: 'submitted' }));
-        } else if (tab === 'late') {
-          setRequests(await fetchManagerMealRequests({ status: 'submitted', lateOnly: true }));
-        } else if (tab === 'approved') {
-          setRequests(await fetchManagerMealRequests({ requestType: 'normal', status: 'approved', lateOnly: false }));
-        } else {
-          setRequests(await fetchManagerMealRequests({}));
+        setPeriodError('');
+        // Resolve the authoritative running period first. Historical requests must
+        // never leak into this screen when no month is active.
+        const activePeriod = await fetchRunningPeriod({ force: true });
+        setRunningPeriod(activePeriod || null);
+        if (!activePeriod) {
+          setRequests([]);
+          setExpandedId(null);
+          setEditRequest(null);
+          return;
         }
+        const periodId = activePeriod.period_id || activePeriod.id;
+        const filters = tab === 'correction'
+          ? { periodId, requestType: 'correction', status: 'submitted', force: true }
+          : tab === 'late'
+            ? { periodId, status: 'submitted', lateOnly: true, force: true }
+            : tab === 'approved'
+              ? { periodId, requestType: 'normal', status: 'approved', lateOnly: false, force: true }
+              : { periodId, force: true };
+        setRequests(await fetchManagerMealRequests(filters));
       } catch (error) {
-        if (!silent) toast.error(getFriendlySupabaseError(error, 'ম্যানেজারের অনুরোধ লোড করা যায়নি।'));
-        // Background refresh errors remain silent; the next explicit action can retry.
+        setRunningPeriod(null);
+        setRequests([]);
+        const message = getFriendlySupabaseError(error, 'ম্যানেজারের অনুরোধ লোড করা যায়নি।');
+        // Fail closed rather than display a stale list from a previous period.
+        setPeriodError(message);
+        if (!silent) toast.error(message);
       } finally {
         if (!silent) setLoading(false);
       }
@@ -1208,7 +1279,7 @@ function ManagerMealRequests() {
   useRealtimeRefresh({
     enabled: online,
     hostelId: membership?.hostel_id,
-    tables: ['meal_requests', 'meal_late_overrides', 'daily_meal_snapshots'],
+    tables: ['meal_requests', 'meal_late_overrides', 'daily_meal_snapshots', 'monthly_periods'],
     onRefresh: () => load({ silent: true }),
   });
 
@@ -1290,16 +1361,19 @@ function ManagerMealRequests() {
         <button className="secondary-button compact" type="button" onClick={load} disabled={!online}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
 
-      <div className="segmented-control manager-request-tabs" role="tablist">
+      {periodError && <div className="inline-error" role="alert">{periodError} <button className="text-button" type="button" onClick={() => load()} disabled={!online}>আবার চেষ্টা করুন</button></div>}
+      {!loading && !periodError && !runningPeriod && <div className="empty-state-card dining-empty manager-no-running-period"><Icon name="calendar" size={28} /><strong>কোনো চলমান মাস নেই</strong><span>নতুন মাস শুরু হলে সেই মাসের মিল অনুরোধ এখানে দেখা যাবে। বন্ধ মাসের পুরোনো অনুরোধ এখানে দেখানো হয় না।</span><button className="secondary-button compact" type="button" onClick={() => load()} disabled={!online}><Icon name="refresh" size={15} /> পুনরায় যাচাই করুন</button></div>}
+      {runningPeriod && <div className="manager-request-active-period"><Icon name="calendar" size={16} /><span><strong>{runningPeriod.label || 'চলমান মাস'}</strong><small>{runningPeriod.start_date ? `শুরু: ${formatDateWithWeekday(runningPeriod.start_date)}` : 'সক্রিয় হিসাব'}</small></span></div>}
+      {runningPeriod && <div className="segmented-control manager-request-tabs" role="tablist">
         <button className={tab === 'correction' ? 'active' : ''} type="button" onClick={() => setTab('correction')}>সংশোধন অপেক্ষমাণ</button>
         <button className={tab === 'late' ? 'active' : ''} type="button" onClick={() => setTab('late')}>লেট অপেক্ষমাণ</button>
         <button className={tab === 'approved' ? 'active' : ''} type="button" onClick={() => setTab('approved')}>সাধারণ অনুমোদিত</button>
         <button className={tab === 'all' ? 'active' : ''} type="button" onClick={() => setTab('all')}>সব অনুরোধ</button>
-      </div>
+      </div>}
 
-      {loading ? <LoadingSpinner label="অনুরোধ লোড হচ্ছে..." /> : requests.length === 0 ? (
+      {loading ? <LoadingSpinner label="অনুরোধ লোড হচ্ছে..." /> : !periodError && runningPeriod && requests.length === 0 ? (
         <div className="empty-state-card dining-empty"><Icon name="check" size={26} /><strong>কোনো অনুরোধ নেই</strong><span>এই তালিকায় এখন কিছু দেখানোর নেই।</span></div>
-      ) : (
+      ) : runningPeriod && !periodError ? (
         <div className="manager-request-list">
           {requests.map((request) => {
             const expanded = expandedId === request.request_id;
@@ -1356,7 +1430,7 @@ function ManagerMealRequests() {
             );
           })}
         </div>
-      )}
+      ) : null}
       {editRequest && (
         <div className="modal-backdrop" role="presentation">
           <section className="modal-panel card large-modal" role="dialog" aria-modal="true" aria-label="অনুরোধের মিল এডিট">
@@ -1388,12 +1462,30 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   const [values, setValues] = useState(DEFAULT_MEALS);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [runningPeriod, setRunningPeriod] = useState(null);
+  const [periodLoading, setPeriodLoading] = useState(true);
+  const [periodLoadError, setPeriodLoadError] = useState('');
   const [existingTargetRequest, setExistingTargetRequest] = useState(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
   const [duplicateCheckFailed, setDuplicateCheckFailed] = useState(false);
   const [, setClock] = useState(0);
-  useEffect(() => { const timer = window.setInterval(() => setClock((value) => value + 1), 30000); return () => window.clearInterval(timer); }, []);
+  useEffect(() => { const timer = window.setInterval(() => setClock(value => value + 1), 30000); return () => window.clearInterval(timer); }, []);
   const targetDate = lateMealRequestTargetDate();
+
+  const refreshPeriod = useCallback(async () => {
+    setPeriodLoading(true);
+    setPeriodLoadError('');
+    try {
+      const value = await fetchRunningPeriod({ force: true });
+      setRunningPeriod(value || null);
+      return value || null;
+    } catch (error) {
+      setPeriodLoadError(error?.message || 'চলমান মাসের সীমা যাচাই করা যায়নি।');
+      return null;
+    } finally { setPeriodLoading(false); }
+  }, []);
+
+  useEffect(() => { refreshPeriod(); }, [refreshPeriod]);
 
   useEffect(() => {
     let alive = true;
@@ -1404,28 +1496,31 @@ function LateMealRequestForm({ onSaved, onCancel }) {
       return () => { alive = false; };
     }
     setCheckingExisting(true);
-    fetchMyMealRequests(200, { force: true }).then((rows) => {
+    fetchMyMealRequests(200, { force: true }).then(rows => {
       if (!alive) return;
-      const active = findActiveMealRequestForDate(Array.isArray(rows) ? rows : [], targetDate);
-      setExistingTargetRequest(active);
-    }).catch((error) => {
+      setExistingTargetRequest(findActiveMealRequestForDate(Array.isArray(rows) ? rows : [], targetDate));
+    }).catch(error => {
       if (!alive) return;
-      // The SQL migration is authoritative and rejects duplicate requests under an advisory lock.
-      // A failed pre-check must not pretend that a duplicate was found.
       console.warn('Late request duplicate pre-check failed; the server will enforce uniqueness:', error);
       setDuplicateCheckFailed(true);
-    }).finally(() => {
-      if (alive) setCheckingExisting(false);
-    });
+    }).finally(() => { if (alive) setCheckingExisting(false); });
     return () => { alive = false; };
   }, [targetDate]);
+
+  const periodStart = String(runningPeriod?.start_date || '').slice(0, 10);
+  const periodEnd = String(runningPeriod?.end_date || '').slice(0, 10);
+  const targetInPeriod = Boolean(targetDate && periodStart && targetDate >= periodStart && (!periodEnd || targetDate <= periodEnd));
+  const targetOutsidePeriod = Boolean(targetDate && periodStart && !targetInPeriod);
 
   const submit = async () => {
     if (busy) return;
     if (!targetDate) return toast.warning('রাত ৯টায় হিসাব চূড়ান্ত হওয়া এবং রাত ১০টার নতুন সময়সীমা শুরুর মাঝখানে লেট অনুরোধ দেওয়া যায় না।');
+    if (periodLoading) return toast.info('চলমান মাসের সীমা যাচাই হচ্ছে।');
+    if (!runningPeriod) return toast.warning('কোনো চলমান মাস পাওয়া যায়নি। ম্যানেজারকে মাসের অবস্থা যাচাই করতে বলুন।');
+    if (!targetInPeriod) return toast.warning(`লেট অনুরোধের তারিখ ${targetDate} চলমান মাসের শুরুর তারিখ ${periodStart}-এর আগে। চলমান মাস বন্ধ না হওয়া পর্যন্ত নির্দিষ্ট শেষ তারিখ নেই।`);
     if (existingTargetRequest) {
       const message = existingTargetRequest.is_late_request
-        ? 'এই দিনের জন্য আপনার একটি লেট অনুরোধ আগে থেকেই জমা হয়েছে। অনুরোধের ইতিহাসে সেটির অবস্থা দেখুন।'
+        ? 'এই দিনের জন্য আপনার একটি লেট অনুরোধ আগে থেকেই জমা হয়েছে। অনুরোধের ইতিহাসে সেটির অবস্থা দেখুন.'
         : 'এই দিনের জন্য আগের একটি মিল অনুরোধ রয়েছে। কাট-অফ পার হলে অনুরোধের ইতিহাস থেকে সংশোধনের আবেদন দিন।';
       return toast.warning(message);
     }
@@ -1435,18 +1530,31 @@ function LateMealRequestForm({ onSaved, onCancel }) {
       toast.success('লেট মিল অনুরোধ পাঠানো হয়েছে। প্রধান/সহকারী ম্যানেজারের অনুমোদন না হওয়া পর্যন্ত এটি কার্যকর হবে না।');
       onSaved?.();
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'লেট অনুরোধ পাঠানো যায়নি।'));
+      const rawMessage = String(error?.message || '');
+      if (/চলমান মাসের মধ্যে নেই|চলমান মাসের সীমার বাইরে|selected dates.*running period/i.test(rawMessage)) {
+        await refreshPeriod();
+        toast.warning('সার্ভারের চলমান মাসের তথ্য রিফ্রেশ করা হয়েছে। তারিখ আবার যাচাই করে অনুরোধ দিন; ত্রুটি থাকলে ম্যানেজারকে দেখান।');
+      } else {
+        toast.error(getFriendlySupabaseError(error, 'লেট অনুরোধ পাঠানো যায়নি।'));
+      }
     } finally { setBusy(false); }
   };
+
   return <section className="dining-panel card late-request-form">
     <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর স্বাভাবিক রাত ১০টার সময়সীমা পার হলে এখানে আবেদন দিন।` : 'আজকের মিল রাত ৯টায় চূড়ান্ত হয়েছে; আগামী দিনের লেট অনুরোধ রাত ১০টার সময়সীমার পরে দেওয়া যাবে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
-    <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট অনুরোধ কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট অনুরোধ পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন অনুরোধ পাঠানো যাবে না। অনুমোদিত হলে নতুন করে পরিবর্তনের সুযোগ থাকবে না। ফাইনাল মিল হয়ে যাওয়ার পরে পরিবর্তন দরকার হলে প্রধান ম্যানেজারকে জানাতে হবে; তিনি Admin Entry → Final Meal Correction ব্যবহার করে সংশোধন করতে পারবেন।</p></div></div>
+    {periodLoading ? <div className="state-card"><Icon name="clock" size={17}/><div><strong>চলমান মাস যাচাই হচ্ছে</strong><p>লেট অনুরোধ যেন সঠিক মাসে জমা হয়, এজন্য বর্তমান Period-এর সীমা যাচাই করা হচ্ছে।</p></div></div> : runningPeriod && <div className={`state-card ${targetOutsidePeriod ? 'state-card-warning' : ''}`}>
+      <Icon name={targetOutsidePeriod ? 'alert-triangle' : 'calendar'} size={18}/><div><strong>চলমান মাস: {runningPeriod.label || 'নির্বাচিত Period'}</strong><p>{periodEnd ? `তারিখসীমা: ${periodStart} → ${periodEnd}` : `শুরুর তারিখ: ${periodStart} · মাস বন্ধ না হওয়া পর্যন্ত শেষ তারিখ নির্ধারিত নয়`}{targetDate ? ` · অনুরোধের তারিখ: ${targetDate}` : ''}</p>
+      {targetOutsidePeriod && <p>নির্বাচিত তারিখটি চলমান মাস শুরুর আগের। তাই অনুরোধ পাঠানো যাবে না।</p>}
+      </div>
+    </div>}
+    {periodLoadError && <div className="state-card state-card-warning"><Icon name="warning" size={17}/><div><strong>মাসের তারিখসীমা যাচাই করা যায়নি</strong><p>{periodLoadError}</p><button className="secondary-button compact" type="button" onClick={refreshPeriod} disabled={periodLoading}>আবার যাচাই করুন</button></div></div>}
+    <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট অনুরোধ কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট অনুরোধ পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন অনুরোধ পাঠানো যাবে না।</p></div></div>
     {checkingExisting && targetDate && <div className="state-card"><Icon name="clock" size={17}/><div><strong>আগের অনুরোধ যাচাই করা হচ্ছে</strong><p>একই দিনের লেট অনুরোধ পুনরায় জমা না দিতে আপনার অনুরোধের ইতিহাস পরীক্ষা করা হচ্ছে।</p></div></div>}
     {existingTargetRequest && <div className="state-card state-card-warning"><Icon name="alert-triangle" size={17}/><div><strong>এই দিনের জন্য আগের অনুরোধ রয়েছে</strong><p>{existingTargetRequest.is_late_request ? `লেট অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'ম্যানেজারের অনুমোদনের অপেক্ষায়'}।` : `আগের অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'অপেক্ষমাণ'}।`} একই দিনের জন্য আরেকটি অনুরোধ দেওয়া যাবে না। মিল পরিবর্তন করতে অনুরোধের ইতিহাস দেখুন।</p></div></div>}
     {!checkingExisting && duplicateCheckFailed && !existingTargetRequest && <div className="state-card state-card-warning"><Icon name="info" size={17}/><div><strong>ডুপ্লিকেট যাচাই সম্পন্ন হয়নি</strong><p>সংযোগের সমস্যা থাকায় আগের অনুরোধ যাচাই করা যায়নি। সাবমিট করলে সার্ভার চূড়ান্তভাবে ডুপ্লিকেট পরীক্ষা করবে।</p></div></div>}
-    <div className="manager-meal-grid">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><div key={key}><MealStepper label={label} value={values[key]} onChange={(value)=>setValues((old)=>({...old,[key]:value}))}/></div>)}</div>
-    <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={reason} onChange={(event)=>setReason(event.target.value)} placeholder="কেন স্বাভাবিক সময়সীমার পরে অনুরোধ দিচ্ছেন"/></label>
-    <button className="primary-button large dining-submit" type="button" onClick={submit} disabled={busy || checkingExisting || Boolean(existingTargetRequest) || !targetDate}>{busy?'আবেদন পাঠানো হচ্ছে...':checkingExisting?'আগের অনুরোধ যাচাই হচ্ছে...':existingTargetRequest?'এই দিনের অনুরোধ আগে আছে':'লেট অনুরোধ পাঠান'}</button>
+    <div className="manager-meal-grid">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><div key={key}><MealStepper label={label} value={values[key]} onChange={value=>setValues(old=>({...old,[key]:value}))}/></div>)}</div>
+    <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={reason} onChange={event=>setReason(event.target.value)} placeholder="কেন স্বাভাবিক সময়সীমার পরে অনুরোধ দিচ্ছেন"/></label>
+    <button className="primary-button large dining-submit" type="button" onClick={submit} disabled={busy || periodLoading || checkingExisting || Boolean(existingTargetRequest) || !targetDate || !runningPeriod || !targetInPeriod}>{busy?'আবেদন পাঠানো হচ্ছে...':periodLoading?'মাস যাচাই হচ্ছে...':checkingExisting?'আগের অনুরোধ যাচাই হচ্ছে...':existingTargetRequest?'এই দিনের অনুরোধ আগে আছে':targetOutsidePeriod?'তারিখ যাচাই করুন':'লেট অনুরোধ পাঠান'}</button>
   </section>;
 }
 
@@ -1469,7 +1577,7 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
     if(!period) return toast.warning('কোনো running period নেই।');
     if(!startDate||!endDate||startDate>endDate) return toast.warning('তারিখের পরিসর সঠিক নয়।');
     if(startDate<=todayValue()) return toast.warning('ম্যানুয়াল সাধারণ অনুরোধ আগামীকাল বা পরবর্তী দিনের জন্য হবে। আজকের জন্য লেট অনুরোধ ব্যবহার করুন।');
-    if(startDate<period.start_date||endDate>period.end_date) return toast.warning('নির্বাচিত তারিখগুলো running period-এর মধ্যে হতে হবে।');
+    if (startDate < period.start_date || (period.end_date && endDate > period.end_date)) return toast.warning('নির্বাচিত তারিখগুলো চলমান মাসের শুরুর তারিখের পরে হতে হবে। চলমান মাস বন্ধ না হওয়া পর্যন্ত নির্দিষ্ট শেষ তারিখ নেই।');
     if(!days.length) return toast.warning('কমপক্ষে একটি দিনের মিল দরকার।');
     setBusy(true);
     try{
@@ -1507,7 +1615,7 @@ function ManagerDepositForm({ members, period, onSaved }) {
     event.preventDefault();
     if (!period) return toast.warning('কোনো চলমান মাস নেই।');
     if (!memberId) return toast.error('সদস্য নির্বাচন করুন।');
-    if (!date || date < period.start_date || date > period.end_date || date > todayValue()) return toast.warning('ডিপোজিটের তারিখ চলমান মাসের মধ্যে এবং আজ বা তার আগের হতে হবে।');
+    if (!date || date < period.start_date || (period.end_date && date > period.end_date) || date > todayValue()) return toast.warning('ডিপোজিটের তারিখ চলমান মাস শুরু হওয়ার পরে এবং আজ বা তার আগের হতে হবে।');
     if (!(Number(amount) > 0)) return toast.error('ডিপোজিটের পরিমাণ শূন্যের বেশি হতে হবে।');
     setBusy(true);
     try {
@@ -1556,7 +1664,7 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
     event.preventDefault();
     if (!period) return toast.warning('কোনো চলমান মাস নেই।');
     if (!memberId) return toast.error('সদস্য নির্বাচন করুন।');
-    if (!date || date < period.start_date || date > period.end_date || date > todayValue()) return toast.warning('খরচের তারিখ চলমান মাসের মধ্যে এবং আজ বা তার আগের হতে হবে।');
+    if (!date || date < period.start_date || (period.end_date && date > period.end_date) || date > todayValue()) return toast.warning('খরচের তারিখ চলমান মাস শুরু হওয়ার পরে এবং আজ বা তার আগের হতে হবে।');
     if (!(Number(amount) > 0)) return toast.error('খরচের পরিমাণ শূন্যের বেশি হতে হবে।');
     if (!description.trim()) return toast.error('খরচের বিবরণ দিতে হবে।');
     setBusy(true);

@@ -57,7 +57,14 @@ export async function fetchPreviousMonths() {
   assertSupabase();
   const { data, error } = await supabase.rpc('get_previous_months');
   if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  const previous = Array.isArray(data) ? data : [];
+  try {
+    const { data: listed, error: listedError } = await supabase.rpc('hl_b_list_closed_months');
+    if (listedError || !Array.isArray(listed)) return previous;
+    const known = new Set(previous.map(row => String(row.period_id || row.id)));
+    return [...previous, ...listed.filter(row => !known.has(String(row.period_id || row.id)))
+      .map(row => ({ ...row, period_id: row.period_id || row.id, archive_read_only: true }))];
+  } catch { return previous; }
 }
 
 export async function fetchArchivedMonthDetail(periodId) {

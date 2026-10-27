@@ -56,11 +56,17 @@ export function ProfilePage() {
     }
   };
 
-  const chooseAvatar = () => fileRef.current?.click();
+  const chooseAvatar = () => {
+    // Reset before opening so choosing the same photo again still fires change.
+    if (!fileRef.current || uploading) return;
+    fileRef.current.value = '';
+    fileRef.current.click();
+  };
 
   const uploadAvatar = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
     if (!file) return;
     const avatarUserId = user?.id || profile?.user_id;
     if (!avatarUserId) return toast.error('আপনার লগইন পরিচয় পাওয়া যায়নি। আবার লগইন করুন।');
@@ -118,11 +124,11 @@ export function ProfilePage() {
     <div className="page-stack">
       <div className="card profile-overview-card">
         <div className="profile-avatar-wrap">
-          {avatarUrl ? <img className="profile-avatar-image" src={avatarUrl} alt="প্রোফাইল" /> : <div className="avatar avatar-xl">{initials(displayName)}</div>}
-          <button className="avatar-camera-button" type="button" onClick={chooseAvatar} disabled={uploading} aria-label="প্রোফাইল ছবি পরিবর্তন"><Icon name="camera" size={16} /></button>
+          {avatarUrl ? <img className="profile-avatar-image" src={avatarUrl} alt="প্রোফাইল" onError={() => setAvatarUrl('')} /> : <div className="avatar avatar-xl">{initials(displayName)}</div>}
+          <button className={`avatar-camera-button ${uploading ? 'uploading' : ''}`} type="button" onClick={chooseAvatar} disabled={uploading} aria-label="প্রোফাইল ছবি পরিবর্তন"><Icon name={uploading ? 'loader-circle' : 'camera'} size={16} /></button>
           <input ref={fileRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadAvatar} />
         </div>
-        <div className="profile-overview-copy"><span className="eyebrow">আপনার অ্যাকাউন্ট</span><h1>{displayName}</h1><div className="profile-role-line"><span className="member-badge active">{role}</span><span>{membership?.hostel_name || 'মেস'}</span></div><small>প্রোফাইল ছবি: JPG/PNG/WEBP — আপলোডের সময় স্বয়ংক্রিয়ভাবে ১৯০ KB-এর মধ্যে compress হবে</small></div>
+        <div className="profile-overview-copy"><span className="eyebrow">আপনার অ্যাকাউন্ট</span><h1>{displayName}</h1><div className="profile-role-line"><span className="member-badge active">{role}</span><span>{membership?.hostel_name || 'মেস'}</span></div><small className="profile-avatar-format">ছবির ফরম্যাট: JPG, PNG, WEBP{uploading ? ' · আপলোড হচ্ছে…' : ''}</small></div>
       </div>
 
       <section className="card profile-section-card">

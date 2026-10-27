@@ -44,3 +44,11 @@ export async function managerDeleteNotification(notificationId) {
   });
   if (error) throw error;
 }
+
+// Server-authorized bulk operation applies only to the signed-in recipient.
+export async function deleteAllMyNotifications() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('delete_all_my_notifications');
+  if (error) throw error;
+  return data;
+}

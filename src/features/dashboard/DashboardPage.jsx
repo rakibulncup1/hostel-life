@@ -21,6 +21,16 @@ function safeNumber(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+// The daily RPC can expose a stale zero total after finalization even when
+// breakfast/lunch/dinner contain the correct finalized counts. The card total
+// is a display-only sum; the ledger and monthly accounting remain untouched.
+export function getDisplayedDailyMealTotal(meal) {
+  if (!meal) return 0;
+  const sum = ['breakfast', 'lunch', 'dinner'].reduce((n, key) => n + safeNumber(meal[key]), 0);
+  const returned = Number(meal.total);
+  return Number.isFinite(returned) && returned >= 0 && Math.abs(returned - sum) < 0.00001 ? returned : sum;
+}
+
 function initials(name) {
   return name?.trim()?.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'HL';
 }
@@ -148,7 +158,7 @@ function MealCard({ meal, isOnline, hasOfflineDetails = false, lastSync, onDetai
 
       <div className="meal-total-row">
         <span>মোট মিল</span>
-        <strong>{formatMeal(meal.total)}</strong>
+        <strong>{formatMeal(getDisplayedDailyMealTotal(meal))}</strong>
       </div>
 
       <div className="sync-placeholder">
@@ -223,7 +233,7 @@ function MemberCard({ member, onClick }) {
   return (
     <article className={`card member-card detailed-member-card ${member?.status === 'inactive' ? 'member-inactive-card' : ''}`}>
       <div className="member-card-top">
-        <div className="avatar">{member?.avatar_url ? <img className="member-avatar-photo" src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : initials(member?.name)}</div>
+        <div className="avatar">{initials(member?.name)}</div>
         <div className="member-copy">
           <h3><button className="dashboard-member-name" type="button" onClick={onClick}>{member?.name || 'সদস্য'}</button></h3>
           <div className="member-badge-row">
@@ -666,7 +676,7 @@ export function DashboardPage() {
             ...member,
             membership_id: id,
             name: member.name || directory?.member_name || prior?.name || 'সদস্য',
-            avatar_url: member.avatar_url || directory?.avatar_url || directory?.photo_url || prior?.avatar_url || null,
+            avatar_url: null,
             status: directory?.member_status || member.status || prior?.status || 'active',
             role: member.role || directory?.role || prior?.role || 'member',
             is_assistant_manager: Boolean(member.is_assistant_manager ?? directory?.is_assistant_manager ?? prior?.is_assistant_manager),

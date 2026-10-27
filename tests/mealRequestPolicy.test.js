@@ -1,20 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findActiveMealRequestForDate, getLateMealRequestTargetDate } from '../src/utils/mealRequestPolicy.js';
+import {
+  findActiveMealRequestForDate,
+  getLateMealRequestTargetDate,
+  isNormalMealRequestWindowOpen,
+} from '../src/utils/mealRequestPolicy.js';
 
-test('late request targets the current Dhaka date before the 9 PM freeze', () => {
-  // 14:59 UTC = 20:59 in Dhaka.
-  assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T14:59:00.000Z')), '2026-10-14');
+test('normal requests remain open before 10 PM Dhaka time', () => {
+  assert.equal(isNormalMealRequestWindowOpen(new Date('2026-10-14T15:59:00.000Z')), true); // 21:59 Dhaka
 });
 
-test('late request is closed during the 9–10 PM transition window', () => {
-  assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T15:00:00.000Z')), null);
-  assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T15:59:00.000Z')), null);
+test('normal requests close at exactly 10 PM Dhaka time', () => {
+  assert.equal(isNormalMealRequestWindowOpen(new Date('2026-10-14T16:00:00.000Z')), false); // 22:00 Dhaka
+  assert.equal(isNormalMealRequestWindowOpen(new Date('2026-10-14T16:30:00.000Z')), false);
 });
 
-test('after 10 PM Dhaka, late request targets tomorrow', () => {
-  // 16:00 UTC = 22:00 in Dhaka.
+test('late request is unavailable before 10 PM Dhaka time', () => {
+  assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T00:00:00.000Z')), null);
+  assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T15:00:00.000Z')), null); // 21:00 Dhaka
+  assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T15:59:00.000Z')), null); // 21:59 Dhaka
+});
+
+test('late request opens at 10 PM and targets tomorrow in Dhaka', () => {
   assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T16:00:00.000Z')), '2026-10-15');
+  assert.equal(getLateMealRequestTargetDate(new Date('2026-10-14T17:30:00.000Z')), '2026-10-15');
 });
 
 test('late-request duplicate precheck detects any active request for the same date', () => {

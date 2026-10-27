@@ -54,7 +54,7 @@ export function HistoryPage() {
   // payload using `id` instead of `membership_id`.
   const canManageHistory = Boolean(isManager || operationalRole?.can_manage_month || operationalRole?.is_assistant_manager || operationalRole?.is_primary_manager);
   const [accountFilter, setAccountFilter] = useState('');
-  const [accountScope, setAccountScope] = useState('all');
+  const [accountScope, setAccountScope] = useState('mine');
   const [members, setMembers] = useState([]);
   const [accountType, setAccountType] = useState('all');
   const [marketEdit, setMarketEdit] = useState(null);
@@ -152,7 +152,7 @@ export function HistoryPage() {
       } else if (tab === 'account') {
         const memberId = canEditVisibleRows
           ? (accountFilter || null)
-          : (accountScope === 'mine' ? (membership?.membership_id || null) : null);
+          : (membership?.membership_id || null);
         const accounts = await fetchAccountHistory({ periodId, memberId, limit: 500 });
         setAccountRows(accounts);
         try { setMembers(await fetchMemberDirectory()); }
@@ -323,12 +323,9 @@ export function HistoryPage() {
       {tab === 'months' && finalSummaries.length > 0 && <section className="card retention-member-notice"><h2>সংরক্ষিত চূড়ান্ত সারসংক্ষেপ</h2><div className="history-final-summary-list">{finalSummaries.map(row => <details key={row.period_id}><summary>{row.period_label || row.summary?.label || 'পূর্ববর্তী মাস'} · {row.end_date || ''}</summary><div className="history-final-summary-body"><p>বাজারের মোট: {formatCurrency(row.summary?.market_total ?? 0)}</p><p>খালার মোট: {formatCurrency(row.summary?.khala_total ?? 0)}</p><p>মোট মিল (সকালের / দুপুরের / রাতের): {formatNumber(row.summary?.meal_total?.breakfast || 0)} / {formatNumber(row.summary?.meal_total?.lunch || 0)} / {formatNumber(row.summary?.meal_total?.dinner || 0)}</p><button type="button" className="secondary-button compact" onClick={() => printFinalSummary(row)}>A4 PDF / প্রিন্ট</button></div></details>)}</div></section>}
       {tab === 'account' && (
         <div className="card history-filter-card account-history-filter-card">
-          <div><strong>হিসাব ইতিহাসের পরিসর</strong><small>{canEditVisibleRows ? 'সব সদস্য অথবা নির্দিষ্ট সদস্যের হিসাব দেখুন।' : 'সবার হিসাব অথবা শুধু নিজের হিসাব বেছে নিন। এরপর জমা, বাজার ও খরচের ধরন দিয়েও তালিকা ছেঁকে নিতে পারবেন।'}</small></div>
+          <div><strong>হিসাব ইতিহাসের পরিসর</strong><small>{canEditVisibleRows ? 'সব সদস্য অথবা নির্দিষ্ট সদস্যের হিসাব দেখুন।' : 'গোপনীয়তার জন্য এখানে শুধু আপনার নিজের হিসাব দেখা যাবে।'}</small></div>
           <div className="account-history-scope-controls" role="group" aria-label="কার হিসাব দেখাবেন">
-            {!isManager && !selectedArchivePeriodId && <>
-              <button type="button" className={`secondary-button compact ${accountScope === 'all' ? 'active' : ''}`} aria-pressed={accountScope === 'all'} onClick={() => setAccountScope('all')}>সবার হিসাব</button>
-              <button type="button" className={`secondary-button compact ${accountScope === 'mine' ? 'active' : ''}`} aria-pressed={accountScope === 'mine'} onClick={() => setAccountScope('mine')}>শুধু আমার</button>
-            </>}
+            {!canEditVisibleRows && <span className="member-badge subtle">শুধু আমার হিসাব</span>}
             {canEditVisibleRows && <select value={accountFilter} onChange={(e) => setAccountFilter(e.target.value)} aria-label="সদস্য নির্বাচন"><option value="">সব সদস্য</option>{members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select>}
           </div>
         </div>

@@ -22,7 +22,10 @@ export async function fetchMemberDirectory({ force = false } = {}) {
       { name: 'get_member_directory' },
     ]);
     if (error) throw error;
-    return Array.isArray(data) ? data : [];
+    const rows = Array.isArray(data) ? data : [];
+    // Privacy: never request or forward other members' profile photos.
+    // The directory remains a single RPC with its original accounting/role payload.
+    return rows;
   }, { ttlMs: 60000, force });
 }
 
@@ -261,7 +264,7 @@ async function fetchRunningPeriodFromRlsTable() {
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data ? { ...data, period_id: data.id } : null;
+  return data ? normalizeRunningPeriodPayload({ period: { ...data, period_id: data.id } }) : null;
 }
 
 export async function fetchRunningPeriod({ force = false } = {}) {
@@ -290,8 +293,27 @@ export async function fetchRunningPeriod({ force = false } = {}) {
   }, { ttlMs: 30000, force });
 }
 
+function isMissingRunningPeriodRepairRpc(error) {
+  const detail = `${error?.code || ''} ${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`;
+  return /PGRST202|42883|could not find the function|schema cache|function .* does not exist/i.test(detail);
+}
+
+/** Backfill missing real calendar days for the currently running period, never the far-future sentinel. */
+export async function ensureRunningPeriodDays() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('hl_ensure_running_period_days', {});
+  if (error) {
+    // Older deployments can continue to open the UI, but the database migration
+    // must be applied before open-ended periods can work completely.
+    if (isMissingRunningPeriodRepairRpc(error)) return null;
+    throw error;
+  }
+  return data ?? null;
+}
+
 export async function fetchMonthClosePreflight() {
   assertSupabase();
+  await ensureRunningPeriodDays();
   const { data, error } = await supabase.rpc('get_month_close_preflight');
   if (error) throw error;
   return data ?? null;

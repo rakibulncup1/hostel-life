@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { AppShell, navigateTo } from './AppShell';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { ArchiveCorrectionPage } from '../features/archive/ArchiveCorrectionPage';
 import { DiningPage } from '../features/dining/DiningPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
-import { AllMembersPage, KhalaMoneyViewPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage, ArchiveEditAccessPage } from '../features/menu/MenuPages';
-import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, ArchiveManagerPage, KhalaMoneyPage, MemberManagementPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
+import { AllMembersPage, KhalaMoneyViewPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage } from '../features/menu/MenuPages';
+import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
 import { AuthPage } from '../features/auth/AuthPage';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange';
 import { OnboardingPage } from '../features/onboarding/OnboardingPage';
@@ -32,10 +33,11 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/terms') return <TermsPage />;
   if (pathname === '/app/menu/how-to-use') return <HowToUsePage />;
   if (pathname === '/app/menu/send-notification') return <SendNotificationPage />;
-  if (pathname === '/app/menu/archive') return isManager ? <ArchiveManagerPage /> : <PreviousMonthsPage />;
+  if (pathname === '/app/menu/archive') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/reports') return <ReportsPage />;
   if (pathname === '/app/menu/meal-sheet') return <MealSheetPage />;
-  if (pathname === '/app/menu/archive-edit-access') return <ArchiveEditAccessPage />;
+  // Legacy deep links now resolve to the single Archive entry.
+  if (pathname === '/app/menu/archive-edit-access') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/current-month-close') return <CloseCurrentMonthPage />;
   if (pathname === '/app/menu/new-month') return <NewMonthPage />;
   if (pathname === '/app/menu/change-manager') return <ChangeManagerPage />;
@@ -111,7 +113,7 @@ export function App() {
     else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
     else if (pathname.includes('/menu/meal-sheet')) title = 'Hostel Life — মিল শিট';
-    else if (pathname.includes('/menu/archive-edit-access')) title = 'Hostel Life — আর্কাইভ সম্পাদনা';
+    else if (pathname.includes('/menu/archive-edit-access')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/current-month-close')) title = 'Hostel Life — বর্তমান মাস শেষ করুন';
     else if (pathname.includes('/menu/new-month')) title = 'Hostel Life — নতুন মাস';
     else if (pathname.includes('/menu/change-manager')) title = 'Hostel Life — ম্যানেজার পরিবর্তন';

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { invalidateRequestCache } from '../lib/requestCache';
+import { normalizeRunningPeriodPayload } from '../utils/period';
 
 function assertSupabase() {
   if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
@@ -15,7 +16,7 @@ async function rpc(name, params) {
   const { data, error } = await supabase.rpc(name, params);
   if (error) throw error;
   // Manager RPCs here are mutations except explicit get_* context/read methods.
-  if (!/^get_/.test(name)) invalidateRequestCache('dashboard:', 'dining:', 'manager:context');
+  if (!/^(get_|hl_b_list_|hl_b_month_)/.test(name)) invalidateRequestCache('dashboard:', 'dining:', 'manager:context');
   return data;
 }
 
@@ -42,7 +43,8 @@ export async function closeCurrentMonth(confirmFutureCancel = false) {
 }
 
 export async function startNewMonth(startDate) {
-  return unwrap(await rpc('start_new_month', { p_start_date: startDate }));
+  const result = unwrap(await rpc('start_new_month', { p_start_date: startDate }));
+  return normalizeRunningPeriodPayload({ period: result }) || result;
 }
 
 export async function changeManager(newMembershipId) {
@@ -83,9 +85,56 @@ export async function regenerateJoinCode() {
   return typeof data === 'string' ? data : unwrap(data);
 }
 
+// Read each archive source independently: an optional RPC failure must not hide
+// closed months already visible in History. Never grant rights from fallback data.
+function archiveRows(value) {
+  if (typeof value === 'string') {
+    try { return archiveRows(JSON.parse(value)); } catch { return []; }
+  }
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') {
+    for (const key of ['items', 'months', 'periods', 'data', 'archives']) {
+      if (Array.isArray(value[key])) return value[key];
+    }
+  }
+  return [];
+}
+
 export async function fetchArchiveManagementItems() {
-  const data = await rpc('get_archive_management_items', {});
-  return Array.isArray(data) ? data : [];
+  const sources = await Promise.allSettled([
+    rpc('get_archive_management_items', {}),
+    rpc('hl_b_list_closed_months', {}),
+    rpc('get_previous_months', {}),
+  ]);
+  const [managedResult, moduleBResult, previousResult] = sources;
+  const managed = managedResult.status === 'fulfilled' ? archiveRows(managedResult.value) : [];
+  const byId = new Map();
+  const addReadOnly = result => {
+    if (result.status !== 'fulfilled') return;
+    for (const raw of archiveRows(result.value)) {
+      const periodId = raw?.period_id || raw?.id;
+      if (!periodId || byId.has(String(periodId))) continue;
+      const status = raw.status || raw.period_status;
+      if (status && !['closed', 'archived'].includes(status)) continue;
+      byId.set(String(periodId), {
+        ...raw, period_id: periodId,
+        label: raw.label || raw.period_label || raw.month_label || 'সংরক্ষিত মাস',
+        manager_at_close_membership_id: null, can_grant_closer_edit: false,
+        can_reopen: false, archive_read_only: true,
+      });
+    }
+  };
+  addReadOnly(previousResult);
+  addReadOnly(moduleBResult);
+  // Management RPC is the sole authority for permissions/reopening.
+  for (const row of managed) {
+    const id = row?.period_id || row?.id;
+    if (id) byId.set(String(id), { ...row, period_id: id });
+  }
+  if (!byId.size && sources.every(r => r.status === 'rejected')) {
+    throw managedResult.reason;
+  }
+  return [...byId.values()].sort((a,b) => String(b.start_date || '').localeCompare(String(a.start_date || '')));
 }
 
 export async function reopenArchivedPeriod(periodId) {
