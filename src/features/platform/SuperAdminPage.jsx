@@ -25,6 +25,24 @@ const errorText = (error, fallback) => /platform_admin_|get_platform_public_sett
   ? 'Super Admin SQL এখনো প্রয়োগ করা হয়নি। প্রথমে নির্দেশিকার Phase 2 SQL চালিয়ে schema reload হওয়া পর্যন্ত অপেক্ষা করুন।'
   : (error?.message || fallback);
 
+async function edgeInvokeErrorText(error) {
+  let payload = null;
+  let raw = '';
+  const context = error?.context;
+  if (context && typeof context.clone === 'function') {
+    try {
+      const response = context.clone();
+      raw = await response.text();
+      try { payload = raw ? JSON.parse(raw) : null; } catch { payload = null; }
+    } catch { /* Fall back to the SDK error text. */ }
+  }
+  const detail = payload?.message || payload?.error_description || payload?.error || payload?.details || '';
+  const status = context?.status;
+  const requestId = payload?.request_id;
+  const base = detail || error?.message || raw || 'Edge Function অনুরোধ ব্যর্থ হয়েছে।';
+  return `${base}${status ? ` (HTTP ${status})` : ''}${requestId ? ` · Request ID: ${requestId}` : ''}`;
+}
+
 function Field({ label, value, onChange, type = 'text', maxLength, multiline = false }) {
   return <label className="field-label platform-field"><span>{label}</span>{multiline
     ? <textarea rows={4} value={value ?? ''} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} />
@@ -76,6 +94,7 @@ export function SuperAdminPage({ user }) {
   const [recoveryVerified, setRecoveryVerified] = useState(false);
   const [recoveryResult, setRecoveryResult] = useState('');
   const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryCheckBusy, setRecoveryCheckBusy] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteAccounts, setDeleteAccounts] = useState(false);
@@ -84,6 +103,7 @@ export function SuperAdminPage({ user }) {
   const [orphanMore, setOrphanMore] = useState(false);
   const [orphanBusy, setOrphanBusy] = useState(false);
   const [orphanError, setOrphanError] = useState('');
+  const [orphanScanInfo, setOrphanScanInfo] = useState(null);
 
   const pageSize = 20;
 
@@ -253,6 +273,18 @@ export function SuperAdminPage({ user }) {
     } catch (cause) { setError(errorText(cause, 'মেসের স্ট্যাটাস বদলানো যায়নি।')); }
     finally { setBusy(false); }
   };
+  const checkTemporaryPasswordFunction = async () => {
+    setRecoveryCheckBusy(true); setError(''); setNotice('');
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke('admin-temporary-password', { body: { action: 'healthcheck' } });
+      if (invokeError) throw new Error(await edgeInvokeErrorText(invokeError));
+      if (!data?.ok) throw new Error(data?.message || data?.error || 'Function health-check সফল হয়নি।');
+      setNotice(`Password-help Function ঠিকভাবে চলছে · সংস্করণ ${data.version || 'অজানা'} · Super Admin যাচাই সফল${data.request_id ? ` · Request ID: ${data.request_id}` : ''}`);
+    } catch (cause) {
+      setError(`${cause?.message || 'Password-help Function যাচাই ব্যর্থ হয়েছে।'} Supabase → Edge Functions → admin-temporary-password → Logs-এ একই সময়ের error দেখুন।`);
+    } finally { setRecoveryCheckBusy(false); }
+  };
+
   const issueTemporaryPassword = async () => {
     if (!recoveryTarget || !recoveryVerified || recoveryNote.trim().length < 5) {
       setError('ব্যবহারকারীর পরিচয় ম্যানুয়ালি যাচাই করে অন্তত ৫ অক্ষরের কারণ লিখুন।'); return;
@@ -263,14 +295,7 @@ export function SuperAdminPage({ user }) {
       const { data, error: invokeError } = await supabase.functions.invoke('admin-temporary-password', {
         body: { user_id: recoveryTarget.user_id, identity_verified: true, verification_note: recoveryNote.trim() },
       });
-      if (invokeError) {
-        let detail = '';
-        try { detail = (await invokeError.context?.json())?.error || ''; } catch { /* unavailable response */ }
-        const message = detail || invokeError.message || '';
-        throw new Error(/failed to send|failed to fetch|function not found|non-2xx|edge function/i.test(message) && !detail
-          ? 'Password-help Edge Function-এ সংযোগ হয়নি। Supabase Dashboard → Edge Functions থেকে admin-temporary-password deploy, JWT verification ও function logs পরীক্ষা করুন।'
-          : message);
-      }
+      if (invokeError) throw new Error(await edgeInvokeErrorText(invokeError));
       if (data?.error) throw new Error(data.error);
       if (!data?.temporary_password) throw new Error('সার্ভার থেকে অস্থায়ী পাসওয়ার্ড পাওয়া যায়নি।');
       setRecoveryResult(data.temporary_password);
@@ -320,12 +345,19 @@ export function SuperAdminPage({ user }) {
     setOrphanBusy(true); setOrphanError('');
     try {
       const {data,error:fnError} = await supabase.functions.invoke('admin-delete-unlinked-user', {body:{action:'list',page}});
-      if (fnError || data?.error) {
-        const server = await fnError?.context?.json?.().catch(()=>null);
-        throw new Error(data?.error || server?.error || fnError?.message || 'তালিকা আনা যায়নি');
-      }
+      if (fnError) throw new Error(await edgeInvokeErrorText(fnError));
+      if (data?.error) throw new Error(data.message || data.error);
       setOrphanAccounts(Array.isArray(data?.items) ? data.items : []);
-      setOrphanPage(page);setOrphanMore(Boolean(data?.has_more));
+      setOrphanPage(Number(data?.page) || page);
+      setOrphanMore(Boolean(data?.has_more));
+      setOrphanScanInfo({
+        scannedUsers: Number(data?.scanned_users) || 0,
+        pagesScanned: Number(data?.auth_pages_scanned) || 0,
+        authPageStart: Number(data?.auth_page_start) || 0,
+        authPageEnd: Number(data?.auth_page_end) || 0,
+        message: data?.message || '',
+        requestId: data?.request_id || '',
+      });
     } catch (cause) {setOrphanError(cause?.message || 'Auth তালিকা আনা যায়নি।');}
     finally {setOrphanBusy(false);}
   };
@@ -336,10 +368,8 @@ export function SuperAdminPage({ user }) {
     setOrphanBusy(true);setOrphanError('');
     try {
       const {data,error:fnError}=await supabase.functions.invoke('admin-delete-unlinked-user',{body:{user_id:account.id,confirmation:expected}});
-      if (fnError || data?.error || !data?.deleted) {
-        const server=await fnError?.context?.json?.().catch(()=>null);
-        throw new Error(data?.error || server?.error || fnError?.message || 'Auth মুছতে পারেনি।');
-      }
+      if (fnError) throw new Error(await edgeInvokeErrorText(fnError));
+      if (data?.error || !data?.deleted) throw new Error(data?.message || data?.error || 'Auth মুছতে পারেনি।');
       setOrphanAccounts(old=>old.filter(row=>row.id!==account.id));
       setNotice('Auth account স্থায়ীভাবে মুছে ফেলা হয়েছে।');
     } catch(cause){setOrphanError(cause?.message || 'Auth মুছতে পারেনি।');}
@@ -367,7 +397,8 @@ export function SuperAdminPage({ user }) {
     if (confirmation !== `DELETE MEMBER ${member.user_id}`) { setError('নিচের নিশ্চিতকরণ বাক্যটি হুবহু লিখুন।'); return; }
     setBusy(true); setError(''); setNotice('');
     try {
-      const result = await platformAdminPermanentlyDeleteMember(selected.hostel_id, member.membership_id, deleteAuthAccount, confirmation);
+      // Always preserve Auth in the database RPC; the Edge Function performs a second membership check before it can delete Auth.
+      const result = await platformAdminPermanentlyDeleteMember(selected.hostel_id, member.membership_id, false, confirmation);
       let authDeleted = Boolean(result?.auth_account_deleted);
       let warning = '';
       if (deleteAuthAccount && !authDeleted) {
@@ -375,11 +406,16 @@ export function SuperAdminPage({ user }) {
           const {data:cleanup, error:cleanupError} = await supabase.functions.invoke('admin-delete-unlinked-user', {
             body: {user_id: member.user_id, confirmation: `DELETE AUTH ${member.user_id}`},
           });
-          if (cleanupError || cleanup?.error) throw new Error(cleanup?.error || cleanupError?.message || 'Edge Function failure');
+          if (cleanupError) throw new Error(await edgeInvokeErrorText(cleanupError));
+          if (cleanup?.error) throw new Error(cleanup.message || cleanup.error);
           authDeleted = Boolean(cleanup?.deleted);
           if (cleanup?.audit_warning) warning = ' Auth মুছেছে, কিন্তু Audit Log যাচাই করুন।';
+          if (!authDeleted) warning = ' Auth account মোছা হয়েছে কি না সার্ভার নিশ্চিত করেনি; Edge Function logs যাচাই করুন।';
         } catch (cleanupError) {
-          warning = ' মেস থেকে মুছেছে, কিন্তু Auth account মুছতে পারেনি। admin-delete-unlinked-user Edge Function deploy ও log যাচাই করুন।';
+          const detail = String(cleanupError?.message || 'Edge Function failure');
+          warning = /still linked|membership|অন্য.*মেস|সদস্যপদ/i.test(detail)
+            ? ` Auth account অন্য কোনো মেসে যুক্ত থাকতে পারে, তাই নিরাপত্তার জন্য রাখা হয়েছে। কারণ: ${detail}`
+            : ` মেস থেকে সদস্য সরানো হয়েছে, কিন্তু Auth account মোছা যায়নি। কারণ: ${detail}`;
         }
       }
       setNotice(authDeleted ? `সদস্য ও Auth account স্থায়ীভাবে মুছে ফেলা হয়েছে।${warning}` : `সদস্য মেস থেকে সরানো হয়েছে।${warning || (deleteAuthAccount ? ' Auth account অন্য মেসে ব্যবহৃত হলে তা থাকবে।' : ' Auth account রাখা হয়েছে।')}`);
@@ -479,7 +515,7 @@ export function SuperAdminPage({ user }) {
       <p>ব্যবহারকারীর সঙ্গে সরাসরি কথা বলে পরিচয় যাচাই করুন। এই কাজের জন্য Supabase-এর নিরাপদ Edge Function Deploy করতে হবে। পুরোনো পাসওয়ার্ড দেখা সম্ভব নয়।</p>
       <label className="field-label"><span>যাচাইয়ের সংক্ষিপ্ত কারণ (পাসওয়ার্ড বা গোপন তথ্য লিখবেন না)</span><textarea rows={2} maxLength={300} value={recoveryNote} onChange={e=>setRecoveryNote(e.target.value)}/></label>
       <label className="platform-toggle"><span>আমি ব্যক্তিগতভাবে পরিচয় যাচাই করেছি</span><input type="checkbox" checked={recoveryVerified} onChange={e=>setRecoveryVerified(e.target.checked)}/></label>
-      <div className="platform-action-row"><button type="button" className="primary-button" disabled={recoveryBusy||!recoveryVerified||recoveryNote.trim().length<5||Boolean(recoveryResult)} onClick={issueTemporaryPassword}>{recoveryBusy?'তৈরি হচ্ছে...':'অস্থায়ী পাসওয়ার্ড তৈরি'}</button><button type="button" className="secondary-button" onClick={()=>{setRecoveryTarget(null);setRecoveryResult('');setRecoveryNote('');}}>বন্ধ করুন</button></div>
+      <div className="platform-action-row"><button type="button" className="primary-button" disabled={recoveryBusy||recoveryCheckBusy||!recoveryVerified||recoveryNote.trim().length<5||Boolean(recoveryResult)} onClick={issueTemporaryPassword}>{recoveryBusy?'তৈরি হচ্ছে...':'অস্থায়ী পাসওয়ার্ড তৈরি'}</button><button type="button" className="secondary-button" disabled={recoveryBusy||recoveryCheckBusy} onClick={checkTemporaryPasswordFunction}>{recoveryCheckBusy?'যাচাই হচ্ছে...':'Function সংযোগ পরীক্ষা'}</button><button type="button" className="secondary-button" onClick={()=>{setRecoveryTarget(null);setRecoveryResult('');setRecoveryNote('');}}>বন্ধ করুন</button></div>
       {recoveryResult && <div className="platform-generated-code"><strong>একবার দেখানো অস্থায়ী পাসওয়ার্ড</strong><code>{recoveryResult}</code><p>এটি নিরাপদ মাধ্যমে শুধু সংশ্লিষ্ট ব্যবহারকারীকে দিন। এখানে বা নোটিফিকেশনে সংরক্ষণ করবেন না। ব্যবহারকারী লগইন করলে পাসওয়ার্ড পরিবর্তন বাধ্যতামূলক।</p><button type="button" className="secondary-button" onClick={()=>setRecoveryResult('')}>পাসওয়ার্ড স্ক্রিন থেকে সরান</button></div>}
     </section>}
     {tab === 'settings' && <form className="platform-settings-grid" onSubmit={saveSettings}>
@@ -490,11 +526,12 @@ export function SuperAdminPage({ user }) {
       <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||developerPhotoBusy}>{busy?'সংরক্ষণ হচ্ছে...':'সব সেটিংস সংরক্ষণ করুন'}</button></div>
     </form>}
     {tab === 'hostels' && <section className="card platform-panel" aria-label="মেস-বিহীন Auth account">
-      <div className="platform-panel-heading"><div><h3>মেস-বিহীন Auth account</h3><p>শুধু কোনো মেসে সদস্যপদ নেই এমন account দেখাবে। প্রতি পৃষ্ঠায় সর্বোচ্চ ৫০টি Auth record পরীক্ষা হয়; আগের পৃষ্ঠার account-গুলোও আলাদা থাকতে পারে।</p></div><button className="secondary-button compact" disabled={orphanBusy} type="button" onClick={()=>loadOrphanAccounts(1)}>তালিকা দেখুন / রিফ্রেশ</button></div>
+      <div className="platform-panel-heading"><div><h3>মেস-বিহীন Auth account</h3><p>প্রতি ধাপে সর্বোচ্চ ৫০০টি Auth account পরীক্ষা হয়। কোনো account-এর যেকোনো membership row থাকলে নিরাপত্তার জন্য সেটি এখানে দেখানো হবে না।</p></div><button className="secondary-button compact" disabled={orphanBusy} type="button" onClick={()=>loadOrphanAccounts(1)}>তালিকা রিফ্রেশ</button></div>
       {orphanError && <p role="alert" className="inline-error">{orphanError}</p>}
-      {orphanAccounts.length===0 && <p className="platform-empty">এই পৃষ্ঠায় কোনো মেস-বিহীন account পাওয়া যায়নি অথবা এখনো তালিকা আনা হয়নি।</p>}
+      {orphanScanInfo && <p className="platform-retention-hint">{orphanScanInfo.message} {orphanScanInfo.scannedUsers ? `· ${orphanScanInfo.scannedUsers.toLocaleString('en-US')}টি account পরীক্ষা · Auth পৃষ্ঠা ${orphanScanInfo.authPageStart}–${orphanScanInfo.authPageEnd}` : ''}{orphanScanInfo.requestId ? ` · Request ID: ${orphanScanInfo.requestId}` : ''}</p>}
+      {orphanAccounts.length===0 && <p className="platform-empty">{orphanScanInfo ? (orphanMore ? 'এই ধাপে মেস-বিহীন account পাওয়া যায়নি। আরও Auth account পরীক্ষা করতে “পরের ধাপ” চাপুন।' : 'Auth তালিকার শেষ পর্যন্ত পরীক্ষা হয়েছে। এই পরীক্ষিত account-গুলোর মধ্যে নিরাপদে মুছে ফেলার যোগ্য মেস-বিহীন account পাওয়া যায়নি।') : 'তালিকা দেখতে “তালিকা রিফ্রেশ” চাপুন।'}</p>}
       <div className="platform-retention-list">{orphanAccounts.map(account=><div className="platform-retention-row" key={account.id}><div><strong>{account.email || 'ইমেইল নেই'}</strong><small>{account.id}</small></div><button type="button" className="danger-button" disabled={orphanBusy} onClick={()=>removeOrphanAccount(account)}>Auth স্থায়ী ডিলিট</button></div>)}</div>
-      <div className="platform-action-row"><button type="button" className="secondary-button compact" disabled={orphanBusy || orphanPage===1} onClick={()=>loadOrphanAccounts(orphanPage-1)}>আগের পৃষ্ঠা</button><span>পৃষ্ঠা {orphanPage}</span><button type="button" className="secondary-button compact" disabled={orphanBusy || !orphanMore} onClick={()=>loadOrphanAccounts(orphanPage+1)}>পরের পৃষ্ঠা</button></div>
+      <div className="platform-action-row"><button type="button" className="secondary-button compact" disabled={orphanBusy || orphanPage===1} onClick={()=>loadOrphanAccounts(orphanPage-1)}>আগের পৃষ্ঠা</button><span>ধাপ {orphanPage} · প্রতিটি ধাপে সর্বোচ্চ ৫০০ account</span><button type="button" className="secondary-button compact" disabled={orphanBusy || !orphanMore} onClick={()=>loadOrphanAccounts(orphanPage+1)}>পরের ধাপ</button></div>
       <p className="platform-retention-hint">মেস থেকে সরানোর পর Auth মুছতে এই অপশন। যাচাই না করে ডিলিট করবেন না; নতুন নিবন্ধিত কিন্তু এখনও মেসে যোগ না দেওয়া account-ও এখানে থাকতে পারে।</p>
     </section>}
     {tab === 'retention' && <section className="platform-settings-grid" aria-label="ডেটা সংরক্ষণ নীতি">

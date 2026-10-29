@@ -15,8 +15,15 @@ export function ForcedPasswordChange() {
     try {
       const { data, error: updateError } = await supabase.functions.invoke('complete-temporary-password', { body: { new_password: password } });
       if (updateError) {
-        const body = await updateError.context?.json?.().catch(() => null);
-        throw new Error(body?.error || `${updateError.message} (HTTP ${updateError.context?.status || 'unknown'})`);
+        let payload = null; let raw = '';
+        const context = updateError.context;
+        if (context && typeof context.clone === 'function') {
+          try { raw = await context.clone().text(); payload = raw ? JSON.parse(raw) : null; } catch { /* Use SDK error if response body is unavailable. */ }
+        }
+        const detail = payload?.message || payload?.error_description || payload?.error || raw || updateError.message;
+        const status = context?.status ? ` (HTTP ${context.status})` : '';
+        const requestId = payload?.request_id ? ` · Request ID: ${payload.request_id}` : '';
+        throw new Error(`${detail}${status}${requestId}`);
       }
       if (data?.error) throw new Error(data.error);
       if (!data?.success) throw new Error('পাসওয়ার্ড পরিবর্তনের নিশ্চয়তা পাওয়া যায়নি।');
