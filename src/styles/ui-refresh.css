@@ -2042,3 +2042,39 @@ body {
  .auth-form-panel .auth-header p {font-size:13px;}
  .auth-form-panel .auth-switch {font-size:13px;}
 }
+
+/* Auth final alignment: keep the access reassurance attached to the form's own
+   heading on desktop and centered over the form on narrow screens. */
+.auth-form-panel { min-width:0; }
+.auth-form-panel .auth-form-intro {
+  display:flex;
+  width:max-content;
+  max-width:100%;
+  box-sizing:border-box;
+  margin:0 0 20px;
+  align-self:flex-start;
+  justify-content:center;
+  flex-wrap:wrap;
+  text-align:center;
+  line-height:1.5;
+  white-space:normal;
+  font-size:13px;
+  padding:8px 15px;
+}
+@media (min-width:850px) {
+  .auth-shell .auth-form-panel .auth-form-intro {margin-inline:0;}
+}
+@media (max-width:849px) {
+  .auth-shell .auth-form-panel .auth-form-intro {
+    align-self:center;
+    margin:0 auto 20px;
+    font-size:13px;
+  }
+  .auth-shell .auth-form-panel .auth-header {text-align:center;}
+  .auth-shell .auth-form-panel .auth-header > div {width:100%;min-width:0;}
+  .auth-shell .auth-form-panel .auth-header h2,
+  .auth-shell .auth-form-panel .auth-header p {text-wrap:pretty;}
+}
+@media (max-width:380px) {
+  .auth-shell .auth-form-panel .auth-form-intro {font-size:12px;padding:7px 10px;gap:7px;}
+}
