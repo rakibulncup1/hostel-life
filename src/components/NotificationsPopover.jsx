@@ -1,3 +1,4 @@
+import { confirmAction, confirmTypedAction } from '../utils/actionDialogs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from './Icon';
 import { LoadingSpinner } from './LoadingSpinner';
@@ -91,7 +92,7 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
   // Delete only the current recipient's inbox copy. The manager RPC still applies
   // its manager permission check and is restricted to recipient_user_id = auth.uid().
   const removeAllMine = async () => {
-    if (!items.length || !window.confirm('আপনার ইনবক্সের সব নোটিফিকেশন সার্ভার থেকে স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না। অন্য সদস্যদের ইনবক্স অক্ষত থাকবে।')) return;
+    if (!items.length || !await confirmAction('আপনার ইনবক্সের সব নোটিফিকেশন সার্ভার থেকে স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না। অন্য সদস্যদের ইনবক্স অক্ষত থাকবে।')) return;
     setBusyId('delete-all');
     try {
       await deleteAllMyNotifications();
@@ -104,7 +105,7 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
   };
 
   const remove = async (item) => {
-    if (!window.confirm('এই নোটিফিকেশনটি আপনার ইনবক্স থেকে সার্ভারসহ স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না।')) return;
+    if (!await confirmAction('এই নোটিফিকেশনটি আপনার ইনবক্স থেকে সার্ভারসহ স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না।')) return;
     setBusyId(item.notification_id);
     try {
       if (isManager) await managerDeleteNotification(item.notification_id);

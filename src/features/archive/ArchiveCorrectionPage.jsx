@@ -1,3 +1,4 @@
+import { confirmAction, confirmTypedAction } from '../../utils/actionDialogs';
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useManagementContext } from '../../hooks/useManagementContext';
@@ -194,7 +195,7 @@ export function ArchiveCorrectionPage() {
     if (editing.kind === 'market' && editing.itemCount !== 1) return toast.warning('এই বাজার এন্ট্রিতে আইটেমের সংখ্যা এক নয়। মোট টাকা বদলালে আইটেম/জমার হিসাব অসংগত হতে পারে; এটি এখানে সংশোধন করা যাবে না।');
     if (!FIELDS[editing.kind].every(([key]) => isFiniteNumber(values[key]))) return toast.warning('সব ঘরে সঠিক শূন্য বা ধনাত্মক সংখ্যা দিন।');
     if (reason.trim().length < 8 || reason.trim().length > MAX_REASON) return toast.warning('সংশোধনের কারণ ৮–৫০০ অক্ষরের হতে হবে।');
-    if (!window.confirm(`“${selected?.label || ''}” মাসের “${editing.title}” সংশোধন করবেন? আগের ও নতুন মান অডিট লগে থাকবে এবং সদস্যদের জানানো হবে।`)) return;
+    if (!await confirmAction(`“${selected?.label || ''}” মাসের “${editing.title}” সংশোধন করবেন? আগের ও নতুন মান অডিট লগে থাকবে এবং সদস্যদের জানানো হবে।`)) return;
     setBusy(true);
     try {
       await applyArchiveCorrection({ periodId: selectedPeriodId, kind: editing.kind, targetId: editing.targetId,

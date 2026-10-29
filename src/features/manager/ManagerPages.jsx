@@ -1,3 +1,4 @@
+import { confirmAction, confirmTypedAction } from '../../utils/actionDialogs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
@@ -831,7 +832,7 @@ export function ArchiveManagerPage() {
 
   const reopen = async () => {
     if (!selected?.can_reopen) return;
-    const ok = window.confirm(`“${selected.label}” আবার চালু করা হবে। মাস বন্ধ করার সময় বাতিল হওয়া ভবিষ্যতের request স্বয়ংক্রিয়ভাবে ফেরত আসবে না। আপনি কি নিশ্চিত?`);
+    const ok = await confirmAction(`“${selected.label}” আবার চালু করা হবে। মাস বন্ধ করার সময় বাতিল হওয়া ভবিষ্যতের request স্বয়ংক্রিয়ভাবে ফেরত আসবে না। আপনি কি নিশ্চিত?`);
     if (!ok) return;
     setBusy(true);
     try {

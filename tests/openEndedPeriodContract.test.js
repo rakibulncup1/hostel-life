@@ -20,7 +20,8 @@ test('period migration creates missing requested days without generating rows to
 });
 
 test('new future meal-request dates can be checked server-side even without a pre-created day row', () => {
-  assert.match(dining, /return isEdit \? !canSubmitMealDay\(dayState\) : Boolean\(dayState && !canSubmitMealDay\(dayState\)\)/);
+  assert.match(dining, /isEdit \? !canDirectEditMealDate\(day, new Date\(clock\)\)/);
+  assert.match(dining, /Boolean\(dayState && !canSubmitMealDay\(dayState\)\)/);
   assert.match(migration, /IF NOT FOUND THEN\s+INSERT INTO public\.daily_meal_days/);
 });
 

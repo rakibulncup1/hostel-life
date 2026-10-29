@@ -34,8 +34,8 @@ import { formatDateWithWeekday, isBangladeshWeekend, toDateInputValue } from '..
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
-import { canCorrectMealDay, canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
-import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen } from '../../utils/mealRequestPolicy';
+import { canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
+import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionWindowForMealDate, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -274,7 +274,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   useEffect(() => {
     if (request?.days?.length) {
       const initial = normalizeDays(request.days);
-      const usable = mode === 'correction' ? initial : mode === 'edit' ? initial.filter((day) => day.meal_date > today) : initial;
+      const usable = mode === 'correction' ? initial : mode === 'edit' ? initial.filter((day) => canDirectEditMealDate(day.meal_date)) : initial;
       const firstUsable = usable[0]?.meal_date || tomorrowValue();
       const lastUsable = usable.at(-1)?.meal_date || firstUsable;
       setStartDate(mode === 'correction' || mode === 'edit' ? firstUsable : (request.start_date || initial[0]?.meal_date || tomorrowValue()));
@@ -292,11 +292,11 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   const isCorrection = mode === 'correction';
   const isEdit = mode === 'edit';
   const dayStateMap = useMemo(() => new Map(dayStates.map((day) => [String(day.meal_date).slice(0, 10), day])), [dayStates]);
-  const correctionEligibleDays = useMemo(() => originalDays.filter((day) => canCorrectMealDay(dayStateMap.get(day.meal_date))), [originalDays, dayStateMap]);
-  const editEligibleDays = useMemo(() => originalDays.filter((day) => canSubmitMealDay(dayStateMap.get(day.meal_date)) && day.meal_date > today), [originalDays, dayStateMap, today]);
+  const correctionEligibleDays = useMemo(() => originalDays.filter((day) => isCorrectionWindowForMealDate(day.meal_date, new Date(clock)) && dayStateMap.get(day.meal_date)?.status !== 'cancelled'), [originalDays, dayStateMap, clock]);
+  const editEligibleDays = useMemo(() => originalDays.filter((day) => canDirectEditMealDate(day.meal_date, new Date(clock)) && dayStateMap.get(day.meal_date)?.status !== 'finalized' && dayStateMap.get(day.meal_date)?.status !== 'cancelled'), [originalDays, dayStateMap, clock]);
   useEffect(() => {
-    if (mode !== 'correction' || !request?.days?.length || dayStateLoading || !dayStates.length) return;
-    const eligible = originalDays.filter((day) => canCorrectMealDay(dayStateMap.get(day.meal_date)));
+    if (mode !== 'correction' || !request?.days?.length || dayStateLoading) return;
+    const eligible = originalDays.filter((day) => isCorrectionWindowForMealDate(day.meal_date, new Date(clock)) && dayStateMap.get(day.meal_date)?.status !== 'cancelled');
     if (!eligible.length) return;
     const first = eligible[0].meal_date;
     const last = eligible[eligible.length - 1].meal_date;
@@ -304,11 +304,19 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
     setEndDate(last);
     setDays(eligible);
   }, [mode, request, originalDays, dayStateLoading, dayStates.length, dayStateMap]);
+  useEffect(() => {
+    if (mode !== 'edit' || !request?.days?.length || dayStateLoading) return;
+    const eligible = originalDays.filter(day => canDirectEditMealDate(day.meal_date, new Date(clock)) && dayStateMap.get(day.meal_date)?.status !== 'finalized' && dayStateMap.get(day.meal_date)?.status !== 'cancelled');
+    if (!eligible.length) { setDays([]); return; }
+    setStartDate(eligible[0].meal_date);
+    setEndDate(eligible[eligible.length - 1].meal_date);
+    setDays(eligible);
+  }, [mode, request, originalDays, dayStateLoading, dayStates.length]);
   const title = isCorrection ? 'মিল সংশোধন অনুরোধ' : isEdit ? 'অনুমোদিত অনুরোধ এডিট' : 'নতুন মিল অনুরোধ';
   const helper = isCorrection
-    ? 'কাট-অফ পার হওয়া দিনের জন্য ম্যানেজারের অনুমোদন প্রয়োজন।'
+    ? 'গত রাত ১০টা থেকে আজ রাত ৯টার মধ্যে সংশোধন আবেদন করা যাবে; ম্যানেজারের অনুমোদন প্রয়োজন।'
     : isEdit
-      ? 'শুধু কাট-অফ না হওয়া দিন সরাসরি পরিবর্তন করা যাবে।'
+      ? 'গত রাত ১০টার সীমা না পার হওয়া ভবিষ্যৎ দিন সরাসরি পরিবর্তন করা যাবে।'
       : 'পরবর্তী দিনের জন্য বা ভবিষ্যৎ তারিখে মিল সাজান।';
 
   const regenerateDays = () => {
@@ -372,8 +380,8 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         toast.warning('কাট-অফের আগে পরিবর্তনযোগ্য কোনো ভবিষ্যৎ দিন আর বাকি নেই।');
         return;
       }
-      if (startDate <= today) {
-        toast.warning('সরাসরি এডিট শুধু ভবিষ্যৎ দিনের জন্য করা যাবে।');
+      if (!canDirectEditMealDate(startDate, new Date(clock))) {
+        toast.warning('সরাসরি এডিট এই তারিখের জন্য বন্ধ; সংশোধন আবেদন ব্যবহার করুন।');
         return;
       }
       if (payloadDates.some((day) => !eligible.includes(day))) {
@@ -412,7 +420,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         // New future dates may not have a daily_meal_days row yet. The server
         // creates that row during request validation; the server remains the
         // final authority. Edited requests still require an existing eligible day.
-        return isEdit ? !canSubmitMealDay(dayState) : Boolean(dayState && !canSubmitMealDay(dayState));
+        return isEdit ? !canDirectEditMealDate(day, new Date(clock)) || dayState?.status === 'finalized' || dayState?.status === 'cancelled' : Boolean(dayState && !canSubmitMealDay(dayState));
       });
       if (unavailable.length) {
         toast.warning('নির্বাচিত তারিখগুলোর অন্তত একটির সময়সীমা শেষ হয়েছে অথবা মিল চূড়ান্ত হয়েছে।');
@@ -546,8 +554,8 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
       {dayStateLoading && (
         <div className="meal-policy-note is-loading"><Icon name="clock" size={15} /> নির্বাচিত দিনের সময়সীমা ও অবস্থা যাচাই করা হচ্ছে...</div>
       )}
-      {!dayStateLoading && (isCorrection ? correctionEligibleDays.length === 0 : isEdit ? editEligibleDays.length === 0 : dayStates.length === 0) && (
-        <div className="meal-policy-note is-warning"><Icon name="warning" size={15} /> এই তারিখের পরিসরে জমা বা সম্পাদনার উপযোগী দিন পাওয়া যায়নি। সার্ভারের নিয়ম অনুযায়ী তারিখ পরিবর্তন করুন।</div>
+      {!dayStateLoading && (isCorrection ? correctionEligibleDays.length === 0 : isEdit ? editEligibleDays.length === 0 : days.length === 0) && (
+        <div className="meal-policy-note is-warning"><Icon name="warning" size={15} /> নির্বাচিত অনুরোধে এই মুহূর্তে পরিবর্তনযোগ্য দিন নেই।</div>
       )}
 
       <div className="default-meal-box">
@@ -609,6 +617,8 @@ function RequestHistory({ onEdit, onCorrect }) {
   const [periodVerified, setPeriodVerified] = useState(false);
   const [periodCheckError, setPeriodCheckError] = useState('');
   const [dayStateError, setDayStateError] = useState('');
+  const [historyClock, setHistoryClock] = useState(Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setHistoryClock(Date.now()), 30000); return () => window.clearInterval(timer); }, []);
   const periodId = runningPeriod?.period_id || runningPeriod?.id || null;
   const dayStateMap = useMemo(() => new Map(dayStates.map((day) => [String(day.meal_date).slice(0, 10), day])), [dayStates]);
 
@@ -718,8 +728,8 @@ function RequestHistory({ onEdit, onCorrect }) {
                   )}
                   {request.status === 'approved' && request.request_type === 'normal' && !request.is_late_request && (() => {
                     const days = request.days || [];
-                    const canEdit = requestIsInRunningPeriod && days.some((day) => String(day.meal_date).slice(0, 10) > todayValue() && canSubmitMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
-                    const canCorrect = requestIsInRunningPeriod && days.some((day) => canCorrectMealDay(dayStateMap.get(String(day.meal_date).slice(0, 10))));
+                    const canEdit = requestIsInRunningPeriod && !dayStateError && days.some((day) => canDirectEditMealDate(String(day.meal_date).slice(0, 10), new Date(historyClock)) && dayStateMap.get(String(day.meal_date).slice(0, 10))?.status !== 'finalized');
+                    const canCorrect = requestIsInRunningPeriod && !dayStateError && days.some((day) => isCorrectionWindowForMealDate(String(day.meal_date).slice(0, 10), new Date(historyClock)) && dayStateMap.get(String(day.meal_date).slice(0, 10))?.status !== 'cancelled');
                     return (canEdit || canCorrect) ? <div className="request-action-row">
                       {canEdit && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="edit" size={16} /> এডিট করুন</button>}
                       {canCorrect && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="shield" size={16} /> সংশোধন অনুরোধ</button>}
@@ -1508,13 +1518,14 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   }, [targetDate]);
 
   const periodStart = String(runningPeriod?.start_date || '').slice(0, 10);
-  const periodEnd = String(runningPeriod?.end_date || '').slice(0, 10);
+  const periodEndRaw = String(runningPeriod?.end_date || '').slice(0, 10);
+  const periodEnd = periodEndRaw === '9999-12-31' ? '' : periodEndRaw;
   const targetInPeriod = Boolean(targetDate && periodStart && targetDate >= periodStart && (!periodEnd || targetDate <= periodEnd));
   const targetOutsidePeriod = Boolean(targetDate && periodStart && !targetInPeriod);
 
   const submit = async () => {
     if (busy) return;
-    if (!targetDate) return toast.warning('রাত ৯টায় হিসাব চূড়ান্ত হওয়া এবং রাত ১০টার নতুন সময়সীমা শুরুর মাঝখানে লেট অনুরোধ দেওয়া যায় না।');
+    if (!targetDate) return toast.warning('রাত ৯টা থেকে রাত ১০টা পর্যন্ত লেট অনুরোধ বন্ধ থাকে।');
     if (periodLoading) return toast.info('চলমান মাসের সীমা যাচাই হচ্ছে।');
     if (!runningPeriod) return toast.warning('কোনো চলমান মাস পাওয়া যায়নি। ম্যানেজারকে মাসের অবস্থা যাচাই করতে বলুন।');
     if (!targetInPeriod) return toast.warning(`লেট অনুরোধের তারিখ ${targetDate} চলমান মাসের শুরুর তারিখ ${periodStart}-এর আগে। চলমান মাস বন্ধ না হওয়া পর্যন্ত নির্দিষ্ট শেষ তারিখ নেই।`);
@@ -1541,7 +1552,7 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   };
 
   return <section className="dining-panel card late-request-form">
-    <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর স্বাভাবিক রাত ১০টার সময়সীমা পার হলে এখানে আবেদন দিন।` : 'আজকের মিল রাত ৯টায় চূড়ান্ত হয়েছে; আগামী দিনের লেট অনুরোধ রাত ১০টার সময়সীমার পরে দেওয়া যাবে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
+    <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর জন্য রাত ১০টা থেকে সংশ্লিষ্ট দিনের রাত ৯টা পর্যন্ত আবেদন দিন।` : 'লেট অনুরোধ রাত ১০টা থেকে পরদিন রাত ৯টা পর্যন্ত চালু থাকে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
     {periodLoading ? <div className="state-card"><Icon name="clock" size={17}/><div><strong>চলমান মাস যাচাই হচ্ছে</strong><p>লেট অনুরোধ যেন সঠিক মাসে জমা হয়, এজন্য বর্তমান Period-এর সীমা যাচাই করা হচ্ছে।</p></div></div> : runningPeriod && <div className={`state-card ${targetOutsidePeriod ? 'state-card-warning' : ''}`}>
       <Icon name={targetOutsidePeriod ? 'alert-triangle' : 'calendar'} size={18}/><div><strong>চলমান মাস: {runningPeriod.label || 'নির্বাচিত Period'}</strong><p>{periodEnd ? `তারিখসীমা: ${periodStart} → ${periodEnd}` : `শুরুর তারিখ: ${periodStart} · মাস বন্ধ না হওয়া পর্যন্ত শেষ তারিখ নির্ধারিত নয়`}{targetDate ? ` · অনুরোধের তারিখ: ${targetDate}` : ''}</p>
       {targetOutsidePeriod && <p>নির্বাচিত তারিখটি চলমান মাস শুরুর আগের। তাই অনুরোধ পাঠানো যাবে না।</p>}

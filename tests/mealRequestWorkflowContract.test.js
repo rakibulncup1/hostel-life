@@ -39,7 +39,7 @@ test('request history checks current period and scopes meal-day status lookups t
   assert.match(history, /fetchRunningPeriod\(\{ force: true \}\)/);
   assert.match(history, /String\(row\.period_id \|\| ''\) === String\(activePeriodId\)/);
   assert.match(history, /fetchMealDayStates\(dates\[0\], dates\[dates\.length - 1\], activePeriodId\)/);
-  assert.match(history, /requestIsInRunningPeriod && days\.some/);
+  assert.match(history, /requestIsInRunningPeriod && !dayStateError && days\.some/);
 });
 
 test('direct request edits preserve finalized history and update meal records transactionally', () => {

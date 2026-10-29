@@ -1,3 +1,4 @@
+import { confirmAction, confirmTypedAction } from '../../utils/actionDialogs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
@@ -73,6 +74,9 @@ export function SuperAdminPage({ user }) {
   const [recoveryVerified, setRecoveryVerified] = useState(false);
   const [recoveryResult, setRecoveryResult] = useState('');
   const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteAccounts, setDeleteAccounts] = useState(false);
   const pageSize = 20;
 
   const refresh = useCallback(async () => {
@@ -158,7 +162,7 @@ export function SuperAdminPage({ user }) {
     if (!Number.isInteger(detail) || !Number.isInteger(summary) || detail < 1 || detail > 24 || summary < 0 || summary > 60) {
       setRetentionError('বিস্তারিত ১–২৪ মাস এবং সামারি ০–৬০ মাসের মধ্যে দিন।'); return;
     }
-    if (!window.confirm(`সব মেসে ${detail} মাস বিস্তারিত ও পরবর্তী ${summary} মাস সামারি রাখবেন? এতে এখন কোনো ডেটা মুছবে না।`)) return;
+    if (!await confirmAction(`সব মেসে ${detail} মাস বিস্তারিত ও পরবর্তী ${summary} মাস সামারি রাখবেন? এতে এখন কোনো ডেটা মুছবে না।`)) return;
     setRetentionLoading(true); setRetentionError('');
     try {
       await platformAdminUpdateRetention(detail, summary);
@@ -167,7 +171,7 @@ export function SuperAdminPage({ user }) {
     finally { setRetentionLoading(false); }
   };
   const prepareArchiveSummary = async (entry) => {
-    if (!window.confirm(`এই মাসের সারসংক্ষেপ সংরক্ষণ করবেন?\n${entry.period_label || entry.period_id}\nএতে মূল হিসাব মুছবে না।`)) return;
+    if (!await confirmAction(`এই মাসের সারসংক্ষেপ সংরক্ষণ করবেন?\n${entry.period_label || entry.period_id}\nএতে মূল হিসাব মুছবে না।`)) return;
     setRetentionLoading(true); setRetentionError('');
     try {
       await platformAdminFinalizeArchiveSummary(entry.period_id);
@@ -178,7 +182,7 @@ export function SuperAdminPage({ user }) {
   const verifyArchiveSummary = async (entry) => {
     if (!savedSummaries.some((row) => row.period_id === entry.period_id && !row.purged_at)) { setRetentionError('প্রথমে এই মাসের সামারি সংরক্ষণ করুন।'); return; }
     const phrase = `VERIFY ${entry.period_id}`;
-    const confirmation = window.prompt(`মূল হিসাবের সঙ্গে সংরক্ষিত সারসংক্ষেপ নিজে যাচাই করার পর নিচের বাক্যটি লিখুন:\n${phrase}`);
+    const confirmation = await confirmTypedAction(`মূল হিসাবের সঙ্গে সংরক্ষিত সারসংক্ষেপ নিজে যাচাই করার পর নিচের বাক্যটি লিখুন:`, phrase);
     if (confirmation !== phrase) return;
     setRetentionLoading(true); setRetentionError('');
     try {
@@ -190,9 +194,9 @@ export function SuperAdminPage({ user }) {
   const deleteExpiredArchive = async (entry) => {
     if (!savedSummaries.some((row) => row.period_id === entry.period_id && !row.purged_at && row.verified_at)) { setRetentionError('এই মাসের সামারি সংরক্ষিত ও যাচাইকৃত হতে হবে। আগে সংরক্ষণ করে নিজে যাচাই করুন।'); return; }
     const title = `${entry.hostel_name || entry.hostel_id} — ${entry.period_label || entry.period_id}`;
-    if (!window.confirm(`“${title}” স্থায়ীভাবে মুছে দিতে চান? সংরক্ষিত সারসংক্ষেপ থেকে মূল লেনদেন ফেরানো যাবে না। ব্যাকআপ নিশ্চিত করুন।`)) return;
+    if (!await confirmAction(`“${title}” স্থায়ীভাবে মুছে দিতে চান? সংরক্ষিত সারসংক্ষেপ থেকে মূল লেনদেন ফেরানো যাবে না। ব্যাকআপ নিশ্চিত করুন।`)) return;
     const expected = `DELETE ${entry.period_id}`;
-    const confirmation = window.prompt(`সার্ভার যাচাই এবং ম্যানুয়াল সামারি অনুমোদনের পরেই এটি সম্ভব।\nনিশ্চিত করতে হুবহু লিখুন:\n${expected}`);
+    const confirmation = await confirmTypedAction(`সার্ভার যাচাই এবং ম্যানুয়াল সামারি অনুমোদনের পরেই এটি সম্ভব।`, expected);
     if (confirmation !== expected) return;
     setRetentionLoading(true); setRetentionError('');
     try {
@@ -222,7 +226,7 @@ export function SuperAdminPage({ user }) {
   const changeHostelStatus = async (status) => {
     if (!selected) return;
     const label = status === 'suspended' ? 'স্থগিত' : 'চালু';
-    if (!window.confirm(`“${selected.name}” মেস ${label} করবেন? এই অ্যাকশন ডেটা মুছবে না। স্থায়ীভাবে মুছতে আলাদা Super Delete ব্যবহার করুন।`)) return;
+    if (!await confirmAction(`“${selected.name}” মেস ${label} করবেন? এই অ্যাকশন ডেটা মুছবে না। স্থায়ীভাবে মুছতে আলাদা Super Delete ব্যবহার করুন।`)) return;
     setBusy(true); setError(''); setNotice('');
     try {
       await platformAdminSetHostelStatus(selected.hostel_id, status, reason);
@@ -235,7 +239,7 @@ export function SuperAdminPage({ user }) {
     if (!recoveryTarget || !recoveryVerified || recoveryNote.trim().length < 5) {
       setError('ব্যবহারকারীর পরিচয় ম্যানুয়ালি যাচাই করে অন্তত ৫ অক্ষরের কারণ লিখুন।'); return;
     }
-    if (!window.confirm(`আপনি কি ${recoveryTarget.full_name || 'এই ব্যবহারকারী'}-এর পরিচয় যাচাই করেছেন? আগের পাসওয়ার্ড সঙ্গে সঙ্গে বাতিল হবে।`)) return;
+    if (!await confirmAction(`আপনি কি ${recoveryTarget.full_name || 'এই ব্যবহারকারী'}-এর পরিচয় যাচাই করেছেন? আগের পাসওয়ার্ড সঙ্গে সঙ্গে বাতিল হবে।`)) return;
     setRecoveryBusy(true); setError(''); setRecoveryResult('');
     try {
       const { data, error: invokeError } = await supabase.functions.invoke('admin-temporary-password', {
@@ -251,7 +255,7 @@ export function SuperAdminPage({ user }) {
   };
   const toggleBlock = async (member) => {
     const blocked = !member.is_blocked;
-    if (!window.confirm(`${member.full_name || 'সদস্য'}-কে ${blocked ? 'ব্লক' : 'আনব্লক'} করবেন?`)) return;
+    if (!await confirmAction(`${member.full_name || 'সদস্য'}-কে ${blocked ? 'ব্লক' : 'আনব্লক'} করবেন?`)) return;
     setBusy(true); setError(''); setNotice('');
     try {
       await platformAdminSetUserBlocked(member.user_id, blocked, blocked ? 'Super Admin panel' : null);
@@ -288,31 +292,29 @@ export function SuperAdminPage({ user }) {
   };
 
   const permanentlyDeleteHostel = async () => {
-    if (!selected) return;
-    const deleteMemberAccounts = window.confirm('এই মেসের সকল সদস্যের লগইন অ্যাকাউন্টও স্থায়ীভাবে মুছতে চান? Cancel চাপলে শুধু মেস ও তার অধীন ডেটা মুছবে, Auth account থাকবে।');
-    if (!window.confirm(`সতর্কতা: “${selected.name}” এবং এর সব meal, বাজার, হিসাব ও সদস্য-সম্পর্কিত ডেটা স্থায়ীভাবে মুছে যাবে। এই কাজ ফেরানো যাবে না। চালিয়ে যাবেন?`)) return;
-    const confirmation = window.prompt(`নিশ্চিত করতে হুবহু লিখুন: DELETE HOSTEL ${selected.hostel_id}`);
-    if (confirmation !== `DELETE HOSTEL ${selected.hostel_id}`) { setNotice('নিশ্চিতকরণ মেলেনি; কোনো পরিবর্তন করা হয়নি।'); return; }
+    if (!selected || !deleteDialog || deleteDialog.kind !== 'hostel') return;
+    const deleteMemberAccounts = deleteAccounts;
+    const confirmation = deleteConfirmation.trim();
+    if (confirmation !== `DELETE HOSTEL ${selected.hostel_id}`) { setError('নিচের নিশ্চিতকরণ বাক্যটি হুবহু লিখুন।'); return; }
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await platformAdminPermanentlyDeleteHostel(selected.hostel_id, deleteMemberAccounts, confirmation);
       setNotice(`মেস স্থায়ীভাবে মুছে ফেলা হয়েছে। ${Number(result?.member_accounts_deleted || 0)}টি Auth account মুছে ফেলা হয়েছে।`);
-      setSelected(null); setMembers([]); setReason(''); await refresh();
+      setDeleteDialog(null); setDeleteConfirmation(''); setSelected(null); setMembers([]); setReason(''); await refresh();
     } catch (cause) { setError(errorText(cause, 'মেস স্থায়ীভাবে মুছে ফেলা যায়নি।')); }
     finally { setBusy(false); }
   };
 
   const permanentlyDeleteMember = async (member) => {
-    if (!selected) return;
-    if (!window.confirm(`${member.full_name || 'এই সদস্য'} এবং তার এই মেসের বাজার, মিল ও হিসাব-সম্পর্কিত ডেটা স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফেরানো যাবে না।`)) return;
-    const deleteAuthAccount = window.confirm('সদস্যের লগইন/Auth অ্যাকাউন্টও মুছবেন? OK = অ্যাকাউন্টসহ, Cancel = শুধু সদস্য ও তার মেস-সম্পর্কিত ডেটা।');
-    const confirmation = window.prompt(`নিশ্চিত করতে হুবহু লিখুন: DELETE MEMBER ${member.user_id}`);
-    if (confirmation !== `DELETE MEMBER ${member.user_id}`) { setNotice('নিশ্চিতকরণ মেলেনি; কোনো পরিবর্তন করা হয়নি।'); return; }
+    if (!selected || !member) return;
+    const deleteAuthAccount = deleteAccounts;
+    const confirmation = deleteConfirmation.trim();
+    if (confirmation !== `DELETE MEMBER ${member.user_id}`) { setError('নিচের নিশ্চিতকরণ বাক্যটি হুবহু লিখুন।'); return; }
     setBusy(true); setError(''); setNotice('');
     try {
       await platformAdminPermanentlyDeleteMember(selected.hostel_id, member.membership_id, deleteAuthAccount, confirmation);
       setNotice('সদস্য স্থায়ীভাবে মুছে ফেলা হয়েছে।');
-      setMembers((old) => old.filter((row) => row.membership_id !== member.membership_id));
+      setDeleteDialog(null); setDeleteConfirmation(''); setMembers((old) => old.filter((row) => row.membership_id !== member.membership_id));
       await refresh();
     } catch (cause) { setError(errorText(cause, 'সদস্য স্থায়ীভাবে মুছে ফেলা যায়নি।')); }
     finally { setBusy(false); }
@@ -390,13 +392,13 @@ export function SuperAdminPage({ user }) {
           <div className="platform-flag-actions"><button type="button" className={selected.is_favorite?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'favorite')}>⭐ {selected.is_favorite?'পছন্দে আছে':'পছন্দে রাখুন'}</button><button type="button" className={selected.is_trusted?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'trusted')}>✓ {selected.is_trusted?'বিশ্বস্ত চিহ্নিত':'বিশ্বস্ত হিসেবে চিহ্নিত'}</button></div>
           <Field label="অ্যাকশন নোট / কারণ (ঐচ্ছিক)" value={reason} onChange={setReason} maxLength={300}/>
           <div className="platform-action-row"><button className="secondary-button" disabled={busy||selectedStatus==='active'} type="button" onClick={()=>changeHostelStatus('active')}>চালু করুন</button><button className="secondary-button" disabled={busy||selectedStatus==='suspended'} type="button" onClick={()=>changeHostelStatus('suspended')}>স্থগিত করুন</button></div>
-          <div className="platform-permanent-delete"><strong><Icon name="trash" size={16}/> স্থায়ীভাবে মুছে ফেলুন</strong><p>মেসের meal, বাজার, হিসাব, সদস্য ও সংশ্লিষ্ট ডেটা স্থায়ীভাবে মুছে যাবে। এটি ফেরানো যাবে না।</p><button className="danger-button" disabled={busy} type="button" onClick={permanentlyDeleteHostel}>{busy?'অপেক্ষা করুন...':'Super Delete · মেস ও সব ডেটা'}</button></div>
+          <div className="platform-permanent-delete"><strong><Icon name="trash" size={16}/> স্থায়ীভাবে মুছে ফেলুন</strong><p>মেসের meal, বাজার, হিসাব, সদস্য ও সংশ্লিষ্ট ডেটা স্থায়ীভাবে মুছে যাবে। এটি ফেরানো যাবে না।</p><button className="danger-button" disabled={busy} type="button" onClick={() => { setDeleteDialog({kind:'hostel'}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>{busy?'অপেক্ষা করুন...':'Super Delete · মেস ও সব ডেটা'}</button></div>
           <div className="platform-panel-heading platform-members-heading"><div><h3>সদস্য তালিকা</h3><p>শুধু পরিচয় ও স্ট্যাটাস · কোনো আর্থিক/মিলের রেকর্ড নয়</p></div></div>
           <Field label="সদস্য খুঁজুন (নাম, ফোন বা ID)" value={memberQuery} onChange={setMemberQuery} maxLength={120}/>
           <div className="platform-filter-pills" role="group" aria-label="সদস্য ফিল্টার">{[['all','সব'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['blocked','ব্লক']].map(([key,label])=><button type="button" key={key} className={memberFilter===key?'active':''} onClick={()=>setMemberFilter(key)}>{label}</button>)}</div>
           {busy?<LoadingSpinner label="তথ্য আপডেট হচ্ছে..."/>:sortedMembers.length===0?<p className="platform-empty">এই ফিল্টারে কোনো সদস্য নেই।</p>:<div className="platform-members-list">{visibleMembers.map((member)=><div className="platform-member-row" key={member.membership_id}>
             <div className="platform-avatar">{member.avatar_url ? <img src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : String(member.full_name||'স').slice(0,1)}</div><div className="platform-member-copy"><strong>{member.full_name||'নাম নেই'}</strong><small>{member.phone||'ফোন নেই'} · যোগদান {member.joined_at?new Date(member.joined_at).toLocaleDateString():'—'}</small>{member.email && <small className="platform-member-email">{member.email}</small>}<small className="platform-hostel-id">{member.user_id}</small><div className="platform-member-flags">{member.is_favorite&&<span>⭐ পছন্দের</span>}{member.is_trusted&&<span>✓ বিশ্বস্ত</span>}{member.is_blocked&&<span className="blocked-flag">ব্লক করা</span>}</div></div>
-            <div className="platform-member-actions"><span className={`platform-status ${member.status==='active'?'status-active':'status-inactive'}`}>{member.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span><div className="platform-member-action-buttons"><button className={member.is_favorite?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="পছন্দের চিহ্ন" onClick={()=>toggleMemberFlag(member,'favorite')}>⭐</button><button className={member.is_trusted?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="বিশ্বস্ত চিহ্ন" onClick={()=>toggleMemberFlag(member,'trusted')}>✓</button><button className={member.is_blocked?'secondary-button':'danger-button'} disabled={busy||member.user_id===user?.id} type="button" onClick={()=>toggleBlock(member)}>{member.is_blocked?'আনব্লক':'ব্লক'}</button><button className="secondary-button compact" disabled={busy||recoveryBusy||member.user_id===user?.id} type="button" onClick={()=>{setRecoveryTarget(member);setRecoveryResult('');setRecoveryNote('');setRecoveryVerified(false);}}>পাসওয়ার্ড সহায়তা</button><button className="danger-button" disabled={busy||member.user_id===user?.id} type="button" onClick={()=>permanentlyDeleteMember(member)}>স্থায়ী ডিলিট</button></div></div>
+            <div className="platform-member-actions"><span className={`platform-status ${member.status==='active'?'status-active':'status-inactive'}`}>{member.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span><div className="platform-member-action-buttons"><button className={member.is_favorite?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="পছন্দের চিহ্ন" onClick={()=>toggleMemberFlag(member,'favorite')}>⭐</button><button className={member.is_trusted?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="বিশ্বস্ত চিহ্ন" onClick={()=>toggleMemberFlag(member,'trusted')}>✓</button><button className={member.is_blocked?'secondary-button':'danger-button'} disabled={busy||member.user_id===user?.id} type="button" onClick={()=>toggleBlock(member)}>{member.is_blocked?'আনব্লক':'ব্লক'}</button><button className="secondary-button compact" disabled={busy||recoveryBusy||member.user_id===user?.id} type="button" onClick={()=>{setRecoveryTarget(member);setRecoveryResult('');setRecoveryNote('');setRecoveryVerified(false);}}>পাসওয়ার্ড সহায়তা</button><button className="danger-button" disabled={busy||member.user_id===user?.id} type="button" onClick={() => { setDeleteDialog({kind:'member', member}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>স্থায়ী ডিলিট</button></div></div>
           </div>)}</div>}
           {sortedMembers.length > pageSize && <div className="platform-pagination"><button className="secondary-button compact" type="button" disabled={memberPage === 1} onClick={() => setMemberPage(page => page - 1)}>আগের</button><span>{memberPage} / {Math.ceil(sortedMembers.length / pageSize)}</span><button className="secondary-button compact" type="button" disabled={memberPage * pageSize >= sortedMembers.length} onClick={() => setMemberPage(page => page + 1)}>পরের</button></div>}
         </>:<div className="platform-empty-state"><Icon name="users" size={28}/><strong>একটি মেস নির্বাচন করুন</strong><span>মেসের পরিচয় ও সদস্য-ব্যবস্থাপনা এখান থেকে করা যাবে।</span></div>}
@@ -440,6 +442,18 @@ export function SuperAdminPage({ user }) {
       </div>
     </section>}
     {tab === 'security' && <section className="platform-settings-grid"><div className="card platform-panel"><div className="platform-panel-heading"><div><h3>Permission code controls</h3><p>নতুন কোড তৈরি হলে আগের কোড একই purpose-এ সঙ্গে সঙ্গে বাতিল হবে।</p></div></div><label className="platform-toggle"><span><strong>নতুন অ্যাকাউন্টে কোড বাধ্যতামূলক</strong><small>Registration page-এ কোড চাইবে</small></span><input type="checkbox" checked={Boolean(settings.registration_code_required)} disabled={busy} onChange={(e)=>changeGate('registration',e.target.checked)}/></label><label className="platform-toggle"><span><strong>মেস তৈরিতে কোড বাধ্যতামূলক</strong><small>নতুন মেস তৈরির আগে কোড যাচাই হবে</small></span><input type="checkbox" checked={Boolean(settings.hostel_creation_code_required)} disabled={busy} onChange={(e)=>changeGate('hostel_creation',e.target.checked)}/></label><Field label="কোডের মেয়াদ (মিনিট, ৫–১০০৮০)" type="number" value={ttl} onChange={setTtl}/><Field label="সর্বোচ্চ ব্যবহার (১–১০০০)" type="number" value={maxUses} onChange={setMaxUses}/><div className="platform-code-buttons"><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('registration')}>Registration code তৈরি</button><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('hostel_creation')}>Hostel creation code তৈরি</button></div>{generated&&<div className="platform-generated-code"><small>{generated.purpose==='registration'?'Registration':'Hostel creation'} · মেয়াদ {new Date(generated.expires_at).toLocaleString()}</small><code>{generated.code}</code><button className="primary-button" type="button" onClick={async()=>{try{await navigator.clipboard.writeText(generated.code);setNotice('কোড কপি হয়েছে।');}catch{setNotice('কপি করা যায়নি—কোডটি হাতে কপি করুন।');}}}>কোড কপি করুন</button><p>এটি এখন একবারই দেখানো হয়েছে। নিরাপদ স্থানে রাখুন এবং সাধারণ নোটিশে প্রকাশ করবেন না।</p></div>}</div><div className="card platform-panel"><div className="platform-panel-heading"><div><h3>Security rules</h3><p>Role ও অ্যাক্সেস কোড</p></div></div><ul className="platform-security-list"><li>সাধারণ সাইন-আপের role সবসময় <code>user</code> হবে।</li><li>Super Admin role শুধু project owner Supabase SQL Editor থেকে সেট করবেন।</li><li>প্রতিটি admin RPC ডাটাবেজেই Super Admin role যাচাই করে।</li><li>এই প্যানেল কোনো আর্থিক বা meal data query করে না।</li></ul></div></section>}
+    {deleteDialog && selected && (() => {
+      const member = deleteDialog.kind === 'member' ? deleteDialog.member : null;
+      const required = member ? `DELETE MEMBER ${member.user_id}` : `DELETE HOSTEL ${selected.hostel_id}`;
+      return <div className="modal-backdrop" role="presentation"><section className="card platform-delete-dialog" role="dialog" aria-modal="true" aria-label="স্থায়ী ডিলিট নিশ্চিতকরণ">
+        <div className="modal-head"><div><span className="eyebrow">Super Admin · অপরিবর্তনীয় কাজ</span><h2>স্থায়ীভাবে মুছে ফেলার নিশ্চিতকরণ</h2></div><button className="icon-button" type="button" disabled={busy} aria-label="বন্ধ করুন" onClick={() => setDeleteDialog(null)}><Icon name="x" size={19}/></button></div>
+        <p className="platform-delete-warning">{member ? `“${member.full_name || 'সদস্য'}”-এর মেস-সম্পর্কিত সব ডেটা স্থায়ীভাবে মুছে যাবে।` : `“${selected.name}” মেস এবং তার সব সদস্য, মিল ও আর্থিক ডেটা স্থায়ীভাবে মুছে যাবে।`} এই পরিবর্তন ফেরানো যাবে না। আগে ব্যাকআপ নিশ্চিত করুন।</p>
+        <label className="platform-toggle"><span>{member ? 'সদস্যের Auth লগইন অ্যাকাউন্টও মুছুন' : 'অন্য মেসে ব্যবহৃত নয় এমন সদস্যদের Auth লগইনও মুছুন'}</span><input type="checkbox" checked={deleteAccounts} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy}/></label>
+        <label className="field-label"><span>নিচের বাক্যটি হুবহু লিখুন</span><code className="platform-delete-phrase">{required}</code><input type="text" autoComplete="off" spellCheck={false} value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} placeholder="DELETE ..." disabled={busy}/></label>
+        {error && <div className="inline-error">{error}</div>}
+        <div className="confirm-actions"><button className="secondary-button" type="button" disabled={busy} onClick={() => setDeleteDialog(null)}>বাতিল</button><button className="danger-button" type="button" disabled={busy || deleteConfirmation.trim() !== required} onClick={() => member ? permanentlyDeleteMember(member) : permanentlyDeleteHostel()}>{busy ? 'মুছে ফেলা হচ্ছে...' : 'বুঝেছি, স্থায়ীভাবে মুছুন'}</button></div>
+      </section></div>;
+    })()}
     <footer className="platform-footer">Hostel Life · Platform administration · Access is enforced by database functions.</footer>
   </main>;
 }

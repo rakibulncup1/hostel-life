@@ -31,12 +31,28 @@ export function isNormalMealRequestWindowOpen(now = new Date()) {
   return minutesInDhaka(parts) < 22 * 60;
 }
 
-/** Late requests are available only from 10:00 PM onward and always target tomorrow. */
+/** Late window: 22:00 on the preceding date until 21:00 on the meal date (Dhaka). */
 export function getLateMealRequestTargetDate(now = new Date()) {
   const parts = partsForDateTime(now);
-  if (minutesInDhaka(parts) < 22 * 60) return null;
+  const minutes = minutesInDhaka(parts);
   const today = `${parts.year}-${parts.month}-${parts.day}`;
-  return shiftIsoDate(today, 1);
+  if (minutes >= 22 * 60) return shiftIsoDate(today, 1);
+  if (minutes < 21 * 60) return today;
+  return null; // 21:00–21:59: no eligible meal date
+}
+
+/** A normal approved request's target date needs a manager-approved correction
+ * only after 22:00 the previous day and before the meal date's 21:00 finalization.
+ * Past/finalized dates cannot be reopened by a member correction request. */
+export function isCorrectionWindowForMealDate(date, now = new Date()) {
+  return Boolean(date) && getLateMealRequestTargetDate(now) === date;
+}
+
+export function canDirectEditMealDate(date, now = new Date()) {
+  if (!date) return false;
+  const parts = partsForDateTime(now);
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
+  return date > today && !isCorrectionWindowForMealDate(date, now);
 }
 
 export function findActiveMealRequestForDate(requests, targetDate) {
