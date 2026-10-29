@@ -880,7 +880,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
 function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
   const toast = useToast();
   const [date, setDate] = useState(todayValue());
-  const [mode, setMode] = useState('all');
+  const [mode, setMode] = useState('single');
   const [selectedMember, setSelectedMember] = useState(members.find((member) => member.member_status === 'active')?.membership_id || '');
   const [entries, setEntries] = useState({});
   const [finalizedMemberIds, setFinalizedMemberIds] = useState([]);
@@ -920,7 +920,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
         };
       }
       setEntries(next);
-      if (!nextFinalizedIds.includes(selectedMember)) setSelectedMember(nextFinalizedIds[0] || '');
+      if (!activeMembers.some((member) => member.membership_id === selectedMember)) setSelectedMember(activeMembers[0]?.membership_id || '');
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'মিল এন্ট্রির তথ্য লোড করা যায়নি।'));
     } finally {
@@ -937,9 +937,9 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
   const finalizedMembers = useMemo(() => activeMembers.filter((member) => finalizedMemberIds.includes(member.membership_id)), [activeMembers, finalizedMemberIds]);
 
   const buildPayload = (force = true) => {
-    const baseMembers = finalizedMembers;
+    const baseMembers = activeMembers;
     const targetMembers = mode === 'single' ? baseMembers.filter((member) => member.membership_id === selectedMember) : baseMembers;
-    return targetMembers.map((member) => ({
+    return targetMembers.filter((member) => finalizedMemberIds.includes(member.membership_id) || ['breakfast', 'lunch', 'dinner'].some((key) => clampMeal(entries[member.membership_id]?.[key]) > 0)).map((member) => ({
       member_id: member.membership_id,
       meal_date: date,
       breakfast: clampMeal(entries[member.membership_id]?.breakfast),
@@ -967,11 +967,10 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
 
   const save = async () => {
     if (!isPrimaryManager) return toast.warning('ফাইনাল মিল সংশোধন শুধু প্রধান ম্যানেজার করতে পারবেন।');
-    if (!dayStatus || dayStatus.status !== 'finalized') return toast.warning('শুধু চূড়ান্ত হওয়া দিনের মিল এখানে সংশোধন করা যাবে।');
+    if (!dayStatus || dayStatus.status !== 'finalized') return toast.warning('শুধু চূড়ান্ত হওয়া দিনের মিল এখানে সংশোধন বা যোগ করা যাবে।');
+    if (!period || date < period.start_date || date > todayValue()) return toast.warning('চলমান মাসের আজ পর্যন্ত চূড়ান্ত দিন নির্বাচন করুন।');
     const payload = buildPayload(true);
-    if (!payload.length) return toast.warning('এই তারিখে কোনো সদস্যের চূড়ান্ত মিলের তথ্য নেই।');
-    const missing = payload.filter((row) => !finalizedMemberIds.includes(row.member_id));
-    if (missing.length) return toast.warning('শুধু আগে final হওয়া member record-ই সংশোধন করা যাবে।');
+    if (!payload.length) return toast.warning('নতুন মিল যোগ করতে অন্তত একটি মিলের পরিমাণ দিন।');
     await performSave(payload);
   };
 
@@ -981,15 +980,15 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
       <div className="panel-header">
         <div>
           <span className="eyebrow">ম্যানেজার ফিচার</span>
-          <h2>ফাইনাল মিল সংশোধন</h2>
-          <p>শুধু নির্বাচিত দিনে যাদের চূড়ান্ত মিলের তথ্য আছে তারাই তালিকায় আসবে। পরিবর্তন সরাসরি চূড়ান্ত হিসাব ও snapshot আপডেট করবে।</p>
+          <h2>ফাইনাল মিল সংশোধন ও যোগ</h2>
+          <p>চলমান মাসের চূড়ান্ত হওয়া দিনে সব সক্রিয় সদস্যের মিল দেখুন। আগে মিল না থাকলেও প্রয়োজন অনুযায়ী যোগ করুন। সংরক্ষণের পর হিসাব পুনরায় যাচাই করুন।</p>
         </div>
       </div>
 
       <div className="manager-entry-toolbar">
         <label className="field-label">
           <span>তারিখ</span>
-          <input type="date" min={period?.start_date || undefined} max={period?.end_date || undefined} value={date} onChange={(e) => setDate(e.target.value)} />
+          <input type="date" min={period?.start_date || undefined} max={period?.end_date && period.end_date < todayValue() ? period.end_date : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         <div className="segmented-control" role="tablist" aria-label="মিল এন্ট্রি মোড">
           <button className={mode === 'all' ? 'active' : ''} type="button" onClick={() => setMode('all')}>সবার</button>
@@ -1007,7 +1006,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
         <label className="field-label manager-member-select">
           <span>সদস্য নির্বাচন</span>
           <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)}>
-            {finalizedMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}
+            {activeMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}
           </select>
         </label>
       )}
@@ -1025,13 +1024,13 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
       {dayStatus?.status !== 'finalized' && !loading && <div className="meal-policy-note is-warning"><Icon name="info" size={15}/> নির্বাচিত দিনের মিল এখনো চূড়ান্ত হয়নি। চূড়ান্ত মিল সংশোধন শুধু রাত ৯টার পর চূড়ান্ত হওয়া দিনের জন্য।</div>}
       {loading ? <LoadingSpinner label="ফাইনাল মিলের রেকর্ড লোড হচ্ছে..." /> : (
         <div className="manager-meal-entry-list">
-          {(mode === 'single' ? finalizedMembers.filter((member) => member.membership_id === selectedMember) : finalizedMembers).map((member) => {
+          {(mode === 'single' ? activeMembers.filter((member) => member.membership_id === selectedMember) : activeMembers).map((member) => {
             const values = entries[member.membership_id] || DEFAULT_MEALS;
             return (
               <article className="card manager-meal-card" key={member.membership_id}>
                 <div className="manager-meal-card-head">
                   <div className="avatar">{member.member_name?.trim()?.[0] || 'M'}</div>
-                  <div><strong>{member.member_name}</strong><small>মিল এন্ট্রি</small></div>
+                  <div><strong>{member.member_name}</strong><small>{finalizedMemberIds.includes(member.membership_id) ? 'আগের ফাইনাল মিল সংশোধন' : 'আগে মিল নেই · নতুন এন্ট্রি'}</small></div>
                 </div>
                 <div className="manager-meal-grid">
                   <div><MealStepper label="ব্রেকফাস্ট" value={values.breakfast} onChange={(v) => setValue(member.membership_id, 'breakfast', v)} /></div>
@@ -1041,12 +1040,12 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
               </article>
             );
           })}
-          {!finalizedMembers.length && !loading && <div className="empty-state-card"><Icon name="calendar" size={24}/><strong>এই দিনে কোনো চূড়ান্ত মিলের তথ্য নেই</strong><span>যাদের নামে ওই দিনে মিল চূড়ান্ত হয়েছে, শুধু তারাই এখানে দেখা যাবে।</span></div>}
+          {!activeMembers.length && !loading && <div className="empty-state-card"><Icon name="calendar" size={24}/><strong>সক্রিয় সদস্য পাওয়া যায়নি</strong></div>}
         </div>
       )}
 
-      <button className="primary-button large dining-submit" type="button" disabled={busy || loading || !dayStatus || dayStatus.status !== 'finalized' || !isPrimaryManager || !finalizedMembers.length} onClick={save}>
-        {busy ? 'ফাইনাল হিসাব আপডেট হচ্ছে...' : 'ফাইনাল মিল সংশোধন করুন'}
+      <button className="primary-button large dining-submit" type="button" disabled={busy || loading || !dayStatus || dayStatus.status !== 'finalized' || !isPrimaryManager || !activeMembers.length || !period || date < period.start_date || date > todayValue()} onClick={save}>
+        {busy ? 'ফাইনাল হিসাব আপডেট হচ্ছে...' : 'মিল যোগ / সংশোধন সংরক্ষণ করুন'}
       </button>
       </section>
       {conflictConfirmOpen && (
@@ -1871,7 +1870,7 @@ export function DiningPage() {
   }
 
   if (view === 'admin-entry') {
-    return <div className="page-stack"><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><SectionHeader eyebrow="প্রধান/সহকারী ম্যানেজার" title="এডমিন এন্ট্রি" description="চূড়ান্ত মিল সংশোধন সরাসরি চূড়ান্ত হিসাব বদলায়; ম্যানুয়াল অনুরোধ নির্দিষ্ট সদস্যের অনুরোধের ইতিহাসে সংরক্ষিত হয়।"/><div className="request-entry-choice-grid"><button className="card request-choice-card" type="button" disabled={!isPrimaryDiningManager} onClick={() => setView('manager-meal')}><span className="dining-option-icon"><Icon name="check-circle" size={22}/></span><strong>ফাইনাল মিল সংশোধন</strong><small>{isPrimaryDiningManager ? 'তারিখ বেছে শুধু যাদের চূড়ান্ত মিলের তথ্য আছে, তাদের হিসাব সংশোধন করুন।' : 'এই কাজটি শুধু প্রধান ম্যানেজার করতে পারবেন।'}</small></button><button className="card request-choice-card" type="button" onClick={() => setView('admin-manual-request')}><span className="dining-option-icon"><Icon name="users" size={22}/></span><strong>ম্যানুয়াল মিল অনুরোধ</strong><small>যে সদস্য নিজে অনুরোধ দিতে পারছেন না, তাঁর হয়ে তারিখের পরিসর ও প্রতিদিনের মিল দিয়ে অনুরোধ তৈরি করুন।</small></button></div></div>;
+    return <div className="page-stack"><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><SectionHeader eyebrow="প্রধান/সহকারী ম্যানেজার" title="এডমিন এন্ট্রি" description="চূড়ান্ত মিল সংশোধন সরাসরি চূড়ান্ত হিসাব বদলায়; ম্যানুয়াল অনুরোধ নির্দিষ্ট সদস্যের অনুরোধের ইতিহাসে সংরক্ষিত হয়।"/><div className="request-entry-choice-grid"><button className="card request-choice-card" type="button" disabled={!isPrimaryDiningManager} onClick={() => setView('manager-meal')}><span className="dining-option-icon"><Icon name="check-circle" size={22}/></span><strong>ফাইনাল মিল যোগ ও সংশোধন</strong><small>{isPrimaryDiningManager ? 'চলমান মাসের চূড়ান্ত দিনে আগে বাদ পড়া সদস্যের মিল যোগ বা বিদ্যমান মিল সংশোধন করুন।' : 'এই কাজটি শুধু প্রধান ম্যানেজার করতে পারবেন।'}</small></button><button className="card request-choice-card" type="button" onClick={() => setView('admin-manual-request')}><span className="dining-option-icon"><Icon name="users" size={22}/></span><strong>ম্যানুয়াল মিল অনুরোধ</strong><small>যে সদস্য নিজে অনুরোধ দিতে পারছেন না, তাঁর হয়ে তারিখের পরিসর ও প্রতিদিনের মিল দিয়ে অনুরোধ তৈরি করুন।</small></button></div></div>;
   }
 
   if (view === 'admin-manual-request') {

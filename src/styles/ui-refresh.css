@@ -2078,3 +2078,21 @@ body {
 @media (max-width:380px) {
   .auth-shell .auth-form-panel .auth-form-intro {font-size:12px;padding:7px 10px;gap:7px;}
 }
+
+/* Large display refinement: no fixed narrow desktop canvas; retain comfortable reading widths within cards. */
+@media (min-width: 1360px) {
+  .app-main { width: min(100% - 48px, 1760px); max-width: none; padding-inline: clamp(20px, 2.2vw, 42px); }
+  .page-stack { gap: clamp(16px, 1.3vw, 24px); }
+  .platform-page { max-width: 100%; }
+}
+@media (min-width: 1900px) {
+  .app-main { width: min(100% - 72px, 2100px); }
+}
+/* Gentle touch targets and legible small status text, without redesigning components. */
+.platform-tabs button, .platform-member-action-buttons button { min-height: 40px; }
+.platform-status, .platform-hostel-copy small, .platform-member-copy small { font-size: max(12px, .78rem); line-height: 1.5; }
+.manager-meal-card-head small { font-size: 12px; line-height: 1.6; }
+@media (max-width: 640px) {
+  .manager-meal-grid { grid-template-columns: 1fr; }
+  .manager-meal-card { min-width: 0; }
+}
