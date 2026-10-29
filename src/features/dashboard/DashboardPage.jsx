@@ -5,6 +5,7 @@ import { useToast } from '../../components/Toast';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchDashboardData, fetchMealDetails } from '../../services/dashboardService';
+import { getSevenDates, readSevenDayMeals, saveSevenDayMeals } from '../../services/sevenDayMealStore';
 import { invalidateRequestCache } from '../../lib/requestCache';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
 import { useDashboardOffline } from '../../hooks/useDashboardOffline';
@@ -277,7 +278,7 @@ export function MemberPeriodDetailsModal({ detail, loading, memberName, onClose 
   </div>;
 }
 
-function MealDetailsModal({ date, rows, loading, onClose }) {
+function MealDetailsModal({ date, rows, loading, onClose, onSevenDays, sevenDayRows, sevenDayLoading, sevenDayError, sevenDayCachedAt, sevenDayOpen, onBack }) {
   useEffect(() => {
     const handler = (event) => {
       if (event.key === 'Escape') onClose();
@@ -308,7 +309,15 @@ function MealDetailsModal({ date, rows, loading, onClose }) {
           <button className="icon-button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={20} /></button>
         </div>
 
-        {loading ? (
+        <div className="seven-day-actions"><button type="button" className="secondary-button" onClick={sevenDayOpen ? onBack : onSevenDays} disabled={sevenDayLoading}>{sevenDayOpen ? 'আজকের বিস্তারিত' : 'আগামী সাতদিন'}</button></div>
+        {sevenDayOpen ? (
+          <div className="seven-day-list">
+            {sevenDayCachedAt && <p className="offline-snapshot-note">সর্বশেষ সংরক্ষণ: {formatDateTime12(sevenDayCachedAt)} · তথ্য পরিবর্তিত হতে পারে</p>}
+            {sevenDayLoading && <p>সাত দিনের তথ্য লোড হচ্ছে...</p>}
+            {sevenDayError && <p className="form-hint">{sevenDayError}</p>}
+            {sevenDayRows.map((item) => <section className="seven-day-card" key={item.date}><h3>{formatDateWithWeekday(item.date)}</h3>{item.available ? <div className="seven-day-totals">{[['ব্রেকফাস্ট',item.breakfast],['লাঞ্চ',item.lunch],['ডিনার',item.dinner],['মোট',item.breakfast+item.lunch+item.dinner]].map(([label,value])=><div key={label}><span>{label}</span><strong>{formatMeal(value)}</strong></div>)}</div> : <p>এই দিনের নির্ভরযোগ্য তথ্য সংরক্ষিত নেই।</p>}</section>)}
+          </div>
+        ) : loading ? (
           <div className="loading-wrap"><span className="spinner" /><span>মিলের সদস্যভিত্তিক তথ্য লোড হচ্ছে...</span></div>
         ) : (
           <>
@@ -570,6 +579,11 @@ export function DashboardPage() {
   const [detailsDate, setDetailsDate] = useState(null);
   const [detailsRows, setDetailsRows] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [sevenDayOpen, setSevenDayOpen] = useState(false);
+  const [sevenDayRows, setSevenDayRows] = useState([]);
+  const [sevenDayLoading, setSevenDayLoading] = useState(false);
+  const [sevenDayError, setSevenDayError] = useState('');
+  const [sevenDayCachedAt, setSevenDayCachedAt] = useState(null);
 
   const loadInFlightRef = useRef(null);
   const lastLoadStartedAtRef = useRef(0);
@@ -835,10 +849,7 @@ export function DashboardPage() {
 
     if (!online) {
       const cachedRows = Array.isArray(selectedMeal?.member_details) ? selectedMeal.member_details : [];
-      if (!cachedRows.length) {
-        toast.warning('এই সংরক্ষিত কপিতে সদস্যভিত্তিক বিস্তারিত নেই। ইন্টারনেট চালু করুন।');
-        return;
-      }
+      if (!cachedRows.length) toast.warning('আজকের সদস্যভিত্তিক তথ্য সংরক্ষিত নেই; সাত দিনের সংরক্ষিত তালিকা দেখতে পারবেন।');
       setDetailsDate(date);
       setDetailsRows(cachedRows);
       setDetailsLoading(false);
@@ -858,6 +869,58 @@ export function DashboardPage() {
       setDetailsLoading(false);
     }
   }, [cachedDashboard?.meal_card, mealCard, offlineMealCard, online, toast]);
+
+  const openSevenDays = useCallback(async () => {
+    setSevenDayOpen(true);
+    const days = getSevenDates();
+    const stored = readSevenDayMeals(hostelId);
+    const selected = days.map((date) => stored?.days?.find((item) => item.date === date) || { date, available: false });
+    setSevenDayRows(selected);
+    setSevenDayCachedAt(stored?.savedAt || null);
+    setSevenDayError('');
+    if (!online) {
+      if (!stored) setSevenDayError('এই ডিভাইসে সাত দিনের তথ্য আগে সংরক্ষিত হয়নি। অনলাইনে একবার এই ভিউ খুলুন।');
+      return;
+    }
+    setSevenDayLoading(true);
+    try {
+      const results = await Promise.allSettled(days.map((date) => fetchMealDetails(date)));
+      const values = results.map((result, index) => {
+        const date = days[index];
+        if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return selected[index];
+        const rows = result.value;
+        return {date, available:rows.length > 0, breakfast: rows.reduce((sum,r)=>sum+safeNumber(r.breakfast),0), lunch:rows.reduce((sum,r)=>sum+safeNumber(r.lunch),0), dinner:rows.reduce((sum,r)=>sum+safeNumber(r.dinner),0)};
+      });
+      saveSevenDayMeals(hostelId, values);
+      setSevenDayRows(values);
+      setSevenDayCachedAt(new Date().toISOString());
+      if (results.some((r)=>r.status==='rejected')) setSevenDayError('কিছু দিনের নতুন তথ্য পাওয়া যায়নি; থাকলে শেষ সংরক্ষিত তথ্য দেখানো হচ্ছে।');
+    } catch { setSevenDayError('সার্ভার থেকে সাত দিনের তথ্য আনা যায়নি।'); }
+    finally { setSevenDayLoading(false); }
+  }, [hostelId, online]);
+
+  // One read-only snapshot each online page session, not on every realtime refresh.
+  // This makes the seven-day overview useful after a connection outage.
+  const sevenDaySyncedForRef = useRef(null);
+  useEffect(() => {
+    if (!online || !hostelId || !dashboardHasRunningPeriod || sevenDaySyncedForRef.current === hostelId) return;
+    sevenDaySyncedForRef.current = hostelId;
+    let stopped = false;
+    const days = getSevenDates();
+    Promise.allSettled(days.map((date) => fetchMealDetails(date))).then((results) => {
+      if (stopped) return;
+      const previous = readSevenDayMeals(hostelId)?.days || [];
+      const values = results.map((result, index) => {
+        const date = days[index];
+        const old = previous.find((item) => item.date === date) || {date, available:false};
+        if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return old;
+        const rows = result.value;
+        return {date, available:rows.length>0, breakfast:rows.reduce((sum,r)=>sum+safeNumber(r.breakfast),0), lunch:rows.reduce((sum,r)=>sum+safeNumber(r.lunch),0), dinner:rows.reduce((sum,r)=>sum+safeNumber(r.dinner),0)};
+      });
+      saveSevenDayMeals(hostelId, values);
+    }).catch(() => {});
+    return () => {stopped = true;};
+  }, [hostelId, online, dashboardHasRunningPeriod]);
 
   const openMember = useCallback((memberId) => {
     if (!memberId) return;
@@ -975,7 +1038,14 @@ export function DashboardPage() {
           date={detailsDate}
           rows={detailsRows}
           loading={detailsLoading}
-          onClose={() => setDetailsDate(null)}
+          onClose={() => {setDetailsDate(null);setSevenDayOpen(false);}}
+          onSevenDays={openSevenDays}
+          sevenDayOpen={sevenDayOpen}
+          sevenDayRows={sevenDayRows}
+          sevenDayLoading={sevenDayLoading}
+          sevenDayError={sevenDayError}
+          sevenDayCachedAt={sevenDayCachedAt}
+          onBack={() => setSevenDayOpen(false)}
         />
       )}
     </div>

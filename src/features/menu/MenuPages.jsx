@@ -256,7 +256,8 @@ export function KhalaMoneyViewPage() {
                     <span className="khala-ledger-mark"><Icon name="wallet" size={17} /></span>
                     <div>
                       <strong>খালার পারিশ্রমিক</strong>
-                      <small>পরিশোধ করেছেন: {row.created_by_name || row.actor_name || row.manager_name || row.entered_by_name || 'নাম পাওয়া যায়নি'}</small>
+                      <small>যাঁর নামে: {row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : 'নাম সংরক্ষিত নেই'}</small>
+                      <small>এন্ট্রি করেছেন: {row.created_by_name || row.actor_name || row.manager_name || row.entered_by_name || 'নাম পাওয়া যায়নি'}</small>
                       <small>{formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
                     </div>
                   </div>
