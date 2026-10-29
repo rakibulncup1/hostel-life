@@ -14,7 +14,10 @@ export function ForcedPasswordChange() {
     setBusy(true);
     try {
       const { data, error: updateError } = await supabase.functions.invoke('complete-temporary-password', { body: { new_password: password } });
-      if (updateError) throw updateError;
+      if (updateError) {
+        const body = await updateError.context?.json?.().catch(() => null);
+        throw new Error(body?.error || `${updateError.message} (HTTP ${updateError.context?.status || 'unknown'})`);
+      }
       if (data?.error) throw new Error(data.error);
       if (!data?.success) throw new Error('পাসওয়ার্ড পরিবর্তনের নিশ্চয়তা পাওয়া যায়নি।');
       await supabase.auth.refreshSession();

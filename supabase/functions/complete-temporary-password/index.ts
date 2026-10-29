@@ -20,10 +20,12 @@ Deno.serve(async (req) => {
   let body: { new_password?: string };
   try { body = await req.json(); } catch { return reply({ error: 'Invalid JSON' }, 400); }
   if (typeof body.new_password !== 'string' || body.new_password.length < 12 || body.new_password.length > 128) return reply({ error: 'Use a 12–128 character password' }, 400);
-  // Update the logged-in user's own credential before removing the privileged recovery flag.
-  const { error: passwordError } = await caller.auth.updateUser({ password: body.new_password });
-  if (passwordError) return reply({ error: 'Password update failed' }, 400);
-  const { error: metadataError } = await admin.auth.admin.updateUserById(current.user.id, { app_metadata: { ...(record.user.app_metadata || {}), must_change_password: false } });
-  if (metadataError) return reply({ error: 'Password changed, but account finalization failed. Contact Super Admin.' }, 500);
+  // Perform password + recovery-flag update in a single server-side Auth Admin call.
+  // updateUser() from inside a stateless Edge Function can fail even with a validated JWT.
+  const { error: updateError } = await admin.auth.admin.updateUserById(current.user.id, {
+    password: body.new_password,
+    app_metadata: { ...(record.user.app_metadata || {}), must_change_password: false },
+  });
+  if (updateError) return reply({ error: `Auth update failed: ${updateError.message}` }, 400);
   return reply({ success: true });
 });

@@ -16,8 +16,25 @@ Deno.serve(async (request) => {
   if (authError || !identity.user) return reply({error:'Session invalid'},401);
   const {data:profile,error:profileError} = await admin.from('profiles').select('role,is_blocked').eq('id',identity.user.id).single();
   if (profileError || profile?.role !== 'super_admin' || profile?.is_blocked) return reply({error:'Super Admin only'},403);
-  let body:{user_id?:string;confirmation?:string};
-  try { body=await request.json(); } catch { return reply({error:'Invalid request'},400); }
+  // Read-only directory of Auth accounts with no hostel membership, 50 at a time.
+  // No profiles/financial data or credentials exposed; Super Admin authorization already checked.
+  let requestBody: { action?: string; page?: number; user_id?: string; confirmation?: string };
+  try { requestBody = await request.json(); } catch { return reply({error:'Invalid request'},400); }
+  if (requestBody.action === 'list') {
+    const page = Math.max(1, Math.min(1000, Math.trunc(Number(requestBody.page) || 1)));
+    const {data:users,error:listError} = await admin.auth.admin.listUsers({page,perPage:50});
+    if (listError) return reply({error:'Cannot list Auth users'},500);
+    const ids = (users.users || []).map(user=>user.id);
+    if (!ids.length) return reply({items:[],page,has_more:false});
+    const {data:linked,error:linkError} = await admin.from('hostel_memberships').select('user_id').in('user_id',ids);
+    if (linkError) return reply({error:'Membership verification failed'},500);
+    const linkedIds = new Set((linked || []).map(row=>row.user_id));
+    const items = (users.users || []).filter(user=>!linkedIds.has(user.id) && user.id!==identity.user.id)
+      .map(user=>({id:user.id,email:user.email || '',created_at:user.created_at}));
+    return reply({items,page,has_more:(users.users || []).length===50});
+  }
+  const body = requestBody;
+
   const id=body.user_id || '';
   if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id) || body.confirmation !== `DELETE AUTH ${id}` || id===identity.user.id) return reply({error:'Confirmation mismatch or invalid account'},400);
   // Check twice: the account may belong to another hostel. Avoid any data access outside a restricted identity query.

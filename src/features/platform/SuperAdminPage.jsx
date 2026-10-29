@@ -10,7 +10,7 @@ import {
   platformAdminSetHostelStatus, platformAdminSetUserBlocked, platformAdminUpdatePublicSettings,
   platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel,
   platformAdminPermanentlyDeleteMember, uploadDeveloperPhoto,
-  platformAdminGetRetention, platformAdminUpdateRetention,
+  platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
   platformAdminListExpiredArchives, platformAdminDeleteExpiredArchive,
   platformAdminFinalizeArchiveSummary, platformAdminVerifyArchiveSummary, platformAdminListSavedSummaries,
 } from '../../services/platformService';
@@ -66,6 +66,7 @@ export function SuperAdminPage({ user }) {
   const [expiredArchives, setExpiredArchives] = useState([]);
   const [expiredArchivesLoaded, setExpiredArchivesLoaded] = useState(false);
   const [savedSummaries, setSavedSummaries] = useState([]);
+  const [closedPeriods, setClosedPeriods] = useState([]);
   const [retentionLoading, setRetentionLoading] = useState(false);
   const [retentionError, setRetentionError] = useState('');
   const [hostelPage, setHostelPage] = useState(1);
@@ -78,6 +79,12 @@ export function SuperAdminPage({ user }) {
   const [deleteDialog, setDeleteDialog] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteAccounts, setDeleteAccounts] = useState(false);
+  const [orphanAccounts, setOrphanAccounts] = useState([]);
+  const [orphanPage, setOrphanPage] = useState(1);
+  const [orphanMore, setOrphanMore] = useState(false);
+  const [orphanBusy, setOrphanBusy] = useState(false);
+  const [orphanError, setOrphanError] = useState('');
+
   const pageSize = 20;
 
   const refresh = useCallback(async () => {
@@ -136,10 +143,10 @@ export function SuperAdminPage({ user }) {
   const loadRetention = useCallback(async () => {
     setRetentionLoading(true); setRetentionError('');
     const results = await Promise.allSettled([
-      platformAdminGetRetention(), platformAdminListExpiredArchives(), platformAdminListSavedSummaries(),
+      platformAdminGetRetention(), platformAdminListExpiredArchives(), platformAdminListSavedSummaries(), platformAdminListClosedPeriods(),
     ]);
     const failures = [];
-    const [policyResult, queueResult, savedResult] = results;
+    const [policyResult, queueResult, savedResult, closedResult] = results;
     if (policyResult.status === 'fulfilled') {
       const policy = policyResult.value || {};
       setRetention(policy);
@@ -154,6 +161,8 @@ export function SuperAdminPage({ user }) {
     }
     if (savedResult.status === 'fulfilled') setSavedSummaries(Array.isArray(savedResult.value) ? savedResult.value : []);
     else { setSavedSummaries([]); failures.push(`সংরক্ষিত সামারি: ${errorText(savedResult.reason, 'লোড হয়নি')}`); }
+    if (closedResult.status === 'fulfilled') setClosedPeriods(Array.isArray(closedResult.value) ? closedResult.value : []);
+    else {setClosedPeriods([]);failures.push(`বন্ধ মাসের তালিকা: ${errorText(closedResult.reason,'লোড হয়নি')}`);}
     setRetentionError(failures.length ? `কিছু তথ্য লোড হয়নি; সফল তালিকা নিচে দেখা যাচ্ছে। ${failures.join(' · ')}` : '');
     setRetentionLoading(false);
   }, []);
@@ -307,9 +316,39 @@ export function SuperAdminPage({ user }) {
     finally { setBusy(false); }
   };
 
+  const loadOrphanAccounts = async (page = 1) => {
+    setOrphanBusy(true); setOrphanError('');
+    try {
+      const {data,error:fnError} = await supabase.functions.invoke('admin-delete-unlinked-user', {body:{action:'list',page}});
+      if (fnError || data?.error) {
+        const server = await fnError?.context?.json?.().catch(()=>null);
+        throw new Error(data?.error || server?.error || fnError?.message || 'তালিকা আনা যায়নি');
+      }
+      setOrphanAccounts(Array.isArray(data?.items) ? data.items : []);
+      setOrphanPage(page);setOrphanMore(Boolean(data?.has_more));
+    } catch (cause) {setOrphanError(cause?.message || 'Auth তালিকা আনা যায়নি।');}
+    finally {setOrphanBusy(false);}
+  };
+  const removeOrphanAccount = async (account) => {
+    const expected = `DELETE AUTH ${account.id}`;
+    const typed = await confirmTypedAction(`এই Auth account অন্য কোনো মেসে নেই, তা সার্ভারে আবার যাচাই করে মুছবে। এটি ফেরানো যাবে না: ${account.email || account.id}`, expected);
+    if (typed !== expected) return;
+    setOrphanBusy(true);setOrphanError('');
+    try {
+      const {data,error:fnError}=await supabase.functions.invoke('admin-delete-unlinked-user',{body:{user_id:account.id,confirmation:expected}});
+      if (fnError || data?.error || !data?.deleted) {
+        const server=await fnError?.context?.json?.().catch(()=>null);
+        throw new Error(data?.error || server?.error || fnError?.message || 'Auth মুছতে পারেনি।');
+      }
+      setOrphanAccounts(old=>old.filter(row=>row.id!==account.id));
+      setNotice('Auth account স্থায়ীভাবে মুছে ফেলা হয়েছে।');
+    } catch(cause){setOrphanError(cause?.message || 'Auth মুছতে পারেনি।');}
+    finally {setOrphanBusy(false);}
+  };
+
   const permanentlyDeleteHostel = async () => {
     if (!selected || !deleteDialog || deleteDialog.kind !== 'hostel') return;
-    const deleteMemberAccounts = deleteAccounts;
+    const deleteMemberAccounts = false;
     const confirmation = deleteConfirmation.trim();
     if (confirmation !== `DELETE HOSTEL ${selected.hostel_id}`) { setError('নিচের নিশ্চিতকরণ বাক্যটি হুবহু লিখুন।'); return; }
     setBusy(true); setError(''); setNotice('');
@@ -450,6 +489,14 @@ export function SuperAdminPage({ user }) {
         <Field label="ছবির Storage URL" value={settings.developer_photo_url} onChange={(v)=>setSettings((old)=>({...old,developer_photo_url:v}))} maxLength={1000}/><Field label="ইমেইল" type="email" value={settings.developer_email} onChange={(v)=>setSettings((old)=>({...old,developer_email:v}))} maxLength={240}/><Field label="ফোন" value={settings.developer_phone} onChange={(v)=>setSettings((old)=>({...old,developer_phone:v}))} maxLength={80}/><Field label="Portfolio URL" value={settings.developer_portfolio_url} onChange={(v)=>setSettings((old)=>({...old,developer_portfolio_url:v}))} maxLength={1000}/></section>
       <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||developerPhotoBusy}>{busy?'সংরক্ষণ হচ্ছে...':'সব সেটিংস সংরক্ষণ করুন'}</button></div>
     </form>}
+    {tab === 'hostels' && <section className="card platform-panel" aria-label="মেস-বিহীন Auth account">
+      <div className="platform-panel-heading"><div><h3>মেস-বিহীন Auth account</h3><p>শুধু কোনো মেসে সদস্যপদ নেই এমন account দেখাবে। প্রতি পৃষ্ঠায় সর্বোচ্চ ৫০টি Auth record পরীক্ষা হয়; আগের পৃষ্ঠার account-গুলোও আলাদা থাকতে পারে।</p></div><button className="secondary-button compact" disabled={orphanBusy} type="button" onClick={()=>loadOrphanAccounts(1)}>তালিকা দেখুন / রিফ্রেশ</button></div>
+      {orphanError && <p role="alert" className="inline-error">{orphanError}</p>}
+      {orphanAccounts.length===0 && <p className="platform-empty">এই পৃষ্ঠায় কোনো মেস-বিহীন account পাওয়া যায়নি অথবা এখনো তালিকা আনা হয়নি।</p>}
+      <div className="platform-retention-list">{orphanAccounts.map(account=><div className="platform-retention-row" key={account.id}><div><strong>{account.email || 'ইমেইল নেই'}</strong><small>{account.id}</small></div><button type="button" className="danger-button" disabled={orphanBusy} onClick={()=>removeOrphanAccount(account)}>Auth স্থায়ী ডিলিট</button></div>)}</div>
+      <div className="platform-action-row"><button type="button" className="secondary-button compact" disabled={orphanBusy || orphanPage===1} onClick={()=>loadOrphanAccounts(orphanPage-1)}>আগের পৃষ্ঠা</button><span>পৃষ্ঠা {orphanPage}</span><button type="button" className="secondary-button compact" disabled={orphanBusy || !orphanMore} onClick={()=>loadOrphanAccounts(orphanPage+1)}>পরের পৃষ্ঠা</button></div>
+      <p className="platform-retention-hint">মেস থেকে সরানোর পর Auth মুছতে এই অপশন। যাচাই না করে ডিলিট করবেন না; নতুন নিবন্ধিত কিন্তু এখনও মেসে যোগ না দেওয়া account-ও এখানে থাকতে পারে।</p>
+    </section>}
     {tab === 'retention' && <section className="platform-settings-grid" aria-label="ডেটা সংরক্ষণ নীতি">
       <div className="card platform-panel">
         <div className="platform-panel-heading"><div><h3>ডেটা সংরক্ষণ নীতি</h3><p>সব মেসের জন্য একই নীতি। এই পৃষ্ঠা নিজে কোনো আর্কাইভ স্বয়ংক্রিয়ভাবে মুছে দেয় না।</p></div><button type="button" className="secondary-button compact" disabled={retentionLoading} onClick={loadRetention}>তালিকা রিফ্রেশ</button></div>
@@ -461,6 +508,9 @@ export function SuperAdminPage({ user }) {
           <p className="platform-retention-hint">পরিবর্তনের পর ব্যবহারকারীদের নোটিফিকেশন দেওয়া এবং মেয়াদোত্তীর্ণ আর্কাইভ নির্ধারণ করা সার্ভারের দায়িত্ব।</p>
           <button type="submit" className="primary-button" disabled={retentionLoading}>নীতি সংরক্ষণ করুন</button>
         </form>}
+      </div>
+      <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>সব বন্ধ মাস ({closedPeriods.length})</h3><p>এখানে বন্ধ হওয়া সব মাস দেখাবে, মেয়াদ শেষ না হলেও। ১–২ দিনের মাসও থাকবে। এই তালিকা থেকে মুছে ফেলার অনুমতি নেই।</p></div></div>
+        {closedPeriods.length===0 ? <p className="platform-empty">বন্ধ মাস নেই অথবা তালিকা লোড হয়নি।</p> : <div className="platform-retention-list">{closedPeriods.map(row=><div className="platform-retention-row" key={row.period_id}><div><strong>{row.hostel_name} · {row.period_label}</strong><small>{row.start_date} — {row.end_date}</small><small>বিস্তারিত সংরক্ষণ: {row.detail_until} পর্যন্ত · ডিলিটের যোগ্যতা: {row.delete_eligible_after}-এর পর</small></div><span className="platform-status">শুধু দেখুন</span></div>)}</div>}
       </div>
       <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>সংরক্ষিত চূড়ান্ত সামারি</h3><p>ডিলিটের আগে সামারি সংরক্ষণ ও তুলনা করতে হবে। মেয়াদ পার হলেও কোনো মাস স্বয়ংক্রিয়ভাবে মুছবে না।</p></div></div>
         {savedSummaries.length === 0 ? <p className="platform-empty">এখনো কোনো চূড়ান্ত সামারি নেই, অথবা তালিকা লোড করা যায়নি।</p> : <div className="platform-retention-list">{savedSummaries.map(row => <div className="platform-retention-row" key={`${row.hostel_id}-${row.period_id}`}><div><strong>{row.hostel_name ? `${row.hostel_name} · ` : ''}{row.period_label || row.period_id}</strong><small>{row.purged_at ? 'বিস্তারিত মুছে ফেলা হয়েছে; সামারি সংরক্ষিত' : 'বিস্তারিত এখনো রয়েছে'} · {row.end_date || ''} · {row.verified_at ? 'যাচাইকৃত' : 'যাচাই বাকি'}</small></div></div>)}</div>}
@@ -478,7 +528,7 @@ export function SuperAdminPage({ user }) {
       return <div className="modal-backdrop" role="presentation"><section className="card platform-delete-dialog" role="dialog" aria-modal="true" aria-label="স্থায়ী ডিলিট নিশ্চিতকরণ">
         <div className="modal-head"><div><span className="eyebrow">Super Admin · অপরিবর্তনীয় কাজ</span><h2>স্থায়ীভাবে মুছে ফেলার নিশ্চিতকরণ</h2></div><button className="icon-button" type="button" disabled={busy} aria-label="বন্ধ করুন" onClick={() => setDeleteDialog(null)}><Icon name="x" size={19}/></button></div>
         <p className="platform-delete-warning">{member ? `“${member.full_name || 'সদস্য'}”-এর মেস-সম্পর্কিত সব ডেটা স্থায়ীভাবে মুছে যাবে।` : `“${selected.name}” মেস এবং তার সব সদস্য, মিল ও আর্থিক ডেটা স্থায়ীভাবে মুছে যাবে।`} এই পরিবর্তন ফেরানো যাবে না। আগে ব্যাকআপ নিশ্চিত করুন।</p>
-        <label className="platform-toggle"><span>{member ? 'সদস্যের Auth লগইন অ্যাকাউন্টও মুছুন' : 'অন্য মেসে ব্যবহৃত নয় এমন সদস্যদের Auth লগইনও মুছুন'}</span><input type="checkbox" checked={deleteAccounts} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy}/></label>
+        <label className="platform-toggle"><span>{member ? 'সদস্যের Auth লগইন অ্যাকাউন্টও মুছুন' : 'মেস ডিলিটের পরে Auth account আলাদা তালিকা থেকে পরিষ্কার করুন'}</span><input type="checkbox" checked={member ? deleteAccounts : false} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy || !member}/></label>
         <label className="field-label"><span>নিচের বাক্যটি হুবহু লিখুন</span><code className="platform-delete-phrase">{required}</code><input type="text" autoComplete="off" spellCheck={false} value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} placeholder="DELETE ..." disabled={busy}/></label>
         {error && <div className="inline-error">{error}</div>}
         <div className="confirm-actions"><button className="secondary-button" type="button" disabled={busy} onClick={() => setDeleteDialog(null)}>বাতিল</button><button className="danger-button" type="button" disabled={busy || deleteConfirmation.trim() !== required} onClick={() => member ? permanentlyDeleteMember(member) : permanentlyDeleteHostel()}>{busy ? 'মুছে ফেলা হচ্ছে...' : 'বুঝেছি, স্থায়ীভাবে মুছুন'}</button></div>

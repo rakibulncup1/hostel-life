@@ -276,3 +276,10 @@ export async function platformAdminListSavedSummaries() {
   // or an incomplete list.
   return Array.isArray(data) ? data : [];
 }
+
+export async function platformAdminListClosedPeriods() {
+  assertSupabase();
+  const {data,error}=await supabase.rpc('platform_admin_list_closed_periods');
+  if(error) throw error;
+  return Array.isArray(data) ? data : [];
+}
