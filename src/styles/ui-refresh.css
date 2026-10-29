@@ -1915,3 +1915,80 @@ body {
 .forced-password-change form{text-align:left;}
 .forced-password-change .secondary-button{text-align:center;text-decoration:none;display:grid;place-items:center;min-height:44px;}
 .report-brand-mark img{width:100%;height:100%;object-fit:contain;}
+
+
+/* Platform full-workspace refresh — typography and controls scoped to Super Admin. */
+.platform-page {font-size:15px;line-height:1.65;--admin-border:#dce9e3;--admin-green:#17644f}
+.platform-page .platform-two-col{grid-template-columns:minmax(310px,.9fr) minmax(0,1.35fr);gap:20px;align-items:start}
+.platform-page .platform-settings-grid{gap:20px}
+.platform-page .platform-panel{padding:clamp(20px,2.4vw,30px);border-radius:22px;min-width:0}
+.platform-page .platform-panel-heading{gap:16px;margin-bottom:20px;align-items:flex-start}
+.platform-page .platform-panel-heading h3{font-size:clamp(19px,2vw,24px);font-weight:850;line-height:1.3}
+.platform-page .platform-panel-heading p{font-size:13px;line-height:1.7;margin-top:7px}
+.platform-page .eyebrow{font-size:12px;letter-spacing:.07em}
+.platform-page .platform-field,.platform-page .field-label{font-size:14px;line-height:1.55;gap:8px;font-weight:700}
+.platform-page .platform-field input,.platform-page .platform-field textarea,.platform-page .field-label input,.platform-page .field-label textarea{font-size:16px;line-height:1.55;padding:12px 14px;border:1px solid #cadbd2;border-radius:13px;min-height:49px;width:100%;max-width:100%;background:#fff;color:#173b30}
+.platform-page .field-label textarea{min-height:110px;resize:vertical}
+.platform-page .field-label input:focus-visible,.platform-page .field-label textarea:focus-visible{outline:3px solid #addbca;outline-offset:1px;border-color:#1c8468}
+.platform-page .platform-filter-pills{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 22px}
+.platform-page .platform-filter-pills button{border:1px solid #dce9e3;border-radius:100px;padding:9px 15px;min-height:43px;background:#f6faf8;color:#345a4f;font-size:14px;font-weight:750;line-height:1.3;cursor:pointer}
+.platform-page .platform-filter-pills button.active{background:#17644f;border-color:#17644f;color:#fff;box-shadow:0 4px 12px #17644f23}
+.platform-page .platform-hostel-list,.platform-page .platform-members-list,.platform-page .platform-retention-list{display:grid;gap:12px;min-width:0}
+.platform-page .platform-hostel-entry{border:1px solid #e0eae5;border-radius:17px;padding:6px 12px;background:#fff;box-shadow:0 3px 12px #183f3008;min-width:0}
+.platform-page .platform-hostel-entry.selected{border-color:#72b99d;background:#f1faf6;box-shadow:0 0 0 2px #c6ead9}
+.platform-page .platform-hostel-row{padding:12px 0;border-top:0;min-height:80px;gap:13px}
+.platform-page .platform-hostel-icon{width:47px;height:47px;border-radius:15px;background:#e4f3ea;color:#17644f}
+.platform-page .platform-hostel-copy{gap:4px}
+.platform-page .platform-hostel-copy strong{font-size:16px;line-height:1.4;color:#193d32}
+.platform-page .platform-hostel-copy small{font-size:12px;line-height:1.55}
+.platform-page .platform-hostel-id{font-size:11px!important;overflow-wrap:anywhere;word-break:break-word;color:#738981!important}
+.platform-page .platform-status{font-size:12px;font-weight:800;padding:7px 11px;line-height:1.3}
+.platform-page .platform-quick-flags{padding:0 0 6px 58px;display:flex;gap:8px}
+.platform-page .platform-quick-flags button{width:38px;height:36px;border-radius:10px}
+.platform-page .platform-member-row{display:grid;grid-template-columns:52px minmax(0,1fr);gap:13px;padding:19px;border:1px solid #e0eae5;border-radius:18px;background:linear-gradient(145deg,#fff,#fbfdfc);min-width:0}
+.platform-page .platform-avatar{width:48px;height:48px;border-radius:15px;font-size:20px;overflow:hidden}
+.platform-page .platform-avatar img{width:100%;height:100%;object-fit:cover}
+.platform-page .platform-member-copy{gap:6px}
+.platform-page .platform-member-copy strong{font-size:17px;line-height:1.4}
+.platform-page .platform-member-copy small{font-size:12px;line-height:1.6}
+.platform-page .platform-role-badges{display:flex;flex-wrap:wrap;gap:6px}
+.platform-page .platform-role-badges span{font-size:12px;padding:5px 10px;border-radius:99px}
+.platform-page .platform-member-flags{display:flex;flex-wrap:wrap;gap:8px}
+.platform-page .platform-member-flags span{font-size:12px}
+.platform-page .platform-member-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:11px;border-top:1px solid #e7eee9;padding-top:14px;flex-wrap:wrap}
+.platform-page .platform-member-action-buttons{display:flex;flex-wrap:wrap;gap:9px}
+.platform-page .platform-member-action-buttons button{font-size:13px;min-height:41px;padding:9px 12px;border-radius:11px;font-weight:750}
+.platform-page .platform-member-action-buttons .platform-mini-action{min-width:43px}
+.platform-page .primary-button,.platform-page .secondary-button,.platform-page .danger-button{font-size:14px;min-height:43px;padding:10px 16px;border-radius:12px;line-height:1.4;font-weight:800}
+.platform-page .primary-button.large{min-height:52px}
+.platform-page .platform-toggle{gap:15px;padding:17px 0;margin-bottom:6px}
+.platform-page .platform-toggle strong{font-size:15px;line-height:1.55}
+.platform-page .platform-toggle small{font-size:13px;line-height:1.6}
+.platform-page .platform-toggle input{width:22px;height:22px}
+.platform-page .platform-retention-hint,.platform-page .platform-form-help,.platform-page .platform-permanent-delete p,.platform-page .platform-privacy-note p,.platform-page .platform-generated-code p{font-size:13px;line-height:1.75}
+.platform-page .platform-permanent-delete{margin:20px 0;padding:18px;border:1px solid #efc9c5;border-radius:17px;background:#fff8f7}
+.platform-page .platform-permanent-delete strong{font-size:16px}
+.platform-page .platform-retention-row{padding:17px;border-radius:16px;border:1px solid #e0eae5;background:#fbfdfc;display:flex;gap:12px;justify-content:space-between;align-items:flex-start;min-width:0}
+.platform-page .platform-retention-row>div:first-child{min-width:0}
+.platform-page .platform-retention-row strong{font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+.platform-page .platform-retention-row small{font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.platform-page .platform-security-list li{font-size:14px;line-height:1.8}
+.platform-page .platform-generated-code{padding:20px;border-radius:16px}
+.platform-page .platform-generated-code small{font-size:13px}
+.platform-page .platform-generated-code code{font-size:clamp(19px,2.8vw,25px)}
+.platform-page .platform-empty,.platform-page .platform-empty-state{font-size:14px;line-height:1.7;padding:35px 14px}
+.platform-page .platform-empty-state strong{font-size:17px}
+.platform-page .platform-footer{font-size:12px}
+.platform-page .platform-recovery-panel{width:min(1380px,100%);margin:20px auto;padding:clamp(19px,2.5vw,29px);border-radius:21px}
+.platform-page .platform-recovery-panel h3{font-size:21px}
+.platform-page .platform-recovery-panel p{font-size:14px;line-height:1.75}
+.platform-page .platform-archive-actions{display:flex;flex-wrap:wrap;gap:8px}
+.platform-page .platform-pagination{display:flex;gap:10px;align-items:center;justify-content:center;padding:17px 0;font-size:14px}
+.platform-page .platform-delete-dialog{width:min(570px,calc(100vw - 26px));max-height:min(90dvh,850px);overflow-y:auto;padding:clamp(18px,3vw,28px);border-radius:22px}
+.platform-page .platform-delete-warning{font-size:14px;line-height:1.75}
+.platform-page .platform-delete-phrase{display:block;overflow-wrap:anywhere;font-size:13px;padding:10px;background:#f3f7f5;border-radius:10px}
+@media(max-width:1100px){.platform-page .platform-two-col{grid-template-columns:minmax(0,1fr)}.platform-page .platform-settings-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media(max-width:780px){.platform-page .platform-settings-grid{grid-template-columns:minmax(0,1fr)}.platform-page .platform-member-row{grid-template-columns:48px minmax(0,1fr)}.platform-page .platform-retention-row{flex-wrap:wrap}.platform-page .platform-retention-row .platform-archive-actions{width:100%}}
+@media(max-width:520px){.platform-page .platform-panel{padding:18px 15px}.platform-page .platform-panel-heading h3{font-size:20px}.platform-page .platform-hostel-entry{padding:6px 10px}.platform-page .platform-hostel-row{flex-wrap:wrap}.platform-page .platform-hostel-row .platform-status{margin-left:59px}.platform-page .platform-member-row{padding:15px;gap:10px}.platform-page .platform-member-actions{align-items:flex-start}.platform-page .platform-member-action-buttons{width:100%}.platform-page .platform-member-action-buttons button{flex:1 1 auto;font-size:13px}.platform-page .platform-filter-pills button{min-height:42px;font-size:13px}.platform-page .platform-action-row{display:flex;flex-wrap:wrap}.platform-page .platform-action-row>*{flex:1 1 135px}.platform-page .platform-toggle{align-items:flex-start}.platform-page .platform-status{font-size:11px}.platform-page .platform-retention-row{padding:15px}.platform-page .platform-header-actions{gap:8px}}
+/* Authentication: preserve current layout with slightly calmer mobile rhythm. */
+@media(max-width:849px){.auth-shell .auth-brand-panel{background:linear-gradient(160deg,#e5f5ec,#f7fbf8);padding-top:31px}.auth-shell .auth-brand-mark{filter:drop-shadow(0 7px 16px #0b533622)}.auth-shell .auth-form-panel .field-label{font-size:14px}.auth-shell .auth-form-panel .field-label input{min-height:52px}.auth-shell .auth-form-panel .primary-button.large{min-height:54px}}
