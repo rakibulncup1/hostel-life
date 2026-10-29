@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { BrandMark } from '../../components/BrandMark';
 import { useToast } from '../../components/Toast';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { signIn, signUp, requestPasswordReset, updatePassword } from '../../services/authService';
@@ -42,7 +43,7 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
     <main className="auth-page">
       <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''}`}>
         <div className="auth-brand-panel">
-          <div className="auth-brand-mark"><Icon name="home" size={28} /></div>
+          <div className="auth-brand-mark"><BrandMark size={64} /></div>
           <span className="auth-eyebrow">HOSTEL LIFE</span>
           <h1>মিল, বাজার ও মাসিক হিসাব — সব এক জায়গায়।</h1>
           <p>মিল, বাজার, জমা ও সদস্যদের হিসাব সহজভাবে পরিচালনা করুন।</p>

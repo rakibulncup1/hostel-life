@@ -1,11 +1,12 @@
 // Bump this cache name when changing the cached app-shell contract.
-const CACHE_NAME = 'hostel-life-shell-v14';
+const CACHE_NAME = 'hostel-life-shell-v15';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/hostel-life-mark.svg',
 ];
 
 self.addEventListener('install', (event) => {

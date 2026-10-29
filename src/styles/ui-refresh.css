@@ -1841,3 +1841,77 @@ body {
 .auth-form-panel .primary-button.large{min-height:48px;border-radius:12px;font-weight:800}
 .auth-header h2{font-weight:850;letter-spacing:-.035em}
 @media(min-width:850px){.auth-shell:not(.auth-shell-compact){width:min(910px,94vw);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.auth-shell:not(.auth-shell-compact) .auth-brand-panel{border-right:1px solid var(--line);border-bottom:0;padding:38px;min-height:510px}.auth-shell:not(.auth-shell-compact) .auth-brand-panel h1{font-size:clamp(26px,2.6vw,39px)}.auth-shell:not(.auth-shell-compact) .auth-brand-panel p{font-size:13px}.auth-shell:not(.auth-shell-compact) .auth-form-panel{padding:44px 38px;align-content:center}}
+
+/* 2026-10-29: focused identity + platform visual system; no API/data changes. */
+.auth-page { min-height:100dvh; padding:clamp(14px,3vw,40px); display:grid; place-items:center; background:radial-gradient(circle at 12% 15%,#daeee4 0, transparent 34%),radial-gradient(circle at 90% 90%,#e1eaf5 0,transparent 33%),#f5f8f7; }
+.auth-shell,.auth-shell:not(.auth-shell-compact) { width:min(960px,100%); margin:0; border:1px solid #e5ece8; box-shadow:0 24px 70px rgba(22,62,52,.12); border-radius:26px; background:#fff; overflow:hidden; }
+.auth-brand-mark {width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:none;box-shadow:0 8px 24px #143e3421;}
+.auth-brand-mark svg { width:64px;height:64px;max-width:none; }
+.auth-brand-panel {background:linear-gradient(152deg,#e6f4ee,#f5faf8 75%);color:#173b32;}
+.auth-brand-panel .auth-eyebrow {display:block;color:#347965;font-size:12px;letter-spacing:.16em;font-weight:900;}
+.auth-form-panel .auth-header h2 {font-size:clamp(24px,3vw,32px);line-height:1.25;color:#183a31;}
+.auth-form-panel .auth-header p {font-size:14px;line-height:1.6;}
+.auth-form-panel .field-label {font-size:14px;font-weight:750;gap:7px;}
+.auth-form-panel .field-label input {min-height:50px;font-size:16px;padding-inline:14px;}
+.auth-form-panel .primary-button.large {min-height:52px;font-size:15px;background:#17634f;color:#fff;}
+.auth-form-panel .primary-button.large:hover {background:#104f3e;}
+.auth-form-panel .form-stack {gap:16px;}
+.auth-form-panel .auth-switch {margin-top:19px;}
+.platform-page {--platform-ink:#183d35;--platform-muted:#58766d; background:radial-gradient(circle at 0 0,#e3f2ec,transparent 32%),#f5f8f7; font-size:14px; line-height:1.5;}
+.platform-page .platform-header {border-bottom:0;background:#fff;border:1px solid #e1ebe5;border-radius:20px;padding:17px 22px;box-shadow:0 8px 25px #113d2f0d;}
+.platform-page .platform-brand-mark {width:50px;height:50px;background:none;border-radius:15px;box-shadow:none;}
+.platform-page .platform-brand h1 {font-size:clamp(23px,3vw,31px);color:#153f33;letter-spacing:-.02em;}
+.platform-page .platform-brand small {font-size:11px;color:#3b8068;letter-spacing:.1em;}
+.platform-page .platform-intro {border-radius:20px;background:linear-gradient(125deg,#123f33,#1a6b55);color:white;padding:23px clamp(18px,3vw,30px);box-shadow:0 14px 32px #11433222;}
+.platform-page .platform-intro h2,.platform-page .platform-intro p,.platform-page .platform-intro .eyebrow {color:#fff;}
+.platform-page .platform-intro p {opacity:.86;font-size:14px;}
+.platform-page .platform-intro .secondary-button {background:#ffffffeb;color:#14513e;border-color:transparent;}
+.platform-page .platform-tabs {background:#fff;border-radius:17px;padding:8px;border:1px solid #e1ebe5;box-shadow:0 4px 17px #17453509;gap:8px;}
+.platform-page .platform-tabs button {font-size:14px;font-weight:800;min-height:47px;padding:12px 18px;border:0;border-radius:11px;background:transparent;color:#55746a;}
+.platform-page .platform-tabs button:hover {background:#edf6f1;color:#17644d;}
+.platform-page .platform-tabs button.active {background:#17644f;color:#fff;box-shadow:0 5px 13px #17644f30;}
+.platform-page .platform-stat {border:1px solid #e1ebe5;background:#fff;border-radius:19px;padding:22px;box-shadow:0 5px 18px #163e2a0b;}
+.platform-page .platform-stat small {font-size:13px;color:#527266;}
+.platform-page .platform-stat strong {font-size:clamp(24px,3vw,32px);color:#174f3c;}
+.platform-page .platform-panel {border:1px solid #e2eae5;border-radius:20px;background:#fff;padding:clamp(16px,2.5vw,26px);box-shadow:0 8px 25px #183c2a0a;}
+.platform-page .platform-panel-heading h3 {font-size:clamp(18px,2vw,23px);color:#164332;}
+.platform-page .platform-filter-pills button {font-size:13px;min-height:40px;}
+.platform-page .platform-hostel-row,.platform-page .platform-member-row {min-width:0;}
+.platform-page button {transition:background-color .16s, box-shadow .16s,transform .16s;}
+.platform-page button:focus-visible,.auth-page button:focus-visible {outline:3px solid #59b893;outline-offset:2px;}
+@media(max-width:849px){
+ .auth-shell:not(.auth-shell-compact) {display:block;max-width:490px;}
+ .auth-shell .auth-brand-panel {display:flex;flex-direction:column;align-items:center;text-align:center;padding:28px 24px 17px;min-height:0;border:0;}
+ .auth-shell .auth-brand-panel h1 {font-size:18px;line-height:1.4;margin:9px 0 0;letter-spacing:0;max-width:29ch;}
+ .auth-shell .auth-brand-panel p {display:none;}
+ .auth-shell .auth-form-panel {padding:24px clamp(19px,6vw,30px) 30px;}
+ .auth-shell .auth-header {text-align:center;justify-content:center;margin-bottom:22px;}
+ .auth-shell .auth-form-panel .two-field-grid {grid-template-columns:1fr;}
+ .platform-page .platform-header {margin-bottom:15px;}
+ .platform-page .platform-tabs {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;white-space:normal;margin:12px auto;}
+ .platform-page .platform-tabs button {font-size:13px;white-space:normal;overflow-wrap:anywhere;padding:11px 8px;}
+ .platform-page .platform-tabs button:last-child:nth-child(odd) {grid-column:1/-1;}
+}
+@media(max-width:480px){
+ .auth-page {padding:12px;align-items:start;}
+ .auth-shell,.auth-shell:not(.auth-shell-compact) {margin:8px 0 16px;border-radius:22px;}
+ .auth-shell .auth-brand-panel {padding:24px 20px 14px;}
+ .auth-shell .auth-form-panel {padding:20px 18px 25px;}
+ .auth-shell .auth-form-panel .field-label input {width:100%;}
+ .platform-page {padding:12px 10px 36px;}
+ .platform-page .platform-header {padding:14px;gap:10px;}
+ .platform-page .platform-auth-user {max-width:100%;font-size:12px;}
+ .platform-page .platform-intro {padding:19px 16px;}
+ .platform-page .platform-panel {padding:16px 13px;}
+ .platform-page .platform-header-actions {width:100%;justify-content:space-between;}
+ .platform-page .platform-tabs {gap:6px;padding:6px;}
+ .platform-page .platform-tabs button {font-size:12px;min-height:48px;}
+}
+
+.forced-password-change {width:min(480px,100%);padding:clamp(22px,5vw,38px);border-radius:24px;display:grid;gap:14px;text-align:center;box-shadow:0 20px 55px #153b2b20;}
+.forced-password-change>svg{justify-self:center;}
+.forced-password-change h1{font-size:clamp(23px,4vw,30px);line-height:1.35;color:#153e31;}
+.forced-password-change p{font-size:14px;line-height:1.7;}
+.forced-password-change form{text-align:left;}
+.forced-password-change .secondary-button{text-align:center;text-decoration:none;display:grid;place-items:center;min-height:44px;}
+.report-brand-mark img{width:100%;height:100%;object-fit:contain;}
