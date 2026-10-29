@@ -45,13 +45,14 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
         <div className="auth-brand-panel">
           <div className="auth-brand-mark"><BrandMark size={64} /></div>
           <span className="auth-eyebrow">HOSTEL LIFE</span>
-          <h1>মিল, বাজার ও মাসিক হিসাব — সব এক জায়গায়।</h1>
-          <p>মিল, বাজার, জমা ও সদস্যদের হিসাব সহজভাবে পরিচালনা করুন।</p>
+          <h1>আপনার হোস্টেল, আরও গোছানো প্রতিদিন।</h1>
+          <p>মিল থেকে মাসিক হিসাব—সবকিছু নিরাপদে, সুন্দরভাবে, এক জায়গায়।</p>
         </div>
         <div className="auth-form-panel">
+          <div className="auth-form-intro">অ্যাকাউন্ট অ্যাক্সেস <span aria-hidden="true">•</span> নিরাপদ ও সহজ</div>
           <div className="auth-header">
             <div>
-              <span className="eyebrow">স্বাগতম</span>
+              <span className="eyebrow">{title === "আপনার অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>
               <h2>{title}</h2>
               <p>{subtitle}</p>
             </div>
@@ -91,7 +92,7 @@ function LoginForm() {
   };
 
   return (
-    <AuthFrame title="লগইন করুন" subtitle="আপনার অ্যাকাউন্টে প্রবেশ করুন।">
+    <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার তথ্য দিয়ে নিরাপদে Hostel Life-এ লগইন করুন।">
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
           <span>ইমেইল</span>
@@ -103,7 +104,7 @@ function LoginForm() {
         </label>
         <button type="button" className="text-button align-end" onClick={() => go('/auth/forgot-password')}>পাসওয়ার্ড ভুলে গেছেন?</button>
         <button className="primary-button large" type="submit" disabled={submitting || !online}>
-          {submitting ? 'লগইন হচ্ছে...' : 'লগইন'}
+          {submitting ? 'লগইন হচ্ছে...' : 'অ্যাকাউন্টে প্রবেশ করুন'}
         </button>
       </form>
       <AuthSwitch current="login" />
@@ -175,7 +176,7 @@ function RegisterForm() {
   };
 
   return (
-    <AuthFrame title="রেজিস্ট্রেশন করুন" subtitle="অ্যাকাউন্ট তৈরি করে শুরু করুন।">
+    <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle="কয়েকটি তথ্য দিন, তারপর শুরু করুন আপনার হোস্টেল লাইফ।">
       <form className="form-stack" onSubmit={submit}>
         <div className="two-field-grid">
           <label className="field-label">
@@ -212,7 +213,7 @@ function RegisterForm() {
 function AuthSwitch({ current }) {
   return (
     <div className="auth-switch">
-      <span>{current === 'login' ? 'নতুন অ্যাকাউন্ট?' : 'আগে থেকেই অ্যাকাউন্ট আছে?'}</span>
+      <span>{current === 'login' ? 'এখনো অ্যাকাউন্ট নেই?' : 'ইতিমধ্যে অ্যাকাউন্ট আছে?'}</span>
       {authLinks.filter((link) => link.path !== `/auth/${current}`).map((link) => (
         <button type="button" className="text-button" key={link.path} onClick={() => go(link.path)}>{link.label}</button>
       ))}

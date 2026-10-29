@@ -14,7 +14,7 @@ const systemItems = [
   { key: 'privacy-policy', label: 'গোপনীয়তা ও নীতিমালা', icon: 'shield' },
   { key: 'terms', label: 'ব্যবহারের শর্তাবলী', icon: 'file' },
   { key: 'how-to-use', label: 'কীভাবে ব্যবহার করব', icon: 'book' },
-  { key: 'developer', label: 'ডেভেলপার ইনফো', icon: 'user' },
+  { key: 'developer', label: 'হেল্প', icon: 'user' },
 ];
 
 const primaryItems = [

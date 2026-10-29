@@ -105,7 +105,7 @@ export function App() {
     else if (pathname.includes('/menu/top-shopper')) title = 'Hostel Life — বেশি বাজারকারী';
     else if (pathname.includes('/menu/members')) title = 'Hostel Life — সকল সদস্য';
     else if (pathname.includes('/menu/khala-money-view')) title = 'Hostel Life — খালার টাকা';
-    else if (pathname.includes('/menu/developer')) title = 'Hostel Life — ডেভেলপার ইনফো';
+    else if (pathname.includes('/menu/developer')) title = 'Hostel Life — হেল্প';
     else if (pathname.includes('/menu/privacy-policy')) title = 'Hostel Life — গোপনীয়তা ও নীতিমালা';
     else if (pathname.includes('/menu/terms')) title = 'Hostel Life — ব্যবহারের শর্তাবলী';
     else if (pathname.includes('/menu/how-to-use')) title = 'Hostel Life — কীভাবে ব্যবহার করব';

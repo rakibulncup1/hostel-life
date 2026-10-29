@@ -348,7 +348,7 @@ export function DeveloperInfoPage() {
   const photo = info?.developer_photo_url || '';
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Hostel Life" title="ডেভেলপার ইনফো" />
+      <PageHeader eyebrow="Hostel Life" title="হেল্প" />
       <section className="card developer-card">
         {photo ? <img className="developer-photo-placeholder developer-photo-image" src={photo} alt={info?.developer_name || 'ডেভেলপার'} loading="lazy" /> : <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>}
         <div className="developer-name">{loading ? 'তথ্য লোড হচ্ছে…' : info?.developer_name || 'Hostel Life Support'}</div>
