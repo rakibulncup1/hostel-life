@@ -75,6 +75,17 @@ export async function platformAdminListHostelMembers(hostelId) {
   return rows;
 }
 
+export async function platformAdminListHostelRoleBadges(hostelId) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('hl_platform_hostel_roles', { p_hostel_id: hostelId });
+  if (error) throw error;
+  const roles = {};
+  for (const row of (Array.isArray(data) ? data : [])) {
+    if (row?.membership_id) roles[row.membership_id] = { primary: Boolean(row.primary), assistant: Boolean(row.assistant) };
+  }
+  return roles;
+}
+
 export async function platformAdminSetHostelStatus(hostelId, status, reason = null) {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_set_hostel_status', {

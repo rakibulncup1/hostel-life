@@ -203,3 +203,5 @@
 .archive-readonly-content { display: grid; gap: 13px; }
 .archive-readonly-counts { margin: 3px 0 12px; }
 .archive-readonly-counts .metric { padding: 11px 12px; }
+
+.archive-reopen-hint{display:block;width:100%;color:var(--muted);font-size:12px;line-height:1.5}.archive-detail-toolbar{flex-wrap:wrap}

@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { normalizePlatformOverview } from '../../utils/platformOverview';
 import {
   fetchPlatformPublicSettings, platformAdminGenerateAccessCode, platformAdminGetOverview,
-  platformAdminListHostelMembers, platformAdminListHostels, platformAdminSetGate,
+  platformAdminListHostelMembers, platformAdminListHostelRoleBadges, platformAdminListHostels, platformAdminSetGate,
   platformAdminSetHostelStatus, platformAdminSetUserBlocked, platformAdminUpdatePublicSettings,
   platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel,
   platformAdminPermanentlyDeleteMember, uploadDeveloperPhoto,
@@ -58,6 +58,7 @@ export function SuperAdminPage({ user }) {
   const [hostelFilter, setHostelFilter] = useState('all');
   const [memberQuery, setMemberQuery] = useState('');
   const [memberFilter, setMemberFilter] = useState('all');
+  const [memberRoles, setMemberRoles] = useState({});
   const [developerPhotoBusy, setDeveloperPhotoBusy] = useState(false);
   const developerPhotoInputRef = useRef(null);
   const [retention, setRetention] = useState(null);
@@ -112,11 +113,14 @@ export function SuperAdminPage({ user }) {
   const sortedMembers = useMemo(() => [...members]
     .filter((member) => !memberQuery || `${member.full_name || ''} ${member.phone || ''} ${member.user_id || ''}`.toLowerCase().includes(memberQuery.toLowerCase()))
     .filter((member) => memberFilter === 'all'
+      || (memberFilter === 'manager' && memberRoles[member.membership_id]?.primary)
+      || (memberFilter === 'assistant' && memberRoles[member.membership_id]?.assistant)
+      || (memberFilter === 'member' && memberRoles[member.membership_id] && !memberRoles[member.membership_id].primary && !memberRoles[member.membership_id].assistant)
       || (memberFilter === 'favorite' && member.is_favorite)
       || (memberFilter === 'trusted' && member.is_trusted)
       || (memberFilter === 'blocked' && member.is_blocked))
     .sort((a, b) => String(a.full_name || '').localeCompare(String(b.full_name || ''), 'bn')),
-  [members, memberQuery, memberFilter]);
+  [members, memberQuery, memberFilter, memberRoles]);
   const filteredHostels = useMemo(() => [...hostels]
     .filter((hostel) => !hostelQuery || `${hostel.name || ''} ${hostel.hostel_id || ''}`.toLowerCase().includes(hostelQuery.toLowerCase()))
     .filter((hostel) => hostelFilter === 'all'
@@ -218,8 +222,13 @@ export function SuperAdminPage({ user }) {
     finally { setReauthBusy(false); }
   };
   const openHostel = async (hostel) => {
-    setSelected(hostel); setMembers([]); setReason(''); setBusy(true); setError('');
-    try { setMembers(await platformAdminListHostelMembers(hostel.hostel_id)); }
+    setSelected(hostel); setMembers([]); setMemberRoles({}); setReason(''); setBusy(true); setError('');
+    try {
+      const list = await platformAdminListHostelMembers(hostel.hostel_id);
+      setMembers(list);
+      try { setMemberRoles(await platformAdminListHostelRoleBadges(hostel.hostel_id)); }
+      catch { setMemberRoles({}); setNotice('সদস্য তালিকা এসেছে, তবে ম্যানেজার পরিচয় পেতে নতুন SQL migration চালাতে হবে।'); }
+    }
     catch (cause) { setError(errorText(cause, 'সদস্য তালিকা লোড করা যায়নি।')); }
     finally { setBusy(false); }
   };
@@ -245,7 +254,14 @@ export function SuperAdminPage({ user }) {
       const { data, error: invokeError } = await supabase.functions.invoke('admin-temporary-password', {
         body: { user_id: recoveryTarget.user_id, identity_verified: true, verification_note: recoveryNote.trim() },
       });
-      if (invokeError) throw invokeError;
+      if (invokeError) {
+        let detail = '';
+        try { detail = (await invokeError.context?.json())?.error || ''; } catch { /* unavailable response */ }
+        const message = detail || invokeError.message || '';
+        throw new Error(/failed to send|failed to fetch|function not found|non-2xx|edge function/i.test(message) && !detail
+          ? 'Password-help Edge Function-এ সংযোগ হয়নি। Supabase Dashboard → Edge Functions থেকে admin-temporary-password deploy, JWT verification ও function logs পরীক্ষা করুন।'
+          : message);
+      }
       if (data?.error) throw new Error(data.error);
       if (!data?.temporary_password) throw new Error('সার্ভার থেকে অস্থায়ী পাসওয়ার্ড পাওয়া যায়নি।');
       setRecoveryResult(data.temporary_password);
@@ -299,7 +315,7 @@ export function SuperAdminPage({ user }) {
     setBusy(true); setError(''); setNotice('');
     try {
       const result = await platformAdminPermanentlyDeleteHostel(selected.hostel_id, deleteMemberAccounts, confirmation);
-      setNotice(`মেস স্থায়ীভাবে মুছে ফেলা হয়েছে। ${Number(result?.member_accounts_deleted || 0)}টি Auth account মুছে ফেলা হয়েছে।`);
+      setNotice(`মেস স্থায়ীভাবে মুছে ফেলা হয়েছে। ${Number(result?.member_accounts_deleted || 0)}টি Auth account মুছে ফেলা হয়েছে। অন্যান্য Auth account থাকলে আলাদা যাচাই প্রয়োজন।`);
       setDeleteDialog(null); setDeleteConfirmation(''); setSelected(null); setMembers([]); setReason(''); await refresh();
     } catch (cause) { setError(errorText(cause, 'মেস স্থায়ীভাবে মুছে ফেলা যায়নি।')); }
     finally { setBusy(false); }
@@ -312,8 +328,22 @@ export function SuperAdminPage({ user }) {
     if (confirmation !== `DELETE MEMBER ${member.user_id}`) { setError('নিচের নিশ্চিতকরণ বাক্যটি হুবহু লিখুন।'); return; }
     setBusy(true); setError(''); setNotice('');
     try {
-      await platformAdminPermanentlyDeleteMember(selected.hostel_id, member.membership_id, deleteAuthAccount, confirmation);
-      setNotice('সদস্য স্থায়ীভাবে মুছে ফেলা হয়েছে।');
+      const result = await platformAdminPermanentlyDeleteMember(selected.hostel_id, member.membership_id, deleteAuthAccount, confirmation);
+      let authDeleted = Boolean(result?.auth_account_deleted);
+      let warning = '';
+      if (deleteAuthAccount && !authDeleted) {
+        try {
+          const {data:cleanup, error:cleanupError} = await supabase.functions.invoke('admin-delete-unlinked-user', {
+            body: {user_id: member.user_id, confirmation: `DELETE AUTH ${member.user_id}`},
+          });
+          if (cleanupError || cleanup?.error) throw new Error(cleanup?.error || cleanupError?.message || 'Edge Function failure');
+          authDeleted = Boolean(cleanup?.deleted);
+          if (cleanup?.audit_warning) warning = ' Auth মুছেছে, কিন্তু Audit Log যাচাই করুন।';
+        } catch (cleanupError) {
+          warning = ' মেস থেকে মুছেছে, কিন্তু Auth account মুছতে পারেনি। admin-delete-unlinked-user Edge Function deploy ও log যাচাই করুন।';
+        }
+      }
+      setNotice(authDeleted ? `সদস্য ও Auth account স্থায়ীভাবে মুছে ফেলা হয়েছে।${warning}` : `সদস্য মেস থেকে সরানো হয়েছে।${warning || (deleteAuthAccount ? ' Auth account অন্য মেসে ব্যবহৃত হলে তা থাকবে।' : ' Auth account রাখা হয়েছে।')}`);
       setDeleteDialog(null); setDeleteConfirmation(''); setMembers((old) => old.filter((row) => row.membership_id !== member.membership_id));
       await refresh();
     } catch (cause) { setError(errorText(cause, 'সদস্য স্থায়ীভাবে মুছে ফেলা যায়নি।')); }
@@ -376,7 +406,7 @@ export function SuperAdminPage({ user }) {
         <div className="platform-panel-heading"><div><h3>মেস ডিরেক্টরি</h3><p>{filteredHostels.length} / {hostels.length}টি মেস · আর্থিক/মিলের তথ্য দেখানো হয় না</p></div></div>
         <Field label="মেস খুঁজুন (নাম বা ID)" value={hostelQuery} onChange={setHostelQuery} maxLength={120}/>
         <div className="platform-filter-pills" role="group" aria-label="মেস ফিল্টার">
-          {[['all','সব'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['suspended','স্থগিত']].map(([key,label])=><button type="button" key={key} className={hostelFilter===key?'active':''} onClick={()=>setHostelFilter(key)}>{label}</button>)}
+          {[['all','সব'],['manager','প্রধান ম্যানেজার'],['assistant','সহকারী'],['member','সাধারণ সদস্য'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['suspended','স্থগিত']].map(([key,label])=><button type="button" key={key} className={hostelFilter===key?'active':''} onClick={()=>setHostelFilter(key)}>{label}</button>)}
         </div>
         {filteredHostels.length===0?<p className="platform-empty">এই ফিল্টারে কোনো মেস পাওয়া যায়নি।</p>:<div className="platform-hostel-list">{visibleHostels.map((hostel)=><div className={`platform-hostel-entry ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} key={hostel.hostel_id}>
           <button className={`platform-hostel-row ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} type="button" onClick={()=>openHostel(hostel)}>
@@ -395,9 +425,9 @@ export function SuperAdminPage({ user }) {
           <div className="platform-permanent-delete"><strong><Icon name="trash" size={16}/> স্থায়ীভাবে মুছে ফেলুন</strong><p>মেসের meal, বাজার, হিসাব, সদস্য ও সংশ্লিষ্ট ডেটা স্থায়ীভাবে মুছে যাবে। এটি ফেরানো যাবে না।</p><button className="danger-button" disabled={busy} type="button" onClick={() => { setDeleteDialog({kind:'hostel'}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>{busy?'অপেক্ষা করুন...':'Super Delete · মেস ও সব ডেটা'}</button></div>
           <div className="platform-panel-heading platform-members-heading"><div><h3>সদস্য তালিকা</h3><p>শুধু পরিচয় ও স্ট্যাটাস · কোনো আর্থিক/মিলের রেকর্ড নয়</p></div></div>
           <Field label="সদস্য খুঁজুন (নাম, ফোন বা ID)" value={memberQuery} onChange={setMemberQuery} maxLength={120}/>
-          <div className="platform-filter-pills" role="group" aria-label="সদস্য ফিল্টার">{[['all','সব'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['blocked','ব্লক']].map(([key,label])=><button type="button" key={key} className={memberFilter===key?'active':''} onClick={()=>setMemberFilter(key)}>{label}</button>)}</div>
+          <div className="platform-filter-pills" role="group" aria-label="সদস্য ফিল্টার">{[['all','সব'],['manager','প্রধান ম্যানেজার'],['assistant','সহকারী'],['member','সাধারণ সদস্য'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['blocked','ব্লক']].map(([key,label])=><button type="button" key={key} className={memberFilter===key?'active':''} onClick={()=>setMemberFilter(key)}>{label}</button>)}</div>
           {busy?<LoadingSpinner label="তথ্য আপডেট হচ্ছে..."/>:sortedMembers.length===0?<p className="platform-empty">এই ফিল্টারে কোনো সদস্য নেই।</p>:<div className="platform-members-list">{visibleMembers.map((member)=><div className="platform-member-row" key={member.membership_id}>
-            <div className="platform-avatar">{member.avatar_url ? <img src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : String(member.full_name||'স').slice(0,1)}</div><div className="platform-member-copy"><strong>{member.full_name||'নাম নেই'}</strong><small>{member.phone||'ফোন নেই'} · যোগদান {member.joined_at?new Date(member.joined_at).toLocaleDateString():'—'}</small>{member.email && <small className="platform-member-email">{member.email}</small>}<small className="platform-hostel-id">{member.user_id}</small><div className="platform-member-flags">{member.is_favorite&&<span>⭐ পছন্দের</span>}{member.is_trusted&&<span>✓ বিশ্বস্ত</span>}{member.is_blocked&&<span className="blocked-flag">ব্লক করা</span>}</div></div>
+            <div className="platform-avatar">{member.avatar_url ? <img src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : String(member.full_name||'স').slice(0,1)}</div><div className="platform-member-copy"><strong>{member.full_name||'নাম নেই'}</strong><div className="platform-role-badges">{memberRoles[member.membership_id]?.primary && <span className="primary">প্রধান ম্যানেজার</span>}{memberRoles[member.membership_id]?.assistant && <span className="assistant">সহকারী ম্যানেজার</span>}{memberRoles[member.membership_id] && !memberRoles[member.membership_id].primary && !memberRoles[member.membership_id].assistant && <span>সাধারণ সদস্য</span>}</div><small>{member.phone||'ফোন নেই'} · যোগদান {member.joined_at?new Date(member.joined_at).toLocaleDateString():'—'}</small>{member.email && <small className="platform-member-email">{member.email}</small>}<small className="platform-hostel-id">{member.user_id}</small><div className="platform-member-flags">{member.is_favorite&&<span>⭐ পছন্দের</span>}{member.is_trusted&&<span>✓ বিশ্বস্ত</span>}{member.is_blocked&&<span className="blocked-flag">ব্লক করা</span>}</div></div>
             <div className="platform-member-actions"><span className={`platform-status ${member.status==='active'?'status-active':'status-inactive'}`}>{member.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span><div className="platform-member-action-buttons"><button className={member.is_favorite?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="পছন্দের চিহ্ন" onClick={()=>toggleMemberFlag(member,'favorite')}>⭐</button><button className={member.is_trusted?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="বিশ্বস্ত চিহ্ন" onClick={()=>toggleMemberFlag(member,'trusted')}>✓</button><button className={member.is_blocked?'secondary-button':'danger-button'} disabled={busy||member.user_id===user?.id} type="button" onClick={()=>toggleBlock(member)}>{member.is_blocked?'আনব্লক':'ব্লক'}</button><button className="secondary-button compact" disabled={busy||recoveryBusy||member.user_id===user?.id} type="button" onClick={()=>{setRecoveryTarget(member);setRecoveryResult('');setRecoveryNote('');setRecoveryVerified(false);}}>পাসওয়ার্ড সহায়তা</button><button className="danger-button" disabled={busy||member.user_id===user?.id} type="button" onClick={() => { setDeleteDialog({kind:'member', member}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>স্থায়ী ডিলিট</button></div></div>
           </div>)}</div>}
           {sortedMembers.length > pageSize && <div className="platform-pagination"><button className="secondary-button compact" type="button" disabled={memberPage === 1} onClick={() => setMemberPage(page => page - 1)}>আগের</button><span>{memberPage} / {Math.ceil(sortedMembers.length / pageSize)}</span><button className="secondary-button compact" type="button" disabled={memberPage * pageSize >= sortedMembers.length} onClick={() => setMemberPage(page => page + 1)}>পরের</button></div>}

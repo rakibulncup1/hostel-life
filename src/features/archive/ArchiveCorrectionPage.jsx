@@ -5,7 +5,7 @@ import { useManagementContext } from '../../hooks/useManagementContext';
 import { useToast } from '../../components/Toast';
 import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
-import { fetchArchiveManagementItems } from '../../services/managerService';
+import { fetchArchiveManagementItems, reopenArchivedPeriod } from '../../services/managerService';
 import { fetchArchivedMonthDetail, fetchPreviousMonths } from '../../services/historyService';
 import { getArchiveCorrectionBundle, applyArchiveCorrection, isCorrectionBackendMissing } from '../../services/archiveCorrectionService';
 import { navigateTo } from '../../app/AppShell';
@@ -173,6 +173,18 @@ export function ArchiveCorrectionPage() {
     } finally { setLoadingDetail(false); }
   }, [primary, toast]);
 
+  const restoreMonth = async () => {
+    if (!selected?.can_reopen || busy) return;
+    if (!await confirmAction(`“${selected.label}” পুনরায় চলমান করবেন? বন্ধ করার সময় বাতিল হয়ে যাওয়া অনুরোধ স্বয়ংক্রিয়ভাবে ফিরবে না।`)) return;
+    setBusy(true);
+    try {
+      await reopenArchivedPeriod(selected.period_id);
+      toast.success('মাসটি পুনরায় চালু হয়েছে। এখন নতুন মাস শুরুর আগে চলমান মাস যাচাই করুন।');
+      setSelectedPeriodId(''); setDetail(null); setBundle(null);
+      await reloadMonths();
+    } catch (error) { toast.error(error?.message || 'মাস পুনরায় চালু করা যায়নি।'); }
+    finally { setBusy(false); }
+  };
   const selected = months.find(row => String(row.period_id) === String(selectedPeriodId));
   const filteredMonths = months.filter((row) => {
     const query = searchTerm.trim().toLocaleLowerCase();
@@ -248,6 +260,8 @@ export function ArchiveCorrectionPage() {
         <button type="button" className="secondary-button compact" onClick={() => { setSelectedPeriodId(''); setDetail(null); setBundle(null); setEditing(null); setActiveKind('all'); }}><Icon name="arrow-left" size={15}/> সব মাস</button>
         <div className="archive-detail-title"><span className="archive-eyebrow">নির্বাচিত মাসের হিসাব</span><h2>{detailLabel}</h2><p>{formatDateBangla(detailStart)} – {formatDateBangla(detailEnd)}</p></div>
         <span className="archive-correction-status"><i className="archive-status-dot"/> মাস বন্ধ</span>
+      {primary && selected?.can_reopen && <button type="button" className="primary-button compact" onClick={restoreMonth} disabled={busy}><Icon name="refresh-cw" size={16}/> ভুলবশত বন্ধ? আবার চালু করুন</button>}
+      {primary && selected && !selected.can_reopen && !selected.archive_read_only && <small className="archive-reopen-hint">এই মাস পুনরায় চালুর শর্ত পূরণ হচ্ছে না। শুধু সর্বশেষ বন্ধ মাস, একই ক্যালেন্ডার মাসে এবং নতুন মাস শুরুর আগে ফেরানো যায়।</small>}
       </div>
       {loadingDetail && <section className="card archive-correction-section"><LoadingSpinner label="নির্বাচিত মাসের তথ্য লোড হচ্ছে..."/></section>}
       {!loadingDetail && readOnlyReason && <div className="state-card state-card-warning archive-readonly-warning"><Icon name={backendMissing ? 'info' : 'shield'} size={20}/><div><strong>{backendMissing ? 'এখন শুধু রিপোর্ট দেখা যাবে' : 'সংশোধন বন্ধ আছে'}</strong><p>{readOnlyReason}</p></div></div>}

@@ -1821,3 +1821,23 @@ body {
   .assistant-selection-heading { align-items: flex-start; flex-direction: column; }
   .assistant-choice-card { min-height: 72px; padding: 12px; }
 }
+
+/* Oct 29: concise management badges and touch-friendly controls. */
+.platform-role-badges{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 7px}
+.platform-role-badges span{font-size:11px;line-height:1.4;border-radius:999px;background:var(--surface);border:1px solid var(--line);padding:3px 8px;font-weight:700}
+.platform-role-badges .primary{background:#e7f3ff;color:#115e97;border-color:#b6dafa}
+.platform-role-badges .assistant{background:#f1eaff;color:#6641a3;border-color:#d9c7fc}
+.platform-member-row{min-width:0;align-items:flex-start}
+.platform-member-copy{min-width:0;overflow-wrap:anywhere}
+.platform-member-action-buttons{display:flex;flex-wrap:wrap;gap:7px}
+.platform-filter-pills{display:flex;gap:7px;flex-wrap:wrap}
+@media(max-width:700px){.platform-member-row{display:flex;flex-wrap:wrap;gap:12px}.platform-member-actions{width:100%;display:flex;flex-direction:column;gap:8px}.platform-member-action-buttons button{min-height:40px}.platform-tabs{overflow-x:auto;white-space:nowrap;scrollbar-width:thin}.platform-header{flex-wrap:wrap;gap:12px}}
+
+/* Clean product-grade authentication: focused fields, readable hierarchy. */
+.auth-page{background:radial-gradient(ellipse at 13% 10%,color-mix(in srgb,var(--primary) 8%,transparent),transparent 45%),var(--bg)}
+.auth-shell{border:1px solid var(--line);overflow:hidden}
+.auth-form-panel .field-label input{min-height:46px;border-radius:12px;transition:border-color .18s,box-shadow .18s}
+.auth-form-panel .field-label input:focus-visible{border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 13%,transparent);outline:none}
+.auth-form-panel .primary-button.large{min-height:48px;border-radius:12px;font-weight:800}
+.auth-header h2{font-weight:850;letter-spacing:-.035em}
+@media(min-width:850px){.auth-shell:not(.auth-shell-compact){width:min(910px,94vw);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.auth-shell:not(.auth-shell-compact) .auth-brand-panel{border-right:1px solid var(--line);border-bottom:0;padding:38px;min-height:510px}.auth-shell:not(.auth-shell-compact) .auth-brand-panel h1{font-size:clamp(26px,2.6vw,39px)}.auth-shell:not(.auth-shell-compact) .auth-brand-panel p{font-size:13px}.auth-shell:not(.auth-shell-compact) .auth-form-panel{padding:44px 38px;align-content:center}}
