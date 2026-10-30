@@ -35,7 +35,7 @@ import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
-import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionWindowForMealDate, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
+import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -292,11 +292,15 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   const isCorrection = mode === 'correction';
   const isEdit = mode === 'edit';
   const dayStateMap = useMemo(() => new Map(dayStates.map((day) => [String(day.meal_date).slice(0, 10), day])), [dayStates]);
-  const correctionEligibleDays = useMemo(() => originalDays.filter((day) => isCorrectionWindowForMealDate(day.meal_date, new Date(clock)) && dayStateMap.get(day.meal_date)?.status !== 'cancelled'), [originalDays, dayStateMap, clock]);
+  const correctionEligibleDays = useMemo(() => originalDays.filter((day) =>
+    isCorrectionDayEligible(day.meal_date, dayStateMap.get(String(day.meal_date).slice(0, 10)), new Date(clock))
+  ), [originalDays, dayStateMap, clock]);
   const editEligibleDays = useMemo(() => originalDays.filter((day) => canDirectEditMealDate(day.meal_date, new Date(clock)) && dayStateMap.get(day.meal_date)?.status !== 'finalized' && dayStateMap.get(day.meal_date)?.status !== 'cancelled'), [originalDays, dayStateMap, clock]);
   useEffect(() => {
     if (mode !== 'correction' || !request?.days?.length || dayStateLoading) return;
-    const eligible = originalDays.filter((day) => isCorrectionWindowForMealDate(day.meal_date, new Date(clock)) && dayStateMap.get(day.meal_date)?.status !== 'cancelled');
+    const eligible = originalDays.filter((day) =>
+      isCorrectionDayEligible(day.meal_date, dayStateMap.get(String(day.meal_date).slice(0, 10)), new Date(clock))
+    );
     if (!eligible.length) return;
     const first = eligible[0].meal_date;
     const last = eligible[eligible.length - 1].meal_date;
@@ -365,7 +369,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         return;
       }
       if (payloadDates.some((day) => !eligible.includes(day))) {
-        toast.warning('শুধু কাট-অফ পার হওয়া বা চূড়ান্ত হওয়া দিনের জন্য সংশোধন অনুরোধ পাঠানো যাবে। ম্যানেজার অনুমোদন করলে পরিবর্তন কার্যকর হবে।');
+        toast.warning('শুধু আগের রাত ১০টার cutoff পার হওয়া এবং রাত ৯টার আগে চূড়ান্ত না হওয়া দিনের জন্য সংশোধন আবেদন পাঠানো যাবে। ম্যানেজারের অনুমোদন প্রয়োজন।');
         return;
       }
       const sortedPayloadDates = [...payloadDates].sort();
@@ -729,7 +733,10 @@ function RequestHistory({ onEdit, onCorrect }) {
                   {request.status === 'approved' && request.request_type === 'normal' && !request.is_late_request && (() => {
                     const days = request.days || [];
                     const canEdit = requestIsInRunningPeriod && !dayStateError && days.some((day) => canDirectEditMealDate(String(day.meal_date).slice(0, 10), new Date(historyClock)) && dayStateMap.get(String(day.meal_date).slice(0, 10))?.status !== 'finalized');
-                    const canCorrect = requestIsInRunningPeriod && !dayStateError && days.some((day) => isCorrectionWindowForMealDate(String(day.meal_date).slice(0, 10), new Date(historyClock)) && dayStateMap.get(String(day.meal_date).slice(0, 10))?.status !== 'cancelled');
+                    const canCorrect = requestIsInRunningPeriod && !dayStateError && days.some((day) => {
+                      const date = String(day.meal_date).slice(0, 10);
+                      return isCorrectionDayEligible(date, dayStateMap.get(date), new Date(historyClock));
+                    });
                     return (canEdit || canCorrect) ? <div className="request-action-row">
                       {canEdit && <button className="secondary-button" type="button" onClick={() => onEdit(request)}><Icon name="edit" size={16} /> এডিট করুন</button>}
                       {canCorrect && <button className="secondary-button" type="button" onClick={() => onCorrect(request)}><Icon name="shield" size={16} /> সংশোধন অনুরোধ</button>}

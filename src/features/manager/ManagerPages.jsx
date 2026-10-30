@@ -738,7 +738,7 @@ export function KhalaMoneyPage() {
               <div className="manager-list-stack">
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
                   <article className={`card manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
-                    <div><strong>খালার পারিশ্রমিক</strong><small className="khala-recipient">যাঁর নামে: {row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : 'নাম সংরক্ষিত নেই'}</small><small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'খালার টাকা'}</span><small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small></div>
+                    <div><strong>খালার পারিশ্রমিক</strong><small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'খালার টাকা'}</span><small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small></div>
                     <strong>{formatCurrency(row.amount)}</strong>
                     {row.status !== 'void' ? <button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button> : <span className="member-badge inactive">বাতিল</span>}
                   </article>

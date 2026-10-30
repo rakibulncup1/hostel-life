@@ -15,10 +15,10 @@ export function canSubmitMealDay(day, now = Date.now()) {
 }
 
 export function canCorrectMealDay(day, now = Date.now()) {
-  if (!day || !day.meal_date || day.status === 'cancelled') return false;
-  // A correction request is the audited path for already-finalized days too.
-  // The database applies it only after a manager approves the request.
-  return day.status === 'finalized' || isCutoffPassed(day, now);
+  if (!day || !day.meal_date || !['open', 'locked'].includes(day.status)) return false;
+  const currentMs = now instanceof Date ? now.getTime() : now;
+  const finalizesMs = asDateMs(day.finalizes_at);
+  return isCutoffPassed(day, currentMs) && Number.isFinite(finalizesMs) && finalizesMs > currentMs;
 }
 
 export function getMealDayStatusText(day, now = Date.now()) {

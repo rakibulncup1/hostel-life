@@ -31,7 +31,8 @@ test('correction request requires parent approved normal request and cutoff/fina
   assert.match(correctionSql, /v_parent\.is_late_request/);
   assert.match(correctionSql, /v_day\.status IS DISTINCT FROM 'finalized'/);
   assert.match(correctionSql, /existing\.status = 'submitted'/);
-  assert.match(policy, /day\.status === 'finalized' \|\| isCutoffPassed/);
+  assert.match(policy, /!\['open', 'locked'\]\.includes\(day\.status\)/);
+  assert.match(policy, /finalizesMs > currentMs/);
 });
 
 test('request history checks current period and scopes meal-day status lookups to that period', () => {

@@ -5,6 +5,7 @@ import {
   getLateMealRequestTargetDate,
   isNormalMealRequestWindowOpen,
   isCorrectionWindowForMealDate,
+  isCorrectionDayEligible,
   canDirectEditMealDate,
 } from '../src/utils/mealRequestPolicy.js';
 
@@ -50,4 +51,43 @@ test('correction applies to the locked upcoming/current day, while later dates r
   assert.equal(isCorrectionWindowForMealDate('2026-10-15', morning), true);
   assert.equal(isCorrectionWindowForMealDate('2026-10-15', final), false);
   assert.equal(canDirectEditMealDate('2026-10-16', after), true);
+});
+
+
+test('correction eligibility requires the exact cutoff-passed, not-finalized day state', () => {
+  const now = new Date('2026-10-30T00:27:00.000Z'); // 06:27 Dhaka
+  const eligible = {
+    meal_date: '2026-10-30', status: 'open',
+    cutoff_at: '2026-10-29T16:00:00.000Z', // previous day 22:00 Dhaka
+    finalizes_at: '2026-10-30T15:00:00.000Z', // same day 21:00 Dhaka
+  };
+  const wrongCutoff = { ...eligible, cutoff_at: '2026-10-30T15:00:00.000Z' };
+  const finalized = { ...eligible, status: 'finalized' };
+  const cancelled = { ...eligible, status: 'cancelled' };
+  assert.equal(isCorrectionDayEligible('2026-10-30', eligible, now), true);
+  assert.equal(isCorrectionDayEligible('2026-10-30', wrongCutoff, now), false);
+  assert.equal(isCorrectionDayEligible('2026-10-30', finalized, now), false);
+  assert.equal(isCorrectionDayEligible('2026-10-30', cancelled, now), false);
+  assert.equal(isCorrectionDayEligible('2026-10-30', null, now), false);
+});
+
+test('correction window boundaries are exact in Dhaka time', () => {
+  const todayState = {
+    meal_date: '2026-10-30', status: 'open',
+    cutoff_at: '2026-10-29T16:00:00.000Z',
+    finalizes_at: '2026-10-30T15:00:00.000Z',
+  };
+  const tomorrowState = {
+    meal_date: '2026-10-31', status: 'open',
+    cutoff_at: '2026-10-30T16:00:00.000Z',
+    finalizes_at: '2026-10-31T15:00:00.000Z',
+  };
+  // 20:59:59 on the target day is still eligible.
+  assert.equal(isCorrectionDayEligible('2026-10-30', todayState, new Date('2026-10-30T14:59:59.000Z')), true);
+  // At 21:00 finalization starts; correction is no longer available.
+  assert.equal(isCorrectionDayEligible('2026-10-30', todayState, new Date('2026-10-30T15:00:00.000Z')), false);
+  // The 21:00-21:59 gap has no target date.
+  assert.equal(isCorrectionDayEligible('2026-10-31', tomorrowState, new Date('2026-10-30T15:30:00.000Z')), false);
+  // At exactly 22:00 the next meal date becomes eligible.
+  assert.equal(isCorrectionDayEligible('2026-10-31', tomorrowState, new Date('2026-10-30T16:00:00.000Z')), true);
 });
