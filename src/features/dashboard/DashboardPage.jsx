@@ -4,7 +4,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToast } from '../../components/Toast';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useAuth } from '../../contexts/AuthContext';
-import { fetchDashboardData, fetchMealDetails } from '../../services/dashboardService';
+import { fetchDashboardData, fetchMealDetails, fetchUpcomingMealOverview } from '../../services/dashboardService';
 import { invalidateRequestCache } from '../../lib/requestCache';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
 import { useDashboardOffline } from '../../hooks/useDashboardOffline';
@@ -13,21 +13,27 @@ import { formatDateWithWeekday } from '../../utils/date';
 import { useManagementContext } from '../../hooks/useManagementContext';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatMeal } from '../../utils/meal';
+import { getMealPartsTotal } from '../../utils/mealTotals';
 import { navigateTo } from '../../app/AppShell';
 import { dashboardNeedsPeriodFallback, resolveDashboardPeriodStatus } from '../../utils/period';
+import { clearSevenDayMeals, getSevenDates, readSevenDayMeals, saveSevenDayMeals } from '../../services/sevenDayMealStore';
+import { formatUpcomingMealDate } from '../../utils/sevenDayMeals';
 
 function safeNumber(value) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
 }
 
-// The daily RPC can expose a stale zero total after finalization even when
-// breakfast/lunch/dinner contain the correct finalized counts. The card total
-// is a display-only sum; the ledger and monthly accounting remain untouched.
+// Some deployed get_meal_details versions return only breakfast/lunch/dinner
+// and omit total_meals. Derive the visible total from those three values when
+// the aggregate is missing or inconsistent; accounting data is not modified.
 export function getDisplayedDailyMealTotal(meal) {
   if (!meal) return 0;
-  const sum = ['breakfast', 'lunch', 'dinner'].reduce((n, key) => n + safeNumber(meal[key]), 0);
-  const returned = Number(meal.total);
+  const sum = getMealPartsTotal(meal);
+  // get_meal_details currently returns the three meal fields but may omit
+  // total_meals; older payloads may instead expose `total`. Accept either only
+  // when it agrees with the visible components, otherwise derive the total.
+  const returned = Number(meal.total ?? meal.total_meals);
   return Number.isFinite(returned) && returned >= 0 && Math.abs(returned - sum) < 0.00001 ? returned : sum;
 }
 
@@ -59,7 +65,7 @@ function MealStat({ label, value, accent }) {
   );
 }
 
-function MealCard({ meal, isOnline, hasOfflineDetails = false, lastSync, onDetails, loading, cachedError, noRunningPeriod = false }) {
+function MealCard({ meal, isOnline, hasOfflineDetails = false, hasUpcomingMeals = false, lastSync, onDetails, loading, cachedError, noRunningPeriod = false }) {
   if (noRunningPeriod) {
     return <section className="card meal-card hero-card no-running-meal-card">
       <div className="card-topline"><span className="eyebrow">মাসের অবস্থা</span><span className="status-chip offline-chip"><span className="pulse-dot"/> মাস শুরু হয়নি</span></div>
@@ -120,16 +126,16 @@ function MealCard({ meal, isOnline, hasOfflineDetails = false, lastSync, onDetai
     <section
       className={`card meal-card hero-card ${isOffline ? 'meal-card-offline' : ''}`}
       role="button"
-      tabIndex={isOnline || hasOfflineDetails ? 0 : undefined}
-      onClick={(isOnline || hasOfflineDetails) ? onDetails : undefined}
+      tabIndex={isOnline || hasOfflineDetails || hasUpcomingMeals ? 0 : undefined}
+      onClick={(isOnline || hasOfflineDetails || hasUpcomingMeals) ? onDetails : undefined}
       onKeyDown={(event) => {
-        if (!isOnline && !hasOfflineDetails) return;
+        if (!isOnline && !hasOfflineDetails && !hasUpcomingMeals) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           onDetails();
         }
       }}
-      aria-label={(isOnline || hasOfflineDetails) ? `${meal.label} বিস্তারিত দেখুন` : undefined}
+      aria-label={(isOnline || hasOfflineDetails || hasUpcomingMeals) ? `${meal.label} বিস্তারিত দেখুন` : undefined}
     >
       <div className="card-topline">
         <div>
@@ -172,11 +178,11 @@ function MealCard({ meal, isOnline, hasOfflineDetails = false, lastSync, onDetai
       {isOffline && (
         <div className="offline-meal-note">
           <Icon name="offline" size={15} />
-          <span>{hasOfflineDetails ? 'অফলাইন কপি • সদস্যভিত্তিক বিস্তারিতও সংরক্ষিত আছে' : 'অফলাইন কপি • বিস্তারিত দেখতে ইন্টারনেট চালু করুন'}</span>
+          <span>{hasOfflineDetails ? 'অফলাইন কপি • সদস্যভিত্তিক বিস্তারিতও সংরক্ষিত আছে' : hasUpcomingMeals ? 'অফলাইন কপি • আগামী সাত দিনের মিলও সংরক্ষিত আছে' : 'অফলাইন কপি • বিস্তারিত দেখতে ইন্টারনেট চালু করুন'}</span>
         </div>
       )}
 
-      {(isOnline || hasOfflineDetails) && (
+      {(isOnline || hasOfflineDetails || hasUpcomingMeals) && (
         <div className="meal-detail-hint">
           <span>{isOffline ? 'অফলাইনে বিস্তারিত দেখুন' : 'বিস্তারিত দেখুন'}</span>
           <Icon name="chevron" size={17} />
@@ -277,7 +283,48 @@ export function MemberPeriodDetailsModal({ detail, loading, memberName, onClose 
   </div>;
 }
 
-function MealDetailsModal({ date, rows, loading, onClose }) {
+function UpcomingMealOverview({ record, isOnline, syncing, error }) {
+  const days = Array.isArray(record?.days) ? record.days : [];
+  return (
+    <section className="upcoming-meal-overview" aria-label="আগামী সাত দিনের মিলের সারসংক্ষেপ">
+      <div className="upcoming-meal-sync-row">
+        <span className={`status-chip ${isOnline ? 'live-chip' : 'offline-chip'}`}>
+          <span className="pulse-dot" /> {isOnline ? (syncing ? 'সিঙ্ক হচ্ছে' : error ? 'সর্বশেষ সংরক্ষিত কপি' : 'সার্ভারের তথ্য') : 'অফলাইন কপি'}
+        </span>
+        <small>{record?.savedAt ? `শেষ সিঙ্ক ${formatDateTime12(record.savedAt)}` : 'এখনো কোনো অফলাইন কপি নেই'}</small>
+      </div>
+      {error && !days.length && <div className="empty-state-card"><Icon name="warning" size={20}/><span>{error}</span></div>}
+      {error && days.length > 0 && <p className="upcoming-meal-footnote">সর্বশেষ সংরক্ষিত তথ্য দেখানো হচ্ছে; নতুন সিঙ্ক হয়নি।</p>}
+      {!days.length && syncing && <div className="loading-wrap"><span className="spinner"/><span>আগামী সাত দিনের মিলের তথ্য সিঙ্ক হচ্ছে...</span></div>}
+      {!days.length && !syncing && !error && <div className="empty-state-card"><Icon name="offline" size={22}/><strong>আগামী সাত দিনের কোনো সংরক্ষিত তথ্য নেই।</strong><span>ইন্টারনেট চালু রেখে ড্যাশবোর্ডে প্রবেশ করলে তথ্য সিঙ্ক হবে।</span></div>}
+      {days.length > 0 && (
+        <>
+          <div className="upcoming-meal-days">
+            {days.map((day) => (
+              <article className={`upcoming-meal-day-card ${day.within_period === false ? 'outside-period' : ''}`} key={day.meal_date}>
+                <div className="upcoming-meal-day-heading">
+                  <strong>{formatUpcomingMealDate(day.meal_date)}</strong>
+                  {day.within_period === false && <span className="upcoming-period-note">মাসের বাইরে</span>}
+                </div>
+                <div className="upcoming-meal-day-stats">
+                  <div><span>ব্রেকফাস্ট</span><strong>{formatMeal(day.breakfast)}</strong></div>
+                  <div><span>লাঞ্চ</span><strong>{formatMeal(day.lunch)}</strong></div>
+                  <div><span>ডিনার</span><strong>{formatMeal(day.dinner)}</strong></div>
+                </div>
+                <div className="upcoming-meal-day-total"><span>মোট মিল</span><strong>{formatMeal(day.total)}</strong></div>
+              </article>
+            ))}
+          </div>
+          <p className="upcoming-meal-footnote">সার্ভারে কার্যকর/অনুমোদিত মিলের হিসাব দেখানো হচ্ছে। অপেক্ষমাণ অনুরোধ অনুমোদিত হলে পরবর্তী সিঙ্কে যুক্ত হবে।</p>
+        </>
+      )}
+    </section>
+  );
+}
+
+function MealDetailsModal({ date, rows, loading, onClose, upcomingRecord, upcomingLoading, upcomingError, isOnline }) {
+  const [activeView, setActiveView] = useState('today');
+
   useEffect(() => {
     const handler = (event) => {
       if (event.key === 'Escape') onClose();
@@ -299,16 +346,23 @@ function MealDetailsModal({ date, rows, loading, onClose }) {
 
   return (
     <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="modal-card meal-details-modal" role="dialog" aria-modal="true" aria-labelledby="meal-detail-title">
+      <section className={`modal-card meal-details-modal ${activeView === 'upcoming' ? 'is-upcoming' : ''}`} role="dialog" aria-modal="true" aria-labelledby="meal-detail-title">
         <div className="modal-header">
           <div>
-            <span className="eyebrow">মিলের বিস্তারিত</span>
-            <h2 id="meal-detail-title">{formatDateWithWeekday(date)}</h2>
+            <span className="eyebrow">{activeView === 'today' ? 'মিলের বিস্তারিত' : 'সামনের দিনের পরিকল্পনা'}</span>
+            <h2 id="meal-detail-title">{activeView === 'today' ? formatDateWithWeekday(date) : 'আগামী ৭ দিন'}</h2>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={20} /></button>
+          <div className="meal-detail-header-actions">
+            <button className="secondary-button compact upcoming-meal-toggle" type="button" onClick={() => setActiveView((view) => view === 'today' ? 'upcoming' : 'today')}>
+              {activeView === 'today' ? <><Icon name="calendar" size={15}/> আগামী ৭ দিন</> : <><Icon name="arrow-left" size={15}/> আজকের মিল</>}
+            </button>
+            <button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={20} /></button>
+          </div>
         </div>
 
-        {loading ? (
+        {activeView === 'upcoming' ? (
+          <UpcomingMealOverview record={upcomingRecord} isOnline={isOnline} syncing={upcomingLoading} error={upcomingError}/>
+        ) : loading ? (
           <div className="loading-wrap"><span className="spinner" /><span>মিলের সদস্যভিত্তিক তথ্য লোড হচ্ছে...</span></div>
         ) : (
           <>
@@ -335,7 +389,7 @@ function MealDetailsModal({ date, rows, loading, onClose }) {
                     <span><small>ব্রেকফাস্ট</small><strong>{formatMeal(row.breakfast)}</strong></span>
                     <span><small>লাঞ্চ</small><strong>{formatMeal(row.lunch)}</strong></span>
                     <span><small>ডিনার</small><strong>{formatMeal(row.dinner)}</strong></span>
-                    <span className="meal-member-total"><small>মোট</small><strong>{formatMeal(row.total_meals)}</strong></span>
+                    <span className="meal-member-total"><small>মোট</small><strong>{formatMeal(getDisplayedDailyMealTotal(row))}</strong></span>
                   </div>
                 </article>
               ))}
@@ -346,7 +400,6 @@ function MealDetailsModal({ date, rows, loading, onClose }) {
     </div>
   );
 }
-
 
 function lateRequestVisibleUntil(visibleUntil = null) {
   if (!visibleUntil) return true;
@@ -570,6 +623,54 @@ export function DashboardPage() {
   const [detailsDate, setDetailsDate] = useState(null);
   const [detailsRows, setDetailsRows] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [upcomingMealRecord, setUpcomingMealRecord] = useState(null);
+  const [upcomingMealLoading, setUpcomingMealLoading] = useState(false);
+  const [upcomingMealError, setUpcomingMealError] = useState(null);
+  const upcomingScopeRef = useRef(`${userId || ''}:${hostelId || ''}`);
+  const upcomingRequestVersionRef = useRef(0);
+
+  useEffect(() => {
+    upcomingScopeRef.current = `${userId || ''}:${hostelId || ''}`;
+    upcomingRequestVersionRef.current += 1;
+    setUpcomingMealRecord(readSevenDayMeals(userId, hostelId));
+    setUpcomingMealError(null);
+  }, [userId, hostelId]);
+
+  const syncUpcomingMeals = useCallback(async (period) => {
+    if (!userId || !hostelId || !online) return null;
+    const scopeKey = `${userId}:${hostelId}`;
+    if (upcomingScopeRef.current !== scopeKey) return null;
+    const requestVersion = ++upcomingRequestVersionRef.current;
+    const periodId = period?.period_id || period?.id;
+    if (!periodId) {
+      clearSevenDayMeals(userId, hostelId);
+      setUpcomingMealRecord(null);
+      setUpcomingMealError(null);
+      setUpcomingMealLoading(false);
+      return null;
+    }
+
+    setUpcomingMealLoading(true);
+    try {
+      const days = await fetchUpcomingMealOverview({
+        periodId,
+        dates: getSevenDates(),
+        periodStartDate: period?.start_date || null,
+        periodEndDate: period?.end_date || null,
+      });
+      if (upcomingScopeRef.current !== scopeKey || upcomingRequestVersionRef.current !== requestVersion) return null;
+      const record = saveSevenDayMeals({ userId, hostelId, periodId, days })
+        || { userId, hostelId, periodId, days, savedAt: new Date().toISOString() };
+      setUpcomingMealRecord(record);
+      setUpcomingMealError(null);
+      return record;
+    } catch (error) {
+      if (upcomingScopeRef.current === scopeKey && upcomingRequestVersionRef.current === requestVersion) setUpcomingMealError(error?.message || 'আগামী সাত দিনের মিল সিঙ্ক করা যায়নি।');
+      return null;
+    } finally {
+      if (upcomingScopeRef.current === scopeKey && upcomingRequestVersionRef.current === requestVersion) setUpcomingMealLoading(false);
+    }
+  }, [hostelId, online, userId]);
 
   const loadInFlightRef = useRef(null);
   const lastLoadStartedAtRef = useRef(0);
@@ -738,6 +839,13 @@ export function DashboardPage() {
         };
         latestDashboardRef.current = normalized;
         setDashboard(normalized);
+        if (hasRunningPeriod && normalized.period) {
+          // One cached, read-only SELECT hydrates the seven-day offline view. It does
+          // not call finalization RPCs or write meal/audit/lock history.
+          void syncUpcomingMeals(normalized.period);
+        } else if (periodStatus === 'none') {
+          void syncUpcomingMeals(null);
+        }
         if (dashboardResult.status === 'rejected') {
           setDashboardError('ড্যাশবোর্ডের সারসংক্ষেপ সাময়িকভাবে লোড হয়নি; সদস্য তালিকা ও মাসের অবস্থা আলাদাভাবে লোড করা হয়েছে।');
         }
@@ -763,7 +871,7 @@ export function DashboardPage() {
     } finally {
       if (loadInFlightRef.current === task) loadInFlightRef.current = null;
     }
-  }, [hostelId, online, syncOfflineSnapshot, membership?.membership_id]);
+  }, [hostelId, online, syncOfflineSnapshot, syncUpcomingMeals, membership?.membership_id]);
 
   useEffect(() => {
     if (!hostelId) {
@@ -797,7 +905,7 @@ export function DashboardPage() {
     onRefresh: ({ tables = [], reason = 'realtime' } = {}) => {
       const mealDataChanged = tables.some((table) => ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests'].includes(table));
       invalidateRequestCache('dashboard:data', 'dining:memberDirectory', 'dining:runningPeriod');
-      if (mealDataChanged) invalidateRequestCache('dashboard:offlineMealBundle');
+      if (mealDataChanged) invalidateRequestCache('dashboard:offlineMealBundle', 'dashboard:upcoming-seven:');
       return loadDashboard(true, {
         force: false,
         forcePeriodCheck: tables.includes('monthly_periods'),
@@ -835,10 +943,6 @@ export function DashboardPage() {
 
     if (!online) {
       const cachedRows = Array.isArray(selectedMeal?.member_details) ? selectedMeal.member_details : [];
-      if (!cachedRows.length) {
-        toast.warning('এই সংরক্ষিত কপিতে সদস্যভিত্তিক বিস্তারিত নেই। ইন্টারনেট চালু করুন।');
-        return;
-      }
       setDetailsDate(date);
       setDetailsRows(cachedRows);
       setDetailsLoading(false);
@@ -866,6 +970,12 @@ export function DashboardPage() {
   }, [online, toast]);
 
   const hasCachedDashboard = Boolean(cachedDashboard);
+  const activePeriodId = effectiveDashboard?.period?.period_id || effectiveDashboard?.period?.id || null;
+  const scopedUpcomingMealRecord = upcomingMealRecord?.userId === userId
+    && upcomingMealRecord?.hostelId === hostelId
+    && (!online || !activePeriodId || upcomingMealRecord.periodId === activePeriodId)
+    ? upcomingMealRecord : null;
+  const hasCachedUpcomingMeals = Array.isArray(scopedUpcomingMealRecord?.days) && scopedUpcomingMealRecord.days.length === 7;
 
   return (
     <div className="page-stack dashboard-stack">
@@ -874,6 +984,7 @@ export function DashboardPage() {
           meal={mealCard}
           isOnline={online}
           hasOfflineDetails={Array.isArray(mealCard?.member_details) && mealCard.member_details.length > 0}
+          hasUpcomingMeals={hasCachedUpcomingMeals}
           lastSync={lastSync}
           onDetails={openDetails}
           loading={online ? loading && !effectiveDashboard : offlineLoading}
@@ -884,6 +995,7 @@ export function DashboardPage() {
         meal={mealCard}
         isOnline={online}
         hasOfflineDetails={false}
+        hasUpcomingMeals={hasCachedUpcomingMeals}
         lastSync={lastSync}
         onDetails={openDetails}
         loading={online ? loading && dashboardPeriodStatus === 'unknown' : offlineLoading}
@@ -976,6 +1088,10 @@ export function DashboardPage() {
           rows={detailsRows}
           loading={detailsLoading}
           onClose={() => setDetailsDate(null)}
+          upcomingRecord={scopedUpcomingMealRecord}
+          upcomingLoading={upcomingMealLoading}
+          upcomingError={upcomingMealError}
+          isOnline={online}
         />
       )}
     </div>

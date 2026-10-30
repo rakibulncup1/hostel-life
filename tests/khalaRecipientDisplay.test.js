@@ -7,6 +7,11 @@ test('public khala history distinguishes recipient and creator', () => {
   assert.match(ui, /যাঁর নামে: \{row\.member_name/);
   assert.match(ui, /এন্ট্রি করেছেন: \{row\.created_by_name/);
 });
+test('manager khala history also distinguishes recipient and creator', () => {
+  const managerUi = readFileSync(new URL('../src/features/manager/ManagerPages.jsx', import.meta.url), 'utf8');
+  assert.match(managerUi, /যাঁর নামে: \{row\.member_name/);
+  assert.match(managerUi, /এন্ট্রি করেছেন: \{row\.created_by_name/);
+});
 test('khala history RPC reads recipient membership from stored record', () => {
   assert.match(migration, /'member_id', k\.member_id/);
   assert.match(migration, /hm\.id = k\.member_id/);
