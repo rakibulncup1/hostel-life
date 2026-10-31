@@ -618,6 +618,7 @@ export function DashboardPage() {
   } = useDashboardOffline({ userId, hostelId, isOnline: online });
 
   const [dashboard, setDashboard] = useState(null);
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [dashboardError, setDashboardError] = useState(null);
   const [detailsDate, setDetailsDate] = useState(null);
@@ -935,6 +936,12 @@ export function DashboardPage() {
   const dashboardFundRemaining = Number(summary?.fund_remaining ?? (Number(summary?.total_deposit || 0) - dashboardTotalExpense)) || 0;
   const account = effectiveDashboard?.my_account;
   const members = effectiveDashboard?.members ?? [];
+  const visibleMembers = useMemo(() => {
+    const query = memberSearchTerm.trim().normalize('NFKC').toLocaleLowerCase();
+    if (!query) return members;
+    return members.filter((member) => String(member?.name || member?.member_name || member?.full_name || '')
+      .normalize('NFKC').toLocaleLowerCase().includes(query));
+  }, [members, memberSearchTerm]);
 
   const openDetails = useCallback(async () => {
     const selectedMeal = online ? mealCard : (offlineMealCard || cachedDashboard?.meal_card);
@@ -1037,12 +1044,25 @@ export function DashboardPage() {
           {online && <MyAccountCard account={account} onClick={() => openMember(membership?.membership_id)} />}
 
           {online && <section className="section-block">
-            <div className="section-heading outside">
-              <div>
+            <div className="section-heading outside dashboard-member-toolbar">
+              <div className="dashboard-member-title">
                 <span className="eyebrow">এই মেসের সদস্যরা</span>
                 <h2>সদস্য তালিকা</h2>
               </div>
-              <span className="count-badge">{formatNumber(members.length)} জন</span>
+              <div className="dashboard-member-tools">
+                {members.length > 0 && <label className="dashboard-member-search">
+                  <Icon name="search" size={17}/>
+                  <input
+                    type="search"
+                    value={memberSearchTerm}
+                    onChange={(event) => setMemberSearchTerm(event.target.value)}
+                    placeholder="নাম দিয়ে খুঁজুন"
+                    aria-label="সদস্যের নাম দিয়ে খুঁজুন"
+                  />
+                  {memberSearchTerm && <button type="button" onClick={() => setMemberSearchTerm('')} aria-label="সদস্য অনুসন্ধান মুছুন"><Icon name="x" size={15}/></button>}
+                </label>}
+                <span className="count-badge">{memberSearchTerm.trim() ? `${formatNumber(visibleMembers.length)} / ${formatNumber(members.length)} জন` : `${formatNumber(members.length)} জন`}</span>
+              </div>
             </div>
             {members.length === 0 ? (
               <div className="empty-state-card">
@@ -1050,9 +1070,16 @@ export function DashboardPage() {
                 <strong>সদস্যের তালিকা দেখানো যাচ্ছে না</strong>
                 <span>{dashboardHasRunningPeriod ? 'সদস্য তালিকা পুনরায় লোড করুন বা ইন্টারনেট সংযোগ পরীক্ষা করুন।' : dashboardPeriodStatus === 'none' ? 'মাস বন্ধ হলেও মেসের সদস্যরা থেকে যান। নতুন মাস শুরু না হওয়া পর্যন্ত বর্তমান হিসাব শূন্য দেখানো হচ্ছে।' : 'মাসের অবস্থা যাচাই করা যাচ্ছে না। অনুগ্রহ করে আবার চেষ্টা করুন।'}</span>
               </div>
+            ) : visibleMembers.length === 0 ? (
+              <div className="empty-state-card dashboard-member-search-empty">
+                <Icon name="search" size={23}/>
+                <strong>এই নামে কোনো সদস্য পাওয়া যায়নি</strong>
+                <span>নামের বানান পরিবর্তন করে আবার খুঁজুন।</span>
+                <button type="button" className="secondary-button compact" onClick={() => setMemberSearchTerm('')}>অনুসন্ধান মুছুন</button>
+              </div>
             ) : (
               <div className="member-preview-grid member-detail-grid">
-                {members.map((member) => <MemberCard member={member} key={member.membership_id} onClick={() => openMember(member.membership_id)} />)}
+                {visibleMembers.map((member) => <MemberCard member={member} key={member.membership_id} onClick={() => openMember(member.membership_id)} />)}
               </div>
             )}
           </section>}

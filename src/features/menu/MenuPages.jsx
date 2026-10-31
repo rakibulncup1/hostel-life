@@ -533,32 +533,36 @@ export function HowToUsePage() {
       <PageHeader eyebrow="সহায়তা কেন্দ্র" title="কীভাবে ব্যবহার করব" description="প্রশ্ন নির্বাচন করুন, উত্তর খুলে ধাপে ধাপে Hostel Life ব্যবহার শিখুন।" />
 
       <section className="card howto-timing-panel" aria-label="গুরুত্বপূর্ণ সময়সীমা">
-        <div className="howto-timing-heading">
-          <span className="howto-timing-pin"><Icon name="calendar-check" size={19}/></span>
-          <div><span className="eyebrow">গুরুত্বপূর্ণ · বাংলাদেশ সময়</span><h2>মিল অনুরোধ ও ফাইনাল হওয়ার সময়</h2><p>সময়গুলো মনে রাখুন—ভুল সময়ে অনুরোধ দিলে সেটি গ্রহণ নাও হতে পারে।</p></div>
+        <div className="howto-timing-topline">
+          <div className="howto-timing-heading">
+            <span className="howto-timing-pin"><Icon name="calendar-check" size={19}/></span>
+            <div><span className="eyebrow">সময় মনে রাখুন</span><h2>মিল অনুরোধ ও মাস পরিচালনার সময়</h2><p>সব সময় বাংলাদেশ সময় অনুযায়ী।</p></div>
+          </div>
+          <span className="howto-timezone-pill"><Icon name="clock" size={14}/> বাংলাদেশ সময়</span>
         </div>
         <div className="howto-time-grid">
-          <article className="howto-time-card"><span>সাধারণ মিল অনুরোধ</span><strong>রাত ১০টা</strong><small>মিলের দিনের আগের দিন পর্যন্ত সাধারণ অনুরোধ জমা দিন।</small></article>
-          <article className="howto-time-card is-final"><span>দৈনিক মিল ফাইনাল</span><strong>রাত ৯টা</strong><small>মিলের দিন রাত ৯টায় হিসাব চূড়ান্ত হয়।</small></article>
-          <article className="howto-time-card is-late"><span>Late / Correction</span><strong>১০টা → ৯টা</strong><small>আগের রাত ১০টার কাট-অফের পর থেকে মিলের দিন রাত ৯টার আগে; অনুমোদন প্রয়োজন।</small></article>
-          <article className="howto-time-card is-month"><span>নতুন মাস চালু</span><strong>রাত ৮টার পর</strong><small>মাস বন্ধের দিন রাত ৮টার পর; নতুন মাসের প্রথম দিন হবে পরের দিন।</small></article>
+          <article className="howto-time-card howto-time-card-request"><div className="howto-time-card-top"><span className="howto-time-step">০১</span><span>সাধারণ মিল অনুরোধ</span></div><strong>রাত ১০টা</strong><small>মিলের আগের দিন এই সময়ের আগে সাধারণ অনুরোধ দিন।</small></article>
+          <article className="howto-time-card is-final"><div className="howto-time-card-top"><span className="howto-time-step">০২</span><span>দৈনিক মিল ফাইনাল</span></div><strong>রাত ৯টা</strong><small>মিলের দিন রাত ৯টায় হিসাব চূড়ান্ত হয়।</small></article>
+          <article className="howto-time-card is-late"><div className="howto-time-card-top"><span className="howto-time-step">০৩</span><span>Late / Correction</span></div><strong>১০টা → ৯টা</strong><small>আগের রাত ১০টার পর থেকে মিলের দিন রাত ৯টার আগে; অনুমোদন প্রয়োজন।</small></article>
+          <article className="howto-time-card is-month"><div className="howto-time-card-top"><span className="howto-time-step">০৪</span><span>নতুন মাস চালু</span></div><strong>রাত ৮টার পর</strong><small>মাস বন্ধের দিন এই সময়ের পর; নতুন মাস শুরু হবে পরের দিন।</small></article>
         </div>
         <div className="howto-timing-footnote"><Icon name="info" size={16}/><span>মাস বন্ধ করলে রাত ৯টার অপেক্ষা না করেই বন্ধের দিনের অনুমোদিত মিল সঙ্গে সঙ্গে ফাইনাল হয়। প্রথম দিনের সাধারণ অনুরোধ রাত ১০টা পর্যন্ত দেওয়া যায়।</span></div>
       </section>
 
       <section className="howto-faq-intro">
-        <div><span className="eyebrow">বিষয়ভিত্তিক প্রশ্নোত্তর</span><h2>যে বিষয়ে জানতে চান সেটি খুলুন</h2><p>প্রতিটি প্রশ্নে চাপ দিলে বিস্তারিত উত্তর দেখা যাবে।</p></div>
+        <div><span className="eyebrow">বিষয়ভিত্তিক প্রশ্নোত্তর</span><h2>যে বিষয়ে জানতে চান সেটি খুলুন</h2><p>প্রথমে বিষয় নির্বাচন করুন, তারপর পছন্দের প্রশ্ন খুলে উত্তর দেখুন।</p></div>
         <span className="howto-faq-count">{formatNumber(HOW_TO_USE_GROUPS.reduce((sum, group) => sum + group.items.length, 0))}টি প্রশ্ন</span>
       </section>
 
       <div className="howto-faq-groups">
         {HOW_TO_USE_GROUPS.map((group, groupIndex) => (
-          <section className="card howto-faq-group" key={group.id} aria-labelledby={`howto-group-${group.id}`}>
-            <div className="howto-faq-group-heading">
+          <details className="card howto-faq-group" key={group.id}>
+            <summary className="howto-faq-group-heading">
               <span className="howto-faq-group-icon"><Icon name={group.icon} size={21}/></span>
-              <div><span className="eyebrow">বিভাগ {formatNumber(groupIndex + 1, { maximumFractionDigits: 0 })}</span><h2 id={`howto-group-${group.id}`}>{group.title}</h2><p>{group.description}</p></div>
-              <span className="howto-faq-group-count">{formatNumber(group.items.length)}টি</span>
-            </div>
+              <div><span className="eyebrow">বিভাগ {formatNumber(groupIndex + 1, { maximumFractionDigits: 0 })}</span><h2>{group.title}</h2><p>{group.description}</p></div>
+              <span className="howto-faq-group-count">{formatNumber(group.items.length)}টি প্রশ্ন</span>
+              <span className="howto-faq-group-chevron"><Icon name="chevron" size={18}/></span>
+            </summary>
             <div className="howto-faq-list">
               {group.items.map(([question, answer], index) => (
                 <details className="howto-faq-item" key={question}>
@@ -571,7 +575,7 @@ export function HowToUsePage() {
                 </details>
               ))}
             </div>
-          </section>
+          </details>
         ))}
       </div>
       <div className="policy-note howto-final-note"><Icon name="shield-check" size={18}/><span>যে কাজ আপনার স্ক্রিনে নেই, সেটি আপনার বর্তমান ভূমিকার জন্য উপলব্ধ নাও হতে পারে। হিসাব বা অনুরোধের ক্ষেত্রে চূড়ান্ত স্ট্যাটাস যাচাই না করে কাজ সম্পন্ন হয়েছে ধরে নেবেন না।</span></div>

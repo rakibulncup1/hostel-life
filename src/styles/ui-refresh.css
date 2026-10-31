@@ -2760,3 +2760,258 @@ body {
   .history-title-heading { gap:9px; }
   .history-page-brand-mark { flex-basis:40px; width:40px; height:40px; border-radius:12px; }
 }
+
+/* 2026-10-31: clearer Help grouping, timing cards, History mobile header and Dashboard member search. */
+.howto-timing-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.howto-timezone-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--line));
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--primary-strong);
+  font-size: 10px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.howto-time-grid { gap: 11px; }
+.howto-time-card {
+  min-height: 126px;
+  padding: 13px 14px;
+  gap: 7px;
+  border-radius: 16px;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--text) 4%, transparent);
+}
+.howto-time-card-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.howto-time-card-top > span:last-child { color: var(--muted); font-size: 10px; font-weight: 850; line-height: 1.4; }
+.howto-time-step {
+  display: grid;
+  flex: 0 0 23px;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 8px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 9px;
+  font-weight: 950;
+}
+.howto-time-card > strong { margin-top: 1px; font-size: clamp(19px, 2.35vw, 25px); letter-spacing: -.02em; }
+.howto-time-card > small { font-size: 10.5px; line-height: 1.65; }
+.howto-timing-footnote { padding: 12px 14px; line-height: 1.75; }
+
+/* Each help topic is a collapsible section; questions become visible only inside it. */
+.howto-faq-group {
+  display: block;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 17px;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.howto-faq-group[open] {
+  border-color: color-mix(in srgb, var(--primary) 36%, var(--line));
+  box-shadow: var(--soft-shadow);
+}
+.howto-faq-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 82px;
+  padding: 15px 17px;
+  border: 0;
+  cursor: pointer;
+  list-style: none;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--primary-soft) 62%, var(--surface)), var(--surface) 78%);
+  transition: background .18s ease;
+}
+.howto-faq-group-heading::-webkit-details-marker { display: none; }
+.howto-faq-group-heading::marker { content: ''; }
+.howto-faq-group-heading:hover { background: linear-gradient(110deg, color-mix(in srgb, var(--primary-soft) 82%, var(--surface)), var(--surface) 78%); }
+.howto-faq-group-heading:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
+.howto-faq-group-heading > div { flex: 1 1 auto; min-width: 0; }
+.howto-faq-group-heading h2 { font-size: 15px; line-height: 1.45; }
+.howto-faq-group-heading p { margin-top: 3px; font-size: 11px; line-height: 1.6; }
+.howto-faq-group-count { background: var(--surface); }
+.howto-faq-group-chevron {
+  display: grid;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  transition: transform .2s ease, color .2s ease, background .2s ease;
+}
+.howto-faq-group[open] > .howto-faq-group-heading .howto-faq-group-chevron {
+  transform: rotate(90deg);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.howto-faq-list {
+  display: grid;
+  gap: 9px;
+  padding: 13px;
+  background: color-mix(in srgb, var(--surface-2) 42%, var(--surface));
+  animation: howto-faq-reveal .2s ease both;
+}
+.howto-faq-item {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+  transition: border-color .16s ease, background .16s ease;
+}
+.howto-faq-item[open] { border-color: color-mix(in srgb, var(--primary) 38%, var(--line)); }
+.howto-faq-item summary { min-height: 56px; gap: 11px; padding: 11px 12px; }
+.howto-faq-index { flex-basis: 29px; width: 29px; height: 29px; font-size: 10px; }
+.howto-faq-question { font-size: 12.5px; line-height: 1.65; }
+.howto-faq-chevron { flex-basis: 29px; width: 29px; height: 29px; }
+.howto-faq-answer { padding: 0 15px 15px 52px; }
+.howto-faq-answer p {
+  max-width: 92ch;
+  padding: 10px 13px;
+  border-left: 2px solid color-mix(in srgb, var(--primary) 36%, var(--line));
+  border-radius: 0 10px 10px 0;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.85;
+}
+
+/* History heading mirrors Dining's mobile title card; info/actions share its width. */
+@media (min-width: 851px) {
+  .history-title-footer { align-items: center; gap: 9px; }
+  .history-intro-info {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    padding: 7px 13px;
+    font-size: 10.5px;
+    line-height: 1.45;
+  }
+  .history-title-actions { gap: 8px; }
+  .history-title-actions .secondary-button { min-height: 40px; padding-block: 7px; }
+}
+@media (max-width: 640px) {
+  .history-title-row { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 10px; }
+  .history-title-heading {
+    width: 100%;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 15px 16px 14px;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    background: linear-gradient(115deg, color-mix(in srgb, var(--primary-soft) 48%, var(--surface)), var(--surface) 72%);
+    box-shadow: var(--soft-shadow);
+  }
+  .history-page-brand-mark { flex-basis: 46px; width: 46px; height: 46px; border-radius: 14px; }
+  .history-page-intro-copy { gap: 4px; }
+  .history-page-intro-copy .eyebrow { color: var(--primary-strong); font-size: 10px; font-weight: 850; letter-spacing: .07em; }
+  .history-page-intro-copy h1 { font-size: clamp(25px, 7vw, 30px); line-height: 1.22; letter-spacing: -.035em; }
+  .history-page-intro-copy p { margin-top: 2px; font-size: 12px; line-height: 1.6; }
+  .history-title-footer { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; gap: 9px; }
+  .history-intro-info { box-sizing: border-box; width: 100%; max-width: none; min-height: 0; padding: 13px 14px; border-radius: 14px; font-size: 11.5px; line-height: 1.7; }
+  .history-title-actions { width: 100%; justify-content: stretch; gap: 8px; }
+  .history-title-actions .secondary-button { flex: 1 1 0; min-width: 0; min-height: 41px; justify-content: center; }
+}
+
+/* Dashboard member search filters the already loaded directory locally; no extra request. */
+.dashboard-member-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dashboard-member-title { display: grid; gap: 2px; min-width: 0; }
+.dashboard-member-title h2 { margin: 0; }
+.dashboard-member-tools { display: flex; flex: 0 1 auto; align-items: center; justify-content: flex-end; gap: 9px; min-width: 0; }
+.dashboard-member-search {
+  display: flex;
+  flex: 0 1 260px;
+  align-items: center;
+  gap: 9px;
+  min-width: 170px;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.dashboard-member-search:focus-within {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+  background: var(--surface);
+}
+.dashboard-member-search > svg { flex: 0 0 auto; color: var(--primary-strong); }
+.dashboard-member-search input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  box-shadow: none;
+}
+.dashboard-member-search input:focus { outline: 0; box-shadow: none; }
+.dashboard-member-search input::placeholder { color: var(--muted); opacity: .85; }
+.dashboard-member-search > button {
+  display: grid;
+  flex: 0 0 25px;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: pointer;
+}
+.dashboard-member-search > button:hover { color: var(--primary-strong); background: var(--primary-soft); }
+.dashboard-member-search-empty { align-items: center; text-align: center; }
+.dashboard-member-search-empty > svg { color: var(--muted); }
+.dashboard-member-search-empty > button { margin-top: 3px; }
+@media (max-width: 640px) {
+  .howto-timing-topline { align-items: flex-start; flex-direction: column; }
+  .howto-timezone-pill { margin-left: 51px; }
+  .howto-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .howto-time-card { min-height: 132px; padding: 11px; }
+  .howto-time-card-top { align-items: flex-start; gap: 6px; }
+  .howto-time-card-top > span:last-child { font-size: 9.5px; }
+  .howto-time-card > strong { font-size: clamp(17px, 5vw, 22px); }
+  .howto-time-card > small { font-size: 9.5px; line-height: 1.6; }
+  .howto-faq-group-heading { min-height: 78px; gap: 9px; padding: 13px 12px; }
+  .howto-faq-group-icon { flex-basis: 38px; width: 38px; height: 38px; }
+  .howto-faq-group-heading h2 { font-size: 13px; }
+  .howto-faq-group-heading p { font-size: 10px; }
+  .howto-faq-group-count { padding: 5px 7px; font-size: 9px; }
+  .howto-faq-group-chevron { flex-basis: 26px; width: 26px; height: 26px; }
+  .howto-faq-list { gap: 8px; padding: 9px; }
+  .howto-faq-item summary { min-height: 54px; gap: 8px; padding: 10px; }
+  .howto-faq-question { font-size: 11.5px; }
+  .howto-faq-answer { padding: 0 10px 11px 45px; }
+  .howto-faq-answer p { padding: 9px 10px; font-size: 11px; line-height: 1.8; }
+  .dashboard-member-toolbar { align-items: stretch; flex-direction: column; gap: 9px; }
+  .dashboard-member-tools { width: 100%; justify-content: space-between; }
+  .dashboard-member-search { flex: 1 1 auto; min-width: 0; }
+}
+@media (max-width: 390px) {
+  .howto-time-grid { grid-template-columns: minmax(0, 1fr); }
+  .howto-time-card { min-height: 0; }
+  .howto-timezone-pill { margin-left: 0; }
+  .howto-faq-group-heading { gap: 8px; }
+  .howto-faq-group-count { white-space: normal; text-align: center; }
+}
