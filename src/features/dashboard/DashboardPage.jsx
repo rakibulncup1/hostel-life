@@ -18,6 +18,7 @@ import { navigateTo } from '../../app/AppShell';
 import { dashboardNeedsPeriodFallback, resolveDashboardPeriodStatus } from '../../utils/period';
 import { clearSevenDayMeals, getSevenDates, readSevenDayMeals, saveSevenDayMeals } from '../../services/sevenDayMealStore';
 import { formatUpcomingMealDate } from '../../utils/sevenDayMeals';
+import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
 
 function safeNumber(value) {
   const number = Number(value ?? 0);
@@ -65,7 +66,7 @@ function MealStat({ label, value, accent }) {
   );
 }
 
-function MealCard({ meal, isOnline, hasOfflineDetails = false, hasUpcomingMeals = false, lastSync, onDetails, loading, cachedError, noRunningPeriod = false }) {
+function MealCard({ meal, isOnline, hasOfflineDetails = false, hasUpcomingMeals = false, lastSync, onDetails, loading, cachedError, noRunningPeriod = false, pendingPeriodStartDate = null }) {
   if (noRunningPeriod) {
     return <section className="card meal-card hero-card no-running-meal-card">
       <div className="card-topline"><span className="eyebrow">মাসের অবস্থা</span><span className="status-chip offline-chip"><span className="pulse-dot"/> মাস শুরু হয়নি</span></div>
@@ -91,6 +92,10 @@ function MealCard({ meal, isOnline, hasOfflineDetails = false, hasUpcomingMeals 
   }
 
   if (!meal) {
+    // The next period may be activated after 8 PM on the previous day. Until its
+    // first meal date the server deliberately returns no meal_card; this is not
+    // a missing account or a lost meal record.
+    const isBeforeFirstDay = Boolean(pendingPeriodStartDate);
     return (
       <section className="card meal-card hero-card meal-empty-card">
         <div className="card-topline">
@@ -102,14 +107,16 @@ function MealCard({ meal, isOnline, hasOfflineDetails = false, hasUpcomingMeals 
         </div>
         <div className="meal-card-heading">
           <div>
-            <h1>মিলের তথ্য পাওয়া যায়নি</h1>
-            <p>{isOnline ? 'উপরের মিলের তথ্য এখনো পাওয়া যায়নি।' : 'এই সময়ের জন্য এই ডিভাইসে সংরক্ষিত মিল নেই।'}</p>
+            <h1>{isBeforeFirstDay ? 'নতুন মাসের মিল আগামীকাল থেকে' : 'মিলের তথ্য পাওয়া যায়নি'}</h1>
+            <p>{isBeforeFirstDay
+              ? `নতুন মাস চালু হয়েছে। প্রথম মিলের তারিখ ${formatDateWithWeekday(pendingPeriodStartDate)}। ওই দিন শুরু হলে এই কার্ডে মিলের হিসাব দেখা যাবে।`
+              : (isOnline ? 'এই দিনের মিলের সার্ভার তথ্য এখনো পাওয়া যায়নি।' : 'এই সময়ের জন্য এই ডিভাইসে সংরক্ষিত মিল নেই।')}</p>
           </div>
           <div className="hero-icon"><Icon name="dining" size={26} /></div>
         </div>
         <div className="meal-empty-note">
           <Icon name={isOnline ? 'warning' : 'offline'} size={18} />
-          <span>{cachedError || (isOnline ? 'আবার চেষ্টা করুন।' : 'নেট চালু করলে সর্বশেষ মিলের তথ্য আবার সিঙ্ক হবে।')}</span>
+          <span>{isBeforeFirstDay ? 'প্রথম দিনের মিল অনুরোধ ডাইনিং সেকশন থেকে দেওয়া যাবে।' : (cachedError || (isOnline ? 'মাস চালু থাকার পরও এমন দেখালে ডাটাবেসে ওই দিনের meal day রেকর্ড ও Supabase RPC যাচাই করুন।' : 'নেট চালু করলে সর্বশেষ মিলের তথ্য আবার সিঙ্ক হবে।'))}</span>
         </div>
         {lastSync && (
           <div className="sync-placeholder">
@@ -823,7 +830,10 @@ export function DashboardPage() {
           has_running_period: hasRunningPeriod,
           period_status: periodStatus,
           members: nextMembers,
-          meal_card: hasRunningPeriod ? (data?.meal_card || previous?.meal_card || null) : null,
+          // Never carry the old period's card into a newly opened month.
+          meal_card: hasRunningPeriod
+            ? (data?.meal_card || ((previous?.period?.period_id || previous?.period?.id) === (resolvedPeriod?.period_id || resolvedPeriod?.id) ? previous?.meal_card : null) || null)
+            : null,
           summary: hasRunningPeriod ? (data?.summary || previous?.summary || null) : null,
           my_account: hasRunningPeriod
             ? (data?.my_account ? { ...data.my_account, avatar_url: data.my_account.avatar_url || mappedOwn?.avatar_url || null } : previous?.my_account ? { ...previous.my_account, avatar_url: mappedOwn?.avatar_url || previous.my_account.avatar_url || null } : (mappedOwn ? {
@@ -921,9 +931,14 @@ export function DashboardPage() {
     ? 'unknown'
     : (effectiveDashboard?.period_status || ((effectiveDashboard?.has_running_period ?? Boolean(effectiveDashboard?.period?.period_id || effectiveDashboard?.period?.id)) ? 'running' : 'none'));
   const dashboardHasRunningPeriod = dashboardPeriodStatus === 'running';
+  // Offline cache has no period ID. Never present it as the live period's card
+  // while a new running period has already been verified online.
   const mealCard = dashboardHasRunningPeriod
-    ? (online ? (dashboard?.meal_card || cachedDashboard?.meal_card) : (offlineMealCard || cachedDashboard?.meal_card))
+    ? (online ? dashboard?.meal_card || null : (offlineMealCard || cachedDashboard?.meal_card))
     : null;
+  const dhakaToday = getDhakaDateTimeParts().today;
+  const periodStartDate = String(effectiveDashboard?.period?.start_date || '').slice(0, 10);
+  const pendingPeriodStartDate = dashboardHasRunningPeriod && periodStartDate > dhakaToday ? periodStartDate : null;
   const lastSync = snapshot?.savedAt || null;
   const summary = effectiveDashboard?.summary;
   // Older dashboard RPC payloads expose total_market/other_expense, while newer
@@ -995,6 +1010,7 @@ export function DashboardPage() {
           onDetails={openDetails}
           loading={online ? loading && !effectiveDashboard : offlineLoading}
           cachedError={dashboardError || offlineError?.message}
+          pendingPeriodStartDate={pendingPeriodStartDate}
         />
         <LateRequestCard meal={mealCard} isOnline={online} lastSync={lastSync} />
       </> : dashboardPeriodStatus === 'none' && effectiveDashboard ? <MealCard meal={null} noRunningPeriod isOnline={online} /> : <MealCard
