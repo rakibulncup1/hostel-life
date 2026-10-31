@@ -8,6 +8,7 @@ const commonItems = [
   { key: 'khala-money-view', label: 'খালার টাকা', icon: 'wallet' },
   { key: 'top-eater', label: 'শীর্ষ খাদক', icon: 'dining' },
   { key: 'top-shopper', label: 'বেশি বাজারকারী', icon: 'dining' },
+  { key: 'top-depositor', label: 'বেশি ডিপোজিটকারী', icon: 'wallet' },
 ];
 
 const systemItems = [

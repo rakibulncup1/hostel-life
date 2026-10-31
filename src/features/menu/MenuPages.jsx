@@ -11,7 +11,7 @@ import { fetchMemberPeriodDetails } from '../../services/dashboardService';
 import { MemberPeriodDetailsModal } from '../dashboard/DashboardPage';
 import { fetchArchivedMonthDetail, fetchKhalaMoneyHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
 import { managerSendNotification } from '../../services/notificationService';
-import { fetchTopEaters, fetchTopShoppers } from '../../services/rankingService';
+import { fetchTopDepositors, fetchTopEaters, fetchTopShoppers } from '../../services/rankingService';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
@@ -285,17 +285,18 @@ function RankingPage({ kind }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const shopper = kind === 'shopper';
+  const depositor = kind === 'depositor';
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setRows(shopper ? await fetchTopShoppers() : await fetchTopEaters());
+      setRows(shopper ? await fetchTopShoppers() : depositor ? await fetchTopDepositors() : await fetchTopEaters());
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'র‌্যাঙ্কিং লোড করা যায়নি।'));
     } finally {
       setLoading(false);
     }
-  }, [shopper, toast]);
+  }, [depositor, shopper, toast]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -303,20 +304,20 @@ function RankingPage({ kind }) {
     <div className="page-stack">
       <PageHeader
         eyebrow="চলতি মাসের মজার হিসাব"
-        title={shopper ? 'বেশি বাজারকারী' : 'শীর্ষ খাদক'}
-        description={shopper ? 'চলতি মাসে বৈধ বাজার এন্ট্রির মোট টাকার ভিত্তিতে বেশি থেকে কম।' : 'চলতি মাসে final meal-এর মোট সংখ্যার ভিত্তিতে বেশি থেকে কম।'}
+        title={depositor ? 'বেশি ডিপোজিটকারী' : shopper ? 'বেশি বাজারকারী' : 'শীর্ষ খাদক'}
+        description={depositor ? 'চলতি মাসে সদস্যের নামে জমা হওয়া মোট ডিপোজিটের ভিত্তিতে বেশি থেকে কম।' : shopper ? 'চলতি মাসে বৈধ বাজার এন্ট্রির মোট টাকার ভিত্তিতে বেশি থেকে কম।' : 'চলতি মাসে final meal-এর মোট সংখ্যার ভিত্তিতে বেশি থেকে কম.'}
       />
       <section className="card ranking-card">
         <div className="ranking-card-head">
-          <div className={`ranking-hero-icon ${shopper ? 'shopper' : 'eater'}`}><Icon name={shopper ? 'shopping-bag' : 'trophy'} size={25} /></div>
+          <div className={`ranking-hero-icon ${depositor ? 'depositor' : shopper ? 'shopper' : 'eater'}`}><Icon name={depositor ? 'wallet' : shopper ? 'shopping-bag' : 'trophy'} size={25} /></div>
           <div>
             <span className="eyebrow">অগ্রাধিকার তালিকা</span>
-            <h2>{shopper ? 'বাজারের সেরা ক্রেতারা' : 'এই মাসের শীর্ষ খাদকরা'}</h2>
+            <h2>{depositor ? 'এই মাসের বেশি ডিপোজিটকারীরা' : shopper ? 'বাজারের সেরা ক্রেতারা' : 'এই মাসের শীর্ষ খাদকরা'}</h2>
           </div>
           <button className="icon-button compact-icon ghost" type="button" onClick={load} aria-label="রিফ্রেশ"><Icon name="refresh" size={17} /></button>
         </div>
         {loading ? <LoadingSpinner label="র‌্যাঙ্কিং লোড হচ্ছে..." /> : rows.length === 0 ? (
-          <div className="empty-state-card compact-empty"><Icon name={shopper ? 'shopping-bag' : 'trophy'} size={25} /><strong>এখনো কোনো র‌্যাঙ্কিং নেই</strong><span>এই মাসের তথ্য যোগ হলে তালিকা এখানে দেখা যাবে।</span></div>
+          <div className="empty-state-card compact-empty"><Icon name={depositor ? 'wallet' : shopper ? 'shopping-bag' : 'trophy'} size={25} /><strong>এখনো কোনো র‌্যাঙ্কিং নেই</strong><span>এই মাসের তথ্য যোগ হলে তালিকা এখানে দেখা যাবে।</span></div>
         ) : (
           <div className="ranking-list">
             {rows.map((row, index) => {
@@ -325,16 +326,18 @@ function RankingPage({ kind }) {
               const rankNo = Number(row.rank_no ?? row.rank ?? index + 1);
               const safeRank = Number.isFinite(rankNo) && rankNo > 0 ? rankNo : index + 1;
               const memberName = row.member_name || row.full_name || 'নাম নেই';
-              const amount = shopper
-                ? (row.total_market_amount ?? row.total_market ?? row.amount ?? 0)
-                : (row.total_meals ?? row.meals ?? 0);
+              const amount = depositor
+                ? (row.total_deposit ?? row.deposit ?? row.amount ?? 0)
+                : shopper
+                  ? (row.total_market_amount ?? row.total_market ?? row.amount ?? 0)
+                  : (row.total_meals ?? row.meals ?? 0);
               const firstRank = Boolean(row.is_first) || safeRank === 1;
               return (
                 <article className={`ranking-row ${firstRank ? 'first-rank' : ''}`} key={row.membership_id || row.member_id || `${memberName}-${safeRank}`}>
                   <div className={`rank-number ${safeRank <= 3 ? `rank-${safeRank}` : ''}`} aria-label={`ক্রমিক ${safeRank}`}>{formatNumber(safeRank, { maximumFractionDigits: 0 })}</div>
                   <div className="rank-avatar-wrap"><Avatar member={{ member_name: memberName }} />{firstRank && <span className="rank-crown"><Icon name="crown" size={13} /></span>}</div>
                   <div className="rank-copy"><strong>{safeRank <= 3 ? '🏆 ' : ''}{memberName}</strong><small>{firstRank ? '🏆 সবার আগে' : `ক্রমিক ${formatNumber(safeRank, { maximumFractionDigits: 0 })}`}</small></div>
-                  <div className="rank-value"><strong>{shopper ? formatCurrency(amount) : formatNumber(amount, { maximumFractionDigits: 1 })}</strong><span>{shopper ? 'বাজার' : 'মিল'}</span></div>
+                  <div className="rank-value"><strong>{shopper || depositor ? formatCurrency(amount) : formatNumber(amount, { maximumFractionDigits: 1 })}</strong><span>{depositor ? 'ডিপোজিট' : shopper ? 'বাজার' : 'মিল'}</span></div>
                 </article>
               );
             })}
@@ -347,6 +350,7 @@ function RankingPage({ kind }) {
 
 export function TopEatersPage() { return <RankingPage kind="eater" />; }
 export function TopShoppersPage() { return <RankingPage kind="shopper" />; }
+export function TopDepositorsPage() { return <RankingPage kind="depositor" />; }
 
 export function DeveloperInfoPage() {
   const [info, setInfo] = useState(null);
@@ -497,7 +501,7 @@ const HOW_TO_USE_GROUPS = [
       ['PDF বা প্রিন্ট কীভাবে করব?', 'হিস্টরির বর্তমান বিভাগে “PDF / প্রিন্ট” বোতাম চাপুন। পূর্ববর্তী মাসের বিস্তারিত খুললে সেখানকার PDF/প্রিন্ট বোতাম ব্যবহার করুন। রিপোর্ট সংরক্ষণের আগে নির্বাচিত মাস, তারিখ, সদস্য ও মোট হিসাব মিলিয়ে নিন।'],
       ['মিল শিট কোথায় পাব?', 'থ্রি-লাইন মেনু → “মিল শিট” খুলুন। চলমান মাসের দৈনিক ও সদস্যভিত্তিক মিলের সারাংশ দেখুন। সদস্য নির্বাচন করে তাঁর বিস্তারিত মিলও দেখা যায় এবং উপরের PDF/প্রিন্ট অপশন দিয়ে সংরক্ষণ করা যায়।'],
       ['রিপোর্ট ডাউনলোড কীভাবে করব?', 'থ্রি-লাইন মেনু → “রিপোর্ট ডাউনলোড” বা “রিপোর্ট কেন্দ্র” খুলুন। অনুমতি ও চলমান মাসের তথ্য উপলভ্য থাকলে ফাইনাল হিসাব, বাজার, ডিপোজিট এবং পূর্ণ মাসিক প্রতিবেদন আলাদা PDF হিসেবে তৈরি করতে পারবেন। রিপোর্ট তৈরির আগে মাস ও হিসাব মিলিয়ে নিন।'],
-      ['শীর্ষ খাদক ও বেশি বাজারকারীর তালিকা কীভাবে তৈরি হয়?', 'থ্রি-লাইন মেনুর “শীর্ষ খাদক” তালিকায় চলতি মাসের ফাইনাল হওয়া মিলের মোট পরিমাণ অনুযায়ী সদস্যদের ক্রম দেখানো হয়। “বেশি বাজারকারী” তালিকায় চলতি মাসের কার্যকর/বাতিল না হওয়া বাজার এন্ট্রির মোট টাকার পরিমাণ অনুযায়ী ক্রম দেখানো হয়। এগুলো র‍্যাঙ্কিং; সদস্যের ব্যক্তিগত পুরস্কার বা পাওনা নয়।'],
+      ['শীর্ষ খাদক, বেশি বাজারকারী ও বেশি ডিপোজিটকারীর তালিকা কীভাবে তৈরি হয়?', 'থ্রি-লাইন মেনুর “শীর্ষ খাদক” তালিকায় চলতি মাসের ফাইনাল হওয়া মিলের মোট পরিমাণ অনুযায়ী, “বেশি বাজারকারী” তালিকায় কার্যকর বাজার এন্ট্রির মোট টাকার ভিত্তিতে এবং “বেশি ডিপোজিটকারী” তালিকায় সদস্যের নামে জমা হওয়া মোট ডিপোজিটের ভিত্তিতে ক্রম দেখানো হয়। ডিপোজিটে নগদ জমা ও বাজার বাবদ জমা—দুটিই অন্তর্ভুক্ত। এগুলো র‍্যাঙ্কিং; সদস্যের ব্যক্তিগত পুরস্কার বা পাওনা নয়।'],
       ['পুরোনো হিসাব কি বদলানো যায়?', 'বন্ধ মাসের রেকর্ড স্বাভাবিকভাবে আর্কাইভে সংরক্ষিত থাকে। সংশোধন কেবল সেই কাজের জন্য অনুমোদিত ম্যানেজার বা বৈধ Archive Edit Permission থাকলে করা যায়। সংশোধনের কারণ ও অডিট তথ্য সংরক্ষিত হতে পারে।'],
     ],
   },

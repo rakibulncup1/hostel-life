@@ -154,6 +154,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       'khala-money-view': '/app/menu/khala-money-view',
       'top-eater': '/app/menu/top-eater',
       'top-shopper': '/app/menu/top-shopper',
+      'top-depositor': '/app/menu/top-depositor',
       developer: '/app/menu/developer',
       'privacy-policy': '/app/menu/privacy-policy',
       terms: '/app/menu/terms',

@@ -36,6 +36,7 @@ import { formatDateBangla, formatDateWithWeekday, toDateInputValue } from '../..
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
 import { deriveNextRequiredStartDate, dhakaDateInputValue } from '../../utils/monthStart';
 import { canActivateNextPeriod, getDhakaDateTimeParts, getMemberDeactivationImpact, getNextPeriodActivationMessage } from '../../utils/monthLifecyclePolicy';
 
@@ -441,6 +442,8 @@ export function ChangeManagerPage() {
   const toast = useToast();
   const online = useOnlineStatus();
   const { membership, profile, refreshIdentity } = useAuth();
+  const { period } = useManagementContext();
+  const futurePeriodNotice = getPeriodStartNotice(period, 'বাজার ও আর্থিক এন্ট্রি');
   const [members, setMembers] = useState([]);
   const [selected, setSelected] = useState('');
   const [loading, setLoading] = useState(true);
@@ -468,7 +471,7 @@ export function ChangeManagerPage() {
       await refreshIdentity();
       navigateTo('/app/dashboard', true);
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'ম্যানেজার পরিবর্তন করা যায়নি।'));
+      toast.error(getPeriodAwareError(error, 'ম্যানেজার পরিবর্তন করা যায়নি।', period, 'ম্যানেজার-সম্পর্কিত এন্ট্রি'));
     } finally { setBusy(false); }
   };
 
@@ -479,7 +482,8 @@ export function ChangeManagerPage() {
     <PrimaryManagerGuard>
       <div className="page-stack">
         <PageHeader title="ম্যানেজার পরিবর্তন" icon="shield" description="নতুন ম্যানেজার নির্বাচন করলে আপনার বর্তমান ম্যানেজার ক্ষমতা সঙ্গে সঙ্গে চলে যাবে।" />
-        <div className="form-hint" role="note">মাস বন্ধের পর ম্যানেজার হস্তান্তর করতে Database-এর change_manager ফাংশনেও পরিবর্তন প্রয়োজন। বর্তমান সংস্করণে চলমান মাস ছাড়া অনুরোধ প্রত্যাখ্যাত হতে পারে; অনুমান করে কোনো ক্ষমতা পরিবর্তন করা হচ্ছে না।</div>
+        <div className="form-hint" role="note">ম্যানেজার পরিবর্তন একটি আলাদা অনুমতি-নিয়ন্ত্রিত কাজ; এটি বাজার বা ডিপোজিটের মতো তারিখভিত্তিক হিসাব এন্ট্রি নয়। তাই নতুন মাসের প্রথম দিনের আগে বাজার/ডিপোজিট/অন্যান্য আর্থিক এন্ট্রি বন্ধ থাকলেও, বর্তমান প্রধান ম্যানেজারের অনুমতি থাকলে ম্যানেজার পরিবর্তন করা যায়।</div>
+        {futurePeriodNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {futurePeriodNotice} ম্যানেজার পরিবর্তনের এই কাজটি এখনই করা যাবে।</div>}
         <section className="card manager-form-card">
           <div className="manager-role-hero"><div className="role-person"><span>বর্তমান</span><strong>{currentName}</strong><small>ম্যানেজার</small></div><Icon name="arrow-right" size={24} /><div className="role-person"><span>নতুন</span><strong>{selected ? members.find((m) => m.membership_id === selected)?.member_name : 'নির্বাচন করুন'}</strong><small>ম্যানেজার হবে</small></div></div>
           <label className="field-label"><span>নতুন ম্যানেজার নির্বাচন করুন</span><select value={selected} onChange={(e) => setSelected(e.target.value)}><option value="">সদস্য নির্বাচন করুন</option>{candidates.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label>
@@ -748,16 +752,22 @@ export function KhalaMoneyPage() {
   useEffect(() => { if (online && isOperationalManager) load(); }, [online, isOperationalManager, load]);
 
   const selectedPeriod = periods.find((p) => p.period_id === periodId) || null;
+  const periodStartNotice = getPeriodStartNotice(selectedPeriod, 'খালার টাকার এন্ট্রি');
   const visibleRows = selectedPeriod ? rows.filter((row) => row.period_id === selectedPeriod.period_id) : rows;
   const total = visibleRows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
 
   useEffect(() => {
-    if (selectedPeriod) setForm((current) => ({ ...current, paymentDate: current.paymentDate || toDateInputValue() }));
-  }, [selectedPeriod]);
+    if (!selectedPeriod) return;
+    setForm((current) => ({
+      ...current,
+      paymentDate: periodStartNotice ? String(selectedPeriod.start_date).slice(0, 10) : (current.paymentDate || toDateInputValue()),
+    }));
+  }, [selectedPeriod?.period_id, selectedPeriod?.start_date, periodStartNotice]);
 
   const save = async (event) => {
     event.preventDefault();
     if (!periodId) return toast.warning('কাজের মাস নির্বাচন করুন।');
+    if (periodStartNotice) return toast.info(periodStartNotice);
     if (!form.memberId) return toast.warning('সংশ্লিষ্ট সদস্য নির্বাচন করুন।');
     const amount = Number(form.amount);
     if (!(amount > 0)) return toast.warning('টাকার পরিমাণ শূন্যের বেশি হতে হবে।');
@@ -771,7 +781,7 @@ export function KhalaMoneyPage() {
       toast.success('খালার টাকার এন্ট্রি আলাদা হিসাব হিসেবে সংরক্ষণ হয়েছে।');
       setForm((current) => ({ ...current, amount: '', description: '' }));
       await load();
-    } catch (error) { toast.error(getFriendlySupabaseError(error, 'খালার টাকার এন্ট্রি যোগ করা যায়নি।')); }
+    } catch (error) { toast.error(getPeriodAwareError(error, 'খালার টাকার এন্ট্রি যোগ করা যায়নি।', selectedPeriod, 'খালার টাকার এন্ট্রি')); }
     finally { setBusy(false); }
   };
 
@@ -800,9 +810,10 @@ export function KhalaMoneyPage() {
         ) : (
           <>
             <form className="card manager-form-card khala-entry-form" onSubmit={save}>
+              {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
               <div className="form-grid-2">
                 <label className="field-label"><span>কাজের মাস</span><select value={periodId} onChange={(e) => setPeriodId(e.target.value)}>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label}</option>)}</select></label>
-                <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={toDateInputValue()} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} required /></label>
+                <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={toDateInputValue()} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} disabled={Boolean(periodStartNotice)} required /></label>
               </div>
               <label className="field-label"><span>যে সদস্যের নামে খালার পারিশ্রমিকটি নথিভুক্ত হবে</span>
                 <select value={form.memberId} required onChange={(e) => setForm((current) => ({ ...current, memberId: e.target.value }))}>
@@ -816,7 +827,7 @@ export function KhalaMoneyPage() {
                 <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => setForm((current) => ({ ...current, amount: e.target.value }))} placeholder="০" required /></label>
                 <label className="field-label"><span>বিবরণ <em>(ঐচ্ছিক)</em></span><input value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} placeholder="যেমন: মাসিক পারিশ্রমিক" /></label>
               </div>
-              <button className="primary-button large" type="submit" disabled={busy}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'খালার টাকা যোগ করুন'}</button>
+              <button className="primary-button large" type="submit" disabled={busy || Boolean(periodStartNotice)}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'খালার টাকা যোগ করুন'}</button>
             </form>
 
             <section className="card manager-form-card">
@@ -996,7 +1007,8 @@ export function MealSheetPage() {
   if (loading) return <LoadingSpinner label="মিল শিট তৈরি হচ্ছে..." />;
   if (!bundle) return <FeatureStateNotice title="কোনো চলমান মাস নেই" text="মিল শিট তৈরি করতে একটি চলমান মাস থাকতে হবে।" icon="calendar" />;
 
-  const dailyTotals = bundle.days.map((day) => {
+  const finalizedDays = bundle.days.filter((day) => day.status === 'finalized');
+  const dailyTotals = finalizedDays.map((day) => {
     const rows = bundle.mealRows.filter((r) => r.date === day.meal_date);
     return { key: day.meal_date, date: day.meal_date, status: day.status, breakfast: rows.reduce((s, r) => s + Number(r.breakfast || 0), 0), lunch: rows.reduce((s, r) => s + Number(r.lunch || 0), 0), dinner: rows.reduce((s, r) => s + Number(r.dinner || 0), 0) };
   });
@@ -1008,7 +1020,7 @@ export function MealSheetPage() {
 
   const selectedMember = selectedMemberId ? bundle.members.find((member) => member.membership_id === selectedMemberId) : null;
   const filteredMealRows = selectedMemberId ? bundle.mealRows.filter((row) => row.memberId === selectedMemberId) : bundle.mealRows;
-  const filteredDays = bundle.days.filter((day) => filteredMealRows.some((row) => row.date === day.meal_date));
+  const filteredDays = finalizedDays.filter((day) => filteredMealRows.some((row) => row.date === day.meal_date));
   const filteredDailyTotals = filteredDays.map((day) => {
     const rows = filteredMealRows.filter((r) => r.date === day.meal_date);
     return { key: day.meal_date, date: day.meal_date, status: day.status, breakfast: rows.reduce((s, r) => s + Number(r.breakfast || 0), 0), lunch: rows.reduce((s, r) => s + Number(r.lunch || 0), 0), dinner: rows.reduce((s, r) => s + Number(r.dinner || 0), 0) };
@@ -1020,7 +1032,7 @@ export function MealSheetPage() {
       const rows = filteredDailyTotals.map((r) => `<tr><td>${escapeReportHtml(formatDateWithWeekday(r.date))}</td><td>${reportStatusLabel(r.status)}</td><td>${r.breakfast}</td><td>${r.lunch}</td><td>${r.dinner}</td><td>${r.breakfast+r.lunch+r.dinner}</td></tr>`).join('');
       // All-members export uses one column per actual period day, not one row per day.
       // Never infer dates from the calendar month: mess periods can cross month boundaries.
-      const allDays = [...bundle.days].sort((a, b) => String(a.meal_date).localeCompare(String(b.meal_date)));
+      const allDays = finalizedDays.slice().sort((a, b) => String(a.meal_date).localeCompare(String(b.meal_date)));
       const recordLookup = new Map(bundle.mealRows.map((row) => [`${row.memberId}:${row.date}`, row]));
       const compact = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 1 });
       const matrixHead = `<tr><th>সদস্য</th>${allDays.map((day) => `<th title="${escapeReportHtml(day.meal_date)}">${escapeReportHtml(String(Number(day.meal_date.slice(-2))))}</th>`).join('')}</tr>`;
@@ -1039,7 +1051,7 @@ export function MealSheetPage() {
   };
 
   return (
-    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} — দৈনিক মিলের সারসংক্ষেপ এবং সদস্যভিত্তিক মোট হিসাব।`} />
+    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} — শুধু ফাইনাল হওয়া দিনের দৈনিক মিলের সারসংক্ষেপ এবং সদস্যভিত্তিক মোট হিসাব। অপেক্ষমাণ অনুরোধ চূড়ান্ত মিল হিসেবে গণনা হয় না।`} />
       <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{currentPeriodRange(bundle.period)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact report-pdf-button" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
       <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
       <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
@@ -1068,7 +1080,7 @@ export function ReportsPage() {
   if (!bundle) return <FeatureStateNotice title="রিপোর্টের জন্য কোনো চলমান মাস নেই" text="নতুন মাস শুরু হলে রিপোর্ট তৈরি করা যাবে।" icon="download" />;
 
   const meals = calculateMealTotals(bundle.mealRows);
-  const dailyRows = buildDailyMealRows(bundle.days, bundle.mealRows);
+  const dailyRows = buildDailyMealRows(bundle.days, bundle.mealRows).filter((row) => row.status === 'finalized');
   const members = buildMemberSettlementRows(bundle.members);
   const activeMarkets = getActiveMarketRows(bundle.marketRows);
   const allMarkets = Array.isArray(bundle.marketRows) ? bundle.marketRows : [];
@@ -1201,7 +1213,7 @@ export function ReportsPage() {
         <div className="section-heading"><div><h2>ফাইনাল হিসাবের প্রিভিউ</h2><small>{bundle.period.label} · {formatNumber(members.length)} জন সদস্য</small></div><button className="secondary-button compact report-preview-download" type="button" onClick={() => runExport(downloadFinalAccount)} disabled={exportBusy}><Icon name="download" size={15}/> PDF সংরক্ষণ</button></div>
         <Table columns={[{ key:'name', label:'সদস্যের নাম' },{ key:'deposit', label:'জমা', render:(r)=>formatCurrency(r.deposit) },{ key:'meals', label:'মিল', render:(r)=>formatNumber(r.meals) },{ key:'totalCost', label:'মোট খরচ', render:(r)=>formatCurrency(r.totalCost) },{ key:'balance', label:'বকেয়া / অবশিষ্ট', render:(r)=>Number(r.balance)<0?`বকেয়া ${formatCurrency(Math.abs(Number(r.balance)))}`:`অবশিষ্ট ${formatCurrency(r.balance)}` }]} rows={finalAccountRows.map((row) => ({ ...row, key: row.key || row.membershipId }))} />
       </section>
-      <p className="report-page-note">সব রিপোর্টে প্রতিবেদন প্রস্তুতের তারিখ ও সময় এবং বর্তমান বছর অনুযায়ী কপিরাইট দেখানো হয়। খালার পারিশ্রমিক মেসের আলাদা খরচ; এটি কোনো সদস্যের ব্যক্তিগত ব্যালেন্সে যোগ হয় না।</p>
+      <p className="report-page-note">মিলের হিসাবে শুধু ফাইনাল হওয়া দিনের তথ্য অন্তর্ভুক্ত। অপেক্ষমাণ/অনুমোদনের অপেক্ষায় থাকা অনুরোধ এবং ভবিষ্যৎ দিনের planned মিল রিপোর্টে চূড়ান্ত মিল হিসেবে গণনা হয় না। সব রিপোর্টে প্রস্তুতের তারিখ ও সময় এবং বর্তমান বছর অনুযায়ী কপিরাইট দেখানো হয়। খালার পারিশ্রমিক মেসের আলাদা খরচ; এটি কোনো সদস্যের ব্যক্তিগত ব্যালেন্সে যোগ হয় না।</p>
     </div>
   );
 }

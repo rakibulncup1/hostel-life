@@ -5,7 +5,7 @@ import { ArchiveCorrectionPage } from '../features/archive/ArchiveCorrectionPage
 import { DiningPage } from '../features/dining/DiningPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
-import { AllMembersPage, KhalaMoneyViewPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage } from '../features/menu/MenuPages';
+import { AllMembersPage, KhalaMoneyViewPage, TopDepositorsPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage } from '../features/menu/MenuPages';
 import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
 import { AuthPage } from '../features/auth/AuthPage';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange';
@@ -28,6 +28,7 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/khala-money-view') return <KhalaMoneyViewPage />;
   if (pathname === '/app/menu/top-eater') return <TopEatersPage />;
   if (pathname === '/app/menu/top-shopper') return <TopShoppersPage />;
+  if (pathname === '/app/menu/top-depositor') return <TopDepositorsPage />;
   if (pathname === '/app/menu/developer') return <DeveloperInfoPage />;
   if (pathname === '/app/menu/privacy-policy') return <PrivacyPolicyPage />;
   if (pathname === '/app/menu/terms') return <TermsPage />;
@@ -107,6 +108,7 @@ export function App() {
     else if (pathname.includes('/profile')) title = 'Hostel Life — প্রোফাইল';
     else if (pathname.includes('/menu/top-eater')) title = 'Hostel Life — শীর্ষ খাদক';
     else if (pathname.includes('/menu/top-shopper')) title = 'Hostel Life — বেশি বাজারকারী';
+    else if (pathname.includes('/menu/top-depositor')) title = 'Hostel Life — বেশি ডিপোজিটকারী';
     else if (pathname.includes('/menu/members')) title = 'Hostel Life — সকল সদস্য';
     else if (pathname.includes('/menu/khala-money-view')) title = 'Hostel Life — খালার টাকা';
     else if (pathname.includes('/menu/developer')) title = 'Hostel Life — হেল্প';

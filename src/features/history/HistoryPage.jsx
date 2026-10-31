@@ -122,7 +122,10 @@ export function HistoryPage() {
           && !allPeriods.some((period) => period.period_id === selectedArchivePeriodId)) {
         throw new Error('নির্বাচিত মাস পাওয়া যায়নি।');
       }
-      const periodId = selectedArchivePeriodId || null;
+      // Current-period history must always be scoped to the running period.
+      // Passing null asks the history RPC for its broad/default scope and may
+      // expose records from previously closed months in the current-month tabs.
+      const periodId = selectedArchivePeriodId || runningMonth?.period_id || runningMonth?.id || null;
       // For a running month, use the canonical RPC payload to recognize the period's
       // primary manager even if membership.role is still `member`. Archived periods
       // remain gated by an explicit archive-edit grant.

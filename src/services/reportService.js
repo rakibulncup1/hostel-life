@@ -217,7 +217,7 @@ export async function fetchRunningPeriodReport() {
 
   const [{ data: days, error: daysError }, { data: records, error: recordsError }, members] = await Promise.all([
     supabase.from('daily_meal_days').select('id,meal_date,status,cutoff_at,finalized_at').eq('period_id', periodId).order('meal_date'),
-    supabase.from('daily_meal_records').select('daily_meal_day_id,member_id,planned_breakfast,planned_lunch,planned_dinner,actual_breakfast,actual_lunch,actual_dinner,final_breakfast,final_lunch,final_dinner,cancelled').eq('period_id', periodId),
+    supabase.from('daily_meal_records').select('daily_meal_day_id,member_id,actual_breakfast,actual_lunch,actual_dinner,final_breakfast,final_lunch,final_dinner,cancelled').eq('period_id', periodId),
     fetchMemberDirectory(),
   ]);
   if (daysError) throw daysError;
@@ -225,20 +225,23 @@ export async function fetchRunningPeriodReport() {
 
   const nameMap = new Map((Array.isArray(members) ? members : []).map((member) => [member.membership_id, member.member_name]));
   const dayMap = new Map((days || []).map((day) => [day.id, day]));
-  const mealRows = (records || []).map((record) => {
+  const mealRows = (records || []).flatMap((record) => {
     const day = dayMap.get(record.daily_meal_day_id);
-    const pick = (finalValue, actualValue, plannedValue) => finalValue ?? actualValue ?? plannedValue ?? 0;
-    const finalized = record.final_breakfast !== null || record.final_lunch !== null || record.final_dinner !== null;
-    return {
-      date: day?.meal_date,
-      status: day?.status || 'open',
+    // A submitted/approved request may already have planned_* values on its
+    // daily record. Those values are not a final meal and must never enter a
+    // downloadable monthly report until the server marks the day finalized.
+    if (!day || day.status !== 'finalized' || record.cancelled) return [];
+    const finalValue = (finalMeal, actualMeal) => toFiniteNumber(finalMeal ?? actualMeal ?? 0);
+    return [{
+      date: day.meal_date,
+      status: day.status,
       memberId: record.member_id,
       memberName: nameMap.get(record.member_id) || 'অজানা সদস্য',
-      breakfast: record.cancelled ? 0 : toFiniteNumber(pick(record.final_breakfast, record.actual_breakfast, record.planned_breakfast)),
-      lunch: record.cancelled ? 0 : toFiniteNumber(pick(record.final_lunch, record.actual_lunch, record.planned_lunch)),
-      dinner: record.cancelled ? 0 : toFiniteNumber(pick(record.final_dinner, record.actual_dinner, record.planned_dinner)),
-      finalized,
-    };
+      breakfast: finalValue(record.final_breakfast, record.actual_breakfast),
+      lunch: finalValue(record.final_lunch, record.actual_lunch),
+      dinner: finalValue(record.final_dinner, record.actual_dinner),
+      finalized: true,
+    }];
   });
 
   return { period, days: days || [], mealRows, members: Array.isArray(members) ? members : [] };

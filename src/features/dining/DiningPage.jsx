@@ -34,6 +34,7 @@ import { formatDateWithWeekday, isBangladeshWeekend, toDateInputValue } from '..
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
 import { canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
 import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
@@ -791,14 +792,65 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
   const [credit, setCredit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState([{ item_name: '', quantity: '', amount: '' }]);
+  const marketInputRefs = useRef(new Map());
+  const pendingMarketFocusIndexRef = useRef(null);
+  const periodStartNotice = getPeriodStartNotice(period, 'বাজার এন্ট্রি');
+  const periodNotStarted = Boolean(periodStartNotice);
 
   useEffect(() => {
     if (!buyerId) setBuyerId(ownMembershipId || members[0]?.membership_id || '');
   }, [buyerId, members, ownMembershipId]);
 
+  useEffect(() => {
+    if (periodNotStarted && period?.start_date) setEntryDate(String(period.start_date).slice(0, 10));
+  }, [period?.start_date, periodNotStarted]);
+
+  useEffect(() => {
+    const index = pendingMarketFocusIndexRef.current;
+    if (index === null) return;
+    pendingMarketFocusIndexRef.current = null;
+    requestAnimationFrame(() => marketInputRefs.current.get(`${index}:item_name`)?.focus({ preventScroll: true }));
+  }, [items.length]);
+
   const total = useMemo(() => items.reduce((sum, item) => sum + (Number(item.amount) > 0 ? Number(item.amount) : 0), 0), [items]);
 
-  const updateItem = (index, patch) => setItems((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
+  const updateItem = (index, patch, inputEvent = null) => {
+    const input = inputEvent?.currentTarget;
+    const inputKey = input?.dataset?.marketInputKey;
+    const selectionStart = input && typeof input.selectionStart === 'number' ? input.selectionStart : null;
+    setItems((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
+    // Some mobile IMEs briefly drop focus after a controlled-list update. Restore
+    // it only when the browser actually returned focus to <body>; never steal it
+    // from a different field the user deliberately selected.
+    if (inputKey) requestAnimationFrame(() => {
+      const target = marketInputRefs.current.get(inputKey);
+      if (target && document.activeElement === document.body) {
+        target.focus({ preventScroll: true });
+        if (selectionStart !== null && typeof target.setSelectionRange === 'function') {
+          try { target.setSelectionRange(selectionStart, selectionStart); } catch { /* Number inputs do not expose a text selection range. */ }
+        }
+      }
+    });
+  };
+
+  const focusMarketField = (index, field) => {
+    requestAnimationFrame(() => marketInputRefs.current.get(`${index}:${field}`)?.focus({ preventScroll: true }));
+  };
+
+  const moveToNextMarketField = (event, index, field) => {
+    if (event.key !== 'Enter' || event.nativeEvent?.isComposing || event.nativeEvent?.keyCode === 229) return;
+    event.preventDefault();
+    if (field === 'item_name') return focusMarketField(index, 'quantity');
+    if (field === 'quantity') return focusMarketField(index, 'amount');
+    const nextIndex = index + 1;
+    if (nextIndex < items.length) return focusMarketField(nextIndex, 'item_name');
+    setItems((current) => {
+      const newIndex = current.length;
+      pendingMarketFocusIndexRef.current = newIndex;
+      return [...current, { item_name: '', quantity: '', amount: '' }];
+    });
+  };
+
   const addItem = () => setItems((current) => [...current, { item_name: '', quantity: '', amount: '' }]);
   const removeItem = (index) => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index));
 
@@ -810,6 +862,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       amount: Number(item.amount),
     }));
     if (!period) return toast.warning('কোনো চলমান মাস নেই। আগে একটি চলমান মাস শুরু করুন।');
+    if (periodStartNotice) return toast.info(periodStartNotice);
     if (!entryDate) return toast.error('বাজারের তারিখ দিন।');
     if (entryDate < period.start_date || (period.end_date && entryDate > period.end_date) || entryDate > today) return toast.warning('বাজারের তারিখ চলমান মাস শুরু হওয়ার পরে এবং আজ বা তার আগের হতে হবে।');
     if (!buyerId) return toast.error('যার নামে বাজার হবে তাকে নির্বাচন করুন।');
@@ -831,7 +884,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       setItems([{ item_name: '', quantity: '', amount: '' }]);
       setCredit(false);
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'বাজার সংরক্ষণ করা যায়নি।'));
+      toast.error(getPeriodAwareError(error, 'বাজার সংরক্ষণ করা যায়নি।', period, 'বাজার এন্ট্রি'));
     } finally {
       setBusy(false);
     }
@@ -843,7 +896,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         <div>
           <span className="eyebrow">বাজার এন্ট্রি</span>
           <h2>বাজারের তথ্য দিন</h2>
-          <p>{period ? `${period.label} — নতুন বাজার entry শুধু চলমান মাসের মধ্যে রাখা হচ্ছে।` : 'কোনো চলমান মাস পাওয়া যায়নি।'}</p>
+          <p>{periodStartNotice || (period ? `${period.label} — নতুন বাজার entry শুধু চলমান মাসের মধ্যে রাখা হচ্ছে।` : 'কোনো চলমান মাস পাওয়া যায়নি।')}</p>
         </div>
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
@@ -851,7 +904,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       <div className="market-top-fields">
         <label className="field-label">
           <span>তারিখ</span>
-          <input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < today ? period.end_date : today) : today} value={entryDate} onChange={(e) => setEntryDate(e.target.value)} disabled={!period} />
+          <input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < today ? period.end_date : today) : today} value={entryDate} onChange={(e) => setEntryDate(e.target.value)} disabled={!period || periodNotStarted} />
         </label>
         <label className="field-label">
           <span>{isManager ? 'কার নামে বাজার?' : 'বাজারকারী'}</span>
@@ -881,9 +934,30 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
           {items.map((item, index) => (
             <div className="market-item-row" key={`item-${index}`}>
               <span className="market-serial">{formatNumber(index + 1, { maximumFractionDigits: 0 })}</span>
-              <input className="market-input-item" value={item.item_name} onChange={(e) => updateItem(index, { item_name: e.target.value })} placeholder="নাম" aria-label="আইটেমের নাম" />
-              <input className="market-input-quantity" value={item.quantity} onChange={(e) => updateItem(index, { quantity: e.target.value })} placeholder="পরিমাণ" aria-label="পরিমাণ" />
-              <input type="number" min="0" step="0.01" inputMode="decimal" className="market-input-amount" value={item.amount} onChange={(e) => updateItem(index, { amount: e.target.value })} placeholder="Amount" aria-label="টাকার পরিমাণ" />
+              <input
+                ref={(node) => { const key = `${index}:item_name`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
+                data-market-input-key={`${index}:item_name`}
+                className="market-input-item" value={item.item_name}
+                onChange={(e) => updateItem(index, { item_name: e.target.value }, e)}
+                onKeyDown={(e) => moveToNextMarketField(e, index, 'item_name')}
+                enterKeyHint="next" autoComplete="off" spellCheck={false}
+                placeholder="নাম" aria-label="আইটেমের নাম" />
+              <input
+                ref={(node) => { const key = `${index}:quantity`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
+                data-market-input-key={`${index}:quantity`}
+                className="market-input-quantity" value={item.quantity}
+                onChange={(e) => updateItem(index, { quantity: e.target.value }, e)}
+                onKeyDown={(e) => moveToNextMarketField(e, index, 'quantity')}
+                enterKeyHint="next" autoComplete="off"
+                placeholder="পরিমাণ" aria-label="পরিমাণ" />
+              <input
+                ref={(node) => { const key = `${index}:amount`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
+                data-market-input-key={`${index}:amount`}
+                type="number" min="0" step="0.01" inputMode="decimal" enterKeyHint="next"
+                className="market-input-amount" value={item.amount}
+                onChange={(e) => updateItem(index, { amount: e.target.value }, e)}
+                onKeyDown={(e) => moveToNextMarketField(e, index, 'amount')}
+                placeholder="Amount" aria-label="টাকার পরিমাণ" />
               <button className="icon-button compact-icon" type="button" onClick={() => removeItem(index)} disabled={items.length === 1} aria-label="আইটেম মুছুন"><Icon name="x" size={15} /></button>
             </div>
           ))}
@@ -905,7 +979,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         )}
       </div>
 
-      <button className="primary-button large dining-submit" type="button" disabled={busy} onClick={submit}>
+      <button className="primary-button large dining-submit" type="button" disabled={busy || periodNotStarted} onClick={submit}>
         {busy ? 'বাজার সংরক্ষণ হচ্ছে...' : 'বাজার সংরক্ষণ করুন'}
       </button>
     </section>
@@ -927,6 +1001,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
   const [conflictConfirmOpen, setConflictConfirmOpen] = useState(false);
 
   const [defaultMealDefaults, setDefaultMealDefaults] = useState(DEFAULT_MEALS);
+  const periodStartNotice = getPeriodStartNotice(period, 'ম্যানেজারের সরাসরি ফাইনাল মিল এন্ট্রি');
 
   const activeMembers = useMemo(() => members.filter((member) => member.member_status === 'active'), [members]);
 
@@ -935,9 +1010,19 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
     setLoading(true);
     try {
       const periodData = await fetchRunningPeriod();
+      setPeriod(periodData);
+      const futureStartNotice = getPeriodStartNotice(periodData, 'ম্যানেজারের সরাসরি ফাইনাল মিল এন্ট্রি');
+      if (futureStartNotice) {
+        // This screen edits already-finalized days, not meal requests. Avoid
+        // querying today's pre-period date while the new period starts tomorrow.
+        setDate(String(periodData.start_date).slice(0, 10));
+        setDayStatus(null);
+        setEntries({});
+        setFinalizedMemberIds([]);
+        return;
+      }
       const mealData = await fetchMealEntryData(date, periodData?.period_id || periodData?.id || null);
       const { day, records } = mealData;
-      setPeriod(periodData);
       setDayStatus(day);
       const recordMap = new Map(records.map((record) => [record.member_id, record]));
       const finalizedRows = records.filter((record) => !record.cancelled && (
@@ -957,7 +1042,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
       setEntries(next);
       if (!activeMembers.some((member) => member.membership_id === selectedMember)) setSelectedMember(activeMembers[0]?.membership_id || '');
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'মিল এন্ট্রির তথ্য লোড করা যায়নি।'));
+      toast.error(getPeriodAwareError(error, 'মিল এন্ট্রির তথ্য লোড করা যায়নি।', period, 'ম্যানেজারের সরাসরি ফাইনাল মিল এন্ট্রি'));
     } finally {
       setLoading(false);
     }
@@ -1001,6 +1086,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
   };
 
   const save = async () => {
+    if (periodStartNotice) return toast.info(periodStartNotice);
     if (!isPrimaryManager) return toast.warning('ফাইনাল মিল সংশোধন শুধু প্রধান ম্যানেজার করতে পারবেন।');
     if (!dayStatus || dayStatus.status !== 'finalized') return toast.warning('শুধু চূড়ান্ত হওয়া দিনের মিল এখানে সংশোধন বা যোগ করা যাবে।');
     if (!period || date < period.start_date || date > todayValue()) return toast.warning('চলমান মাসের আজ পর্যন্ত চূড়ান্ত দিন নির্বাচন করুন।');
@@ -1020,10 +1106,11 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
         </div>
       </div>
 
+      {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice} এই পেজে শুধু ইতিমধ্যে ফাইনাল হওয়া দিনের মিল সংশোধন করা যায়; নতুন দিনের জন্য মিল অনুরোধ ব্যবহার করুন।</div>}
       <div className="manager-entry-toolbar">
         <label className="field-label">
           <span>তারিখ</span>
-          <input type="date" min={period?.start_date || undefined} max={period?.end_date && period.end_date < todayValue() ? period.end_date : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} />
+          <input type="date" min={period?.start_date || undefined} max={period?.end_date && period.end_date < todayValue() ? period.end_date : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} disabled={Boolean(periodStartNotice)} />
         </label>
         <div className="segmented-control" role="tablist" aria-label="মিল এন্ট্রি মোড">
           <button className={mode === 'all' ? 'active' : ''} type="button" onClick={() => setMode('all')}>সবার</button>
@@ -1079,7 +1166,7 @@ function ManagerMealEntry({ members, onSaved, isPrimaryManager = false }) {
         </div>
       )}
 
-      <button className="primary-button large dining-submit" type="button" disabled={busy || loading || !dayStatus || dayStatus.status !== 'finalized' || !isPrimaryManager || !activeMembers.length || !period || date < period.start_date || date > todayValue()} onClick={save}>
+      <button className="primary-button large dining-submit" type="button" disabled={busy || loading || Boolean(periodStartNotice) || !dayStatus || dayStatus.status !== 'finalized' || !isPrimaryManager || !activeMembers.length || !period || date < period.start_date || date > todayValue()} onClick={save}>
         {busy ? 'ফাইনাল হিসাব আপডেট হচ্ছে...' : 'মিল যোগ / সংশোধন সংরক্ষণ করুন'}
       </button>
       </section>
@@ -1651,14 +1738,20 @@ function ManagerDepositForm({ members, period, onSaved }) {
   const [date, setDate] = useState(todayValue());
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
+  const periodStartNotice = getPeriodStartNotice(period, 'ডিপোজিট');
 
   useEffect(() => {
     if (!memberId) setMemberId(members.find((member) => member.member_status === 'active')?.membership_id || '');
   }, [memberId, members]);
 
+  useEffect(() => {
+    if (periodStartNotice && period?.start_date) setDate(String(period.start_date).slice(0, 10));
+  }, [period?.start_date, periodStartNotice]);
+
   const submit = async (event) => {
     event.preventDefault();
     if (!period) return toast.warning('কোনো চলমান মাস নেই।');
+    if (periodStartNotice) return toast.info(periodStartNotice);
     if (!memberId) return toast.error('সদস্য নির্বাচন করুন।');
     if (!date || date < period.start_date || (period.end_date && date > period.end_date) || date > todayValue()) return toast.warning('ডিপোজিটের তারিখ চলমান মাস শুরু হওয়ার পরে এবং আজ বা তার আগের হতে হবে।');
     if (!(Number(amount) > 0)) return toast.error('ডিপোজিটের পরিমাণ শূন্যের বেশি হতে হবে।');
@@ -1671,7 +1764,7 @@ function ManagerDepositForm({ members, period, onSaved }) {
       setDescription('');
       onSaved?.();
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'ডিপোজিট সংরক্ষণ করা যায়নি।'));
+      toast.error(getPeriodAwareError(error, 'ডিপোজিট সংরক্ষণ করা যায়নি।', period, 'ডিপোজিট'));
     } finally {
       setBusy(false);
     }
@@ -1680,15 +1773,16 @@ function ManagerDepositForm({ members, period, onSaved }) {
   return (
     <section className="dining-panel card">
       <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>ডিপোজিট</h2><p>যেকোনো সদস্যের নামে ডিপোজিট যোগ করুন।</p></div></div>
+      {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
       <div className="form-grid-2">
         <label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e) => setMemberId(e.target.value)}>{members.filter((member) => member.member_status === 'active').map((member) => <option value={member.membership_id} key={member.membership_id}>{member.member_name}</option>)}</select></label>
-        <label className="field-label"><span>তারিখ</span><input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < todayValue() ? period.end_date : todayValue()) : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} disabled={!period} /></label>
+        <label className="field-label"><span>তারিখ</span><input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < todayValue() ? period.end_date : todayValue()) : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} disabled={!period || Boolean(periodStartNotice)} /></label>
       </div>
       <div className="form-grid-2">
         <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="০" /></label>
         <label className="field-label"><span>বিবরণ <em>(ঐচ্ছিক)</em></span><input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="নগদ জমা" /></label>
       </div>
-      <button className="primary-button dining-submit" type="button" disabled={busy} onClick={submit}>{busy ? 'ডিপোজিট যোগ হচ্ছে...' : 'ডিপোজিট সংরক্ষণ করুন'}</button>
+      <button className="primary-button dining-submit" type="button" disabled={busy || Boolean(periodStartNotice)} onClick={submit}>{busy ? 'ডিপোজিট যোগ হচ্ছে...' : 'ডিপোজিট সংরক্ষণ করুন'}</button>
     </section>
   );
 }
@@ -1700,14 +1794,20 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
   const [date, setDate] = useState(todayValue());
   const [description, setDescription] = useState('');
   const [busy, setBusy] = useState(false);
+  const periodStartNotice = getPeriodStartNotice(period, 'অন্যান্য খরচ');
 
   useEffect(() => {
     if (!memberId) setMemberId(members.find((member) => member.member_status === 'active')?.membership_id || '');
   }, [memberId, members]);
 
+  useEffect(() => {
+    if (periodStartNotice && period?.start_date) setDate(String(period.start_date).slice(0, 10));
+  }, [period?.start_date, periodStartNotice]);
+
   const submit = async (event) => {
     event.preventDefault();
     if (!period) return toast.warning('কোনো চলমান মাস নেই।');
+    if (periodStartNotice) return toast.info(periodStartNotice);
     if (!memberId) return toast.error('সদস্য নির্বাচন করুন।');
     if (!date || date < period.start_date || (period.end_date && date > period.end_date) || date > todayValue()) return toast.warning('খরচের তারিখ চলমান মাস শুরু হওয়ার পরে এবং আজ বা তার আগের হতে হবে।');
     if (!(Number(amount) > 0)) return toast.error('খরচের পরিমাণ শূন্যের বেশি হতে হবে।');
@@ -1721,7 +1821,7 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
       setDescription('');
       onSaved?.();
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'অন্যান্য খরচ সংরক্ষণ করা যায়নি।'));
+      toast.error(getPeriodAwareError(error, 'অন্যান্য খরচ সংরক্ষণ করা যায়নি।', period, 'অন্যান্য খরচ'));
     } finally {
       setBusy(false);
     }
@@ -1730,15 +1830,16 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
   return (
     <section className="dining-panel card">
       <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>অন্যান্য খরচ</h2><p>নির্বাচিত সদস্যের ডিপোজিট/হিসাব থেকে এই পরিমাণ বাদ যাবে।</p></div></div>
+      {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
       <div className="form-grid-2">
         <label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e) => setMemberId(e.target.value)}>{members.filter((member) => member.member_status === 'active').map((member) => <option value={member.membership_id} key={member.membership_id}>{member.member_name}</option>)}</select></label>
-        <label className="field-label"><span>তারিখ</span><input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < todayValue() ? period.end_date : todayValue()) : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} disabled={!period} /></label>
+        <label className="field-label"><span>তারিখ</span><input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < todayValue() ? period.end_date : todayValue()) : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} disabled={!period || Boolean(periodStartNotice)} /></label>
       </div>
       <div className="form-grid-2">
         <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0" step="0.01" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="০" /></label>
         <label className="field-label"><span>বিবরণ</span><input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="ব্যক্তিগত খরচ" /></label>
       </div>
-      <button className="primary-button dining-submit" type="button" disabled={busy} onClick={submit}>{busy ? 'খরচ সংরক্ষণ হচ্ছে...' : 'খরচ সংরক্ষণ করুন'}</button>
+      <button className="primary-button dining-submit" type="button" disabled={busy || Boolean(periodStartNotice)} onClick={submit}>{busy ? 'খরচ সংরক্ষণ হচ্ছে...' : 'খরচ সংরক্ষণ করুন'}</button>
     </section>
   );
 }

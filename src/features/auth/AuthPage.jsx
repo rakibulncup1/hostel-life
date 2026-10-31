@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { useToast } from '../../components/Toast';
@@ -360,6 +360,15 @@ function ResetPasswordForm() {
 }
 
 export function AuthPage({ pathname }) {
+  useLayoutEffect(() => {
+    // AppShell owns the signed-in theme. After logout it unmounts, so its last
+    // data-theme value can otherwise leak into the public auth screen until a
+    // full refresh. Apply the public palette before paint; the saved preference
+    // is preserved and AppShell reapplies it after the next successful login.
+    document.documentElement.dataset.theme = 'light';
+    document.documentElement.dataset.themePreference = 'light';
+  }, [pathname]);
+
   useEffect(() => {
     document.title = pathname.endsWith('register') ? 'Hostel Life — রেজিস্ট্রেশন' : pathname.endsWith('forgot-password') ? 'Hostel Life — পাসওয়ার্ড পুনরুদ্ধার' : pathname.endsWith('reset-password') ? 'Hostel Life — নতুন পাসওয়ার্ড' : 'Hostel Life — লগইন';
   }, [pathname]);

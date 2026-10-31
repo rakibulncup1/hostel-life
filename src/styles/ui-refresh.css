@@ -3207,3 +3207,205 @@ body {
   .dashboard-member-title h2 { font-size: 14px; }
   .dashboard-member-tools > .count-badge { padding: 6px 8px; font-size: 10px; }
 }
+
+
+/* November follow-up: professional first-run onboarding, mobile market fields,
+   future-period notices and the additional deposit ranking. */
+.onboarding-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(16px, 3.5vw, 44px) 14px calc(24px + env(safe-area-inset-bottom));
+  color-scheme: light;
+  color: #19382f;
+  background:
+    radial-gradient(circle at 8% 12%, #dff1e8 0, transparent 34%),
+    radial-gradient(circle at 92% 88%, #e4edf5 0, transparent 36%),
+    #f4f8f6;
+}
+.onboarding-shell { width: min(920px, 100%); margin: 0 auto; }
+.onboarding-shell-success { width: min(700px, 100%); }
+.onboarding-main-card {
+  width: 100%;
+  padding: clamp(18px, 3.5vw, 36px);
+  border: 1px solid #e0ebe5;
+  border-radius: 26px;
+  background: #fff;
+  box-shadow: 0 24px 68px rgba(22, 61, 49, .11);
+  color: #1a3a30;
+}
+.onboarding-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 6px 10px 25px;
+  border-bottom: 1px solid #eaf0ec;
+}
+.onboarding-brand-logo {
+  width: 78px;
+  height: 78px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d9ebe1;
+  border-radius: 23px;
+  background: linear-gradient(145deg, #eff8f3, #e4f2ea);
+  box-shadow: 0 9px 25px rgba(29, 102, 75, .10);
+}
+.onboarding-brand-logo svg { width: 58px; height: 58px; }
+.onboarding-brand-wordmark {
+  margin-top: 13px;
+  color: #31795f;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .22em;
+}
+.onboarding-brand-header h1 {
+  margin: 9px 0 0;
+  color: #173d31;
+  font-size: clamp(25px, 4vw, 36px);
+  line-height: 1.35;
+  font-weight: 900;
+  letter-spacing: -.035em;
+}
+.onboarding-brand-header p {
+  max-width: 570px;
+  margin: 8px 0 0;
+  color: #61756b;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.onboarding-account-switch-row {
+  margin: 19px 0 24px;
+  padding: 12px 14px;
+  border: 1px solid #e3ece7;
+  border-radius: 15px;
+  background: #f8fbf9;
+}
+.onboarding-account-switch-row > span { color: #62776d; font-size: 12px; line-height: 1.5; }
+.onboarding-switch-account {
+  min-height: 39px;
+  padding: 8px 13px;
+  border: 1px solid #d6e7dd;
+  border-radius: 11px;
+  background: #fff;
+  color: #226b50;
+  font-size: 12px;
+  font-weight: 850;
+}
+.onboarding-choice-intro { margin: 0 0 14px; }
+.onboarding-choice-intro .eyebrow { color: #398269; font-size: 11px; letter-spacing: .09em; }
+.onboarding-choice-intro h2 { margin: 5px 0 0; color: #1b4436; font-size: clamp(19px, 2.6vw, 23px); font-weight: 900; }
+.onboarding-choice-intro p { margin: 5px 0 0; color: #718178; font-size: 12px; line-height: 1.6; }
+.onboarding-main-card .setup-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.onboarding-main-card .setup-choice-card {
+  min-width: 0;
+  border: 1px solid #e1ebe5;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 5px 18px rgba(23, 65, 49, .045);
+  transition: border-color .18s, box-shadow .18s, transform .18s;
+}
+.onboarding-main-card .setup-choice-card.active {
+  border-color: #8fc7ac;
+  box-shadow: 0 0 0 3px rgba(51, 139, 99, .09), 0 10px 25px rgba(23, 80, 58, .07);
+}
+.onboarding-main-card .setup-choice-head { min-height: 92px; padding: 17px; gap: 12px; }
+.onboarding-main-card .setup-choice-head .feature-icon {
+  width: 49px;
+  height: 49px;
+  border-radius: 15px;
+  background: #edf7f1;
+  color: #247454;
+}
+.onboarding-main-card .setup-choice-copy strong { color: #244b3d; font-size: 15px; line-height: 1.45; }
+.onboarding-main-card .setup-choice-copy small { color: #74847c; font-size: 11px; line-height: 1.6; }
+.onboarding-main-card .setup-choice-body { padding: 17px; border-top: 1px solid #edf2ee; }
+.onboarding-main-card .field-label { color: #28483b; font-size: 13px; font-weight: 800; gap: 7px; }
+.onboarding-main-card .field-label input {
+  min-height: 49px;
+  padding: 11px 13px;
+  border: 1px solid #d6e4dc;
+  border-radius: 12px;
+  background: #fbfdfc;
+  color: #1b4033;
+  font-size: 16px;
+}
+.onboarding-main-card .field-label input:focus-visible { outline: 3px solid rgba(40, 130, 91, .14); border-color: #39866a; }
+.onboarding-main-card .primary-button.large { min-height: 49px; border-radius: 12px; background: #17644f; font-weight: 850; }
+.onboarding-main-card .onboarding-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 19px;
+  padding: 12px 14px;
+  border: 1px solid #e1ebe5;
+  border-radius: 13px;
+  background: #f7faf8;
+  color: #63776d;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.onboarding-main-card .onboarding-note svg { flex: 0 0 auto; color: #378365; }
+.onboarding-main-card .creation-success-card { width: 100%; max-width: 500px; margin: 22px auto 0; padding: 0; text-align: center; }
+.onboarding-main-card .creation-success-card .success-panel-icon { width: 52px; height: 52px; margin: 0 auto; border-radius: 17px; background: #e9f7ef; color: #19744e; }
+.onboarding-main-card .creation-success-card .eyebrow { display: block; margin-top: 15px; color: #3c8268; }
+.onboarding-main-card .creation-success-card h2 { margin: 7px 0 0; color: #183f32; font-size: clamp(23px, 4vw, 30px); line-height: 1.4; }
+.onboarding-main-card .creation-success-card p { max-width: 440px; margin: 8px auto 0; color: #667970; font-size: 13px; line-height: 1.7; }
+.onboarding-main-card .join-code-box { margin: 21px auto; padding: 18px; border: 1px dashed #9fcab3; border-radius: 17px; background: #f3faf5; justify-items: center; }
+.onboarding-main-card .join-code-box > span { color: #4f7665; font-size: 11px; letter-spacing: .12em; }
+.onboarding-main-card .join-code-box strong { color: #17644f; font-size: clamp(27px, 7vw, 38px); letter-spacing: .14em; }
+.onboarding-main-card .join-code-box .secondary-button { justify-self: center; }
+.onboarding-main-card .creation-success-card > .primary-button { width: min(360px, 100%); }
+.onboarding-main-card .creation-success-card > .onboarding-switch-account { width: min(360px, 100%); margin: 10px auto 0; }
+.period-start-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid #dcebe3;
+  border-radius: 12px;
+  background: #f2f8f4;
+  color: #315f4b;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.period-start-notice svg { flex: 0 0 auto; margin-top: 2px; }
+.market-item-row input {
+  min-width: 0;
+  min-height: 44px;
+  font-size: 16px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.market-item-row input:focus,
+.market-item-row input:focus-visible {
+  position: relative;
+  z-index: 1;
+  border-color: #287b5c;
+  outline: 3px solid rgba(40, 123, 92, .14);
+  outline-offset: 0;
+}
+.ranking-hero-icon.depositor { background: #eaf4fb; color: #276e9a; }
+.ranking-card .rank-value span { white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .onboarding-page { padding: 12px 10px calc(18px + env(safe-area-inset-bottom)); align-items: start; }
+  .onboarding-main-card { padding: 17px 14px 18px; border-radius: 22px; }
+  .onboarding-brand-header { padding: 3px 5px 20px; }
+  .onboarding-brand-logo { width: 69px; height: 69px; border-radius: 20px; }
+  .onboarding-brand-logo svg { width: 52px; height: 52px; }
+  .onboarding-brand-header h1 { font-size: clamp(22px, 6vw, 28px); }
+  .onboarding-brand-header p { font-size: 12px; }
+  .onboarding-account-switch-row { align-items: stretch; flex-direction: column; gap: 9px; margin: 14px 0 19px; padding: 11px; }
+  .onboarding-account-switch-row .onboarding-switch-account { width: 100%; }
+  .onboarding-main-card .setup-choice-grid { grid-template-columns: minmax(0, 1fr); gap: 11px; }
+  .onboarding-main-card .setup-choice-head { min-height: 77px; padding: 13px; }
+  .onboarding-main-card .setup-choice-body { padding: 14px; }
+  .onboarding-main-card .creation-success-card { margin-top: 18px; }
+}
+@media (max-width: 360px) {
+  .onboarding-main-card { padding-inline: 11px; }
+  .onboarding-main-card .setup-choice-head .feature-icon { width: 42px; height: 42px; }
+  .onboarding-main-card .setup-choice-copy strong { font-size: 14px; }
+}
