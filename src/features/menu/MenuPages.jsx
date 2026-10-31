@@ -319,14 +319,25 @@ function RankingPage({ kind }) {
           <div className="empty-state-card compact-empty"><Icon name={shopper ? 'shopping-bag' : 'trophy'} size={25} /><strong>এখনো কোনো র‌্যাঙ্কিং নেই</strong><span>এই মাসের তথ্য যোগ হলে তালিকা এখানে দেখা যাবে।</span></div>
         ) : (
           <div className="ranking-list">
-            {rows.map((row) => (
-              <article className={`ranking-row ${row.is_first ? 'first-rank' : ''}`} key={row.membership_id}>
-                <div className={`rank-number ${row.rank_no <= 3 ? `rank-${row.rank_no}` : ''}`}>{row.rank_no}</div>
-                <div className="rank-avatar-wrap"><Avatar member={{ member_name: row.member_name }} />{row.is_first && <span className="rank-crown"><Icon name="crown" size={13} /></span>}</div>
-                <div className="rank-copy"><strong>{row.rank_no <= 3 ? '🏆 ' : ''}{row.member_name}</strong><small>{row.is_first ? '🏆 সবার আগে' : `ক্রমিক ${formatNumber(row.rank_no)}`}</small></div>
-                <div className="rank-value"><strong>{shopper ? formatCurrency(row.total_market_amount) : formatNumber(row.total_meals, { maximumFractionDigits: 1 })}</strong><span>{shopper ? 'বাজার' : 'মিল'}</span></div>
-              </article>
-            ))}
+            {rows.map((row, index) => {
+              // The existing RPC contract returns rank/meals/total_market.
+              // Keep compatibility with newer aliases without changing server order.
+              const rankNo = Number(row.rank_no ?? row.rank ?? index + 1);
+              const safeRank = Number.isFinite(rankNo) && rankNo > 0 ? rankNo : index + 1;
+              const memberName = row.member_name || row.full_name || 'নাম নেই';
+              const amount = shopper
+                ? (row.total_market_amount ?? row.total_market ?? row.amount ?? 0)
+                : (row.total_meals ?? row.meals ?? 0);
+              const firstRank = Boolean(row.is_first) || safeRank === 1;
+              return (
+                <article className={`ranking-row ${firstRank ? 'first-rank' : ''}`} key={row.membership_id || row.member_id || `${memberName}-${safeRank}`}>
+                  <div className={`rank-number ${safeRank <= 3 ? `rank-${safeRank}` : ''}`} aria-label={`ক্রমিক ${safeRank}`}>{formatNumber(safeRank, { maximumFractionDigits: 0 })}</div>
+                  <div className="rank-avatar-wrap"><Avatar member={{ member_name: memberName }} />{firstRank && <span className="rank-crown"><Icon name="crown" size={13} /></span>}</div>
+                  <div className="rank-copy"><strong>{safeRank <= 3 ? '🏆 ' : ''}{memberName}</strong><small>{firstRank ? '🏆 সবার আগে' : `ক্রমিক ${formatNumber(safeRank, { maximumFractionDigits: 0 })}`}</small></div>
+                  <div className="rank-value"><strong>{shopper ? formatCurrency(amount) : formatNumber(amount, { maximumFractionDigits: 1 })}</strong><span>{shopper ? 'বাজার' : 'মিল'}</span></div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>

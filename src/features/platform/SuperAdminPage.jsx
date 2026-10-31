@@ -68,6 +68,7 @@ export function SuperAdminPage({ user }) {
   const [hostels, setHostels] = useState([]);
   const [selected, setSelected] = useState(null);
   const [members, setMembers] = useState([]);
+  const [memberListLoadedHostelId, setMemberListLoadedHostelId] = useState('');
   const [settings, setSettings] = useState(EMPTY_SETTINGS);
   const [reason, setReason] = useState('');
   const [ttl, setTtl] = useState('1440');
@@ -252,10 +253,12 @@ export function SuperAdminPage({ user }) {
     finally { setReauthBusy(false); }
   };
   const openHostel = async (hostel) => {
-    setSelected(hostel); setMembers([]); setMemberRoles({}); setReason(''); setBusy(true); setError('');
+    setSelected(hostel); setMembers([]); setMemberListLoadedHostelId(''); setMemberRoles({}); setReason(''); setBusy(true); setError('');
     try {
       const list = await platformAdminListHostelMembers(hostel.hostel_id);
+      if (!Array.isArray(list)) throw new Error('সদস্য তালিকার সঠিক ফলাফল পাওয়া যায়নি।');
       setMembers(list);
+      setMemberListLoadedHostelId(hostel.hostel_id);
       try { setMemberRoles(await platformAdminListHostelRoleBadges(hostel.hostel_id)); }
       catch { setMemberRoles({}); setNotice('সদস্য তালিকা এসেছে, তবে ম্যানেজার পরিচয় পেতে নতুন SQL migration চালাতে হবে।'); }
     }
@@ -379,14 +382,57 @@ export function SuperAdminPage({ user }) {
 
   const permanentlyDeleteHostel = async () => {
     if (!selected || !deleteDialog || deleteDialog.kind !== 'hostel') return;
-    const deleteMemberAccounts = false;
     const confirmation = deleteConfirmation.trim();
     if (confirmation !== `DELETE HOSTEL ${selected.hostel_id}`) { setError('নিচের নিশ্চিতকরণ বাক্যটি হুবহু লিখুন।'); return; }
+
+    // Auth cleanup is optional and happens only after the hostel RPC succeeds.
+    // The deployed Run14+ RPC deliberately leaves Auth users to the guarded Edge Function.
+    const shouldDeleteMemberAccounts = Boolean(deleteAccounts);
+    if (shouldDeleteMemberAccounts && memberListLoadedHostelId !== selected.hostel_id) {
+      setError('সদস্য তালিকা সম্পূর্ণভাবে যাচাই করা যায়নি। Auth account মুছতে চাইলে মেসটি আবার নির্বাচন করে সদস্য তালিকা লোড করুন।');
+      return;
+    }
+    const formerMemberUserIds = shouldDeleteMemberAccounts
+      ? [...new Set(members.map((member) => String(member?.user_id || '').trim()).filter((id) => id && id !== user?.id))]
+      : [];
+
     setBusy(true); setError(''); setNotice('');
     try {
-      const result = await platformAdminPermanentlyDeleteHostel(selected.hostel_id, deleteMemberAccounts, confirmation);
-      setNotice(`মেস স্থায়ীভাবে মুছে ফেলা হয়েছে। ${Number(result?.member_accounts_deleted || 0)}টি Auth account মুছে ফেলা হয়েছে। অন্যান্য Auth account থাকলে আলাদা যাচাই প্রয়োজন।`);
-      setDeleteDialog(null); setDeleteConfirmation(''); setSelected(null); setMembers([]); setReason(''); await refresh();
+      // Always preserve Auth in the DB RPC. Each candidate is re-checked by the Edge Function.
+      await platformAdminPermanentlyDeleteHostel(selected.hostel_id, false, confirmation);
+
+      let authDeleted = 0;
+      let authKeptOrUnverified = shouldDeleteMemberAccounts && members.some((member) => String(member?.user_id || '') === String(user?.id)) ? 1 : 0;
+      let auditWarnings = 0;
+      if (shouldDeleteMemberAccounts) {
+        for (const userId of formerMemberUserIds) {
+          try {
+            const expected = `DELETE AUTH ${userId}`;
+            const { data, error: cleanupError } = await supabase.functions.invoke('admin-delete-unlinked-user', {
+              body: { user_id: userId, confirmation: expected },
+            });
+            if (cleanupError || data?.error || !data?.deleted) {
+              // Shared-hostel, protected, or unverifiable accounts are deliberately retained.
+              authKeptOrUnverified += 1;
+              continue;
+            }
+            authDeleted += 1;
+            if (data?.audit_warning) auditWarnings += 1;
+          } catch {
+            authKeptOrUnverified += 1;
+          }
+        }
+      }
+
+      setDeleteDialog(null); setDeleteConfirmation(''); setDeleteAccounts(false);
+      setSelected(null); setMembers([]); setMemberListLoadedHostelId(''); setReason('');
+      await refresh();
+
+      if (!shouldDeleteMemberAccounts) {
+        setNotice('মেস স্থায়ীভাবে মুছে ফেলা হয়েছে। Auth login account-গুলো অপরিবর্তিত রাখা হয়েছে।');
+      } else {
+        setNotice(`মেস স্থায়ীভাবে মুছে ফেলা হয়েছে। ${authDeleted}টি Auth account মুছে ফেলা হয়েছে; ${authKeptOrUnverified}টি অন্য মেসে যুক্ত, সুরক্ষিত অথবা সার্ভার থেকে নিশ্চিত করা যায়নি বলে রাখা হয়েছে.${auditWarnings ? ` ${auditWarnings}টি account-এর Audit Log যাচাই প্রয়োজন।` : ''}`);
+      }
     } catch (cause) { setError(errorText(cause, 'মেস স্থায়ীভাবে মুছে ফেলা যায়নি।')); }
     finally { setBusy(false); }
   };
@@ -494,7 +540,7 @@ export function SuperAdminPage({ user }) {
       </div>
       <div className="card platform-panel">
         {selected?<>
-          <div className="platform-panel-heading"><div><span className="eyebrow">মেস কন্ট্রোল</span><h3>{selected.name}</h3><p>মেস ID: <code>{selected.hostel_id}</code></p></div><button className="text-button" type="button" onClick={()=>{setSelected(null);setMembers([]);}}>বন্ধ করুন</button></div>
+          <div className="platform-panel-heading"><div><span className="eyebrow">মেস কন্ট্রোল</span><h3>{selected.name}</h3><p>মেস ID: <code>{selected.hostel_id}</code></p></div><button className="text-button" type="button" onClick={()=>{setSelected(null);setMembers([]);setMemberListLoadedHostelId('');}}>বন্ধ করুন</button></div>
           <div className="platform-flag-actions"><button type="button" className={selected.is_favorite?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'favorite')}>⭐ {selected.is_favorite?'পছন্দে আছে':'পছন্দে রাখুন'}</button><button type="button" className={selected.is_trusted?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'trusted')}>✓ {selected.is_trusted?'বিশ্বস্ত চিহ্নিত':'বিশ্বস্ত হিসেবে চিহ্নিত'}</button></div>
           <Field label="অ্যাকশন নোট / কারণ (ঐচ্ছিক)" value={reason} onChange={setReason} maxLength={300}/>
           <div className="platform-action-row"><button className="secondary-button" disabled={busy||selectedStatus==='active'} type="button" onClick={()=>changeHostelStatus('active')}>চালু করুন</button><button className="secondary-button" disabled={busy||selectedStatus==='suspended'} type="button" onClick={()=>changeHostelStatus('suspended')}>স্থগিত করুন</button></div>
@@ -566,7 +612,13 @@ export function SuperAdminPage({ user }) {
       return <div className="modal-backdrop" role="presentation"><section className="card platform-delete-dialog" role="dialog" aria-modal="true" aria-label="স্থায়ী ডিলিট নিশ্চিতকরণ">
         <div className="modal-head"><div><span className="eyebrow">Super Admin · অপরিবর্তনীয় কাজ</span><h2>স্থায়ীভাবে মুছে ফেলার নিশ্চিতকরণ</h2></div><button className="icon-button" type="button" disabled={busy} aria-label="বন্ধ করুন" onClick={() => setDeleteDialog(null)}><Icon name="x" size={19}/></button></div>
         <p className="platform-delete-warning">{member ? `“${member.full_name || 'সদস্য'}”-এর মেস-সম্পর্কিত সব ডেটা স্থায়ীভাবে মুছে যাবে।` : `“${selected.name}” মেস এবং তার সব সদস্য, মিল ও আর্থিক ডেটা স্থায়ীভাবে মুছে যাবে।`} এই পরিবর্তন ফেরানো যাবে না। আগে ব্যাকআপ নিশ্চিত করুন।</p>
-        <label className="platform-toggle"><span>{member ? 'সদস্যের Auth লগইন অ্যাকাউন্টও মুছুন' : 'মেস ডিলিটের পরে Auth account আলাদা তালিকা থেকে পরিষ্কার করুন'}</span><input type="checkbox" checked={member ? deleteAccounts : false} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy || !member}/></label>
+        <label className="platform-toggle platform-delete-auth-toggle">
+          <span>
+            <strong>{member ? 'সদস্যের Auth লগইন অ্যাকাউন্টও মুছুন' : 'এই মেসের সদস্যদের Auth account-ও মুছুন'}</strong>
+            <small>{member ? 'অন্য মেসে যুক্ত থাকলে বা সুরক্ষিত অ্যাকাউন্ট হলে সেটি অক্ষত থাকবে।' : (memberListLoadedHostelId === selected.hostel_id ? `${members.length}টি সদস্য-রেকর্ডের account server-side যাচাই করা হবে। অন্য মেসে যুক্ত বা Super Admin account মুছবে না।` : 'সদস্য তালিকা যাচাই না হওয়া পর্যন্ত এই বিকল্প ব্যবহার করা যাবে না।')}</small>
+          </span>
+          <input type="checkbox" checked={Boolean(deleteAccounts)} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy || (!member && memberListLoadedHostelId !== selected.hostel_id)}/>
+        </label>
         <label className="field-label"><span>নিচের বাক্যটি হুবহু লিখুন</span><code className="platform-delete-phrase">{required}</code><input type="text" autoComplete="off" spellCheck={false} value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} placeholder="DELETE ..." disabled={busy}/></label>
         {error && <div className="inline-error">{error}</div>}
         <div className="confirm-actions"><button className="secondary-button" type="button" disabled={busy} onClick={() => setDeleteDialog(null)}>বাতিল</button><button className="danger-button" type="button" disabled={busy || deleteConfirmation.trim() !== required} onClick={() => member ? permanentlyDeleteMember(member) : permanentlyDeleteHostel()}>{busy ? 'মুছে ফেলা হচ্ছে...' : 'বুঝেছি, স্থায়ীভাবে মুছুন'}</button></div>

@@ -2544,3 +2544,138 @@ body {
   background: color-mix(in srgb, #d28b5e 20%, var(--surface));
   color: color-mix(in srgb, #8b4c25 88%, var(--text));
 }
+
+
+/* Focused follow-up UI fixes: ranking contract, history retention, dining mobile heading. */
+.ranking-card .ranking-row {
+  grid-template-columns: 36px 42px minmax(0, 1fr) minmax(76px, auto);
+}
+.ranking-card .rank-number {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ranking-card .rank-number.rank-1 {
+  border-color: color-mix(in srgb, #d79b24 48%, var(--line));
+  background: color-mix(in srgb, #e8ae35 24%, var(--surface));
+  color: color-mix(in srgb, #8a5900 90%, var(--text));
+}
+.ranking-card .rank-number.rank-2 {
+  border-color: color-mix(in srgb, #8998a8 48%, var(--line));
+  background: color-mix(in srgb, #aebbc8 28%, var(--surface));
+  color: color-mix(in srgb, #455363 90%, var(--text));
+}
+.ranking-card .rank-number.rank-3 {
+  border-color: color-mix(in srgb, #b86b3c 48%, var(--line));
+  background: color-mix(in srgb, #d28b5e 24%, var(--surface));
+  color: color-mix(in srgb, #7d421f 90%, var(--text));
+}
+.ranking-card .rank-value strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The desktop History bar stays visually aligned with its compact action buttons. */
+@media (min-width: 851px) {
+  .history-title-footer { align-items: center; gap: 8px; }
+  .history-intro-info {
+    min-height: 40px;
+    padding: 7px 12px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .history-title-actions .secondary-button { min-height: 40px; padding-block: 7px; }
+}
+
+/* A clearer, compact explanation of the archive retention timeline. */
+.history-retention-policy {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
+  border-radius: 16px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--primary-soft) 72%, var(--surface)), var(--surface));
+  box-shadow: var(--soft-shadow);
+}
+.history-retention-policy-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
+  border-radius: 13px;
+  background: var(--surface);
+  color: var(--primary-strong);
+}
+.history-retention-policy-copy { min-width: 0; display: grid; gap: 7px; }
+.history-retention-policy-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.history-retention-policy-heading > strong { color: var(--text); font-size: 14px; }
+.history-retention-policy-heading > span {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+.history-retention-policy-copy > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.history-retention-policy-metrics { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 2px; }
+.history-retention-policy-metrics > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+.history-retention-policy-metrics strong { color: var(--primary-strong); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Main Dining heading: improved mobile hierarchy without touching request sub-pages. */
+@media (max-width: 640px) {
+  .dining-stack > .dining-section-title {
+    padding: 15px 16px 14px;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    background: linear-gradient(115deg, color-mix(in srgb, var(--primary-soft) 48%, var(--surface)), var(--surface) 72%);
+    box-shadow: var(--soft-shadow);
+  }
+  .dining-stack > .dining-section-title > div { display: grid; gap: 4px; min-width: 0; }
+  .dining-stack > .dining-section-title .eyebrow {
+    color: var(--primary-strong);
+    font-size: 10px;
+    font-weight: 850;
+    letter-spacing: .07em;
+  }
+  .dining-stack > .dining-section-title h1 {
+    margin: 0;
+    font-size: clamp(25px, 7vw, 30px);
+    line-height: 1.22;
+    letter-spacing: -.035em;
+  }
+  .dining-stack > .dining-section-title p { margin: 2px 0 0; max-width: 42ch; font-size: 12px; line-height: 1.6; }
+}
+
+/* Ensure the destructive-account checkbox remains an actual touch target. */
+.platform-delete-auth-toggle { cursor: pointer; }
+.platform-delete-auth-toggle input[type="checkbox"] { cursor: pointer; pointer-events: auto; touch-action: manipulation; }
+.platform-delete-auth-toggle input[type="checkbox"]:disabled { cursor: not-allowed; }
+@media (max-width: 520px) {
+  .history-retention-policy { grid-template-columns: 36px minmax(0, 1fr); gap: 9px; padding: 13px; }
+  .history-retention-policy-icon { width: 36px; height: 36px; border-radius: 11px; }
+  .history-retention-policy-copy > p { font-size: 11px; }
+  .history-retention-policy-metrics { display: grid; grid-template-columns: minmax(0,1fr); }
+  .history-retention-policy-metrics > span { width: 100%; }
+}

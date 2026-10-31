@@ -321,7 +321,17 @@ export function HistoryPage() {
         {TABS.map((item) => <button key={item.key} className={tab === item.key ? 'active' : ''} type="button" onClick={() => setTab(item.key)}><Icon name={item.icon} size={16} /> {item.label}</button>)}
       </div>
 
-      {tab === 'months' && retentionNotice && <div className="card retention-member-notice" role="note"><strong>ইতিহাস সংরক্ষণ নীতি</strong><p>সর্বশেষ {retentionNotice.detail_months} মাস বিস্তারিত, এরপর আরও {retentionNotice.summary_months} মাসের চূড়ান্ত সারসংক্ষেপ সংরক্ষণের নীতি রয়েছে। কোনো আর্কাইভ স্বয়ংক্রিয়ভাবে মুছে ফেলা হয় না।</p></div>}
+      {tab === 'months' && retentionNotice && <div className="card retention-member-notice history-retention-policy" role="note">
+        <span className="history-retention-policy-icon" aria-hidden="true"><Icon name="shield-check" size={21}/></span>
+        <div className="history-retention-policy-copy">
+          <div className="history-retention-policy-heading"><strong>ইতিহাস সংরক্ষণ নীতি</strong><span>ডেটা সংরক্ষণের নিয়ম</span></div>
+          <p>প্রথমে সর্বশেষ {retentionNotice.detail_months} মাসের বিস্তারিত হিসাব রাখা হয়। এরপর অতিরিক্ত {retentionNotice.summary_months} মাসের চূড়ান্ত সারসংক্ষেপ সংরক্ষিত থাকে। কোনো আর্কাইভ স্বয়ংক্রিয়ভাবে মুছে ফেলা হয় না।</p>
+          <div className="history-retention-policy-metrics">
+            <span><strong>{formatNumber(retentionNotice.detail_months, { maximumFractionDigits: 0 })}</strong> মাস · বিস্তারিত হিসাব</span>
+            <span><strong>{formatNumber(retentionNotice.summary_months, { maximumFractionDigits: 0 })}</strong> মাস · অতিরিক্ত সারসংক্ষেপ</span>
+          </div>
+        </div>
+      </div>}
       {tab === 'months' && finalSummaries.length > 0 && <section className="card retention-member-notice"><h2>সংরক্ষিত চূড়ান্ত সারসংক্ষেপ</h2><div className="history-final-summary-list">{finalSummaries.map(row => <details key={row.period_id}><summary>{row.period_label || row.summary?.label || 'পূর্ববর্তী মাস'} · {row.end_date || ''}</summary><div className="history-final-summary-body"><p>বাজারের মোট: {formatCurrency(row.summary?.market_total ?? 0)}</p><p>খালার মোট: {formatCurrency(row.summary?.khala_total ?? 0)}</p><p>মোট মিল (সকালের / দুপুরের / রাতের): {formatNumber(row.summary?.meal_total?.breakfast || 0)} / {formatNumber(row.summary?.meal_total?.lunch || 0)} / {formatNumber(row.summary?.meal_total?.dinner || 0)}</p><button type="button" className="secondary-button compact" onClick={() => printFinalSummary(row)}>A4 PDF / প্রিন্ট</button></div></details>)}</div></section>}
       {tab === 'account' && (
         <div className="card history-filter-card account-history-filter-card">
