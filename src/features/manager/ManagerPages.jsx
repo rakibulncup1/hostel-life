@@ -37,6 +37,7 @@ import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { deriveNextRequiredStartDate, dhakaDateInputValue } from '../../utils/monthStart';
+import { canActivateNextPeriod, getDhakaDateTimeParts, getMemberDeactivationImpact, getNextPeriodActivationMessage } from '../../utils/monthLifecyclePolicy';
 
 
 function AccessNotice({ title, text }) {
@@ -173,6 +174,12 @@ export function NewMonthPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clockNow, setClockNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(new Date()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,14 +232,19 @@ export function NewMonthPage() {
   const requiredStart = context?.next_required_start_date || derivedRequiredStart || '';
   const periodStatusKnown = typeof context?.has_running_period === 'boolean';
   const hasRunning = context?.has_running_period === true;
-  // Do not activate a future period before its first day (Dhaka date).
-  // Database authorization must enforce the same boundary in Module B.
-  const todayForStart = context?.today || dhakaDateInputValue();
-  const isFutureStart = Boolean(requiredStart && requiredStart > todayForStart);
-  const canStart = Boolean(periodStatusKnown && isPrimaryManager && !hasRunning && requiredStart && startDate === requiredStart && !periodDateError && !isFutureStart);
+  // Rule A: if the next period starts tomorrow, it may be opened from 8 PM
+  // on the closing date. If activation is delayed until the start date, it can
+  // still be opened; the ordinary 10 PM request deadline remains unchanged.
+  const dhakaClock = getDhakaDateTimeParts(clockNow);
+  const canActivateByTime = requiredStart ? canActivateNextPeriod(requiredStart, clockNow) : false;
+  const canStart = Boolean(periodStatusKnown && isPrimaryManager && !hasRunning && requiredStart && startDate === requiredStart && !periodDateError && canActivateByTime);
+  const activationMessage = requiredStart ? getNextPeriodActivationMessage(requiredStart, clockNow) : '';
 
   const submit = async () => {
-    if (startDate > dhakaDateInputValue()) { toast.warning('নির্ধারিত শুরুর দিন না আসা পর্যন্ত নতুন মাস চালু করা যাবে না।'); return; }
+    if (!canActivateNextPeriod(startDate, new Date())) {
+      toast.warning(getNextPeriodActivationMessage(startDate, new Date()));
+      return;
+    }
     setBusy(true);
     try {
       const result = await startNewMonth(startDate);
@@ -248,7 +260,7 @@ export function NewMonthPage() {
   return (
     <PrimaryManagerGuard>
       <div className="page-stack">
-        <PageHeader title="নতুন মাস শুরু" icon="calendar" description="বন্ধ হওয়া মাসের পরের দিন থেকে নতুন চলমান মাস শুরু হবে। কোনো পূর্ববর্তী মাস না থাকলে চলতি ক্যালেন্ডার মাসের প্রথম দিন থেকে শুরু হবে।" />
+        <PageHeader title="নতুন মাস শুরু" icon="calendar" description="বন্ধ হওয়া মাসের পরের দিন হবে নতুন মাসের প্রথম মিলের দিন। বন্ধের দিন রাত ৮টার পর নতুন মাস চালু করা যাবে; সাধারণ মিল অনুরোধ রাত ১০টা পর্যন্ত দেওয়া যাবে।" />
         <section className="card manager-form-card">
           {periodDateError && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>নতুন মাসের তারিখ যাচাই করা যায়নি।</strong><p>{periodDateError}</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {!periodStatusKnown ? (
@@ -259,13 +271,13 @@ export function NewMonthPage() {
             <>
               <div className="manager-current-period"><span>নতুন মাসের নির্ধারিত শুরুর তারিখ</span><strong>{formatDateBangla(requiredStart)}</strong><small>{derivedRequiredStart && !context?.next_required_start_date ? 'পূর্ববর্তী মাসের ইতিহাস অথবা প্রথম মাসের নিয়ম থেকে তারিখ নির্ধারণ করা হয়েছে।' : 'শুরুর তারিখ সিস্টেম নিজে নির্ধারণ করেছে। এটি পরিবর্তন করা যাবে না।'}</small></div>
               <label className="field-label"><span>শুরুর তারিখ</span><input type="date" value={startDate} min={requiredStart} max={requiredStart} readOnly /></label>
-              <div className="form-hint"><Icon name="info" size={15} /> প্রথম মাস হলে চলতি বাংলাদেশি ক্যালেন্ডার মাসের ১ তারিখ থেকে শুরু হবে। পূর্ববর্তী মাস থাকলে তার শেষ দিনের পরের দিন থেকে শুরু হবে।</div>
-              {isFutureStart && <div className="inline-info" role="status">নির্ধারিত তারিখ {formatDateBangla(requiredStart)} আসার আগে নতুন মাস চালু করা যাবে না। এতে পুরোনো মাসের মিল রেকর্ডের সঙ্গে সংঘর্ষ এড়ানো যায়।</div>}
+              <div className="form-hint"><Icon name="info" size={15} /> প্রথম মাস হলে চলতি বাংলাদেশি ক্যালেন্ডার মাসের ১ তারিখ থেকে শুরু হবে। পূর্ববর্তী মাস থাকলে তার শেষ দিনের পরের দিন হবে নতুন মাসের প্রথম মিলের দিন।</div>
+              <div className={`inline-info ${canActivateByTime ? '' : 'is-warning'}`} role="status"><Icon name={canActivateByTime ? 'calendar-check' : 'clock'} size={15} /> {activationMessage} <span>বাংলাদেশ সময় এখন {String(dhakaClock.hour).padStart(2, '0')}:{String(dhakaClock.minute).padStart(2, '0')}।</span></div>
               <button className="primary-button large" type="button" disabled={!canStart || busy} onClick={() => setConfirmOpen(true)}><Icon name="calendar" size={17} /> নতুন মাস শুরু করুন</button>
             </>
           ) : null}
         </section>
-        {confirmOpen && <ConfirmModal title="নতুন মাস শুরু করবেন?" description={`${formatDateBangla(startDate)} থেকে নতুন মাস শুরু হবে। এর আলাদা period ID তৈরি হবে এবং আগের মাসের history অক্ষত থাকবে।`} confirmLabel="হ্যাঁ, শুরু করুন" busy={busy} onClose={() => setConfirmOpen(false)} onConfirm={submit} />}
+        {confirmOpen && <ConfirmModal title="নতুন মাস শুরু করবেন?" description={`${formatDateBangla(startDate)} হবে নতুন মাসের প্রথম মিলের দিন। ${activationMessage} আগের মাসের ফাইনাল হিসাব ও ইতিহাস অক্ষত থাকবে।`} confirmLabel="হ্যাঁ, নতুন মাস চালু করুন" busy={busy} onClose={() => setConfirmOpen(false)} onConfirm={submit} />}
       </div>
     </PrimaryManagerGuard>
   );
@@ -281,6 +293,12 @@ export function CloseCurrentMonthPage() {
   const [futureWarning, setFutureWarning] = useState(false);
   const [preflight, setPreflight] = useState(null);
   const [overlaps, setOverlaps] = useState([]);
+  const [clockNow, setClockNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(new Date()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -313,21 +331,34 @@ export function CloseCurrentMonthPage() {
     return <div className="state-card state-card-warning"><Icon name="warning" size={27} /><div><h2>চলমান মাসের অবস্থা যাচাই করা যায়নি</h2><p>ভুল করে মাস নেই ধরে নেওয়া হচ্ছে না। ইন্টারনেট ও ডাটাবেজ সংযোগ যাচাই করে আবার চেষ্টা করুন।</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>;
   }
 
-  const today = dhakaDateInputValue() || context.today || toDateInputValue();
-  const hasFutureRequests = Number(preflight?.future_active_request_count ?? preflight?.future_request_count ?? 0) > 0;
+  const today = getDhakaDateTimeParts(clockNow).today || context.today || toDateInputValue();
+  const futureRequestCount = Number(preflight?.future_active_request_count ?? preflight?.future_request_count ?? 0);
+  const futureDayCount = Number(preflight?.future_day_count ?? 0);
+  const pendingSpecialCount = Number(preflight?.pending_special_request_count ?? 0);
+  const futureFinancialCount = Number(preflight?.future_financial_entry_count ?? 0);
+  const requiresImpactConfirmation = futureRequestCount > 0 || futureDayCount > 0 || pendingSpecialCount > 0;
+  const preflightKnown = typeof preflight?.can_close === 'boolean';
+  const cannotCloseYet = !preflightKnown || preflight.can_close === false || futureFinancialCount > 0;
+  const showGenericCloseBlock = !preflightKnown || preflight.can_close === false || futureFinancialCount > 0;
   const closeMonth = async (confirmCancel = false) => {
     const closingDate = dhakaDateInputValue() || today;
     setBusy(true);
     try {
-      await closeCurrentMonth(confirmCancel);
-      toast.success(`${context.period.label} সফলভাবে বন্ধ হয়েছে। ${formatDateBangla(closingDate)} তারিখটি শেষ দিন হিসেবে সংরক্ষিত হয়েছে।`);
+      const result = await closeCurrentMonth(confirmCancel);
+      const finalizedDays = Number(result?.finalized_days ?? 0);
+      const actualClosingDate = result?.closing_date || closingDate;
+      const cancelledRequests = Number(result?.cancelled_requests ?? 0);
+      const cancelledRecords = Number(result?.cancelled_meal_records ?? 0);
+      toast.success(`${context.period.label} বন্ধ হয়েছে। ${formatDateBangla(actualClosingDate)} পর্যন্ত হিসাব সঙ্গে সঙ্গেই চূড়ান্ত হয়েছে${finalizedDays ? ` (${finalizedDays}টি মিল-দিন)` : ''}। ${cancelledRequests}টি অনুরোধ ও ${cancelledRecords}টি ভবিষ্যৎ মিল রেকর্ড বাতিল হয়েছে।`);
       setFutureWarning(false);
       setConfirmOpen(false);
       await load();
       await refresh({ force: true });
     } catch (error) {
       const message = getFriendlySupabaseError(error, 'মাস বন্ধ করা যায়নি।');
-      if (!confirmCancel && /ভবিষ্যৎ|অনুরোধ|রিকোয়েস্ট|request|সতর্কতা|প্রভাবিত/i.test(message)) {
+      if (!confirmCancel && /ভবিষ্যৎ|বিশেষ|অপেক্ষমাণ|অনুরোধ|রিকোয়েস্ট|request|সতর্কতা|প্রভাবিত|নিশ্চিত/i.test(message)) {
+        const latestPreflight = await fetchMonthClosePreflight().catch(() => null);
+        if (latestPreflight) setPreflight(latestPreflight);
         setFutureWarning(true);
         setConfirmOpen(true);
       } else {
@@ -344,36 +375,36 @@ export function CloseCurrentMonthPage() {
         <PageHeader
           title="বর্তমান মাস শেষ করুন"
           icon="calendar"
-          description="চলমান মাসের কোনো নির্ধারিত শেষ তারিখ থাকবে না। যেদিন মাস বন্ধ করবেন, সেদিনই সেটির শেষ দিন হিসেবে সংরক্ষিত হবে।"
+          description="মাস যেকোনো সময় বন্ধ করা যাবে। বন্ধ করার সঙ্গে সঙ্গেই আজ পর্যন্ত সব মিলের হিসাব চূড়ান্ত হবে; আজকের পরের তারিখের অনুরোধ ও রেকর্ড বাতিল হবে।"
         />
         <section className="card manager-form-card">
           <div className="manager-current-period">
             <span>চলমান মাস</span>
             <strong>{context.period.label}</strong>
             <small>{formatDateBangla(context.period.start_date)} থেকে · বন্ধ করলে {formatDateBangla(today)} শেষ দিন হবে</small>
-            <em>এখনো মাস বন্ধ করা হয়নি। আজকের আগে কোনো শেষ তারিখ নির্ধারণ করা নেই।</em>
+            <em>বন্ধ করার সঙ্গে সঙ্গেই আজকের হিসাবও চূড়ান্ত হবে; রাত ৯টার জন্য অপেক্ষা করতে হবে না।</em>
           </div>
+          {showGenericCloseBlock && <div className="manager-warning-box" role="alert"><Icon name="clock" size={18} /><div><strong>{preflightKnown ? 'এই মাসটি এখনই বন্ধ করা যাবে না।' : 'মাস বন্ধের আগে যাচাই সম্পন্ন হয়নি।'}</strong><p>{preflight?.message || 'মিলের অনুরোধ, আর্থিক এন্ট্রি ও তারিখের অবস্থা সার্ভার থেকে যাচাই করা যায়নি। নিরাপত্তার জন্য মাস বন্ধের বোতাম বন্ধ রাখা হয়েছে।'}</p>{futureFinancialCount > 0 && <small>ভবিষ্যৎ তারিখের আর্থিক এন্ট্রি আগে ঠিক করুন।</small>}<button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {preflight?.running_period_count > 1 && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মেসে একাধিক চলমান মাস পাওয়া গেছে।</strong><p>নতুন মাস শুরু করবেন না। আগে এই তথ্যের অবস্থা যাচাই করতে হবে।</p></div></div>}
-          {(hasFutureRequests || preflight?.future_day_count > 0) && <div className="manager-warning-box"><Icon name="info" size={18} /><div><strong>{hasFutureRequests ? `${Number(preflight?.future_active_request_count ?? preflight?.future_request_count)}টি ভবিষ্যৎ সক্রিয় মিল অনুরোধ আছে।` : 'ভবিষ্যতের কিছু মিল-দিন প্রস্তুত আছে।'}</strong><p>মাস বন্ধ করলে আজকের পরের তারিখের অনুরোধ/দিনগুলো বন্ধ হবে। চালিয়ে গেলে নিশ্চিতকরণে এগুলোর প্রভাব দেখানো হবে।</p></div></div>}
+          {requiresImpactConfirmation && <div className="manager-warning-box" role="alert"><Icon name="alert-triangle" size={18} /><div><strong>মাস বন্ধ করলে কিছু অনুরোধ/রেকর্ড বাতিল হবে।</strong><p>{futureRequestCount}টি ভবিষ্যৎ সক্রিয় অনুরোধ, {futureDayCount}টি ভবিষ্যৎ মিল-দিন এবং {pendingSpecialCount}টি অপেক্ষমাণ লেট/সংশোধন অনুরোধ পাওয়া গেছে। নিশ্চিত করলে এগুলো বাতিল হবে; আজ পর্যন্ত অনুমোদিত মিলের হিসাব চূড়ান্ত হবে।</p></div></div>}
+          <div className="inline-info" role="status"><Icon name="info" size={16} /> মাস বন্ধ করার দিন রাত ৯টার আগেও বন্ধ করলে আজকের অনুমোদিত মিল সঙ্গে সঙ্গে চূড়ান্ত হবে। কোনো অপেক্ষমাণ লেট/সংশোধন অনুরোধ থাকলে সেটি নিশ্চিতকরণের মাধ্যমে বাতিল হবে।</div>
           {preflight && preflight.overlap_pair_count > 0 && <div className="form-hint"><Icon name="info" size={16} /> {preflight.overlap_pair_count}টি পুরোনো overlapping normal request pair আছে। এগুলো মাস বন্ধের বাধা নয়; নতুন request দেওয়ার সময় conflict protection কাজ করবে।</div>}
           {overlaps.length > 0 && <div className="manager-overlap-list"><strong>ঐতিহাসিক overlap-এর বিবরণ</strong>{overlaps.map((item) => <div className="manager-overlap-row" key={`${item.request_id_a}-${item.request_id_b}`}><span>{item.member_name_a || 'সদস্য'} · {formatDateBangla(item.start_date_a)} → {formatDateBangla(item.end_date_a)}</span><span>{item.member_name_b || 'সদস্য'} · {formatDateBangla(item.start_date_b)} → {formatDateBangla(item.end_date_b)}</span></div>)}</div>}
           <div className="archive-period-close-summary">
             <div><span>মাস শুরু</span><strong>{formatDateBangla(context.period.start_date)}</strong></div>
             <div><span>শেষ দিন</span><strong>{formatDateBangla(today)}</strong><small>শুধু বন্ধ করার সময় নির্ধারিত হবে</small></div>
           </div>
-          <button className="primary-button large" type="button" disabled={busy || preflight?.running_period_count > 1} onClick={() => {
-            setFutureWarning(hasFutureRequests || Number(preflight?.future_day_count || 0) > 0);
+          <button className="primary-button large" type="button" disabled={busy || cannotCloseYet || preflight?.running_period_count > 1} onClick={() => {
+            setFutureWarning(requiresImpactConfirmation);
             setConfirmOpen(true);
           }}>
-            <Icon name="calendar" size={17} /> {busy ? 'মাস বন্ধ হচ্ছে...' : 'আজকের তারিখে মাস বন্ধ করুন'}
+            <Icon name="calendar" size={17} /> {busy ? 'হিসাব চূড়ান্ত ও মাস বন্ধ হচ্ছে...' : 'আজই হিসাব চূড়ান্ত করে মাস বন্ধ করুন'}
           </button>
         </section>
         {confirmOpen && <ConfirmModal
           title="মাস বন্ধ করবেন?"
-          description={futureWarning
-            ? `${context.period.label} মাসটি ${formatDateBangla(today)} তারিখে বন্ধ হবে। আজকের পরের তারিখের সক্রিয় মিল অনুরোধ/দিনগুলো বাতিল বা বন্ধ হবে; আজ পর্যন্ত হিসাব সংরক্ষিত থাকবে।`
-            : `${context.period.label} মাসটি ${formatDateBangla(today)} তারিখে বন্ধ হবে। এই তারিখটি শেষ দিন হিসেবে সংরক্ষিত হবে; তারপরই পরবর্তী মাস শুরু করা যাবে।`}
-          confirmLabel="হ্যাঁ, আজই মাস বন্ধ করুন"
+          description={`${context.period.label} মাসটি ${formatDateBangla(today)} তারিখে বন্ধ হবে। আজ পর্যন্ত বাতিল না হওয়া সব মিলের হিসাব এখনই চূড়ান্ত হবে—রাত ৯টার জন্য অপেক্ষা করতে হবে না। ${futureRequestCount}টি ভবিষ্যৎ সক্রিয় অনুরোধ, ${futureDayCount}টি ভবিষ্যৎ মিল-দিন এবং ${pendingSpecialCount}টি অপেক্ষমাণ বিশেষ অনুরোধ থাকলে সেগুলো বাতিল হবে। আগের দিনের চূড়ান্ত হিসাব ও আর্থিক ইতিহাস মুছে ফেলা বা পরিবর্তন করা হবে না।`}
+          confirmLabel="হ্যাঁ, হিসাব চূড়ান্ত করে মাস বন্ধ করুন"
           danger={futureWarning}
           busy={busy}
           onClose={() => { setConfirmOpen(false); setFutureWarning(false); }}
@@ -575,7 +606,16 @@ export function MemberManagementPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [action, setAction] = useState(null);
+  const [clockNow, setClockNow] = useState(() => new Date());
   const { membership } = useAuth();
+  const { context } = useManagementContext();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockNow(new Date()), 15000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const deactivationImpact = getMemberDeactivationImpact(clockNow, context?.period?.start_date);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -589,8 +629,17 @@ export function MemberManagementPage() {
     if (!action) return;
     try {
       if (action.type === 'deactivate') {
-        await deactivateMember(action.member.membership_id);
-        toast.success(`${action.member.member_name} এখন নিষ্ক্রিয় সদস্য।`);
+        const result = await deactivateMember(action.member.membership_id);
+        const impactText = result?.today_meal_rule === 'cancel'
+          ? 'আজকের খোলা মিল ও ভবিষ্যতের মিল রেকর্ড/অনুরোধ বাতিল হয়েছে।'
+          : result?.today_meal_rule === 'preserve'
+            ? 'আজকের চূড়ান্ত মিল অক্ষত আছে; ভবিষ্যতের মিল রেকর্ড/অনুরোধ বাতিল হয়েছে।'
+            : result?.today_meal_rule === 'not_in_period'
+              ? 'বর্তমান মাসের প্রথম দিন এখনো আসেনি; ভবিষ্যতের মিল রেকর্ড/অনুরোধ বাতিল হয়েছে।'
+              : 'সদস্য নিষ্ক্রিয় হয়েছে; পুরোনো হিসাব অক্ষত আছে।';
+        const cancelledRequests = Number(result?.cancelled_request_count ?? 0);
+        const cancelledRecords = Number(result?.cancelled_meal_record_count ?? 0);
+        toast.success(`${action.member.member_name} এখন নিষ্ক্রিয় সদস্য। ${impactText} মোট ${cancelledRequests}টি অনুরোধ ও ${cancelledRecords}টি মিল রেকর্ড বাতিল হয়েছে।`);
       } else {
         await reactivateMember(action.member.membership_id);
         toast.success(`${action.member.member_name} আবার সক্রিয় হয়েছে।`);
@@ -613,12 +662,27 @@ export function MemberManagementPage() {
             return (
               <article className={`card manager-member-row ${inactive ? 'manager-member-inactive' : ''}`} key={member.membership_id}>
                 <div className="manager-member-main"><span className="avatar">{member.member_name?.split(/\s+/).slice(0,2).map((x) => x[0]).join('').toUpperCase()}</span><div><strong>{member.member_name}</strong><div className="member-badge-row"><span className={`member-badge ${inactive ? 'inactive' : 'active'}`}>{inactive ? 'নিষ্ক্রিয়' : 'সক্রিয় সদস্য'}</span>{Boolean(member.is_primary_manager ?? (member.role === 'manager')) && <span className="member-badge manager">ম্যানেজার</span>}{member.is_assistant_manager && <span className="member-badge assistant">সহকারী ম্যানেজার</span>}</div><small>{member.meal_activity || 'এই মাসে মিল নেই'}</small></div></div>
-                <div className="manager-member-actions">{inactive ? <button className="secondary-button compact" type="button" onClick={() => setAction({ type: 'reactivate', member })}>আবার সক্রিয়</button> : <button className="secondary-button compact danger-outline" type="button" disabled={isSelf || Boolean(member.is_primary_manager ?? member.role === 'manager')} onClick={() => setAction({ type: 'deactivate', member })}>{isSelf ? 'নিজেকে নয়' : Boolean(member.is_primary_manager ?? (member.role === 'manager')) ? 'আগে Manager Change' : 'নিষ্ক্রিয় করুন'}</button>}</div>
+                <div className="manager-member-actions">{inactive ? <button className="secondary-button compact" type="button" onClick={() => setAction({ type: 'reactivate', member })}>আবার সক্রিয়</button> : <button className="secondary-button compact danger-outline" type="button" disabled={isSelf || Boolean(member.is_primary_manager ?? member.role === 'manager')} onClick={() => { setClockNow(new Date()); setAction({ type: 'deactivate', member }); }}>{isSelf ? 'নিজেকে নয়' : Boolean(member.is_primary_manager ?? (member.role === 'manager')) ? 'আগে Manager Change' : 'নিষ্ক্রিয় করুন'}</button>}</div>
               </article>
             );
           })}
         </div>}
-        {action && <ConfirmModal danger={action.type === 'deactivate'} title={action.type === 'deactivate' ? 'সদস্য নিষ্ক্রিয় করবেন?' : 'সদস্য আবার সক্রিয় করবেন?'} description={action.type === 'deactivate' ? `${action.member.member_name}-এর নতুন meal request/active operation বন্ধ হবে, তবে পুরোনো সব হিসাব অক্ষত থাকবে।` : `${action.member.member_name} আবার active member হিসেবে নতুন কাজ করতে পারবে।`} confirmLabel={action.type === 'deactivate' ? 'নিষ্ক্রিয় করুন' : 'আবার সক্রিয় করুন'} onClose={() => setAction(null)} onConfirm={runAction} />}
+        {action && <ConfirmModal
+          danger={action.type === 'deactivate'}
+          title={action.type === 'deactivate' ? 'সদস্য নিষ্ক্রিয় করবেন?' : 'সদস্য আবার সক্রিয় করবেন?'}
+          description={action.type === 'deactivate'
+            ? `${action.member.member_name}-কে নিষ্ক্রিয় করলে তাঁর নতুন অনুরোধ বন্ধ হবে। ${deactivationImpact.rule === 'cancel'
+              ? 'এখন বাংলাদেশ সময় রাত ৯টার আগে: আজকের খোলা মিলের রেকর্ড (থাকলে), আজকের অপেক্ষমাণ লেট/সংশোধন অনুরোধ এবং পরবর্তী সব দিনের তাঁর সক্রিয় অনুরোধ/মিল রেকর্ড বাতিল হবে। আগের দিনের চূড়ান্ত হিসাব অক্ষত থাকবে।'
+              : deactivationImpact.rule === 'preserve'
+                ? 'এখন বাংলাদেশ সময় রাত ৯টা বা পরে: আজকের চূড়ান্ত মিল অক্ষত থাকবে। আজকের অপেক্ষমাণ লেট/সংশোধন অনুরোধ এবং আগামী দিনের তাঁর সক্রিয় অনুরোধ/মিল রেকর্ড বাতিল হবে; আগের হিসাবও অক্ষত থাকবে।'
+                : deactivationImpact.rule === 'not_in_period'
+                  ? 'নতুন মাসের প্রথম মিলের দিন এখনো আসেনি। ওই মাসের ভবিষ্যৎ অনুরোধ ও রেকর্ড (থাকলে) বাতিল হবে; পূর্ববর্তী মাসের ইতিহাস অক্ষত থাকবে।'
+                  : 'এই মুহূর্তে কোনো চলমান মাস নেই। পুরোনো হিসাব অক্ষত থাকবে।'}`
+            : `${action.member.member_name} আবার সক্রিয় সদস্য হিসেবে নতুন মিল অনুরোধ ও অনুমোদিত কাজ করতে পারবে।`}
+          confirmLabel={action.type === 'deactivate' ? 'হ্যাঁ, সদস্য নিষ্ক্রিয় করুন' : 'আবার সক্রিয় করুন'}
+          onClose={() => setAction(null)}
+          onConfirm={runAction}
+        />}
       </div>
     </PrimaryManagerGuard>
   );

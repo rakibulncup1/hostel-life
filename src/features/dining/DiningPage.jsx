@@ -36,6 +36,7 @@ import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
 import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
+import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -242,6 +243,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
     return () => window.clearInterval(timer);
   }, []);
   const normalRequestOpen = isNormalMealRequestWindowOpen(new Date(clock));
+  const dhakaMinutes = getDhakaDateTimeParts(new Date(clock)).minutes;
   const normalCreateLocked = mode === 'new' && !normalRequestOpen;
 
   useEffect(() => {
@@ -482,6 +484,28 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
 
+
+      {period?.start_date && period.start_date > today && (
+        <div className="meal-policy-note is-info" role="status">
+          <Icon name="calendar" size={16} /> নতুন মাসের প্রথম মিলের দিন {formatDateWithWeekday(period.start_date)}। আজ রাত ১০টা পর্যন্ত এই দিনের জন্য সাধারণ মিল অনুরোধ দেওয়া যাবে। {normalRequestOpen ? 'সময় শেষ হওয়ার আগে অনুরোধ জমা দিন।' : 'সাধারণ সময় শেষ; এখন Late Request পদ্ধতি ব্যবহার করুন, ম্যানেজারের অনুমোদন লাগবে।'}
+        </div>
+      )}
+      {period?.start_date && period.start_date <= today && (
+        <div className="meal-policy-note is-info" role="status">
+          <Icon name="calendar" size={16} />
+          {period.start_date === today
+            ? 'নতুন মাসের প্রথম মিলের দিন আজ।'
+            : `নতুন মাসের প্রথম মিলের দিন ${formatDateWithWeekday(period.start_date)} ইতিমধ্যে পেরিয়েছে।`}
+          {' '}
+          {getLateMealRequestTargetDate(new Date(clock)) === today
+            ? 'আজকের জন্য রাত ৯টার আগে Late Request পাঠানো যাবে; ম্যানেজারের অনুমোদন লাগবে।'
+            : getLateMealRequestTargetDate(new Date(clock)) === tomorrowValue()
+              ? 'আজকের Late Request-এর সময় শেষ। এখন আগামীকালের জন্য Late Request দেওয়া যাবে; ম্যানেজারের অনুমোদন লাগবে।'
+              : dhakaMinutes >= 21 * 60 && dhakaMinutes < 22 * 60
+                ? 'রাত ৯টা থেকে ১০টার মধ্যে Late Request দেওয়ার সময় বন্ধ থাকে। রাত ১০টার পর আগামীকালের জন্য Late Request দেওয়া যাবে।'
+                : 'আজকের জন্য Late Request-এর সময় শেষ। রাত ৯টার Finalization-এর পর আজকের মিল আর পরিবর্তন করা যাবে না; রাত ১০টার পর আগামীকালের Late Request দেওয়া যাবে।'}
+        </div>
+      )}
 
       {normalCreateLocked && (
         <div className="meal-policy-note is-warning normal-request-closed-note" role="status">
