@@ -189,7 +189,7 @@ function RegisterForm() {
           </label>
         </div>
         <label className="field-label">
-          <span>ইমেইল</span>
+          <span>ইমেইল <small className="register-email-hint">(সঠিক ইমেইল ব্যবহার করুন)</small></span>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
         </label>
         <label className="field-label">

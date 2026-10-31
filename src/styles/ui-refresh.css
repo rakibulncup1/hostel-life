@@ -3015,3 +3015,191 @@ body {
   .howto-faq-group-heading { gap: 8px; }
   .howto-faq-group-count { white-space: normal; text-align: center; }
 }
+
+
+/* Hostel Life V1.1 — user-requested UI refinement only. Scoped to Help, History,
+   login/registration, and first-time mess selection. All workflows stay intact. */
+
+/* Help: calmer depth, clearer timing hierarchy and accessible expandable answers. */
+.howto-page .howto-timing-panel {
+  border-radius: 20px;
+  background: linear-gradient(140deg, var(--surface) 18%, color-mix(in srgb, var(--primary-soft) 48%, var(--surface)));
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--text) 5%, transparent);
+}
+.howto-page .howto-time-card {
+  position: relative;
+  border-color: color-mix(in srgb, var(--primary) 15%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--text) 4%, transparent);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.howto-page .howto-time-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: color-mix(in srgb, var(--primary) 52%, transparent);
+  border-radius: 16px 0 0 16px;
+}
+.howto-page .howto-time-card.is-final::before { background: var(--success, #16834b); }
+.howto-page .howto-time-card.is-late::before { background: var(--warning, #a66a0a); }
+.howto-page .howto-time-card.is-month::before { background: color-mix(in srgb, var(--muted) 60%, transparent); }
+.howto-page .howto-time-card > strong { font-weight: 900; }
+.howto-page .howto-faq-group { border-radius: 18px; }
+.howto-page .howto-faq-group-heading { transition: background .18s ease; }
+.howto-page .howto-faq-group[open] > .howto-faq-group-heading {
+  background: linear-gradient(110deg, color-mix(in srgb, var(--primary-soft) 84%, var(--surface)), var(--surface) 85%);
+}
+.howto-page .howto-faq-item[open] { box-shadow: 0 3px 12px color-mix(in srgb, var(--text) 4%, transparent); }
+.howto-page .howto-faq-item[open] > summary .howto-faq-question { color: var(--primary-strong); }
+.howto-page .howto-faq-item summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* History: expand the existing title/info region gently within the phone gutter. */
+@media (max-width: 640px) {
+  .page-title-row.history-title-row {
+    box-sizing: border-box;
+    width: calc(100% + 16px);
+    max-width: none;
+    margin-inline: -8px;
+    padding: 12px;
+  }
+  .history-title-row .history-title-heading,
+  .history-title-row .history-title-footer,
+  .history-title-row .history-intro-info {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+  .history-title-row .history-intro-info {
+    margin: 0;
+    padding: 14px 15px;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Registration: muted inline reminder beside the existing email label. */
+.auth-form-panel .register-email-hint {
+  display: inline;
+  margin-left: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Login/registration only: polished structure without visual effects or form changes. */
+.auth-shell:not(.auth-shell-compact) {
+  border-radius: 24px;
+  box-shadow: 0 16px 46px color-mix(in srgb, var(--text) 9%, transparent);
+}
+.auth-shell:not(.auth-shell-compact) .auth-brand-panel {
+  background: linear-gradient(155deg, color-mix(in srgb, var(--primary-soft) 74%, var(--surface)), var(--surface));
+}
+.auth-shell:not(.auth-shell-compact) .auth-form-panel .auth-header { margin-bottom: 21px; }
+.auth-shell:not(.auth-shell-compact) .form-stack { gap: 14px; }
+.auth-shell:not(.auth-shell-compact) .field-label input:focus-visible,
+.auth-shell:not(.auth-shell-compact) .password-field:focus-within {
+  outline-color: var(--primary);
+}
+.auth-shell:not(.auth-shell-compact) .primary-button.large { min-height: 47px; }
+
+/* First-time mess choice: emphasize the selected action; keep both forms and
+   their event handling unchanged. */
+.onboarding-shell .onboarding-hero { padding-bottom: 22px; }
+.onboarding-shell .setup-choice-grid { gap: 15px; }
+.onboarding-shell .setup-choice-card {
+  border-radius: 18px;
+  box-shadow: 0 7px 22px color-mix(in srgb, var(--text) 5%, transparent);
+}
+.onboarding-shell .setup-choice-card.active {
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--line));
+  box-shadow: 0 9px 26px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.onboarding-shell .setup-choice-head { min-height: 88px; padding: 17px; gap: 13px; }
+.onboarding-shell .setup-choice-card.active .setup-choice-head {
+  background: color-mix(in srgb, var(--primary-soft) 45%, var(--surface));
+}
+.onboarding-shell .setup-choice-card.active .setup-choice-head .feature-icon {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.onboarding-shell .setup-choice-body { padding: 17px; }
+.onboarding-shell .setup-choice-head:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
+@media (max-width: 640px) {
+  .auth-shell:not(.auth-shell-compact) { border-radius: 20px; }
+  .auth-shell:not(.auth-shell-compact) .auth-form-panel { padding-inline: clamp(17px, 5vw, 25px); }
+  .onboarding-shell .setup-choice-head { min-height: 77px; padding: 14px; gap: 11px; }
+  .onboarding-shell .setup-choice-body { padding: 14px; }
+  .howto-page .howto-timing-panel { border-radius: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .howto-page .howto-time-card,
+  .howto-page .howto-faq-group-heading { transition: none; }
+}
+
+
+/* Hostel Life V1.2 — dashboard member directory toolbar only.
+   Keep the heading, local search, and member count in one fluid row. */
+.dashboard-member-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  column-gap: clamp(10px, 2vw, 22px);
+  row-gap: 0;
+}
+.dashboard-member-title { min-width: 0; }
+.dashboard-member-tools {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  gap: clamp(7px, 1.5vw, 12px);
+}
+.dashboard-member-search {
+  flex: 0 1 300px;
+  width: 100%;
+  min-width: 0;
+  max-width: 300px;
+  box-sizing: border-box;
+}
+.dashboard-member-tools > .count-badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .dashboard-member-toolbar {
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+  .dashboard-member-title { display: flex; align-items: center; }
+  .dashboard-member-title .eyebrow { display: none; }
+  .dashboard-member-title h2 {
+    font-size: clamp(12px, 3.7vw, 15px);
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .dashboard-member-tools { width: 100%; min-width: 0; justify-content: flex-end; gap: 6px; }
+  .dashboard-member-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 38px;
+    padding: 0 8px;
+    gap: 5px;
+    border-radius: 11px;
+  }
+  .dashboard-member-search > svg { width: 14px; height: 14px; }
+  .dashboard-member-search input { height: 36px; font-size: 11px; }
+  .dashboard-member-tools > .count-badge {
+    padding: 6px 7px;
+    font-size: 10px;
+  }
+}
+@media (max-width: 360px) {
+  .dashboard-member-toolbar { gap: 6px; }
+  .dashboard-member-title h2 { font-size: 11px; }
+  .dashboard-member-search { padding: 0 6px; gap: 4px; }
+  .dashboard-member-search input { font-size: 10px; }
+  .dashboard-member-tools > .count-badge { font-size: 9px; padding: 6px 5px; }
+}

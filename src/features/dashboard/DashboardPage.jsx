@@ -383,7 +383,6 @@ function MealDetailsModal({ date, rows, loading, onClose, upcomingRecord, upcomi
                   <div className="avatar">{initials(row.member_name)}</div>
                   <div className="meal-member-name">
                     <strong>{row.member_name}</strong>
-                    <small>{row.membership_status === 'active' ? 'সক্রিয় সদস্য' : 'নিষ্ক্রিয়'}</small>
                   </div>
                   <div className="meal-member-values meal-member-values-readable">
                     <span><small>ব্রেকফাস্ট</small><strong>{formatMeal(row.breakfast)}</strong></span>
