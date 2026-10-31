@@ -227,6 +227,7 @@ function ForgotPasswordForm() {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [limitMessage, setLimitMessage] = useState('');
 
   const submit = async (event) => {
     event.preventDefault();
@@ -235,11 +236,25 @@ function ForgotPasswordForm() {
       return;
     }
     setSubmitting(true);
+    setSent(false);
+    setLimitMessage('');
     try {
       const { error } = await requestPasswordReset(email);
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PASSWORD_RESET_DAILY_LIMIT' || error.code === 'PASSWORD_RESET_MONTHLY_LIMIT') {
+          setLimitMessage(error.message);
+          toast.warning(error.message, { duration: 7000 });
+          return;
+        }
+        if (error.code === 'SUPABASE_EMAIL_RATE_LIMIT') {
+          toast.warning(error.message, { duration: 6500 });
+          return;
+        }
+        throw error;
+      }
+      setLimitMessage('');
       setSent(true);
-      toast.success('পাসওয়ার্ড রিসেটের নির্দেশনা ইমেইলে পাঠানো হয়েছে।', { duration: 5200 });
+      toast.success('যদি এই ইমেইলে Hostel Life অ্যাকাউন্ট থাকে, রিসেট নির্দেশনা পাঠানো হলে ইনবক্স দেখুন।', { duration: 6500 });
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'রিসেট ইমেইল পাঠানো যায়নি।'));
     } finally {
@@ -252,9 +267,15 @@ function ForgotPasswordForm() {
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
           <span>ইমেইল</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="যে ইমেইলে অ্যাকাউন্ট আছে" autoComplete="email" required />
+          <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setLimitMessage(''); setSent(false); }} placeholder="যে ইমেইলে অ্যাকাউন্ট আছে" autoComplete="email" required />
         </label>
-        {sent && <div className="inline-success"><Icon name="check" size={17} /><span>ইমেইল পাঠানো হয়েছে। আপনার ইনবক্স দেখুন।</span></div>}
+        <aside className="password-reset-policy" role="note" aria-label="পাসওয়ার্ড রিসেটের সীমা">
+          <div className="password-reset-policy-title"><Icon name="info" size={17} /><strong>পাসওয়ার্ড রিসেটের নিয়ম</strong></div>
+          <p>নিরাপত্তার জন্য একটি ইমেইল থেকে দিনে সর্বোচ্চ ১ বার এবং প্রতি ক্যালেন্ডার মাসে সর্বোচ্চ ৩ বার রিসেটের অনুরোধ করা যাবে।</p>
+          <p>মাসিক সীমা পূর্ণ হলে Help Section থেকে Hostel Life Support এ যোগাযোগ করুন। পরিচয় যাচাইয়ের পর Admin প্রয়োজনে Temporary Password দেবেন। সেটি দিয়ে লগইন করে বাধ্যতামূলকভাবে নতুন পাসওয়ার্ড তৈরি করতে হবে।</p>
+        </aside>
+        {limitMessage && <div className="inline-error" role="alert"><Icon name="warning" size={17} /><span>{limitMessage}</span></div>}
+        {sent && <div className="inline-success"><Icon name="check" size={17} /><span>যদি এই ইমেইলে অ্যাকাউন্ট থাকে, রিসেট নির্দেশনা পাঠানো হলে আপনার ইনবক্স দেখুন।</span></div>}
         <button className="primary-button large" type="submit" disabled={submitting || !online}>
           {submitting ? 'পাঠানো হচ্ছে...' : 'রিসেট লিংক পাঠান'}
         </button>
