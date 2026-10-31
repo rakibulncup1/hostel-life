@@ -5,11 +5,10 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function IdentityErrorPage() {
-  const { identityError, refreshIdentity, signOut } = useAuth();
+  const { identityError, refreshIdentity } = useAuth();
   const online = useOnlineStatus();
   const toast = useToast();
   const [retrying, setRetrying] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   const retry = async () => {
     if (!online) {
@@ -27,30 +26,25 @@ export function IdentityErrorPage() {
     }
   };
 
-  const logout = async () => {
-    setLoggingOut(true);
-    try {
-      await signOut();
-    } catch {
-      toast.error('লগআউট করা যায়নি।');
-    } finally {
-      setLoggingOut(false);
-    }
-  };
-
   return (
     <main className="account-state-page">
       <section className="account-state-card card">
         <div className="state-icon"><Icon name={online ? 'warning' : 'offline'} size={28} /></div>
-        <span className="eyebrow">অ্যাকাউন্ট যাচাই</span>
-        <h1>{online ? 'অ্যাকাউন্টের তথ্য লোড করা যায়নি' : 'ইন্টারনেট সংযোগ নেই'}</h1>
-        <p>{online ? (identityError || 'আপনার অ্যাকাউন্টের তথ্য এই মুহূর্তে পাওয়া যাচ্ছে না।') : 'লগইন সেশন পাওয়া গেছে, কিন্তু মেসের তথ্য যাচাই করতে ইন্টারনেট সংযোগ প্রয়োজন।'}</p>
-        <div className="account-state-actions">
+        <span className="eyebrow">সংযোগ ও সেশন</span>
+        <h1>{online ? 'Hostel Life-এ সাময়িক সমস্যা হচ্ছে' : 'ইন্টারনেট সংযোগ নেই'}</h1>
+        <p>{online ? 'আপনার লগইন সেশন এই ডিভাইসে আছে, কিন্তু এই মুহূর্তে সার্ভার থেকে মেসের তথ্য যাচাই করা যাচ্ছে না। এটি সাময়িক নেটওয়ার্ক বা সার্ভার সমস্যাও হতে পারে।' : 'আপনার লগইন সেশন এই ডিভাইসে আছে। ইন্টারনেট ফিরে এলে আবার চেষ্টা করুন; শুধু এই কারণে লগআউট করার দরকার নেই।'}</p>
+        {identityError && <div className="identity-recovery-error" role="status">{identityError}</div>}
+        <div className="identity-recovery-note">
+          <strong>ওয়েবসাইট সরাসরি খুলুন</strong>
+          <p>পেজ না খুললে ব্রাউজারের Address Bar-এ নিচের ঠিকানাটি লিখে খুলুন:</p>
+          <a href="https://hostellife-bd.vercel.app/" target="_blank" rel="noreferrer">hostellife-bd.vercel.app <Icon name="external-link" size={14} /></a>
+        </div>
+        <div className="account-state-actions identity-recovery-actions">
           <button className="primary-button" type="button" onClick={retry} disabled={retrying || !online}>
             {retrying ? 'আবার চেষ্টা হচ্ছে...' : 'আবার চেষ্টা করুন'}
           </button>
-          <button className="secondary-button" type="button" onClick={logout} disabled={loggingOut}>
-            {loggingOut ? 'লগআউট হচ্ছে...' : 'লগআউট'}
+          <button className="secondary-button" type="button" onClick={() => window.location.reload()}>
+            <Icon name="refresh" size={15} /> পেজ রিলোড করুন
           </button>
         </div>
       </section>

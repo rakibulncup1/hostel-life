@@ -5,6 +5,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { supabase } from '../../lib/supabase';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
+import { navigateTo } from '../../app/AppShell';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
 import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
 import { normalizeRunningPeriodPayload } from '../../utils/period';
@@ -28,13 +29,14 @@ function SetupCard({ icon, title, description, active, onClick, children }) {
 export function OnboardingPage() {
   const online = useOnlineStatus();
   const toast = useToast();
-  const { profile, refreshIdentity } = useAuth();
+  const { profile, refreshIdentity, signOutLocal } = useAuth();
   const [mode, setMode] = useState('join');
   const [joinCode, setJoinCode] = useState('');
   const [hostelName, setHostelName] = useState('');
   const [hostelPermissionCode, setHostelPermissionCode] = useState('');
   const [hostelCodeRequired, setHostelCodeRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [switchingAccount, setSwitchingAccount] = useState(false);
   const [createdHostel, setCreatedHostel] = useState(null);
   const [initialMonthStatus, setInitialMonthStatus] = useState('not-started');
   const [initialMonthError, setInitialMonthError] = useState('');
@@ -44,6 +46,19 @@ export function OnboardingPage() {
     fetchPlatformPublicSettings().then((settings) => { if (active) setHostelCodeRequired(Boolean(settings?.hostel_creation_code_required)); }).catch(() => { /* Compatibility with pre-Phase-2 projects. */ });
     return () => { active = false; };
   }, []);
+
+  const switchAccount = async () => {
+    if (switchingAccount || submitting) return;
+    setSwitchingAccount(true);
+    try {
+      await signOutLocal();
+      navigateTo('/auth/login', true);
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'এই ডিভাইস থেকে অ্যাকাউন্ট পরিবর্তন করা যায়নি। আবার চেষ্টা করুন।'));
+    } finally {
+      setSwitchingAccount(false);
+    }
+  };
 
   const join = async (event) => {
     event.preventDefault();
@@ -175,6 +190,7 @@ export function OnboardingPage() {
               }}>কপি করুন</button>
             </div>
             <button type="button" className="primary-button large" onClick={() => refreshIdentity()}>মেসে প্রবেশ করুন</button>
+            <button type="button" className="onboarding-switch-account" onClick={switchAccount} disabled={switchingAccount || submitting}>{switchingAccount ? 'অ্যাকাউন্ট পরিবর্তন হচ্ছে...' : 'অন্য অ্যাকাউন্ট দিয়ে লগইন / রেজিস্ট্রেশন'}</button>
           </div>
         </section>
       </main>
@@ -189,6 +205,13 @@ export function OnboardingPage() {
           <span className="auth-eyebrow">HOSTEL LIFE</span>
           <h1>স্বাগতম, {profile?.full_name?.split(' ')[0] || 'সদস্য'}!</h1>
           <p>আপনার অ্যাকাউন্ট প্রস্তুত। এখন একটি মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।</p>
+        </div>
+
+        <div className="onboarding-account-switch-row">
+          <span>ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন?</span>
+          <button type="button" className="onboarding-switch-account" onClick={switchAccount} disabled={switchingAccount || submitting}>
+            <Icon name="logout" size={15} /> {switchingAccount ? 'অ্যাকাউন্ট পরিবর্তন হচ্ছে...' : 'লগইন / রেজিস্ট্রেশন পেজে ফিরুন'}
+          </button>
         </div>
 
         <div className="setup-choice-grid">

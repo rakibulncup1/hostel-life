@@ -29,7 +29,7 @@ const primaryItems = [
 ];
 
 const assistantItems = [
-  { key: 'dining-operations', label: 'ডাইনিং ব্যবস্থাপনা', icon: 'dining' },
+  { key: 'dining-operations', label: 'ডাইনিং ব্যবস্থাপনা', icon: 'cooking-pot' },
   { key: 'khala-money', label: 'খালার টাকা', icon: 'wallet' },
 ];
 

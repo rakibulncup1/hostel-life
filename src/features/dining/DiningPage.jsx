@@ -152,10 +152,11 @@ function MealValuePills({ day, compact = false }) {
   );
 }
 
-function SectionHeader({ eyebrow, title, description }) {
+function SectionHeader({ eyebrow, title, description, icon }) {
   return (
-    <div className="page-title-row dining-section-title">
-      <div>
+    <div className={`page-title-row dining-section-title ${icon ? 'has-dining-brand-mark' : ''}`}>
+      {icon && <span className="dining-brand-mark" aria-hidden="true"><Icon name={icon} size={25} /></span>}
+      <div className="dining-section-title-copy">
         <span className="eyebrow">{eyebrow}</span>
         <h1>{title}</h1>
         {description && <p>{description}</p>}
@@ -707,13 +708,16 @@ function RequestHistory({ onEdit, onCorrect }) {
 
   return (
     <section className="dining-panel card">
-      <div className="panel-header">
-        <div>
-          <span className="eyebrow">মিল অনুরোধ</span>
-          <h2>অনুরোধের ইতিহাস</h2>
-          <p>আপনার আগের ও বর্তমান অনুরোধগুলো এখানে থাকবে। অনুমোদিত সাধারণ অনুরোধে সময়সীমা অনুযায়ী এডিট বা সংশোধন করা যাবে।</p>
+      <div className="panel-header request-history-header">
+        <div className="request-history-heading">
+          <span className="request-history-heading-icon" aria-hidden="true"><Icon name="history" size={22} /></span>
+          <div className="request-history-heading-copy">
+            <span className="eyebrow">মিল অনুরোধের রেকর্ড</span>
+            <h2>আপনার মিলের ইতিহাস</h2>
+            <p>আগের ও বর্তমান অনুরোধ এক জায়গায় দেখুন। অনুমোদিত সাধারণ অনুরোধে সময়সীমা অনুযায়ী এডিট বা সংশোধনের সুযোগ থাকবে।</p>
+          </div>
         </div>
-        <button className="secondary-button compact" type="button" onClick={load}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
+        <button className="secondary-button compact request-history-refresh" type="button" onClick={load}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
 
       {periodCheckError && <div className="meal-policy-note is-warning" role="status"><Icon name="warning" size={16} /> {periodCheckError}</div>}
@@ -1584,14 +1588,14 @@ function LateMealRequestForm({ onSaved, onCancel }) {
   return <section className="dining-panel card late-request-form">
     <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর জন্য রাত ১০টা থেকে সংশ্লিষ্ট দিনের রাত ৯টা পর্যন্ত আবেদন দিন।` : 'লেট অনুরোধ রাত ১০টা থেকে পরদিন রাত ৯টা পর্যন্ত চালু থাকে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
     {periodLoading ? <div className="state-card"><Icon name="clock" size={17}/><div><strong>চলমান মাস যাচাই হচ্ছে</strong><p>লেট অনুরোধ যেন সঠিক মাসে জমা হয়, এজন্য বর্তমান Period-এর সীমা যাচাই করা হচ্ছে।</p></div></div> : runningPeriod && <div className={`state-card ${targetOutsidePeriod ? 'state-card-warning' : ''}`}>
-      <Icon name={targetOutsidePeriod ? 'alert-triangle' : 'calendar'} size={18}/><div><strong>চলমান মাস: {runningPeriod.label || 'নির্বাচিত Period'}</strong><p>{periodEnd ? `তারিখসীমা: ${periodStart} → ${periodEnd}` : `শুরুর তারিখ: ${periodStart} · মাস বন্ধ না হওয়া পর্যন্ত শেষ তারিখ নির্ধারিত নয়`}{targetDate ? ` · অনুরোধের তারিখ: ${targetDate}` : ''}</p>
+      <Icon name={targetOutsidePeriod ? 'warning' : 'calendar'} size={18}/><div><strong>চলমান মাস: {runningPeriod.label || 'নির্বাচিত Period'}</strong><p>{periodEnd ? `তারিখসীমা: ${periodStart} → ${periodEnd}` : `শুরুর তারিখ: ${periodStart} · মাস বন্ধ না হওয়া পর্যন্ত শেষ তারিখ নির্ধারিত নয়`}{targetDate ? ` · অনুরোধের তারিখ: ${targetDate}` : ''}</p>
       {targetOutsidePeriod && <p>নির্বাচিত তারিখটি চলমান মাস শুরুর আগের। তাই অনুরোধ পাঠানো যাবে না।</p>}
       </div>
     </div>}
     {periodLoadError && <div className="state-card state-card-warning"><Icon name="warning" size={17}/><div><strong>মাসের তারিখসীমা যাচাই করা যায়নি</strong><p>{periodLoadError}</p><button className="secondary-button compact" type="button" onClick={refreshPeriod} disabled={periodLoading}>আবার যাচাই করুন</button></div></div>}
     <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট অনুরোধ কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট অনুরোধ পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন অনুরোধ পাঠানো যাবে না।</p></div></div>
     {checkingExisting && targetDate && <div className="state-card"><Icon name="clock" size={17}/><div><strong>আগের অনুরোধ যাচাই করা হচ্ছে</strong><p>একই দিনের লেট অনুরোধ পুনরায় জমা না দিতে আপনার অনুরোধের ইতিহাস পরীক্ষা করা হচ্ছে।</p></div></div>}
-    {existingTargetRequest && <div className="state-card state-card-warning"><Icon name="alert-triangle" size={17}/><div><strong>এই দিনের জন্য আগের অনুরোধ রয়েছে</strong><p>{existingTargetRequest.is_late_request ? `লেট অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'ম্যানেজারের অনুমোদনের অপেক্ষায়'}।` : `আগের অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'অপেক্ষমাণ'}।`} একই দিনের জন্য আরেকটি অনুরোধ দেওয়া যাবে না। মিল পরিবর্তন করতে অনুরোধের ইতিহাস দেখুন।</p></div></div>}
+    {existingTargetRequest && <div className="state-card state-card-warning"><Icon name="warning" size={17}/><div><strong>এই দিনের জন্য আগের অনুরোধ রয়েছে</strong><p>{existingTargetRequest.is_late_request ? `লেট অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'ম্যানেজারের অনুমোদনের অপেক্ষায়'}।` : `আগের অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'অপেক্ষমাণ'}।`} একই দিনের জন্য আরেকটি অনুরোধ দেওয়া যাবে না। মিল পরিবর্তন করতে অনুরোধের ইতিহাস দেখুন।</p></div></div>}
     {!checkingExisting && duplicateCheckFailed && !existingTargetRequest && <div className="state-card state-card-warning"><Icon name="info" size={17}/><div><strong>ডুপ্লিকেট যাচাই সম্পন্ন হয়নি</strong><p>সংযোগের সমস্যা থাকায় আগের অনুরোধ যাচাই করা যায়নি। সাবমিট করলে সার্ভার চূড়ান্তভাবে ডুপ্লিকেট পরীক্ষা করবে।</p></div></div>}
     <div className="manager-meal-grid">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><div key={key}><MealStepper label={label} value={values[key]} onChange={value=>setValues(old=>({...old,[key]:value}))}/></div>)}</div>
     <label className="field-label"><span>কারণ <em>(ঐচ্ছিক)</em></span><textarea rows="2" value={reason} onChange={event=>setReason(event.target.value)} placeholder="কেন স্বাভাবিক সময়সীমার পরে অনুরোধ দিচ্ছেন"/></label>
@@ -1947,7 +1951,7 @@ export function DiningPage() {
 
   return (
     <div className="page-stack dining-stack">
-      <SectionHeader eyebrow="মূল সেকশন" title="ডাইনিং" description={isManager ? 'খাবার, বাজার ও মেসের হিসাবের সব কার্যক্রম এখানে পরিচালনা করুন।' : 'বাজার ও মিল সম্পর্কিত দৈনন্দিন কাজগুলো এখানে করুন।'} />
+      <SectionHeader eyebrow="মূল সেকশন" title="ডাইনিং" icon="cooking-pot" description={isManager ? 'খাবার, বাজার ও মেসের হিসাবের সব কার্যক্রম এখানে পরিচালনা করুন।' : 'বাজার ও মিল সম্পর্কিত দৈনন্দিন কাজগুলো এখানে করুন।'} />
 
       {periodLoadError && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="warning" size={20}/><div><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError} মাস নেই বলে নিশ্চিত না হওয়া পর্যন্ত এই বার্তাকে প্রকৃত no-month অবস্থা হিসেবে দেখানো হচ্ছে না।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
       {!loadingMembers && !periodLoadError && !hasRunningManagerPeriod && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="calendar" size={20}/><div><strong>বর্তমানে কোনো চলমান মাস নেই</strong><p>নতুন মাস শুরু না হওয়া পর্যন্ত নতুন মিল/বাজার এন্ট্রি বন্ধ থাকবে। আগের মাসের তথ্য দেখতে হিস্টরি সেকশনের ‘পূর্ববর্তী মাস’ অপশন ব্যবহার করুন।</p></div></div>}

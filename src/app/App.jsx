@@ -77,6 +77,10 @@ export function App() {
 
     if (pathname.startsWith('/auth/reset-password')) return;
 
+    // A failed identity fetch is not proof that the user has no hostel membership.
+    // Keep the current route/session and let the recovery screen handle the retry.
+    if (auth.identityError) return;
+
     if (!auth.identityLoading && auth.membership?.status === 'inactive') {
       if (!pathname.startsWith('/account/inactive')) navigateTo('/account/inactive', true);
       return;
@@ -94,7 +98,7 @@ export function App() {
     if (!inApp && !inAuth && !inOnboarding && !pathname.startsWith('/account/')) {
       navigateTo('/app/dashboard', true);
     }
-  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.membership]);
+  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityError, auth.membership]);
 
   useEffect(() => {
     let title = 'Hostel Life';

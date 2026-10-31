@@ -162,6 +162,15 @@ export function AuthProvider({ children }) {
     clearIdentity();
   }, [clearIdentity]);
 
+  const signOutLocal = useCallback(async () => {
+    if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
+    // Only remove the current browser's session. Other devices stay signed in.
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) throw error;
+    setSession(null);
+    clearIdentity();
+  }, [clearIdentity]);
+
   const value = useMemo(() => ({
     session,
     user: session?.user ?? null,
@@ -177,7 +186,8 @@ export function AuthProvider({ children }) {
     offlineIdentity,
     refreshIdentity,
     signOut,
-  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityError, offlineIdentity, refreshIdentity, signOut]);
+    signOutLocal,
+  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityError, offlineIdentity, refreshIdentity, signOut, signOutLocal]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

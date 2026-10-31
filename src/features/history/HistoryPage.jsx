@@ -289,9 +289,11 @@ export function HistoryPage() {
           <span className="eyebrow">স্বচ্ছ হিসাব</span>
           <h1>হিস্টরি</h1>
           <p>বাজার, হিসাব এবং আগের মাসের সংরক্ষিত তথ্য এক জায়গায়।</p>
-          <div className="history-intro-info"><Icon name="info" size={17}/><span>বাজারের হিসাব, জমা-খরচের লেনদেন ও আগের মাসের সংরক্ষিত তথ্য এখানে একসঙ্গে পাবেন। বিস্তারিত দেখতে যেকোনো লেনদেনে চাপ দিন। সম্পাদনার সুবিধা শুধু অনুমোদিত ম্যানেজারের জন্য।</span></div>
         </div>
-        <div className="history-title-actions"><button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>{tab !== 'months' && <button className="secondary-button compact" type="button" onClick={exportCurrentTab} disabled={loading || exportBusy || !accountGrouped.length && tab === 'account' || !visibleMarketRows.length && tab === 'market'}><Icon name="download" size={15} /> PDF / প্রিন্ট</button>}</div>
+        <div className="history-title-footer">
+          <div className="history-intro-info"><Icon name="info" size={17}/><span>বাজারের হিসাব, জমা-খরচের লেনদেন ও আগের মাসের সংরক্ষিত তথ্য এখানে একসঙ্গে পাবেন। বিস্তারিত দেখতে যেকোনো লেনদেনে চাপ দিন। সম্পাদনার সুবিধা শুধু অনুমোদিত ম্যানেজারের জন্য।</span></div>
+          <div className="history-title-actions"><button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>{tab !== 'months' && <button className="secondary-button compact" type="button" onClick={exportCurrentTab} disabled={loading || exportBusy || !accountGrouped.length && tab === 'account' || !visibleMarketRows.length && tab === 'market'}><Icon name="download" size={15} /> PDF / প্রিন্ট</button>}</div>
+        </div>
       </div>
 
       <section className={`card history-archive-scope ${selectedArchivePeriodId ? 'is-archive-scope' : ''}`}>

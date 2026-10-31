@@ -254,10 +254,13 @@ export function KhalaMoneyViewPage() {
                 <article className={`khala-public-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.entry_id}>
                   <div className="khala-public-person">
                     <span className="khala-ledger-mark"><Icon name="wallet" size={17} /></span>
-                    <div>
-                      <strong>খালার পারিশ্রমিক</strong>
-                      <small className="khala-recipient-line">যাঁর নামে: {row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : row.recipient_name || 'নাম পাওয়া যায়নি'}</small>
-                      <small>এন্ট্রি করেছেন: {row.created_by_name || row.actor_name || row.manager_name || row.entered_by_name || 'নাম পাওয়া যায়নি'}</small>
+                    <div className="khala-public-person-copy">
+                      <div className="khala-ledger-recipient">
+                        <span>যাঁর নামে নথিভুক্ত</span>
+                        <strong>{row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : row.recipient_name || 'সদস্যের নাম পাওয়া যায়নি'}</strong>
+                      </div>
+                      <strong className="khala-public-entry-kind">খালার পারিশ্রমিক</strong>
+                      <small>পরিশোধ করেছেন: {row.created_by_name || row.actor_name || row.manager_name || row.entered_by_name || 'নাম পাওয়া যায়নি'}</small>
                       <small>{formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
                     </div>
                   </div>

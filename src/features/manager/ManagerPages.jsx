@@ -115,10 +115,10 @@ function reportTransactionLabel(value) {
   return labels[normalized] || 'অন্যান্য লেনদেন';
 }
 
-function ConfirmModal({ title, description, confirmLabel = 'নিশ্চিত করুন', danger = false, busy = false, onConfirm, onClose, children }) {
+function ConfirmModal({ title, description, confirmLabel = 'নিশ্চিত করুন', danger = false, busy = false, onConfirm, onClose, children, className = '' }) {
   return (
     <div className="modal-backdrop" role="presentation">
-      <div className="modal-panel card confirmation-modal" role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`modal-panel card confirmation-modal ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
           <div><span className="eyebrow">নিশ্চিতকরণ</span><h2>{title}</h2></div>
           <button className="icon-button" type="button" onClick={onClose} disabled={busy} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
@@ -386,7 +386,7 @@ export function CloseCurrentMonthPage() {
           </div>
           {showGenericCloseBlock && <div className="manager-warning-box" role="alert"><Icon name="clock" size={18} /><div><strong>{preflightKnown ? 'এই মাসটি এখনই বন্ধ করা যাবে না।' : 'মাস বন্ধের আগে যাচাই সম্পন্ন হয়নি।'}</strong><p>{preflight?.message || 'মিলের অনুরোধ, আর্থিক এন্ট্রি ও তারিখের অবস্থা সার্ভার থেকে যাচাই করা যায়নি। নিরাপত্তার জন্য মাস বন্ধের বোতাম বন্ধ রাখা হয়েছে।'}</p>{futureFinancialCount > 0 && <small>ভবিষ্যৎ তারিখের আর্থিক এন্ট্রি আগে ঠিক করুন।</small>}<button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {preflight?.running_period_count > 1 && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মেসে একাধিক চলমান মাস পাওয়া গেছে।</strong><p>নতুন মাস শুরু করবেন না। আগে এই তথ্যের অবস্থা যাচাই করতে হবে।</p></div></div>}
-          {requiresImpactConfirmation && <div className="manager-warning-box" role="alert"><Icon name="alert-triangle" size={18} /><div><strong>মাস বন্ধ করলে কিছু অনুরোধ/রেকর্ড বাতিল হবে।</strong><p>{futureRequestCount}টি ভবিষ্যৎ সক্রিয় অনুরোধ, {futureDayCount}টি ভবিষ্যৎ মিল-দিন এবং {pendingSpecialCount}টি অপেক্ষমাণ লেট/সংশোধন অনুরোধ পাওয়া গেছে। নিশ্চিত করলে এগুলো বাতিল হবে; আজ পর্যন্ত অনুমোদিত মিলের হিসাব চূড়ান্ত হবে।</p></div></div>}
+          {requiresImpactConfirmation && <div className="manager-warning-box" role="alert"><Icon name="warning" size={18} /><div><strong>মাস বন্ধ করলে কিছু অনুরোধ/রেকর্ড বাতিল হবে।</strong><p>{futureRequestCount}টি ভবিষ্যৎ সক্রিয় অনুরোধ, {futureDayCount}টি ভবিষ্যৎ মিল-দিন এবং {pendingSpecialCount}টি অপেক্ষমাণ লেট/সংশোধন অনুরোধ পাওয়া গেছে। নিশ্চিত করলে এগুলো বাতিল হবে; আজ পর্যন্ত অনুমোদিত মিলের হিসাব চূড়ান্ত হবে।</p></div></div>}
           <div className="inline-info" role="status"><Icon name="info" size={16} /> মাস বন্ধ করার দিন রাত ৯টার আগেও বন্ধ করলে আজকের অনুমোদিত মিল সঙ্গে সঙ্গে চূড়ান্ত হবে। কোনো অপেক্ষমাণ লেট/সংশোধন অনুরোধ থাকলে সেটি নিশ্চিতকরণের মাধ্যমে বাতিল হবে।</div>
           {preflight && preflight.overlap_pair_count > 0 && <div className="form-hint"><Icon name="info" size={16} /> {preflight.overlap_pair_count}টি পুরোনো overlapping normal request pair আছে। এগুলো মাস বন্ধের বাধা নয়; নতুন request দেওয়ার সময় conflict protection কাজ করবে।</div>}
           {overlaps.length > 0 && <div className="manager-overlap-list"><strong>ঐতিহাসিক overlap-এর বিবরণ</strong>{overlaps.map((item) => <div className="manager-overlap-row" key={`${item.request_id_a}-${item.request_id_b}`}><span>{item.member_name_a || 'সদস্য'} · {formatDateBangla(item.start_date_a)} → {formatDateBangla(item.end_date_a)}</span><span>{item.member_name_b || 'সদস্য'} · {formatDateBangla(item.start_date_b)} → {formatDateBangla(item.end_date_b)}</span></div>)}</div>}
@@ -402,14 +402,30 @@ export function CloseCurrentMonthPage() {
           </button>
         </section>
         {confirmOpen && <ConfirmModal
-          title="মাস বন্ধ করবেন?"
-          description={`${context.period.label} মাসটি ${formatDateBangla(today)} তারিখে বন্ধ হবে। আজ পর্যন্ত বাতিল না হওয়া সব মিলের হিসাব এখনই চূড়ান্ত হবে—রাত ৯টার জন্য অপেক্ষা করতে হবে না। ${futureRequestCount}টি ভবিষ্যৎ সক্রিয় অনুরোধ, ${futureDayCount}টি ভবিষ্যৎ মিল-দিন এবং ${pendingSpecialCount}টি অপেক্ষমাণ বিশেষ অনুরোধ থাকলে সেগুলো বাতিল হবে। আগের দিনের চূড়ান্ত হিসাব ও আর্থিক ইতিহাস মুছে ফেলা বা পরিবর্তন করা হবে না।`}
+          className="month-close-confirmation"
+          title="মাস বন্ধের আগে নিশ্চিত করুন"
+          description="নিচের তথ্যগুলো একবার দেখে নিশ্চিত করুন। মাস বন্ধ হলে এই মাসে নতুন সাধারণ মিল অনুরোধ আর নেওয়া হবে না।"
           confirmLabel="হ্যাঁ, হিসাব চূড়ান্ত করে মাস বন্ধ করুন"
           danger={futureWarning}
           busy={busy}
           onClose={() => { setConfirmOpen(false); setFutureWarning(false); }}
           onConfirm={() => closeMonth(futureWarning)}
-        />}
+        >
+          <div className="month-close-confirm-summary">
+            <div><span>বন্ধ হওয়া মাস</span><strong>{context.period.label}</strong></div>
+            <div><span>চূড়ান্ত তারিখ</span><strong>{formatDateBangla(today)}</strong></div>
+          </div>
+          <div className={`month-close-confirm-impact ${futureWarning ? 'has-cancellations' : ''}`} role="note">
+            <div className="month-close-confirm-impact-title"><Icon name={futureWarning ? 'warning' : 'info'} size={18} /><strong>{futureWarning ? 'যে তথ্যগুলো প্রভাবিত হবে' : 'মাস বন্ধ হলে যা হবে'}</strong></div>
+            <div className="month-close-confirm-counts">
+              <div><strong>{formatNumber(futureRequestCount)}</strong><span>ভবিষ্যৎ সক্রিয় অনুরোধ</span></div>
+              <div><strong>{formatNumber(futureDayCount)}</strong><span>ভবিষ্যৎ মিল-দিন</span></div>
+              <div><strong>{formatNumber(pendingSpecialCount)}</strong><span>অপেক্ষমাণ বিশেষ অনুরোধ</span></div>
+            </div>
+            <p>আজ পর্যন্ত বাতিল না হওয়া অনুমোদিত মিলের হিসাব সঙ্গে সঙ্গেই চূড়ান্ত হবে—রাত ৯টার জন্য অপেক্ষা করতে হবে না। আজকের পরের তারিখের সক্রিয় অনুরোধ ও রেকর্ড এবং অপেক্ষমাণ লেট/সংশোধন অনুরোধ বাতিল হবে।</p>
+            <small>আগের দিনের চূড়ান্ত হিসাব ও আর্থিক ইতিহাস মুছে ফেলা বা পরিবর্তন করা হবে না।</small>
+          </div>
+        </ConfirmModal>}
       </div>
     </PrimaryManagerGuard>
   );
@@ -802,7 +818,13 @@ export function KhalaMoneyPage() {
               <div className="manager-list-stack">
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
                   <article className={`card manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
-                    <div><strong>খালার পারিশ্রমিক</strong><small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small><span>{row.description || 'খালার টাকা'}</span><small className="khala-recipient-line">যাঁর নামে: {row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : row.recipient_name || 'নাম পাওয়া যায়নি'}</small><small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small></div>
+                    <div className="khala-ledger-copy">
+                      <div className="khala-ledger-recipient"><span>সদস্যের নাম</span><strong>{row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : row.recipient_name || 'সদস্যের নাম পাওয়া যায়নি'}</strong></div>
+                      <span className="khala-entry-kind">খালার পারিশ্রমিক</span>
+                      <small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small>
+                      <span className="khala-ledger-description">{row.description || 'খালার টাকা'}</span>
+                      <small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small>
+                    </div>
                     <strong>{formatCurrency(row.amount)}</strong>
                     {row.status !== 'void' ? <button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button> : <span className="member-badge inactive">বাতিল</span>}
                   </article>

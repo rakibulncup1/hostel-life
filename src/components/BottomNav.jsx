@@ -2,7 +2,7 @@ import { Icon } from './Icon';
 
 const items = [
   { key: 'dashboard', label: 'ড্যাশবোর্ড', icon: 'home' },
-  { key: 'dining', label: 'ডাইনিং', icon: 'dining' },
+  { key: 'dining', label: 'ডাইনিং', icon: 'cooking-pot' },
   { key: 'history', label: 'হিস্টরি', icon: 'history' },
   { key: 'profile', label: 'প্রোফাইল', icon: 'user' },
 ];

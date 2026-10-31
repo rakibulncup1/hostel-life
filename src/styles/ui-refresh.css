@@ -2170,31 +2170,377 @@ body {
 .forced-password-length-hint strong.is-valid { color:var(--success-color, #16845b); }
 .forced-password-change .forced-password-match-hint { margin:-5px 0 2px; color:var(--warning-color, #a16207); font-size:12px; line-height:1.5; text-align:left; }
 
+/* Gentle touch targets and legible small status text, without redesigning components. */
+.platform-tabs button, .platform-member-action-buttons button { min-height: 40px; }
+.platform-status, .platform-hostel-copy small, .platform-member-copy small { font-size: max(12px, .78rem); line-height: 1.5; }
+.manager-meal-card-head small { font-size: 12px; line-height: 1.6; }
+@media (max-width: 640px) {
+  .manager-meal-grid { grid-template-columns: 1fr; }
+  .manager-meal-card { min-width: 0; }
+}
 
-/* Password recovery policy notice — scoped to the Forgot Password view. */
-.password-reset-policy {
+
+/* Offline pages show a user-triggered retry only; no polling or background requests. */
+.offline-recovery-state { align-items: flex-start; gap: 13px; }
+.offline-recovery-copy { min-width: 0; display: grid; gap: 7px; }
+.offline-recovery-copy p { margin: 0; }
+.offline-recovery-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; margin-top: 4px; }
+.offline-recovery-actions > span { color: var(--muted); font-size: 10px; }
+.offline-recovery-actions a { display: inline-flex; align-items: center; gap: 4px; color: var(--primary-strong); font-size: 11px; font-weight: 850; overflow-wrap: anywhere; }
+
+/* Hostel Life — focused desktop/mobile UI polish (frontend only) */
+.history-title-row {
   display: grid;
-  gap: 7px;
-  padding: 13px 14px;
-  border: 1px solid rgba(59, 130, 246, 0.20);
-  border-radius: 13px;
-  background: rgba(59, 130, 246, 0.055);
-  color: var(--text, #263445);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+.history-page-intro-copy { min-width: 0; }
+.history-title-footer {
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+.history-intro-info {
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  min-height: 46px;
+  padding: 11px 14px;
+  align-items: center;
+  line-height: 1.55;
+}
+.history-intro-info > svg { flex: 0 0 auto; }
+.history-title-actions {
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: stretch;
+  margin-left: 0;
+}
+.history-title-actions .secondary-button { min-height: 46px; }
+
+/* Let desktop market filters use their full row, so date pickers never collide with Reset. */
+.market-history-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.market-history-filters .history-filter-controls {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(170px, 1.25fr) repeat(2, minmax(145px, 1fr)) auto;
+  align-items: end;
+  gap: 10px;
+}
+.market-history-filters .history-filter-controls > select,
+.market-history-filters .compact-field,
+.market-history-filters .compact-field input {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+.market-history-filters .compact-field { flex: initial; }
+.market-history-filters .compact-field input { min-height: 42px; justify-self: stretch; }
+.market-history-filters .history-filter-controls > button {
+  min-height: 42px;
+  white-space: nowrap;
+  justify-self: end;
+}
+
+.request-history-header {
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.request-history-heading {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+.request-history-heading-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--primary-soft) 70%, var(--surface));
+  color: var(--primary-strong);
+}
+.request-history-heading-copy { min-width: 0; }
+.request-history-heading-copy .eyebrow { letter-spacing: .045em; }
+.request-history-heading-copy h2 {
+  margin: 4px 0 0;
+  font-size: clamp(20px, 2.3vw, 25px);
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+.request-history-heading-copy p {
+  max-width: 68ch;
+  margin: 7px 0 0;
   font-size: 12px;
   line-height: 1.65;
 }
-.password-reset-policy-title {
+.request-history-refresh { flex: 0 0 auto; }
+
+.dining-section-title.has-dining-brand-mark {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: var(--text, #263445);
-  font-size: 13px;
+  gap: 14px;
 }
-.password-reset-policy-title svg {
+.dining-brand-mark {
+  width: 54px;
+  height: 54px;
   flex: 0 0 auto;
-  color: #2563eb;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--primary-soft) 75%, var(--surface));
+  color: var(--primary-strong);
 }
-.password-reset-policy p {
-  margin: 0;
-  color: var(--muted, #64748b);
+.dining-section-title-copy { min-width: 0; }
+
+.khala-ledger-copy { min-width: 0; display: grid; gap: 5px; }
+.khala-ledger-recipient {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+  min-width: 0;
+  margin-bottom: 2px;
+}
+.khala-ledger-recipient > span { color: var(--muted); font-size: 9px; font-weight: 850; letter-spacing: .04em; }
+.khala-ledger-recipient > strong {
+  display: inline-block;
+  max-width: 100%;
+  color: var(--primary-strong);
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.3;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.khala-entry-kind { color: var(--text); font-size: 11px; font-weight: 850; }
+.khala-ledger-copy > small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.khala-ledger-description { color: var(--text); font-size: 11px; line-height: 1.55; }
+.khala-ledger-copy .khala-entry-actor { font-size: 9px; }
+
+.month-close-confirmation { width: min(700px, calc(100% - 26px)); }
+.month-close-confirmation .modal-head h2 { font-size: clamp(20px, 2.2vw, 25px); line-height: 1.25; }
+.month-close-confirmation .confirm-description { max-width: 68ch; font-size: 13px; line-height: 1.7; }
+.month-close-confirm-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+.month-close-confirm-summary > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.month-close-confirm-summary span { color: var(--muted); font-size: 10px; font-weight: 800; }
+.month-close-confirm-summary strong { font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
+.month-close-confirm-impact {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--primary-soft) 45%, var(--surface));
+}
+.month-close-confirm-impact.has-cancellations {
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--line));
+  background: color-mix(in srgb, var(--warning-soft) 58%, var(--surface));
+}
+.month-close-confirm-impact-title { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.month-close-confirm-impact-title svg { color: var(--warning); flex: 0 0 auto; }
+.month-close-confirm-impact-title strong { font-size: 12px; }
+.month-close-confirm-counts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 11px;
+}
+.month-close-confirm-counts > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+}
+.month-close-confirm-counts strong { font-size: 20px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.month-close-confirm-counts span { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.month-close-confirm-impact p { margin: 11px 0 0; color: var(--text); font-size: 11px; line-height: 1.65; }
+.month-close-confirm-impact > small { display: block; margin-top: 7px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+
+/* Onboarding should feel like an explicit choice, with a clear safe account-switch exit. */
+.setup-choice-card { transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.setup-choice-card.active {
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 9%, transparent), var(--soft-shadow);
+}
+.setup-choice-head { min-height: 80px; }
+.setup-choice-head .feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--primary-soft) 78%, var(--surface));
+  color: var(--primary-strong);
+}
+.setup-choice-body { padding-top: 15px; }
+.onboarding-account-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: -4px 0 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-2);
+}
+.onboarding-account-switch-row > span { color: var(--muted); font-size: 11px; }
+.onboarding-switch-account {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 35px;
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.onboarding-switch-account:disabled { opacity: .55; cursor: not-allowed; }
+.creation-success-card .onboarding-switch-account { width: 100%; margin-top: 10px; }
+
+.identity-recovery-error {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--line));
+  border-radius: 12px;
+  background: var(--warning-soft);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.identity-recovery-note {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.identity-recovery-note > strong { font-size: 12px; }
+.identity-recovery-note p { margin: 0; font-size: 11px; }
+.identity-recovery-note a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+.identity-recovery-actions { margin-top: 14px; }
+.identity-recovery-actions .primary-button,
+.identity-recovery-actions .secondary-button { margin-top: 0; }
+
+@media (min-width: 641px) and (max-width: 980px) {
+  .market-history-filters .history-filter-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .market-history-filters .history-filter-controls > select { grid-column: 1 / -1; }
+  .market-history-filters .history-filter-controls > button { justify-self: end; }
+}
+@media (max-width: 640px) {
+  .history-title-row { gap: 10px; }
+  .history-title-footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; }
+  .history-intro-info { width: 100%; min-height: 0; padding: 11px 12px; }
+  .history-title-actions { width: 100%; justify-content: stretch; }
+  .history-title-actions .secondary-button { min-height: 40px; }
+  .request-history-header { align-items: stretch; flex-direction: column; }
+  .request-history-refresh { align-self: flex-start; }
+  .dining-section-title.has-dining-brand-mark { align-items: flex-start; gap: 11px; }
+  .dining-brand-mark { width: 46px; height: 46px; border-radius: 14px; }
+  .month-close-confirm-summary { gap: 7px; }
+  .month-close-confirm-summary > div { padding: 10px; }
+  .month-close-confirm-summary strong { font-size: 13px; }
+  .month-close-confirm-impact { padding: 11px; }
+  .month-close-confirm-counts { gap: 5px; }
+  .month-close-confirm-counts > div { padding: 8px 6px; }
+  .month-close-confirm-counts strong { font-size: 17px; }
+  .month-close-confirm-counts span { font-size: 8px; }
+  .onboarding-account-switch-row { align-items: flex-start; flex-direction: column; }
+  .onboarding-account-switch-row .onboarding-switch-account { width: 100%; }
+}
+
+
+/* Run20 recipient emphasis and narrow-screen date-filter preservation. */
+.khala-public-person-copy { min-width: 0; display: grid; gap: 5px; }
+.khala-public-person-copy .khala-ledger-recipient { margin: 0 0 2px; }
+.khala-public-person-copy .khala-ledger-recipient > strong { font-size: clamp(18px, 2vw, 23px); }
+.khala-public-entry-kind { display: block; color: var(--text); font-size: 11px; font-weight: 850; }
+@media (max-width: 640px) {
+  .market-history-filters .history-filter-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .market-history-filters .history-filter-controls > select,
+  .market-history-filters .history-filter-controls > button {
+    grid-column: 1 / -1;
+  }
+  .market-history-filters .history-filter-controls > button { justify-self: stretch; }
+}
+@media (min-width: 641px) and (max-width: 850px) {
+  .history-title-footer { flex-wrap: wrap; }
+  .history-intro-info { flex-basis: 100%; }
+  .history-title-actions { justify-content: flex-end; }
+}
+
+/* Ranking medals: high-contrast, theme-aware badges for the top three places. */
+.ranking-card .rank-number {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ranking-card .rank-number.rank-1 {
+  border-color: color-mix(in srgb, #d79b24 42%, var(--line));
+  background: color-mix(in srgb, #e8ae35 22%, var(--surface));
+  color: color-mix(in srgb, #9a6500 88%, var(--text));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 52%, transparent);
+}
+.ranking-card .rank-number.rank-2 {
+  border-color: color-mix(in srgb, #8998a8 42%, var(--line));
+  background: color-mix(in srgb, #aebbc8 22%, var(--surface));
+  color: color-mix(in srgb, #536273 88%, var(--text));
+}
+.ranking-card .rank-number.rank-3 {
+  border-color: color-mix(in srgb, #b86b3c 42%, var(--line));
+  background: color-mix(in srgb, #d28b5e 20%, var(--surface));
+  color: color-mix(in srgb, #8b4c25 88%, var(--text));
 }
