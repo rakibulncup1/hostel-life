@@ -285,10 +285,13 @@ export function HistoryPage() {
   return (
     <div className="page-stack">
       <div className="page-title-row history-title-row">
-        <div className="history-page-intro-copy">
-          <span className="eyebrow">স্বচ্ছ হিসাব</span>
-          <h1>হিস্টরি</h1>
-          <p>বাজার, হিসাব এবং আগের মাসের সংরক্ষিত তথ্য এক জায়গায়।</p>
+        <div className="history-title-heading">
+          <span className="history-page-brand-mark" aria-hidden="true"><Icon name="history" size={25}/></span>
+          <div className="history-page-intro-copy">
+            <span className="eyebrow">স্বচ্ছ হিসাব</span>
+            <h1>হিস্টরি</h1>
+            <p>বাজার, হিসাব এবং আগের মাসের সংরক্ষিত তথ্য এক জায়গায়।</p>
+          </div>
         </div>
         <div className="history-title-footer">
           <div className="history-intro-info"><Icon name="info" size={17}/><span>বাজারের হিসাব, জমা-খরচের লেনদেন ও আগের মাসের সংরক্ষিত তথ্য এখানে একসঙ্গে পাবেন। বিস্তারিত দেখতে যেকোনো লেনদেনে চাপ দিন। সম্পাদনার সুবিধা শুধু অনুমোদিত ম্যানেজারের জন্য।</span></div>

@@ -1863,6 +1863,7 @@ export function DiningPage() {
   if (view === 'meal-request') {
     return (
       <div className="page-stack">
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="arrow-left" size={15} /> ডাইনিংয়ে ফিরে যান</button></div>
         <PersonalTomorrowMealCard />
         <SectionHeader eyebrow="ডাইনিং" title="মিল অনুরোধ" description="নতুন অনুরোধ দিন, অথবা আগের অনুরোধের হিসাব দেখুন।" />
         <div className="request-entry-choice-grid">

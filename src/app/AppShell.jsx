@@ -230,7 +230,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       )}
 
       <main className="app-main">
-        {!isOnline && active !== 'dashboard' && !pathname.startsWith('/app/menu/privacy-policy') && !pathname.startsWith('/app/menu/terms') && !pathname.startsWith('/app/menu/how-to-use') && !pathname.startsWith('/app/menu/developer') ? <OfflineState /> : children}
+        {!isOnline && active !== 'dashboard' && !pathname.startsWith('/app/menu/privacy-policy') && !pathname.startsWith('/app/menu/terms') && !pathname.startsWith('/app/menu/how-to-use') && !pathname.startsWith('/app/menu/developer') ? <OfflineState onBack={() => navigateTo('/app/dashboard')} /> : children}
         <footer className="app-copyright-footer">
           <span>Copyright © {new Date().getFullYear()} Hostel-Life. All rights reserved.</span>
           <span>Designed &amp; Developed by <a href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noreferrer">Rakibul Islam Samrat</a></span>

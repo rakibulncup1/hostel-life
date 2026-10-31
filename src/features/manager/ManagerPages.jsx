@@ -40,13 +40,19 @@ import { deriveNextRequiredStartDate, dhakaDateInputValue } from '../../utils/mo
 import { canActivateNextPeriod, getDhakaDateTimeParts, getMemberDeactivationImpact, getNextPeriodActivationMessage } from '../../utils/monthLifecyclePolicy';
 
 
-function AccessNotice({ title, text }) {
+function FeatureStateNotice({ title, text, icon = 'info', children }) {
   return (
-    <div className="state-card state-card-warning">
-      <Icon name="shield" size={28} />
-      <div><h2>{title}</h2><p>{text}</p></div>
+    <div className="state-card state-card-warning feature-state-with-back">
+      <Icon name={icon} size={28} />
+      <div className="feature-state-copy"><h2>{title}</h2><p>{text}</p>{children}
+        <button className="secondary-button compact feature-state-back" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15}/> ড্যাশবোর্ডে ফিরে যান</button>
+      </div>
     </div>
   );
+}
+
+function AccessNotice({ title, text }) {
+  return <FeatureStateNotice title={title} text={text} icon="shield" />;
 }
 
 function ManagerGuard({ children }) {
@@ -326,9 +332,9 @@ export function CloseCurrentMonthPage() {
   if (loading) return <LoadingSpinner label="বর্তমান মাস লোড হচ্ছে..." />;
   if (context?.has_running_period !== true || !context?.period) {
     if (context?.has_running_period === false) {
-      return <div className="state-card state-card-warning"><Icon name="calendar" size={27} /><div><h2>কোনো চলমান মাস নেই</h2><p>নতুন মাস শুরু করতে মেনু থেকে “নতুন মাস শুরু” ব্যবহার করুন।</p></div></div>;
+      return <FeatureStateNotice title="কোনো চলমান মাস নেই" text="নতুন মাস শুরু করতে মেনু থেকে “নতুন মাস শুরু” ব্যবহার করুন।" icon="calendar"><button className="secondary-button compact" type="button" onClick={() => navigateTo('/app/menu/new-month')}>নতুন মাস শুরু</button></FeatureStateNotice>;
     }
-    return <div className="state-card state-card-warning"><Icon name="warning" size={27} /><div><h2>চলমান মাসের অবস্থা যাচাই করা যায়নি</h2><p>ভুল করে মাস নেই ধরে নেওয়া হচ্ছে না। ইন্টারনেট ও ডাটাবেজ সংযোগ যাচাই করে আবার চেষ্টা করুন।</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>;
+    return <FeatureStateNotice title="চলমান মাসের অবস্থা যাচাই করা যায়নি" text="ভুল করে মাস নেই ধরে নেওয়া হচ্ছে না। ইন্টারনেট ও সার্ভার সংযোগ যাচাই করে আবার চেষ্টা করুন।" icon="warning"><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></FeatureStateNotice>;
   }
 
   const today = getDhakaDateTimeParts(clockNow).today || context.today || toDateInputValue();
@@ -466,7 +472,7 @@ export function ChangeManagerPage() {
     } finally { setBusy(false); }
   };
 
-  if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>ইন্টারনেট চালু করুন</h2><p>ম্যানেজার পরিবর্তনের জন্য অনলাইন সংযোগ প্রয়োজন।</p></div></div>;
+  if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="ম্যানেজার পরিবর্তনের জন্য অনলাইন সংযোগ প্রয়োজন।" />;
   if (loading) return <LoadingSpinner label="ম্যানেজার পরিবর্তনের সদস্য তালিকা লোড হচ্ছে..." />;
 
   return (
@@ -595,7 +601,7 @@ export function HostelSettingsPage() {
     finally { setCodeBusy(false); }
   };
 
-  if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>ইন্টারনেট চালু করুন</h2><p>মেস সেটিংস পরিবর্তনের জন্য online connection প্রয়োজন।</p></div></div>;
+  if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="মেস সেটিংস পরিবর্তনের জন্য অনলাইন সংযোগ প্রয়োজন।" />;
 
   return (
     <PrimaryManagerGuard>
@@ -665,7 +671,7 @@ export function MemberManagementPage() {
     } catch (error) { toast.error(getFriendlySupabaseError(error, 'সদস্যের status পরিবর্তন করা যায়নি।')); }
   };
 
-  if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>ইন্টারনেট চালু করুন</h2><p>সদস্য ব্যবস্থাপনার জন্য online connection প্রয়োজন।</p></div></div>;
+  if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="সদস্য ব্যবস্থাপনার জন্য অনলাইন সংযোগ প্রয়োজন।" />;
 
   return (
     <PrimaryManagerGuard>
@@ -929,7 +935,7 @@ export function ArchiveManagerPage() {
     finally { setBusy(false); }
   };
 
-  if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>ইন্টারনেট চালু করুন</h2><p>আর্কাইভ ব্যবস্থাপনা অনলাইনেই পরিচালিত হয়।</p></div></div>;
+  if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="আর্কাইভ ব্যবস্থাপনা অনলাইনেই পরিচালিত হয়।" />;
   if (loading) return <LoadingSpinner label="Archive management প্রস্তুত হচ্ছে..." />;
 
   return <PrimaryManagerGuard><div className="page-stack">
@@ -986,9 +992,9 @@ export function MealSheetPage() {
   }, [toast]);
   useEffect(() => { if (online) load(); }, [online, load]);
 
-  if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>মিল শিট দেখতে ইন্টারনেট চালু করুন</h2><p>রিপোর্ট অফলাইনে রাখা হয় না।</p></div></div>;
+  if (!online) return <AccessNotice title="মিল শিট দেখতে ইন্টারনেট চালু করুন" text="রিপোর্ট অফলাইনে রাখা হয় না।" />;
   if (loading) return <LoadingSpinner label="মিল শিট তৈরি হচ্ছে..." />;
-  if (!bundle) return <div className="empty-state-card"><Icon name="calendar" size={28} /><strong>কোনো চলমান মাস নেই</strong><span>মিল শিট তৈরি করতে একটি চলমান মাস থাকতে হবে।</span></div>;
+  if (!bundle) return <FeatureStateNotice title="কোনো চলমান মাস নেই" text="মিল শিট তৈরি করতে একটি চলমান মাস থাকতে হবে।" icon="calendar" />;
 
   const dailyTotals = bundle.days.map((day) => {
     const rows = bundle.mealRows.filter((r) => r.date === day.meal_date);
@@ -1057,9 +1063,9 @@ export function ReportsPage() {
 
   useEffect(() => { if (online) load(); }, [online, load]);
 
-  if (!online) return <div className="state-card state-card-warning"><Icon name="offline" size={27} /><div><h2>রিপোর্ট দেখতে ইন্টারনেট চালু করুন</h2><p>রিপোর্ট অনলাইনেই তৈরি হয়।</p></div></div>;
+  if (!online) return <AccessNotice title="রিপোর্ট দেখতে ইন্টারনেট চালু করুন" text="রিপোর্ট অনলাইনেই তৈরি হয়।" />;
   if (loading) return <LoadingSpinner label="রিপোর্টের তথ্য প্রস্তুত হচ্ছে..." />;
-  if (!bundle) return <div className="empty-state-card"><Icon name="download" size={28} /><strong>রিপোর্টের জন্য কোনো চলমান মাস নেই</strong><span>নতুন মাস শুরু হলে রিপোর্ট তৈরি করা যাবে।</span></div>;
+  if (!bundle) return <FeatureStateNotice title="রিপোর্টের জন্য কোনো চলমান মাস নেই" text="নতুন মাস শুরু হলে রিপোর্ট তৈরি করা যাবে।" icon="download" />;
 
   const meals = calculateMealTotals(bundle.mealRows);
   const dailyRows = buildDailyMealRows(bundle.days, bundle.mealRows);

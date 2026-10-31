@@ -160,7 +160,7 @@ export function ProfilePage() {
         <div className="theme-choice-grid">{Object.keys(themeLabels).map((key) => <button className={`theme-choice ${theme === key ? 'selected' : ''}`} key={key} type="button" onClick={() => setThemeChoice(key)}><Icon name={key === 'dark' ? 'moon' : key === 'light' ? 'sun' : 'monitor'} size={18} /><span>{themeLabels[key]}</span>{theme === key && <Icon name="check" size={16} />}</button>)}</div>
       </section>
 
-      <div className="profile-footer-links"><button type="button" className="text-button" onClick={() => navigateTo('/app/menu/developer')}>ডেভেলপার ইনফো দেখুন <Icon name="arrow-right" size={14} /></button></div>
+      <div className="profile-footer-links"><button type="button" className="text-button" onClick={() => navigateTo('/app/menu/developer')}>হোস্টেল লাইফ সাপোর্ট <Icon name="arrow-right" size={14} /></button></div>
     </div>
   );
 }
