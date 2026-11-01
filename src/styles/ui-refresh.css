@@ -4487,3 +4487,102 @@ body {
 @media(max-width:900px){.platform-insights-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media(max-width:640px){.platform-insights-toolbar{grid-template-columns:1fr;padding:12px}.platform-insights-period-head{align-items:flex-start;padding:15px;flex-direction:column}.platform-insights-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.platform-insight-stat{padding:11px;gap:8px}.platform-insight-stat-icon{width:30px;height:30px;flex-basis:30px;border-radius:9px}.platform-insight-stat-copy small{font-size:10px}.platform-insight-stat-copy strong{font-size:15px}.platform-insights-section-title{align-items:flex-start;flex-direction:column;gap:3px}.platform-insights-footer{align-items:flex-start;flex-direction:column}}
 @media(max-width:360px){.platform-insights-grid{grid-template-columns:1fr}.platform-insight-stat{align-items:center}.platform-insight-stat-copy strong{font-size:17px}}
+
+/* Super Admin Phase 3 — health monitoring, notice oversight and report export. */
+.platform-phase3-panel { display: grid; gap: 16px; }
+.platform-phase3-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); }
+.platform-phase3-toolbar .field-label { width: min(340px, 100%); margin: 0; }
+.platform-phase3-toolbar select { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; }
+.platform-phase3-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.platform-phase3-stat-grid { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; }
+.platform-phase3-stat-grid .platform-stat { min-width: 0; }
+.platform-phase3-breakdown { display: flex; flex-wrap: wrap; gap: 8px; }
+.platform-phase3-breakdown span { display: inline-flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); color: var(--muted); font-size: 10px; }
+.platform-phase3-breakdown b { color: var(--text); font-size: 11px; }
+.platform-phase3-list-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 5px; }
+.platform-phase3-list-heading h4 { margin: 0; color: var(--text); font-size: 14px; }
+.platform-phase3-list-heading small { color: var(--muted); font-size: 10px; }
+.platform-health-list, .platform-notice-monitor-list { display: grid; gap: 10px; }
+.platform-health-item, .platform-notice-monitor-item { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.platform-health-item-top, .platform-notice-monitor-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.platform-health-item-top > div, .platform-notice-monitor-top > div { min-width: 0; display: grid; gap: 4px; }
+.platform-health-item-top strong, .platform-notice-monitor-top strong { color: var(--text); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.platform-health-item-top small { color: var(--muted); font-size: 10px; }
+.platform-health-severity { flex: 0 0 auto; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font-size: 10px; font-weight: 800; }
+.platform-health-severity.severity-critical { color: #b42318; border-color: #e8b7b3; background: #fff1f0; }
+.platform-health-severity.severity-warning { color: #93610a; border-color: #edd9a8; background: #fff8e8; }
+.platform-health-severity.severity-info { color: #315e8a; border-color: #c3d6e9; background: #eff6fc; }
+.platform-health-severity.severity-healthy { color: #16724a; border-color: #b8dfc9; background: #effaf3; }
+.platform-health-issues { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.platform-health-issues span { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 10px; }
+.platform-health-meta { display: flex; flex-wrap: wrap; gap: 7px 15px; margin-top: 10px; color: var(--muted); font-size: 10px; }
+.platform-health-meta b { color: var(--text); }
+.platform-global-monitor { padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); }
+.platform-global-monitor.is-enabled { border-color: color-mix(in srgb,#4e8ed0 35%,var(--line)); background: color-mix(in srgb,#4e8ed0 8%,var(--surface)); }
+.platform-global-monitor.is-disabled { opacity: .82; }
+.platform-global-monitor-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.platform-global-monitor-head > span:first-child { display: inline-flex; align-items: center; gap: 7px; color: #4d83b8; font-size: 10px; font-weight: 900; letter-spacing: .05em; }
+.platform-global-monitor h4 { margin: 11px 0 5px; color: var(--text); font-size: 16px; }
+.platform-global-monitor p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.platform-global-monitor > small { display: block; margin-top: 10px; color: var(--muted); font-size: 10px; }
+.platform-phase3-search { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: end; gap: 9px; }
+.platform-phase3-search .field-label { margin: 0; min-width: 0; }
+.platform-phase3-search button { min-height: 42px; white-space: nowrap; }
+.platform-notice-hostel-tag { color: var(--primary-strong); font-size: 10px; font-weight: 850; }
+.platform-notice-monitor-top .platform-status { flex: 0 0 auto; }
+.platform-notice-monitor-item > p { margin: 10px 0 0; color: var(--text); font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.platform-notice-monitor-meta { display: flex; flex-wrap: wrap; gap: 7px 14px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+.platform-notice-monitor-meta b { color: var(--text); }
+.platform-report-toolbar { display: grid; grid-template-columns: minmax(150px,1fr) minmax(150px,1fr) auto; align-items: end; gap: 11px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.platform-report-toolbar .field-label { min-width: 0; margin: 0; }
+.platform-report-toolbar input { width: 100%; min-height: 42px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; }
+.platform-report-toolbar button { min-height: 42px; white-space: nowrap; }
+.platform-report-range-note, .platform-report-warning { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); color: var(--muted); font-size: 11px; line-height: 1.6; }
+.platform-report-range-note svg, .platform-report-warning svg { flex: 0 0 auto; margin-top: 1px; }
+.platform-report-warning { border-color: #edd9a8; background: #fff8e8; color: #7c5b17; }
+.platform-report-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.platform-report-header h4 { margin: 3px 0; color: var(--text); font-size: 17px; }
+.platform-report-header small { color: var(--muted); font-size: 10px; }
+.platform-report-header button { flex: 0 0 auto; }
+.platform-report-total-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; }
+.platform-report-total-grid > div { min-width: 0; display: grid; gap: 5px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.platform-report-total-grid small { color: var(--muted); font-size: 10px; }
+.platform-report-total-grid strong { color: var(--text); font-size: 15px; overflow-wrap: anywhere; }
+.platform-report-table-wrap { width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.platform-report-table { width: 100%; min-width: 760px; border-collapse: collapse; background: var(--surface); font-size: 11px; }
+.platform-report-table th, .platform-report-table td { padding: 10px 11px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+.platform-report-table th { background: var(--surface-2); color: var(--muted); font-size: 10px; font-weight: 850; }
+.platform-report-table td { color: var(--text); }
+.platform-report-table tbody tr:last-child td { border-bottom: 0; }
+@media(max-width:900px) {
+  .platform-phase3-stat-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .platform-report-toolbar { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .platform-report-toolbar button { grid-column: 1/-1; }
+}
+@media(max-width:640px) {
+  .platform-phase3-toolbar { align-items: stretch; flex-direction: column; }
+  .platform-phase3-toolbar .field-label { width: 100%; }
+  .platform-phase3-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .platform-phase3-search { grid-template-columns: 1fr 1fr; }
+  .platform-phase3-search .field-label { grid-column: 1/-1; }
+  .platform-phase3-search button { width: 100%; }
+  .platform-report-toolbar { grid-template-columns: 1fr; }
+  .platform-report-toolbar button { grid-column: auto; width: 100%; }
+  .platform-report-header { align-items: stretch; flex-direction: column; }
+  .platform-report-header button { width: 100%; }
+  .platform-report-total-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .platform-phase3-list-heading { align-items: flex-start; flex-direction: column; }
+  .platform-health-item-top, .platform-notice-monitor-top { align-items: flex-start; }
+  .platform-health-meta, .platform-notice-monitor-meta { flex-direction: column; gap: 6px; }
+}
+@media(max-width:360px) {
+  .platform-phase3-stat-grid { grid-template-columns: 1fr; }
+  .platform-report-total-grid { grid-template-columns: 1fr; }
+}
+:root[data-theme="dark"] .platform-global-monitor.is-enabled { background: color-mix(in srgb,#4e8ed0 16%,var(--surface)); border-color: color-mix(in srgb,#4e8ed0 42%,var(--line)); }
+:root[data-theme="dark"] .platform-global-monitor-head > span:first-child { color: #93c2f0; }
+:root[data-theme="dark"] .platform-health-severity.severity-critical { color: #ffaaa3; background: #442321; border-color: #74403b; }
+:root[data-theme="dark"] .platform-health-severity.severity-warning { color: #f1d28b; background: #41351c; border-color: #66552e; }
+:root[data-theme="dark"] .platform-health-severity.severity-info { color: #a8cff4; background: #1b3145; border-color: #36536d; }
+:root[data-theme="dark"] .platform-health-severity.severity-healthy { color: #9cdbb4; background: #1b3928; border-color: #315d41; }
+:root[data-theme="dark"] .platform-report-warning { color: #f1d28b; background: #41351c; border-color: #66552e; }

@@ -324,3 +324,36 @@ export async function platformAdminGetHostelInsights(hostelId, periodId = null) 
   if (error) throw error;
   return firstRow(data) || {};
 }
+
+// Phase 3: Super Admin-only operational monitoring and aggregate report endpoints.
+export async function platformAdminGetSystemHealth(staleDays = 14) {
+  assertSupabase();
+  const safeDays = Math.min(60, Math.max(7, Number(staleDays) || 14));
+  const { data, error } = await supabase.rpc('platform_admin_get_system_health', { p_stale_days: safeDays });
+  if (error) throw error;
+  return firstRow(data) || {};
+}
+
+export async function platformAdminListNoticeMonitoring({ limit = 25, offset = 0, search = null } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_notice_monitoring', {
+    p_limit: Math.min(100, Math.max(1, Number(limit) || 25)),
+    p_offset: Math.max(0, Number(offset) || 0),
+    p_search: search ? String(search).slice(0, 120) : null,
+  });
+  if (error) throw error;
+  return firstRow(data) || {};
+}
+
+export async function platformAdminGetPlatformReport(fromDate, toDate) {
+  assertSupabase();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fromDate || '') || !/^\d{4}-\d{2}-\d{2}$/.test(toDate || '')) {
+    throw new Error('রিপোর্টের তারিখ সঠিকভাবে নির্বাচন করুন।');
+  }
+  if (toDate < fromDate) throw new Error('শেষ তারিখ শুরুর তারিখের আগে হতে পারবে না।');
+  const { data, error } = await supabase.rpc('platform_admin_get_platform_report', {
+    p_from_date: fromDate, p_to_date: toDate,
+  });
+  if (error) throw error;
+  return firstRow(data) || {};
+}

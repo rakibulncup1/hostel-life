@@ -5,6 +5,7 @@ import { BrandMark } from '../../components/BrandMark';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { supabase } from '../../lib/supabase';
 import { normalizePlatformOverview } from '../../utils/platformOverview';
+import { buildPlatformReportCsv, getPlatformReportFilename } from '../../utils/platformReportCsv';
 import {
   fetchPlatformPublicSettings, platformAdminGenerateAccessCode, platformAdminGetOverview,
   platformAdminListHostelMembers, platformAdminListHostelRoleBadges, platformAdminListHostels, platformAdminSetGate,
@@ -15,6 +16,7 @@ import {
   platformAdminListExpiredArchives, platformAdminDeleteExpiredArchive,
   platformAdminFinalizeArchiveSummary, platformAdminVerifyArchiveSummary, platformAdminListSavedSummaries,
   platformAdminListAuditLogs, platformAdminListAccessCodeHistory, platformAdminGetHostelInsights,
+  platformAdminGetSystemHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -24,7 +26,7 @@ const EMPTY_SETTINGS = {
   developer_phone: '', developer_portfolio_url: '',
 };
 const errorText = (error, fallback) => /platform_admin_|get_platform_public_settings|function .* does not exist|schema cache/i.test(String(error?.message || ''))
-  ? 'Super Admin SQL এখনো প্রয়োগ করা হয়নি। প্রথমে নির্দেশিকার Phase 2 SQL চালিয়ে schema reload হওয়া পর্যন্ত অপেক্ষা করুন।'
+  ? 'Super Admin SQL এখনো প্রয়োগ করা হয়নি। প্রথমে প্রয়োজনীয় Super Admin SQL Migration চালিয়ে schema reload হওয়া পর্যন্ত অপেক্ষা করুন।'
   : (error?.message || fallback);
 
 async function edgeInvokeErrorText(error) {
@@ -109,6 +111,28 @@ function codePurposeLabel(purpose) { return purpose === 'registration' ? 'Regist
 function codeStatusLabel(status) {
   return ({ available: 'মেয়াদ ও ব্যবহারসীমা আছে', expired: 'মেয়াদ শেষ', revoked: 'বাতিল', exhausted: 'ব্যবহারসীমা শেষ' })[status] || 'অজানা';
 }
+function dhakaDateValue(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+  const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${lookup.year}-${lookup.month}-${lookup.day}`;
+}
+function systemIssueLabel(code) {
+  return ({
+    hostel_suspended: 'মেস স্থগিত',
+    missing_running_period: 'চলমান মাস নেই',
+    no_active_members: 'সক্রিয় সদস্য নেই',
+    primary_manager_unavailable: 'প্রধান ম্যানেজার অনুপস্থিত/নিষ্ক্রিয়',
+    stale_activity: 'দীর্ঘদিন কার্যক্রম নেই',
+    pending_request_backlog: 'অনেক মিল অনুরোধ অপেক্ষমাণ',
+  })[code] || String(code || 'অন্যান্য সমস্যা').replaceAll('_', ' ');
+}
+function systemSeverityLabel(value) {
+  return ({ critical: 'জরুরি', warning: 'পর্যালোচনা দরকার', info: 'তথ্য', healthy: 'স্বাভাবিক' })[value] || 'অন্যান্য';
+}
+function formatReportCurrency(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `৳${numeric.toLocaleString('bn-BD', { maximumFractionDigits: 2 })}` : '—';
+}
 
 export function SuperAdminPage({ user }) {
   const [checking, setChecking] = useState(true);
@@ -185,6 +209,23 @@ export function SuperAdminPage({ user }) {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [insightsError, setInsightsError] = useState('');
   const insightsRequestRef = useRef(0);
+  const [healthData, setHealthData] = useState(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState('');
+  const [healthStaleDays, setHealthStaleDays] = useState('14');
+  const [noticeMonitorData, setNoticeMonitorData] = useState(null);
+  const [noticeMonitorRows, setNoticeMonitorRows] = useState([]);
+  const [noticeMonitorTotal, setNoticeMonitorTotal] = useState(0);
+  const [noticeMonitorPage, setNoticeMonitorPage] = useState(0);
+  const [noticeMonitorSearchDraft, setNoticeMonitorSearchDraft] = useState('');
+  const [noticeMonitorSearch, setNoticeMonitorSearch] = useState('');
+  const [noticeMonitorLoading, setNoticeMonitorLoading] = useState(false);
+  const [noticeMonitorError, setNoticeMonitorError] = useState('');
+  const [reportFromDate, setReportFromDate] = useState(() => `${dhakaDateValue().slice(0, 7)}-01`);
+  const [reportToDate, setReportToDate] = useState(() => dhakaDateValue());
+  const [reportData, setReportData] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState('');
 
   const pageSize = 20;
 
@@ -232,6 +273,59 @@ export function SuperAdminPage({ user }) {
     } finally { setCodeHistoryLoading(false); }
   }, [codeHistoryPage, codeHistoryPurpose]);
 
+  const loadSystemHealth = useCallback(async () => {
+    setHealthLoading(true); setHealthError('');
+    try {
+      const result = await platformAdminGetSystemHealth(Number(healthStaleDays) || 14);
+      setHealthData(result || null);
+    } catch (cause) {
+      setHealthData(null);
+      setHealthError(errorText(cause, 'System Health লোড করা যায়নি।'));
+    } finally { setHealthLoading(false); }
+  }, [healthStaleDays]);
+
+  const loadNoticeMonitoring = useCallback(async () => {
+    setNoticeMonitorLoading(true); setNoticeMonitorError('');
+    try {
+      const result = await platformAdminListNoticeMonitoring({
+        limit: pageSize, offset: noticeMonitorPage * pageSize, search: noticeMonitorSearch || null,
+      });
+      setNoticeMonitorData(result || null);
+      setNoticeMonitorRows(Array.isArray(result?.items) ? result.items : []);
+      setNoticeMonitorTotal(Number(result?.total_count) || 0);
+    } catch (cause) {
+      setNoticeMonitorData(null); setNoticeMonitorRows([]); setNoticeMonitorTotal(0);
+      setNoticeMonitorError(errorText(cause, 'নোটিশের তালিকা লোড করা যায়নি।'));
+    } finally { setNoticeMonitorLoading(false); }
+  }, [noticeMonitorPage, noticeMonitorSearch]);
+
+  const generatePlatformReport = useCallback(async () => {
+    setReportLoading(true); setReportError(''); setReportData(null);
+    try {
+      const result = await platformAdminGetPlatformReport(reportFromDate, reportToDate);
+      setReportData(result || null);
+    } catch (cause) {
+      setReportError(errorText(cause, 'প্ল্যাটফর্ম রিপোর্ট তৈরি করা যায়নি।'));
+    } finally { setReportLoading(false); }
+  }, [reportFromDate, reportToDate]);
+
+  const downloadPlatformReport = useCallback(() => {
+    if (!reportData) return;
+    try {
+      const csv = buildPlatformReportCsv(reportData);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = getPlatformReportFilename(reportData.from_date, reportData.to_date);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice('Aggregate রিপোর্ট CSV ডাউনলোড শুরু হয়েছে।');
+    } catch (cause) { setReportError(cause?.message || 'রিপোর্ট ডাউনলোড করা যায়নি।'); }
+  }, [reportData]);
+
   const loadHostelInsights = useCallback(async (hostelId, periodId = null) => {
     if (!hostelId) return;
     const requestId = ++insightsRequestRef.current;
@@ -273,6 +367,8 @@ export function SuperAdminPage({ user }) {
 
   useEffect(() => { if (tab === 'audit' && reauthenticated) loadAuditLog(); }, [tab, reauthenticated, loadAuditLog]);
   useEffect(() => { if (tab === 'security' && reauthenticated) loadCodeHistory(); }, [tab, reauthenticated, loadCodeHistory, codeHistoryReload]);
+  useEffect(() => { if (tab === 'health' && reauthenticated) loadSystemHealth(); }, [tab, reauthenticated, loadSystemHealth]);
+  useEffect(() => { if (tab === 'notices' && reauthenticated) loadNoticeMonitoring(); }, [tab, reauthenticated, loadNoticeMonitoring]);
 
   useEffect(() => {
     let live = true;
@@ -674,7 +770,7 @@ export function SuperAdminPage({ user }) {
     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
     <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
-    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
     {tab === 'overview' && <section className="platform-stats-grid">
       <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
       <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
@@ -746,6 +842,95 @@ export function SuperAdminPage({ user }) {
       </article>)}</div>}
       <div className="platform-history-pager"><span>{auditTotal.toLocaleString('bn-BD')}টি রেকর্ড · পৃষ্ঠা {auditTotal ? auditPage + 1 : 0} / {Math.max(1,Math.ceil(auditTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={auditLoading || auditPage===0} onClick={()=>setAuditPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={auditLoading || (auditPage+1)*pageSize>=auditTotal} onClick={()=>setAuditPage(value=>value+1)}>পরের</button></div></div>
     </section>}
+    {tab === 'health' && <section className="card platform-panel platform-phase3-panel">
+      <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM HEALTH</span><h3>মেসের কার্যক্রম ও সিস্টেম স্বাস্থ্য</h3><p>মেসভিত্তিক অপারেশনাল সংকেত। এগুলো সম্ভাব্য সমস্যা শনাক্ত করে; কোনো মেসে স্বয়ংক্রিয় পরিবর্তন করে না।</p></div><button type="button" className="secondary-button compact" disabled={healthLoading} onClick={loadSystemHealth}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+      <div className="platform-phase3-toolbar"><label className="field-label"><span>কত দিনের নিষ্ক্রিয়তাকে সতর্কতা ধরবে</span><select value={healthStaleDays} onChange={(event)=>setHealthStaleDays(event.target.value)}><option value="7">৭ দিন</option><option value="14">১৪ দিন</option><option value="30">৩০ দিন</option><option value="60">৬০ দিন</option></select></label><span className="platform-phase3-note">শুধু পর্যবেক্ষণ · নতুন মেসে ৪৮ ঘণ্টা ছাড় · ৮+ অপেক্ষমাণ অনুরোধে সতর্কতা · কোনো অটোমেটিক ব্লক নয়</span></div>
+      {healthError && <div className="inline-error platform-alert">{healthError}</div>}
+      {healthLoading ? <div className="platform-empty"><LoadingSpinner label="মেসের স্বাস্থ্য পরীক্ষা হচ্ছে..."/></div> : healthData ? <>
+        <div className="platform-phase3-stat-grid">
+          <Stat label="মোট মেস" value={healthData.totals?.hostel_count} icon="home"/>
+          <Stat label="স্বাভাবিক" value={healthData.totals?.healthy_hostel_count} icon="check-circle"/>
+          <Stat label="জরুরি সমস্যা" value={healthData.totals?.critical_hostel_count} icon="warning"/>
+          <Stat label="পর্যালোচনা দরকার" value={healthData.totals?.warning_hostel_count} icon="alert-circle"/>
+          <Stat label="তথ্য" value={healthData.totals?.info_hostel_count} icon="info"/>
+        </div>
+        <div className="platform-phase3-breakdown">
+          <span>চলমান মাস নেই: <b>{Number(healthData.totals?.missing_running_period_count||0).toLocaleString('bn-BD')}</b></span>
+          <span>সক্রিয় সদস্য নেই: <b>{Number(healthData.totals?.no_active_members_count||0).toLocaleString('bn-BD')}</b></span>
+          <span>প্রধান ম্যানেজার সমস্যা: <b>{Number(healthData.totals?.primary_manager_unavailable_count||0).toLocaleString('bn-BD')}</b></span>
+          <span>দীর্ঘদিন কার্যক্রম নেই: <b>{Number(healthData.totals?.stale_activity_count||0).toLocaleString('bn-BD')}</b></span>
+          <span>অপেক্ষমাণ অনুরোধ: <b>{Number(healthData.totals?.pending_request_backlog_count||0).toLocaleString('bn-BD')}</b></span>
+        </div>
+        <div className="platform-phase3-list-heading"><h4>যেসব মেসে নজর দেওয়া দরকার</h4><small>{Number(healthData.items?.length||0).toLocaleString('bn-BD')}টি মেস · {healthData.stale_days} দিনের নিষ্ক্রিয়তা সীমা</small></div>
+        {!healthData.items?.length ? <div className="platform-empty-state"><Icon name="shield-check" size={28}/><strong>কোনো উল্লেখযোগ্য সমস্যা পাওয়া যায়নি</strong><span>এই মুহূর্তে মেসগুলোর জন্য কোনো Health Alert নেই।</span></div> : <div className="platform-health-list">{healthData.items.map((row)=><article className="platform-health-item" key={row.hostel_id}>
+          <div className="platform-health-item-top"><div><strong>{row.hostel_name}</strong><small>{row.running_period_label || (row.running_period_id?'চলমান মাস':'চলমান মাস নেই')} · {row.platform_status==='suspended'?'স্থগিত মেস':'সক্রিয় মেস'}</small></div><span className={`platform-health-severity severity-${row.severity}`}>{systemSeverityLabel(row.severity)}</span></div>
+          <div className="platform-health-issues">{(row.issue_codes||[]).map(code=><span key={code}>{systemIssueLabel(code)}</span>)}</div>
+          <div className="platform-health-meta"><span>সক্রিয় সদস্য: <b>{Number(row.active_members||0).toLocaleString('bn-BD')}</b></span><span>অপেক্ষমাণ অনুরোধ: <b>{Number(row.pending_requests||0).toLocaleString('bn-BD')}</b></span><span>সর্বশেষ কার্যক্রম: <b>{(row.last_activity_at ? formatPlatformDate(row.last_activity_at) : 'কোনো এন্ট্রি রেকর্ড নেই')}</b></span></div>
+        </article>)}</div>}
+        <div className="platform-insights-footer"><span><Icon name="shield-check" size={15}/> Health check শুধু পড়ে; কোনো ডেটা পরিবর্তন করে না</span><small>তথ্য তৈরি: {formatPlatformDate(healthData.generated_at)}</small></div>
+      </> : <div className="platform-empty-state"><Icon name="activity" size={28}/><strong>Health তথ্য এখনো লোড হয়নি</strong><span>রিফ্রেশ করে আবার চেষ্টা করুন।</span></div>}
+    </section>}
+
+    {tab === 'notices' && <section className="card platform-panel platform-phase3-panel">
+      <div className="platform-panel-heading"><div><span className="eyebrow">NOTICE MONITORING</span><h3>Global ও মেস নোটিশ পর্যবেক্ষণ</h3><p>প্ল্যাটফর্মের বর্তমান Global Notice এবং প্রতিটি মেসের বর্তমানে প্রকাশিত Manager Notice। এখান থেকে নোটিশ সম্পাদনা বা মুছে ফেলা হয় না।</p></div><button type="button" className="secondary-button compact" disabled={noticeMonitorLoading} onClick={loadNoticeMonitoring}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+      {noticeMonitorError && <div className="inline-error platform-alert">{noticeMonitorError}</div>}
+      {noticeMonitorLoading && !noticeMonitorData ? <div className="platform-empty"><LoadingSpinner label="নোটিশের তথ্য লোড হচ্ছে..."/></div> : <>
+        <div className={`platform-global-monitor ${noticeMonitorData?.global_notice?.enabled?'is-enabled':'is-disabled'}`}>
+          <div className="platform-global-monitor-head"><span><Icon name="shield-check" size={17}/> HOSTEL LIFE · SYSTEM NOTICE</span><span className={`platform-health-severity ${noticeMonitorData?.global_notice?.enabled?'severity-healthy':'severity-info'}`}>{noticeMonitorData?.global_notice?.enabled?'প্রকাশিত':'বন্ধ'}</span></div>
+          <h4>{noticeMonitorData?.global_notice?.title || 'কোনো Global Notice সেট করা নেই'}</h4>
+          {noticeMonitorData?.global_notice?.body && <p>{noticeMonitorData.global_notice.body}</p>}
+          <small>সর্বশেষ পরিবর্তন: {formatPlatformDate(noticeMonitorData?.global_notice?.updated_at)} · {noticeMonitorData?.global_notice?.updated_by_name || 'অজানা অ্যাকাউন্ট'}</small>
+        </div>
+        <div className="platform-phase3-list-heading"><div><h4>মেসের বর্তমান নোটিশ</h4><small>{noticeMonitorTotal.toLocaleString('bn-BD')}টি সক্রিয় মেস নোটিশ</small></div></div>
+        <form className="platform-phase3-search" onSubmit={(event)=>{event.preventDefault();setNoticeMonitorPage(0);setNoticeMonitorSearch(noticeMonitorSearchDraft.trim());}}>
+          <label className="field-label"><span>মেস বা নোটিশ খুঁজুন</span><input value={noticeMonitorSearchDraft} maxLength={120} onChange={(event)=>setNoticeMonitorSearchDraft(event.target.value)} placeholder="মেসের নাম, শিরোনাম বা নোটিশের লেখা"/></label>
+          <button className="primary-button" type="submit" disabled={noticeMonitorLoading}>খুঁজুন</button>
+          {(noticeMonitorSearch || noticeMonitorSearchDraft) && <button className="secondary-button" type="button" disabled={noticeMonitorLoading} onClick={()=>{setNoticeMonitorSearchDraft('');setNoticeMonitorSearch('');setNoticeMonitorPage(0);}}>মুছুন</button>}
+        </form>
+        {noticeMonitorLoading ? <div className="platform-empty"><LoadingSpinner label="মেস নোটিশ লোড হচ্ছে..."/></div> : noticeMonitorRows.length===0 ? <div className="platform-empty-state"><Icon name="bell-off" size={28}/><strong>কোনো মেস নোটিশ পাওয়া যায়নি</strong><span>এই মুহূর্তে কোনো মেসে সক্রিয় নোটিশ নেই অথবা সার্চে মেলেনি।</span></div> : <div className="platform-notice-monitor-list">{noticeMonitorRows.map((row)=><article className="platform-notice-monitor-item" key={row.hostel_id}>
+          <div className="platform-notice-monitor-top"><div><span className="platform-notice-hostel-tag">{row.hostel_name}</span><strong>{row.title}</strong></div><span className={`platform-status ${row.hostel_status==='active'?'status-active':'status-inactive'}`}>{row.hostel_status==='active'?'সক্রিয় মেস':'স্থগিত মেস'}</span></div>
+          <p>{row.body}</p>
+          <div className="platform-notice-monitor-meta"><span>প্রকাশ করেছেন: <b>{row.created_by_name||'অজানা অ্যাকাউন্ট'}</b></span><span>সদস্য: <b>{Number(row.active_member_count||0).toLocaleString('bn-BD')}</b></span><span>প্রকাশ: <b>{formatPlatformDate(row.created_at)}</b></span><span>সর্বশেষ পরিবর্তন: <b>{formatPlatformDate(row.updated_at)}</b></span></div>
+        </article>)}</div>}
+        <div className="platform-history-pager"><span>{noticeMonitorTotal.toLocaleString('bn-BD')}টি নোটিশ · পৃষ্ঠা {noticeMonitorTotal ? noticeMonitorPage+1 : 0} / {Math.max(1,Math.ceil(noticeMonitorTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={noticeMonitorLoading||noticeMonitorPage===0} onClick={()=>setNoticeMonitorPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={noticeMonitorLoading||(noticeMonitorPage+1)*pageSize>=noticeMonitorTotal} onClick={()=>setNoticeMonitorPage(value=>value+1)}>পরের</button></div></div>
+      </>}
+    </section>}
+
+    {tab === 'reports' && <section className="card platform-panel platform-phase3-panel">
+      <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM REPORT EXPORT</span><h3>প্ল্যাটফর্মের সামগ্রিক রিপোর্ট</h3><p>নির্বাচিত সময়ে প্রতিটি মেসের Aggregate মিল ও আর্থিক সারসংক্ষেপ CSV হিসেবে ডাউনলোড করা যাবে। সদস্যভিত্তিক ব্যক্তিগত তথ্য অন্তর্ভুক্ত নয়।</p></div></div>
+      <form className="platform-report-toolbar" onSubmit={(event)=>{event.preventDefault();generatePlatformReport();}}>
+        <label className="field-label"><span>শুরুর তারিখ</span><input type="date" value={reportFromDate} max={reportToDate||undefined} onChange={(event)=>{setReportFromDate(event.target.value);setReportData(null);}} required/></label>
+        <label className="field-label"><span>শেষ তারিখ</span><input type="date" value={reportToDate} min={reportFromDate||undefined} onChange={(event)=>{setReportToDate(event.target.value);setReportData(null);}} required/></label>
+        <button className="primary-button" type="submit" disabled={reportLoading||!reportFromDate||!reportToDate}><Icon name="file-text" size={16}/>{reportLoading?'রিপোর্ট তৈরি হচ্ছে...':'রিপোর্ট তৈরি করুন'}</button>
+      </form>
+      <div className="platform-report-range-note"><Icon name="info" size={16}/> সর্বোচ্চ ৩৬৭ দিনের সময়সীমা নির্বাচন করা যাবে। আংশিকভাবে নির্বাচিত সংরক্ষিত Archive Summary-এর হিসাব ভুল এড়াতে যোগ করা হবে না—সেগুলো আলাদা গণনায় দেখানো হবে।</div>
+      {reportError && <div className="inline-error platform-alert">{reportError}</div>}
+      {reportLoading && <div className="platform-empty"><LoadingSpinner label="Aggregate রিপোর্ট তৈরি হচ্ছে..."/></div>}
+      {reportData && !reportLoading && <>
+        <div className="platform-report-header"><div><span className="eyebrow">REPORT PERIOD</span><h4>{reportData.from_date} — {reportData.to_date}</h4><small>তৈরি: {formatPlatformDate(reportData.generated_at)}</small></div><button className="primary-button" type="button" onClick={downloadPlatformReport}><Icon name="download" size={16}/> CSV ডাউনলোড</button></div>
+        {Number(reportData.totals?.snapshot_periods||0)>0 && <div className="platform-report-range-note"><Icon name="archive" size={16}/>{reportData.snapshot_note || 'সংরক্ষিত আর্কাইভ সামারি রিপোর্টে অন্তর্ভুক্ত।'} বাজার এন্ট্রি সংখ্যা ও চূড়ান্ত দিনের গণনা কেবল বিস্তারিত রেকর্ড থাকা মাসের জন্য।</div>}
+        <div className="platform-phase3-stat-grid">
+          <Stat label="মোট মেস" value={reportData.totals?.hostel_count} icon="home"/>
+          <Stat label="সক্রিয় মেস" value={reportData.totals?.active_hostel_count} icon="check-circle"/>
+          <Stat label="মোট মাস" value={reportData.totals?.periods_in_range} icon="calendar"/>
+          <Stat label="চূড়ান্ত দিন (বিস্তারিত ডেটা)" value={reportData.totals?.finalized_days} icon="calendar-check"/>
+          <Stat label="মোট মিল" value={reportData.totals?.total_meals} icon="utensils"/>
+          <Stat label="বাজার এন্ট্রি" value={reportData.totals?.market_entry_count} icon="receipt"/>
+        </div>
+        <div className="platform-report-total-grid">
+          <div><small>মোট বাজার</small><strong>{formatReportCurrency(reportData.totals?.market_total)}</strong></div>
+          <div><small>নগদ ডিপোজিট</small><strong>{formatReportCurrency(reportData.totals?.cash_deposit)}</strong></div>
+          <div><small>বাজার ক্রেডিট</small><strong>{formatReportCurrency(reportData.totals?.market_credit)}</strong></div>
+          <div><small>অন্যান্য খরচ</small><strong>{formatReportCurrency(reportData.totals?.other_expense)}</strong></div>
+          <div><small>খালার টাকা</small><strong>{formatReportCurrency(reportData.totals?.khala_expense)}</strong></div>
+          <div><small>মোট পরিচালন ব্যয়</small><strong>{formatReportCurrency(reportData.totals?.operating_expense)}</strong></div>
+        </div>
+        {Number(reportData.totals?.snapshot_partial_excluded||0)>0 && <div className="platform-report-warning"><Icon name="archive" size={16}/> {Number(reportData.totals.snapshot_partial_excluded).toLocaleString('bn-BD')}টি সংরক্ষিত মাস তারিখের পরিসরের সঙ্গে আংশিকভাবে মিলে যাওয়ায় অর্থ ও মিলের পরিমাণ যোগ করা হয়নি। পূর্ণ মাস অন্তর্ভুক্ত করে আবার রিপোর্ট তৈরি করলে সংরক্ষিত সামারি যুক্ত হবে।</div>}
+        <div className="platform-report-table-wrap"><table className="platform-report-table"><thead><tr><th>মেস</th><th>অবস্থা</th><th>মাস</th><th>মোট মিল</th><th>বাজার</th><th>নগদ ডিপোজিট</th><th>বাজার ক্রেডিট</th><th>পরিচালন ব্যয়</th></tr></thead><tbody>{(reportData.items||[]).map((row)=><tr key={row.hostel_id}><td>{row.hostel_name}</td><td>{row.platform_status==='active'?'সক্রিয়':'স্থগিত'}</td><td>{Number(row.periods_in_range||0).toLocaleString('bn-BD')}</td><td>{Number(row.total_meals||0).toLocaleString('bn-BD')}</td><td>{formatReportCurrency(row.market_total)}</td><td>{formatReportCurrency(row.cash_deposit)}</td><td>{formatReportCurrency(row.market_credit)}</td><td>{formatReportCurrency(row.operating_expense)}</td></tr>)}</tbody></table></div>
+        <div className="platform-insights-footer"><span><Icon name="shield-check" size={15}/> মেসভিত্তিক Aggregate · ব্যক্তিগত লেনদেন অন্তর্ভুক্ত নয়</span><small>{(reportData.items||[]).length.toLocaleString('bn-BD')}টি মেস</small></div>
+      </>}
+    </section>}
+
     {tab === 'hostels' && <section className="platform-two-col platform-admin-workspace">
       <div className="card platform-panel">
         <div className="platform-panel-heading"><div><h3>মেস ডিরেক্টরি</h3><p>{filteredHostels.length} / {hostels.length}টি মেস · আর্থিক/মিলের তথ্য দেখানো হয় না</p></div></div>
