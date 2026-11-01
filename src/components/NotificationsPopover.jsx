@@ -92,14 +92,14 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
   // Delete only the current recipient's inbox copy. The manager RPC still applies
   // its manager permission check and is restricted to recipient_user_id = auth.uid().
   const removeAllMine = async () => {
-    if (!items.length || !await confirmAction('আপনার ইনবক্সের সাধারণ নোটিফিকেশনগুলো মুছে ফেলবেন? ম্যানেজারের পিন করা মেস নোটিশ অক্ষত থাকবে। অন্য সদস্যদের ইনবক্সে কোনো পরিবর্তন হবে না।')) return;
+    if (!items.length || !await confirmAction('আপনার ইনবক্সের সাধারণ নোটিফিকেশনগুলো মুছে ফেলবেন? মেসের সর্বশেষ ঘোষণা অ্যাপের শীর্ষে আগের মতোই দৃশ্যমান থাকবে। অন্য সদস্যদের ইনবক্সে কোনো পরিবর্তন হবে না।')) return;
     setBusyId('delete-all');
     try {
       await deleteAllMyNotifications();
       const pinnedItems = items.filter((item) => item.is_pinned);
       setItems(pinnedItems);
       onUnreadChange?.(pinnedItems.filter((item) => !item.is_seen).length);
-      toast.success('সাধারণ নোটিফিকেশন সরানো হয়েছে। পিন করা মেস নোটিশ অক্ষত আছে।');
+      toast.success('সাধারণ নোটিফিকেশন সরানো হয়েছে। মেসের সর্বশেষ ঘোষণা অক্ষত আছে।');
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'সব নোটিফিকেশন সরানো যায়নি।'));
     } finally { setBusyId(''); }
@@ -107,7 +107,7 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
 
   const remove = async (item) => {
     const confirmText = item.is_pinned && isManager
-      ? 'এই পিন করা মেস নোটিশটি সব সক্রিয় সদস্যের সামনে থেকে এবং তাদের ইনবক্স থেকে সরিয়ে দেবেন?'
+      ? 'এই মেস নোটিশটি সব সক্রিয় সদস্যের সামনে থেকে এবং তাদের ইনবক্স থেকে সরিয়ে দেবেন?'
       : 'এই নোটিফিকেশনটি আপনার ইনবক্স থেকে স্থায়ীভাবে মুছে ফেলবেন?';
     if (!await confirmAction(confirmText)) return;
     setBusyId(item.notification_id);
@@ -152,10 +152,13 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
           {items.map((item) => (
             <article className={`notification-item ${item.is_seen ? 'seen' : 'unseen'}`} key={item.notification_id}>
               <button className="notification-main" type="button" onClick={() => seen(item)} disabled={Boolean(busyId)}>
-                <span className="notification-icon"><Icon name={item.is_pinned ? 'pin' : item.notification_type === 'market_entry' ? 'dining' : item.notification_type === 'manager_message' ? 'bell' : 'info'} size={17} /></span>
+                <span className="notification-icon"><Icon name={item.is_pinned ? 'bell' : item.notification_type === 'market_entry' ? 'dining' : item.notification_type === 'manager_message' ? 'bell' : 'info'} size={17} /></span>
                 <span className="notification-copy">
-                  <strong>{item.title} {item.is_pinned && <em className="notification-pinned-chip">পিন করা</em>}</strong>
-                  <small>{item.is_pinned ? 'মেসের ম্যানেজারের নোটিশ' : typeLabel(item.notification_type)} · {formatDateTime12(item.created_at)}</small>
+                  <strong>{item.title}</strong>
+                  <span className={`notification-source-badge ${item.is_pinned ? 'hostel' : item.notification_type === 'manager_message' ? 'manager' : 'system'}`}>
+                    {item.is_pinned ? 'মেসের নোটিশ' : item.notification_type === 'manager_message' ? 'ম্যানেজারের বার্তা' : typeLabel(item.notification_type)}
+                  </span>
+                  <small>{formatDateTime12(item.created_at)}</small>
                   <span>{item.body}</span>
                 </span>
               </button>

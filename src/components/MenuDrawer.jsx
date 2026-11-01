@@ -24,7 +24,7 @@ const primaryItems = [
   { key: 'change-manager', label: 'ম্যানেজার পরিবর্তন', icon: 'shield' },
   { key: 'assistant-managers', label: 'সহকারী ম্যানেজার', icon: 'users' },
   { key: 'hostel-settings', label: 'মেস সেটিংস', icon: 'lock' },
-  { key: 'send-notification', label: 'নোটিফিকেশন পাঠান', icon: 'bell' },
+  { key: 'send-notification', label: 'মেস নোটিশ', icon: 'bell' },
   { key: 'khala-money', label: 'খালার টাকা', icon: 'dining' },
   { key: 'member-management', label: 'সদস্য ব্যবস্থাপনা', icon: 'user' },
 ];

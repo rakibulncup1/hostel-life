@@ -224,20 +224,28 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         </div>
       )}
       {platformSettings?.announcement_enabled && (platformSettings.announcement_title || platformSettings.announcement_body) && (
-        <div className="global-announcement" role="status" aria-live="polite">
-          <span className="global-announcement-icon"><Icon name="info" size={18} /></span>
-          <div><strong>{platformSettings.announcement_title || 'Hostel Life ঘোষণা'}</strong>{platformSettings.announcement_body && <p>{platformSettings.announcement_body}</p>}</div>
-        </div>
+        <section className="global-announcement global-system-announcement" role="status" aria-live="polite">
+          <div className="global-announcement-inner">
+            <span className="global-announcement-icon"><Icon name="shield-check" size={19} /></span>
+            <div className="global-announcement-copy">
+              <span className="global-announcement-label">HOSTEL LIFE · SYSTEM NOTICE</span>
+              <strong>{platformSettings.announcement_title || 'Hostel Life ঘোষণা'}</strong>
+              {platformSettings.announcement_body && <p>{platformSettings.announcement_body}</p>}
+            </div>
+          </div>
+        </section>
       )}
       {pinnedManagerNotice && (pinnedManagerNotice.title || pinnedManagerNotice.body) && (
-        <div className="global-announcement hostel-manager-announcement" role="status" aria-live="polite">
-          <span className="global-announcement-icon"><Icon name="pin" size={18} /></span>
-          <div>
-            <span className="hostel-manager-announcement-label">মেসের ম্যানেজারের নোটিশ · পিন করা</span>
-            <strong>{pinnedManagerNotice.title || 'ম্যানেজারের নোটিশ'}</strong>
-            {pinnedManagerNotice.body && <p>{pinnedManagerNotice.body}</p>}
+        <section className="global-announcement hostel-manager-announcement" role="status" aria-live="polite">
+          <div className="global-announcement-inner">
+            <span className="global-announcement-icon"><Icon name="bell" size={19} /></span>
+            <div className="global-announcement-copy">
+              <span className="hostel-manager-announcement-label">মেসের ম্যানেজারের বার্তা</span>
+              <strong>{pinnedManagerNotice.title || 'মেসের নোটিশ'}</strong>
+              {pinnedManagerNotice.body && <p>{pinnedManagerNotice.body}</p>}
+            </div>
           </div>
-        </div>
+        </section>
       )}
 
       {notificationsOpen && (

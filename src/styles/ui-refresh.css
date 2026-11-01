@@ -3836,3 +3836,190 @@ body {
   :root[data-theme="dark"] .auth-shell.auth-shell-compact .auth-brand-panel { display: none; }
   :root[data-theme="dark"] .auth-shell.auth-shell-compact .auth-form-panel { width: 100%; }
 }
+
+/* V1.7 — Mobile public entry edge-to-edge and clearly differentiated notices. */
+@media (max-width: 700px) {
+  :root[data-theme="dark"] .auth-page,
+  :root[data-theme="dark"] .onboarding-page {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100svh;
+    margin: 0;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    place-items: stretch;
+    align-items: stretch;
+    justify-items: stretch;
+    border-radius: 0;
+  }
+
+  :root[data-theme="dark"] .auth-shell,
+  :root[data-theme="dark"] .auth-shell:not(.auth-shell-compact),
+  :root[data-theme="dark"] .auth-shell.auth-shell-compact {
+    width: 100%;
+    max-width: none;
+    min-height: 100svh;
+    margin: 0;
+    border: 0;
+    border-inline: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  :root[data-theme="dark"] .auth-shell.auth-shell-compact {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  :root[data-theme="dark"] .auth-shell .auth-form-panel {
+    width: 100%;
+    max-width: 560px;
+    margin-inline: auto;
+    padding-inline: clamp(19px, 6vw, 28px);
+  }
+
+  :root[data-theme="dark"] .onboarding-shell,
+  :root[data-theme="dark"] .onboarding-shell-success {
+    width: 100%;
+    max-width: none;
+    min-height: 100svh;
+    margin: 0;
+  }
+
+  :root[data-theme="dark"] .onboarding-main-card {
+    width: 100%;
+    min-height: 100svh;
+    margin: 0;
+    border: 0;
+    border-inline: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 22px clamp(16px, 5vw, 24px) calc(24px + env(safe-area-inset-bottom));
+  }
+
+  /* Inner controls remain softly rounded; only the outer mobile frame is flat. */
+  :root[data-theme="dark"] .auth-form-panel .field-label input,
+  :root[data-theme="dark"] .auth-form-panel .password-field,
+  :root[data-theme="dark"] .auth-form-panel .primary-button,
+  :root[data-theme="dark"] .onboarding-main-card .setup-choice-card,
+  :root[data-theme="dark"] .onboarding-main-card .field-label input,
+  :root[data-theme="dark"] .onboarding-main-card textarea,
+  :root[data-theme="dark"] .onboarding-main-card .primary-button {
+    border-radius: 13px;
+  }
+}
+
+/* Announcements are full-bleed bands; their content remains comfortably aligned. */
+.global-announcement {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  display: block;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.025);
+}
+.global-announcement-inner {
+  width: min(1600px, 100%);
+  min-width: 0;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 13px clamp(15px, 3vw, 38px);
+}
+.global-announcement-copy { min-width: 0; }
+.global-announcement-label,
+.hostel-manager-announcement-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 900;
+  letter-spacing: .045em;
+}
+.global-announcement-label { color: #4778d8; }
+.global-system-announcement {
+  background: linear-gradient(100deg, color-mix(in srgb, #5b83d7 13%, var(--surface)), color-mix(in srgb, #5b83d7 6%, var(--surface)));
+  border-bottom-color: color-mix(in srgb, #5b83d7 24%, var(--line));
+}
+.global-system-announcement .global-announcement-icon {
+  background: color-mix(in srgb, #5b83d7 14%, var(--surface));
+  color: #6e91e6;
+}
+.hostel-manager-announcement {
+  background: linear-gradient(100deg, color-mix(in srgb, #25a96f 13%, var(--surface)), color-mix(in srgb, #25a96f 6%, var(--surface)));
+  border-bottom-color: color-mix(in srgb, #25a96f 24%, var(--line));
+}
+.hostel-manager-announcement .global-announcement-icon {
+  background: color-mix(in srgb, #25a96f 15%, var(--surface));
+  color: #29a96f;
+}
+.hostel-manager-announcement-label { color: #269b68; letter-spacing: .01em; }
+.global-announcement strong { font-size: 14px; line-height: 1.45; }
+.global-announcement p { max-width: 150ch; margin-top: 4px; font-size: 13px; line-height: 1.65; }
+
+:root[data-theme="dark"] .global-system-announcement {
+  background: linear-gradient(100deg, #172744 0%, #142238 58%, #111d2d 100%);
+  border-bottom-color: #2a4166;
+}
+:root[data-theme="dark"] .global-system-announcement .global-announcement-icon {
+  background: #223b63;
+  color: #a9c4ff;
+}
+:root[data-theme="dark"] .global-announcement-label { color: #a9c4ff; }
+:root[data-theme="dark"] .hostel-manager-announcement {
+  background: linear-gradient(100deg, #173526 0%, #142c20 58%, #102219 100%);
+  border-bottom-color: #315d45;
+}
+:root[data-theme="dark"] .hostel-manager-announcement .global-announcement-icon {
+  background: #214a32;
+  color: #9be3b7;
+}
+:root[data-theme="dark"] .hostel-manager-announcement-label { color: #a0e5ba; }
+
+.notification-source-badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  margin-top: 2px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  font-size: 9px;
+  line-height: 1.35;
+  font-style: normal;
+  font-weight: 900;
+}
+.notification-copy > .notification-source-badge.system {
+  color: #5276c2;
+  background: #eaf0ff;
+}
+.notification-copy > .notification-source-badge.manager,
+.notification-copy > .notification-source-badge.hostel {
+  color: #20865b;
+  background: #e5f6ed;
+}
+:root[data-theme="dark"] .notification-copy > .notification-source-badge.system {
+  color: #b6cbff;
+  background: #203455;
+}
+:root[data-theme="dark"] .notification-copy > .notification-source-badge.manager,
+:root[data-theme="dark"] .notification-copy > .notification-source-badge.hostel {
+  color: #a8e8bd;
+  background: #1b3b28;
+}
+
+@media (max-width: 700px) {
+  .global-announcement-inner {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 9px;
+    padding: 12px 14px;
+  }
+  .global-announcement-icon { width: 30px; height: 30px; }
+  .global-announcement strong { font-size: 13px; }
+  .global-announcement p { font-size: 12px; }
+}

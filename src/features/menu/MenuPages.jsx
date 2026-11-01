@@ -611,8 +611,8 @@ export function SendNotificationPage() {
       setPinFeatureReady(false);
       const missingMigration = error?.code === 'PGRST202' || /could not find the function|schema cache/i.test(error?.message || '');
       setPinFeatureError(missingMigration
-        ? 'ম্যানেজারের পিন করা নোটিশ চালু করতে Supabase SQL Editor-এ Run21_hostel_pinned_manager_notices.sql একবার প্রয়োগ করুন।'
-        : getFriendlySupabaseError(error, 'পিন করা নোটিশ যাচাই করা যায়নি। ইন্টারনেট সংযোগ ও Supabase সংযোগ পরীক্ষা করুন।'));
+        ? 'মেস নোটিশ চালু করতে Supabase SQL Editor-এ Run21 মাইগ্রেশন একবার প্রয়োগ করুন।'
+        : getFriendlySupabaseError(error, 'বর্তমান মেস নোটিশ যাচাই করা যায়নি। ইন্টারনেট ও Supabase সংযোগ পরীক্ষা করুন।'));
     } finally { setLoadingPinned(false); }
   }, []);
 
@@ -622,7 +622,7 @@ export function SendNotificationPage() {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!pinFeatureReady) return toast.warning(pinFeatureError || 'পিন করা নোটিশের ডাটাবেস আপডেট প্রয়োজন।');
+    if (!pinFeatureReady) return toast.warning(pinFeatureError || 'মেস নোটিশ ফিচার চালু করতে ডাটাবেস আপডেট প্রয়োজন।');
     if (!title.trim()) return toast.warning('নোটিশের শিরোনাম দিন।');
     if (!body.trim()) return toast.warning('নোটিশের বার্তা দিন।');
     setBusy(true);
@@ -631,9 +631,9 @@ export function SendNotificationPage() {
       setTitle('');
       setBody('');
       await loadPinned();
-      toast.success('নোটিশটি এই মেসের সক্রিয় সদস্যদের অ্যাপের ওপরে পিন করা হয়েছে।');
+      toast.success('নোটিশটি এই মেসের সক্রিয় সদস্যদের সামনে প্রকাশ করা হয়েছে।');
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'নোটিশ পিন করা যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'নোটিশ প্রকাশ করা যায়নি।'));
     } finally {
       setBusy(false);
     }
@@ -646,19 +646,19 @@ export function SendNotificationPage() {
     try {
       await managerClearHostelPinnedAnnouncement();
       setCurrentPinned(null);
-      toast.success('মেসের পিন করা নোটিশ সরানো হয়েছে।');
+      toast.success('মেসের নোটিশ সরানো হয়েছে।');
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'পিন করা নোটিশ সরানো যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'মেসের নোটিশ সরানো যায়নি।'));
     } finally { setClearBusy(false); }
   };
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" description="আপনার মেসের সক্রিয় ও নতুন যুক্ত হওয়া সদস্যদের অ্যাপের শীর্ষে একটি নোটিশ পিন করুন।" />
-      {!loadingPinned && !pinFeatureReady && <div className="state-card state-card-warning"><Icon name="info" size={20} /><div><strong>পিন নোটিশের ডাটাবেস আপডেট বাকি</strong><p>{pinFeatureError || 'Supabase-এ Run21 migration প্রয়োগের পর এই ফিচার ব্যবহার করা যাবে।'}</p></div></div>}
+      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" description="আপনার মেসের সক্রিয় ও নতুন যুক্ত হওয়া সদস্যদের অ্যাপের শীর্ষে একটি গুরুত্বপূর্ণ বার্তা প্রকাশ করুন।" />
+      {!loadingPinned && !pinFeatureReady && <div className="state-card state-card-warning"><Icon name="info" size={20} /><div><strong>মেস নোটিশের ডাটাবেস আপডেট বাকি</strong><p>{pinFeatureError || 'Supabase-এ Run21 migration প্রয়োগের পর এই ফিচার ব্যবহার করা যাবে।'}</p></div></div>}
       {loadingPinned ? <div className="loading-wrap"><span className="spinner" /><span>বর্তমান নোটিশ যাচাই হচ্ছে...</span></div> : currentPinned && (
         <section className="card current-hostel-notice-card">
-          <div className="current-hostel-notice-head"><span><Icon name="pin" size={17} /> বর্তমানে পিন করা নোটিশ</span><span className="current-hostel-notice-live">সক্রিয়</span></div>
+          <div className="current-hostel-notice-head"><span><Icon name="bell" size={17} /> বর্তমান মেস নোটিশ</span><span className="current-hostel-notice-live">সক্রিয়</span></div>
           <strong>{currentPinned.title}</strong>
           <p>{currentPinned.body}</p>
           <button className="secondary-button danger-outline" type="button" onClick={clearPinned} disabled={clearBusy}>{clearBusy ? 'সরানো হচ্ছে...' : 'সবার সামনে থেকে নোটিশ সরান'}</button>
@@ -667,8 +667,8 @@ export function SendNotificationPage() {
       <form className="card form-panel" onSubmit={submit}>
         <label className="field-label"><span>শিরোনাম</span><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder="যেমন: আজ রাতের রান্নার সময়" /></label>
         <label className="field-label"><span>বার্তা</span><textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} rows={6} placeholder="সবার জন্য প্রয়োজনীয় তথ্য লিখুন..." /></label>
-        <div className="form-hint"><Icon name="pin" size={15} /> নোটিশটি শুধু এই মেসের সদস্যদের অ্যাপের শীর্ষে পিন থাকবে। এটি SMS নয়; অ্যাপের ভেতরের নোটিশ এবং নোটিফিকেশন ইনবক্সে দেখা যাবে। নতুন নোটিশ দিলে আগের পিনটি স্বয়ংক্রিয়ভাবে সরবে।</div>
-        <button className="primary-button large" type="submit" disabled={busy || !pinFeatureReady}>{busy ? 'পিন করা হচ্ছে...' : 'মেসের নোটিশ পিন করুন'}</button>
+        <div className="form-hint"><Icon name="info" size={15} /> নোটিশটি শুধু এই মেসের সদস্যদের অ্যাপের শীর্ষে দেখানো হবে এবং নোটিফিকেশন ইনবক্সেও থাকবে। এটি SMS নয়। নতুন নোটিশ প্রকাশ করলে আগের নোটিশটি প্রতিস্থাপিত হবে।</div>
+        <button className="primary-button large" type="submit" disabled={busy || !pinFeatureReady}>{busy ? 'প্রকাশ করা হচ্ছে...' : 'মেসে নোটিশ প্রকাশ করুন'}</button>
       </form>
     </div>
   );

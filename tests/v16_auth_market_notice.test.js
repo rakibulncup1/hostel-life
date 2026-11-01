@@ -83,7 +83,7 @@ test('pinned manager notice is loaded by current hostel rather than recipient in
   assert.match(sql, /WHERE a\.hostel_id = v_hostel/);
   assert.match(sql, /manager_clear_hostel_pinned_announcement/);
   assert.match(appShell, /fetchPinnedManagerAnnouncement\(\)/);
-  assert.match(appShell, /মেসের ম্যানেজারের নোটিশ · পিন করা/);
+  assert.match(appShell, /মেসের ম্যানেজারের বার্তা/);
 });
 
 test('bulk market import caps a paste at 100 rows before creating inputs', () => {
