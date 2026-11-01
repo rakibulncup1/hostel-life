@@ -30,7 +30,7 @@ function SetupCard({ icon, title, description, active, onClick, children }) {
         <span className="feature-icon"><Icon name={icon} size={22} /></span>
         <span className="setup-choice-copy">
           <strong>{title}</strong>
-          <small>{description}</small>
+          <small className="setup-choice-description"><Icon name="info" size={13} /><span>{description}</span></small>
         </span>
         <Icon name={active ? 'chevron-up' : 'chevron'} size={18} />
       </button>

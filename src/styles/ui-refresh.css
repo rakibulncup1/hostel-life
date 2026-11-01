@@ -4023,3 +4023,201 @@ body {
   .global-announcement strong { font-size: 13px; }
   .global-announcement p { font-size: 12px; }
 }
+
+
+/* Hostel Life V1.8 — auth hierarchy, readable entry fields and compact guidance.
+   Limited to authentication/onboarding surfaces and the two announcement cards. */
+
+/* Mobile: center the login, registration and password-recovery introduction. */
+@media (max-width: 849px) {
+  .auth-page .auth-form-panel .auth-header {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+  .auth-page .auth-form-panel .auth-header > div {
+    width: 100%;
+    min-width: 0;
+    margin-inline: auto;
+  }
+  .auth-page .auth-form-panel .auth-header .eyebrow {
+    display: inline-block;
+    text-align: center;
+  }
+  .auth-page .auth-form-panel .auth-header h2,
+  .auth-page .auth-form-panel .auth-header p {
+    margin-inline: auto;
+    text-align: center;
+    text-wrap: pretty;
+  }
+  .auth-page .auth-form-panel .auth-header h2 {
+    max-width: 25ch;
+    line-height: 1.4;
+  }
+  .auth-page .auth-form-panel .auth-header p {
+    max-width: 42ch;
+  }
+  .auth-page .auth-form-panel .auth-form-intro {
+    align-self: center;
+    margin-inline: auto;
+  }
+}
+
+/* A quieter, structured explanation for password reset limits and support. */
+.auth-form-panel .password-reset-policy {
+  display: grid;
+  gap: 9px;
+  margin: 2px 0 1px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 15px;
+  background: linear-gradient(145deg, var(--surface-2), var(--surface));
+  color: var(--text);
+}
+.auth-form-panel .password-reset-policy-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.auth-form-panel .password-reset-policy-title svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  padding: 6px;
+  box-sizing: content-box;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.auth-form-panel .password-reset-policy p {
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-left: 3px solid color-mix(in srgb, var(--primary) 65%, var(--line));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 74%, var(--surface-2));
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+}
+
+/* Keep dark-theme entry fields visibly distinct from the surrounding panels. */
+:root[data-theme="dark"] .auth-form-panel .field-label input,
+:root[data-theme="dark"] .auth-form-panel .field-label select,
+:root[data-theme="dark"] .auth-form-panel .field-label textarea,
+:root[data-theme="dark"] .auth-form-panel .password-field input,
+:root[data-theme="dark"] .onboarding-main-card .field-label input,
+:root[data-theme="dark"] .onboarding-main-card textarea {
+  background: #172820;
+  border-color: #456451;
+  color: #f3faf5;
+  -webkit-text-fill-color: #f3faf5;
+  caret-color: #a0e6bb;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] .auth-form-panel .field-label input::placeholder,
+:root[data-theme="dark"] .auth-form-panel .password-field input::placeholder,
+:root[data-theme="dark"] .onboarding-main-card .field-label input::placeholder {
+  color: #a4b9aa;
+  opacity: 1;
+}
+:root[data-theme="dark"] .auth-form-panel .field-label input:focus-visible,
+:root[data-theme="dark"] .auth-form-panel .password-field input:focus-within,
+:root[data-theme="dark"] .onboarding-main-card .field-label input:focus-visible {
+  border-color: #63ce98;
+  outline: 3px solid rgba(82, 207, 143, .17);
+  outline-offset: 1px;
+  background: #1b3025;
+}
+/* Chromium autofill uses -webkit-text-fill-color with higher priority; reset it
+   explicitly so saved credentials stay readable against the dark input surface. */
+:root[data-theme="dark"] .auth-form-panel input:-webkit-autofill,
+:root[data-theme="dark"] .auth-form-panel input:-webkit-autofill:hover,
+:root[data-theme="dark"] .auth-form-panel input:-webkit-autofill:focus,
+:root[data-theme="dark"] .auth-form-panel input:-webkit-autofill:active,
+:root[data-theme="dark"] .auth-form-panel input:autofill,
+:root[data-theme="dark"] .onboarding-main-card input:-webkit-autofill,
+:root[data-theme="dark"] .onboarding-main-card input:-webkit-autofill:hover,
+:root[data-theme="dark"] .onboarding-main-card input:-webkit-autofill:focus,
+:root[data-theme="dark"] .onboarding-main-card input:-webkit-autofill:active,
+:root[data-theme="dark"] .onboarding-main-card input:autofill {
+  -webkit-text-fill-color: #f3faf5 !important;
+  caret-color: #a0e6bb;
+  -webkit-box-shadow: 0 0 0 1000px #172820 inset !important;
+  box-shadow: 0 0 0 1000px #172820 inset !important;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] .auth-form-panel input:-webkit-autofill:focus,
+:root[data-theme="dark"] .onboarding-main-card input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #1b3025 inset, 0 0 0 3px rgba(82, 207, 143, .17) !important;
+  box-shadow: 0 0 0 1000px #1b3025 inset, 0 0 0 3px rgba(82, 207, 143, .17) !important;
+}
+
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy {
+  border-color: #385c47;
+  background: linear-gradient(145deg, #172c20, #13231a);
+  color: #e2f1e7;
+}
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy-title { color: #e4f3e9; }
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy-title svg {
+  background: #244a32;
+  color: #a6e6bd;
+}
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy p {
+  border-color: rgba(106, 151, 119, .20);
+  border-left-color: #3eaa72;
+  background: rgba(8, 19, 13, .34);
+  color: #c0d3c6;
+}
+
+/* Join/create descriptions become small information chips, not extra paragraphs. */
+.onboarding-main-card .setup-choice-copy .setup-choice-description {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--line));
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.55;
+  font-weight: 600;
+}
+.onboarding-main-card .setup-choice-description svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--primary-strong);
+}
+:root[data-theme="dark"] .onboarding-main-card .setup-choice-copy .setup-choice-description {
+  border-color: #304d3c;
+  background: #1a2d22;
+  color: #bfd2c5;
+}
+:root[data-theme="dark"] .onboarding-main-card .setup-choice-description svg { color: #95dcb0; }
+
+/* Keep both notice banners nearly full-width while giving them card-like corners. */
+.global-announcement {
+  width: calc(100% - clamp(20px, 2.8vw, 40px));
+  max-width: none;
+  margin: 10px auto 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  box-shadow: 0 7px 22px rgba(0, 0, 0, .07);
+}
+.global-system-announcement { border-color: color-mix(in srgb, #5b83d7 34%, var(--line)); }
+.hostel-manager-announcement { border-color: color-mix(in srgb, #25a96f 34%, var(--line)); }
+@media (max-width: 700px) {
+  .global-announcement {
+    width: calc(100% - 20px);
+    margin-top: 8px;
+    border-radius: 13px;
+  }
+}
