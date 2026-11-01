@@ -11,6 +11,14 @@ export async function fetchNotifications(limit = 50) {
   return Array.isArray(data) ? data : [];
 }
 
+
+export async function fetchPinnedManagerAnnouncement() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('get_hostel_pinned_announcement');
+  if (error) throw error;
+  return data && typeof data === 'object' ? data : null;
+}
+
 export async function markNotificationSeen(notificationId) {
   assertSupabase();
   const { error } = await supabase.rpc('mark_notification_seen', {
@@ -43,6 +51,13 @@ export async function managerDeleteNotification(notificationId) {
     p_notification_id: notificationId,
   });
   if (error) throw error;
+}
+
+export async function managerClearHostelPinnedAnnouncement() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('manager_clear_hostel_pinned_announcement');
+  if (error) throw error;
+  return data ?? null;
 }
 
 // Server-authorized bulk operation applies only to the signed-in recipient.

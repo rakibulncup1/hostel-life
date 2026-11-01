@@ -38,6 +38,7 @@ import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMes
 import { canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
 import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
+import { parseMarketPaste, sanitizeMarketInput } from '../../utils/marketPaste';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -851,7 +852,44 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
     });
   };
 
-  const addItem = () => setItems((current) => [...current, { item_name: '', quantity: '', amount: '' }]);
+  const handleMarketItemPaste = (event, index) => {
+    const clipboardText = event.clipboardData?.getData('text/plain');
+    if (!clipboardText) return;
+    const parsed = parseMarketPaste(clipboardText);
+    if (parsed?.error) {
+      event.preventDefault();
+      toast.warning(parsed.error);
+      return;
+    }
+    event.preventDefault();
+    if (parsed.mode === 'single') {
+      const target = event.currentTarget;
+      updateItem(index, { item_name: parsed.itemName }, event);
+      requestAnimationFrame(() => {
+        const input = marketInputRefs.current.get(`${index}:item_name`) || target;
+        input?.focus({ preventScroll: true });
+        if (input?.setSelectionRange) input.setSelectionRange(parsed.itemName.length, parsed.itemName.length);
+      });
+      return;
+    }
+    const nextItems = [
+      ...items.slice(0, index),
+      ...parsed.items,
+      ...items.slice(index + 1),
+    ];
+    if (nextItems.length > 100) {
+      toast.warning('একটি বাজার এন্ট্রিতে সর্বোচ্চ ১০০টি আইটেম রাখা যাবে। আগে কিছু আইটেম সরান।');
+      return;
+    }
+    setItems(nextItems);
+    toast.success(`${parsed.items.length}টি আইটেম একসঙ্গে যোগ হয়েছে। পরিমাণ ও টাকার ঘর যাচাই করে সংরক্ষণ করুন।`);
+    requestAnimationFrame(() => focusMarketField(index, 'quantity'));
+  };
+
+  const addItem = () => {
+    if (items.length >= 100) return toast.warning('একটি বাজার এন্ট্রিতে সর্বোচ্চ ১০০টি আইটেম যোগ করা যাবে।');
+    setItems((current) => [...current, { item_name: '', quantity: '', amount: '' }]);
+  };
   const removeItem = (index) => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index));
 
   const submit = async (event) => {
@@ -927,6 +965,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       )}
 
       <div className="market-table-card">
+        <div className="market-paste-hint"><Icon name="file-text" size={15} /><span>একাধিক আইটেম একসঙ্গে যোগ করতে তালিকা আলাদা লাইনে, অথবা Excel/Sheets থেকে <strong>আইটেম · পরিমাণ · টাকা</strong>—এই ৩ কলাম কপি করে প্রথম আইটেমের ঘরে পেস্ট করুন। বাংলা সংখ্যা, একক ও সাধারণ প্রতীক সমর্থিত।</span></div>
         <div className="market-table-head">
           <span>ক্রম</span><span>আইটেমের নাম</span><span>পরিমাণ</span><span>টাকার পরিমাণ</span><span aria-hidden="true" />
         </div>
@@ -938,9 +977,10 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
                 ref={(node) => { const key = `${index}:item_name`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
                 data-market-input-key={`${index}:item_name`}
                 className="market-input-item" value={item.item_name}
-                onChange={(e) => updateItem(index, { item_name: e.target.value }, e)}
+                onChange={(e) => updateItem(index, { item_name: sanitizeMarketInput(e.target.value) }, e)}
+                onPaste={(e) => handleMarketItemPaste(e, index)}
                 onKeyDown={(e) => moveToNextMarketField(e, index, 'item_name')}
-                enterKeyHint="next" autoComplete="off" spellCheck={false}
+                enterKeyHint="next" autoComplete="off" spellCheck={false} maxLength={160}
                 placeholder="নাম" aria-label="আইটেমের নাম" />
               <input
                 ref={(node) => { const key = `${index}:quantity`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}

@@ -10,7 +10,7 @@ import { OfflineState } from '../components/OfflineState';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useManagementContext } from '../hooks/useManagementContext';
-import { fetchNotifications } from '../services/notificationService';
+import { fetchNotifications, fetchPinnedManagerAnnouncement } from '../services/notificationService';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { fetchPlatformPublicSettings } from '../services/platformService';
 
@@ -54,6 +54,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pinnedManagerNotice, setPinnedManagerNotice] = useState(null);
   const [platformSettings, setPlatformSettings] = useState(null);
   const unreadFetchInFlightRef = useRef(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('hostel-life-theme') || 'dark');
@@ -94,15 +95,18 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     }
     if (unreadFetchInFlightRef.current) return unreadFetchInFlightRef.current;
     const task = (async () => {
-      try {
-        const items = await fetchNotifications(50);
-        setUnreadCount(items.filter((item) => !item.is_seen).length);
-        return items;
-      } catch {
-        // The notification panel has an explicit refresh action; background refresh
-        // errors are intentionally silent to avoid repetitive console noise.
-        return null;
+      const [inboxResult, pinnedResult] = await Promise.allSettled([
+        fetchNotifications(50),
+        fetchPinnedManagerAnnouncement(),
+      ]);
+      if (inboxResult.status === 'fulfilled') {
+        setUnreadCount(inboxResult.value.filter((item) => !item.is_seen).length);
       }
+      if (pinnedResult.status === 'fulfilled') {
+        setPinnedManagerNotice(pinnedResult.value || null);
+      }
+      // Both background reads are silent on older deployments until Run21 is applied.
+      return inboxResult.status === 'fulfilled' ? inboxResult.value : null;
     })();
     unreadFetchInFlightRef.current = task;
     try { return await task; }
@@ -223,6 +227,16 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         <div className="global-announcement" role="status" aria-live="polite">
           <span className="global-announcement-icon"><Icon name="info" size={18} /></span>
           <div><strong>{platformSettings.announcement_title || 'Hostel Life ঘোষণা'}</strong>{platformSettings.announcement_body && <p>{platformSettings.announcement_body}</p>}</div>
+        </div>
+      )}
+      {pinnedManagerNotice && (pinnedManagerNotice.title || pinnedManagerNotice.body) && (
+        <div className="global-announcement hostel-manager-announcement" role="status" aria-live="polite">
+          <span className="global-announcement-icon"><Icon name="pin" size={18} /></span>
+          <div>
+            <span className="hostel-manager-announcement-label">মেসের ম্যানেজারের নোটিশ · পিন করা</span>
+            <strong>{pinnedManagerNotice.title || 'ম্যানেজারের নোটিশ'}</strong>
+            {pinnedManagerNotice.body && <p>{pinnedManagerNotice.body}</p>}
+          </div>
         </div>
       )}
 

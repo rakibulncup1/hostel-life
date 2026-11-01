@@ -189,7 +189,8 @@ function RegisterForm() {
           </label>
         </div>
         <label className="field-label">
-          <span>ইমেইল <small className="register-email-hint">(সঠিক ইমেইল ব্যবহার করুন)</small></span>
+          <span>ইমেইল</span>
+          <small className="register-email-hint">রেজিস্ট্রেশন ও পাসওয়ার্ড পুনরুদ্ধারের সময় আপনার পরিচয় যাচাই করা হতে পারে। তাই সঠিক ইমেইল ব্যবহার করুন।</small>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
         </label>
         <label className="field-label">
@@ -365,8 +366,8 @@ export function AuthPage({ pathname }) {
     // data-theme value can otherwise leak into the public auth screen until a
     // full refresh. Apply the public palette before paint; the saved preference
     // is preserved and AppShell reapplies it after the next successful login.
-    document.documentElement.dataset.theme = 'light';
-    document.documentElement.dataset.themePreference = 'light';
+    document.documentElement.dataset.theme = 'dark';
+    document.documentElement.dataset.themePreference = 'dark';
   }, [pathname]);
 
   useEffect(() => {

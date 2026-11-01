@@ -92,20 +92,24 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
   // Delete only the current recipient's inbox copy. The manager RPC still applies
   // its manager permission check and is restricted to recipient_user_id = auth.uid().
   const removeAllMine = async () => {
-    if (!items.length || !await confirmAction('আপনার ইনবক্সের সব নোটিফিকেশন সার্ভার থেকে স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না। অন্য সদস্যদের ইনবক্স অক্ষত থাকবে।')) return;
+    if (!items.length || !await confirmAction('আপনার ইনবক্সের সাধারণ নোটিফিকেশনগুলো মুছে ফেলবেন? ম্যানেজারের পিন করা মেস নোটিশ অক্ষত থাকবে। অন্য সদস্যদের ইনবক্সে কোনো পরিবর্তন হবে না।')) return;
     setBusyId('delete-all');
     try {
       await deleteAllMyNotifications();
-      setItems([]);
-      onUnreadChange?.(0);
-      toast.success('আপনার নোটিফিকেশন স্থায়ীভাবে মুছে ফেলা হয়েছে।');
+      const pinnedItems = items.filter((item) => item.is_pinned);
+      setItems(pinnedItems);
+      onUnreadChange?.(pinnedItems.filter((item) => !item.is_seen).length);
+      toast.success('সাধারণ নোটিফিকেশন সরানো হয়েছে। পিন করা মেস নোটিশ অক্ষত আছে।');
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'সব নোটিফিকেশন সরানো যায়নি।'));
     } finally { setBusyId(''); }
   };
 
   const remove = async (item) => {
-    if (!await confirmAction('এই নোটিফিকেশনটি আপনার ইনবক্স থেকে সার্ভারসহ স্থায়ীভাবে মুছে ফেলবেন? এই কাজ ফিরিয়ে নেওয়া যাবে না।')) return;
+    const confirmText = item.is_pinned && isManager
+      ? 'এই পিন করা মেস নোটিশটি সব সক্রিয় সদস্যের সামনে থেকে এবং তাদের ইনবক্স থেকে সরিয়ে দেবেন?'
+      : 'এই নোটিফিকেশনটি আপনার ইনবক্স থেকে স্থায়ীভাবে মুছে ফেলবেন?';
+    if (!await confirmAction(confirmText)) return;
     setBusyId(item.notification_id);
     try {
       if (isManager) await managerDeleteNotification(item.notification_id);
@@ -148,14 +152,14 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
           {items.map((item) => (
             <article className={`notification-item ${item.is_seen ? 'seen' : 'unseen'}`} key={item.notification_id}>
               <button className="notification-main" type="button" onClick={() => seen(item)} disabled={Boolean(busyId)}>
-                <span className="notification-icon"><Icon name={item.notification_type === 'market_entry' ? 'dining' : item.notification_type === 'manager_message' ? 'bell' : 'info'} size={17} /></span>
+                <span className="notification-icon"><Icon name={item.is_pinned ? 'pin' : item.notification_type === 'market_entry' ? 'dining' : item.notification_type === 'manager_message' ? 'bell' : 'info'} size={17} /></span>
                 <span className="notification-copy">
-                  <strong>{item.title}</strong>
-                  <small>{typeLabel(item.notification_type)} · {formatDateTime12(item.created_at)}</small>
+                  <strong>{item.title} {item.is_pinned && <em className="notification-pinned-chip">পিন করা</em>}</strong>
+                  <small>{item.is_pinned ? 'মেসের ম্যানেজারের নোটিশ' : typeLabel(item.notification_type)} · {formatDateTime12(item.created_at)}</small>
                   <span>{item.body}</span>
                 </span>
               </button>
-              <button className="icon-button compact-icon ghost notification-delete" type="button" disabled={Boolean(busyId)} onClick={() => remove(item)} aria-label="নোটিফিকেশন মুছুন"><Icon name="trash" size={16} /></button>
+              {(!item.is_pinned || isManager) && <button className="icon-button compact-icon ghost notification-delete" type="button" disabled={Boolean(busyId)} onClick={() => remove(item)} aria-label="নোটিফিকেশন মুছুন"><Icon name="trash" size={16} /></button>}
             </article>
           ))}
         </div>

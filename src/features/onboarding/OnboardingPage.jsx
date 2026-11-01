@@ -55,8 +55,8 @@ export function OnboardingPage() {
   const [initialMonthError, setInitialMonthError] = useState('');
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = 'light';
-    document.documentElement.dataset.themePreference = 'light';
+    document.documentElement.dataset.theme = 'dark';
+    document.documentElement.dataset.themePreference = 'dark';
   }, []);
 
   useEffect(() => {

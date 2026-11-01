@@ -94,7 +94,7 @@ test('top depositors reuse the existing member-directory deposit balance without
   assert.match(app, /menu\/top-depositor/);
 });
 
-test('login/register and onboarding public surfaces reset stale signed-in theme before paint', () => {
-  assert.match(auth, /useLayoutEffect\([\s\S]*?dataset\.theme = 'light'/);
-  assert.match(onboarding, /useLayoutEffect\([\s\S]*?dataset\.theme = 'light'/);
+test('login/register and onboarding public surfaces use the preferred dark theme before paint', () => {
+  assert.match(auth, /useLayoutEffect\([\s\S]*?dataset\.theme = 'dark'/);
+  assert.match(onboarding, /useLayoutEffect\([\s\S]*?dataset\.theme = 'dark'/);
 });

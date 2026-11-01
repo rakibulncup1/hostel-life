@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { confirmAction } from '../../utils/actionDialogs';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
@@ -10,7 +11,7 @@ import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningS
 import { fetchMemberPeriodDetails } from '../../services/dashboardService';
 import { MemberPeriodDetailsModal } from '../dashboard/DashboardPage';
 import { fetchArchivedMonthDetail, fetchKhalaMoneyHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
-import { managerSendNotification } from '../../services/notificationService';
+import { fetchPinnedManagerAnnouncement, managerClearHostelPinnedAnnouncement, managerSendNotification } from '../../services/notificationService';
 import { fetchTopDepositors, fetchTopEaters, fetchTopShoppers } from '../../services/rankingService';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
@@ -593,34 +594,81 @@ export function SendNotificationPage() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
+  const [currentPinned, setCurrentPinned] = useState(null);
+  const [loadingPinned, setLoadingPinned] = useState(true);
+  const [pinFeatureReady, setPinFeatureReady] = useState(false);
+  const [pinFeatureError, setPinFeatureError] = useState('');
+  const [clearBusy, setClearBusy] = useState(false);
 
-  if (!isManager) return <div className="page-stack"><PageHeader eyebrow="ম্যানেজার ফিচার" title="নোটিফিকেশন পাঠান" description="এই ফিচারটি শুধু ম্যানেজারের জন্য উপলভ্য।" /><div className="state-card state-card-warning"><Icon name="shield" size={26} /><div><h2>ম্যানেজার অনুমতি প্রয়োজন</h2><p>এই ফিচার শুধু ম্যানেজারের জন্য।</p></div></div></div>;
+  const loadPinned = useCallback(async () => {
+    setLoadingPinned(true);
+    try {
+      setCurrentPinned(await fetchPinnedManagerAnnouncement());
+      setPinFeatureReady(true);
+      setPinFeatureError('');
+    } catch (error) {
+      setCurrentPinned(null);
+      setPinFeatureReady(false);
+      const missingMigration = error?.code === 'PGRST202' || /could not find the function|schema cache/i.test(error?.message || '');
+      setPinFeatureError(missingMigration
+        ? 'ম্যানেজারের পিন করা নোটিশ চালু করতে Supabase SQL Editor-এ Run21_hostel_pinned_manager_notices.sql একবার প্রয়োগ করুন।'
+        : getFriendlySupabaseError(error, 'পিন করা নোটিশ যাচাই করা যায়নি। ইন্টারনেট সংযোগ ও Supabase সংযোগ পরীক্ষা করুন।'));
+    } finally { setLoadingPinned(false); }
+  }, []);
+
+  useEffect(() => { if (isManager) loadPinned(); }, [isManager, loadPinned]);
+
+  if (!isManager) return <div className="page-stack"><PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" description="এই ফিচারটি শুধু ম্যানেজারের জন্য উপলভ্য।" /><div className="state-card state-card-warning"><Icon name="shield" size={26} /><div><h2>ম্যানেজার অনুমতি প্রয়োজন</h2><p>এই ফিচার শুধু ম্যানেজারের জন্য।</p></div></div></div>;
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!title.trim()) return toast.warning('নোটিফিকেশনের শিরোনাম দিন।');
-    if (!body.trim()) return toast.warning('নোটিফিকেশনের বার্তা দিন।');
+    if (!pinFeatureReady) return toast.warning(pinFeatureError || 'পিন করা নোটিশের ডাটাবেস আপডেট প্রয়োজন।');
+    if (!title.trim()) return toast.warning('নোটিশের শিরোনাম দিন।');
+    if (!body.trim()) return toast.warning('নোটিশের বার্তা দিন।');
     setBusy(true);
     try {
       await managerSendNotification(title.trim(), body.trim());
       setTitle('');
       setBody('');
-      toast.success('নোটিফিকেশন সফলভাবে সবার কাছে পাঠানো হয়েছে।');
+      await loadPinned();
+      toast.success('নোটিশটি এই মেসের সক্রিয় সদস্যদের অ্যাপের ওপরে পিন করা হয়েছে।');
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'নোটিফিকেশন পাঠানো যায়নি।'));
+      toast.error(getFriendlySupabaseError(error, 'নোটিশ পিন করা যায়নি।'));
     } finally {
       setBusy(false);
     }
   };
 
+  const clearPinned = async () => {
+    if (!currentPinned) return;
+    if (!await confirmAction('এই নোটিশটি এই মেসের সব সদস্যের অ্যাপের ওপর থেকে এবং নোটিফিকেশন ইনবক্স থেকে সরিয়ে দেবেন?')) return;
+    setClearBusy(true);
+    try {
+      await managerClearHostelPinnedAnnouncement();
+      setCurrentPinned(null);
+      toast.success('মেসের পিন করা নোটিশ সরানো হয়েছে।');
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'পিন করা নোটিশ সরানো যায়নি।'));
+    } finally { setClearBusy(false); }
+  };
+
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="ম্যানেজার ফিচার" title="নোটিফিকেশন পাঠান" description="সব সক্রিয় সদস্যের নোটিফিকেশন ইনবক্সে একটি বার্তা পাঠান।" />
+      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" description="আপনার মেসের সক্রিয় ও নতুন যুক্ত হওয়া সদস্যদের অ্যাপের শীর্ষে একটি নোটিশ পিন করুন।" />
+      {!loadingPinned && !pinFeatureReady && <div className="state-card state-card-warning"><Icon name="info" size={20} /><div><strong>পিন নোটিশের ডাটাবেস আপডেট বাকি</strong><p>{pinFeatureError || 'Supabase-এ Run21 migration প্রয়োগের পর এই ফিচার ব্যবহার করা যাবে।'}</p></div></div>}
+      {loadingPinned ? <div className="loading-wrap"><span className="spinner" /><span>বর্তমান নোটিশ যাচাই হচ্ছে...</span></div> : currentPinned && (
+        <section className="card current-hostel-notice-card">
+          <div className="current-hostel-notice-head"><span><Icon name="pin" size={17} /> বর্তমানে পিন করা নোটিশ</span><span className="current-hostel-notice-live">সক্রিয়</span></div>
+          <strong>{currentPinned.title}</strong>
+          <p>{currentPinned.body}</p>
+          <button className="secondary-button danger-outline" type="button" onClick={clearPinned} disabled={clearBusy}>{clearBusy ? 'সরানো হচ্ছে...' : 'সবার সামনে থেকে নোটিশ সরান'}</button>
+        </section>
+      )}
       <form className="card form-panel" onSubmit={submit}>
         <label className="field-label"><span>শিরোনাম</span><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder="যেমন: আজ রাতের রান্নার সময়" /></label>
         <label className="field-label"><span>বার্তা</span><textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} rows={6} placeholder="সবার জন্য প্রয়োজনীয় তথ্য লিখুন..." /></label>
-        <div className="form-hint"><Icon name="bell" size={15} /> পাঠানো হলে সক্রিয় সদস্যদের নোটিফিকেশন ইনবক্সে যাবে।</div>
-        <button className="primary-button large" type="submit" disabled={busy}>{busy ? 'পাঠানো হচ্ছে...' : 'নোটিফিকেশন পাঠান'}</button>
+        <div className="form-hint"><Icon name="pin" size={15} /> নোটিশটি শুধু এই মেসের সদস্যদের অ্যাপের শীর্ষে পিন থাকবে। এটি SMS নয়; অ্যাপের ভেতরের নোটিশ এবং নোটিফিকেশন ইনবক্সে দেখা যাবে। নতুন নোটিশ দিলে আগের পিনটি স্বয়ংক্রিয়ভাবে সরবে।</div>
+        <button className="primary-button large" type="submit" disabled={busy || !pinFeatureReady}>{busy ? 'পিন করা হচ্ছে...' : 'মেসের নোটিশ পিন করুন'}</button>
       </form>
     </div>
   );
