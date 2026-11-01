@@ -14,7 +14,7 @@ import {
   platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
   platformAdminListExpiredArchives, platformAdminDeleteExpiredArchive,
   platformAdminFinalizeArchiveSummary, platformAdminVerifyArchiveSummary, platformAdminListSavedSummaries,
-  platformAdminListAuditLogs, platformAdminListAccessCodeHistory,
+  platformAdminListAuditLogs, platformAdminListAccessCodeHistory, platformAdminGetHostelInsights,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -52,6 +52,21 @@ function Field({ label, value, onChange, type = 'text', maxLength, multiline = f
 }
 function Stat({ label, value, icon }) {
   return <div className="platform-stat"><span className="platform-stat-icon"><Icon name={icon} size={19}/></span><div><small>{label}</small><strong>{value === undefined || value === null || value === '' ? '—' : Number(value).toLocaleString('en-US')}</strong></div></div>;
+}
+function InsightStat({ label, value, icon, format = 'number', hint = '' }) {
+  let display = '—';
+  if (value !== null && value !== undefined && value !== '') {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      if (format === 'currency') display = `৳${numeric.toLocaleString('bn-BD', { maximumFractionDigits: 2 })}`;
+      else if (format === 'percent') display = `${numeric.toLocaleString('bn-BD', { maximumFractionDigits: 1 })}%`;
+      else display = numeric.toLocaleString('bn-BD', { maximumFractionDigits: 2 });
+    }
+  }
+  return <article className="platform-insight-stat"><span className="platform-insight-stat-icon"><Icon name={icon} size={19}/></span><div className="platform-insight-stat-copy"><small>{label}</small><strong>{display}</strong>{hint && <span>{hint}</span>}</div></article>;
+}
+function periodStatusLabel(status) {
+  return ({ running: 'চলমান', closed: 'বন্ধ', archived: 'আর্কাইভ', saved_summary: 'সংরক্ষিত সামারি' })[status] || 'অন্যান্য';
 }
 
 const AUDIT_ACTION_LABELS = {
@@ -164,6 +179,12 @@ export function SuperAdminPage({ user }) {
   const [codeHistoryLoading, setCodeHistoryLoading] = useState(false);
   const [codeHistoryError, setCodeHistoryError] = useState('');
   const [codeHistoryReload, setCodeHistoryReload] = useState(0);
+  const [insightsHostelId, setInsightsHostelId] = useState('');
+  const [insightsPeriodId, setInsightsPeriodId] = useState('');
+  const [insightsData, setInsightsData] = useState(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [insightsError, setInsightsError] = useState('');
+  const insightsRequestRef = useRef(0);
 
   const pageSize = 20;
 
@@ -210,6 +231,45 @@ export function SuperAdminPage({ user }) {
       setCodeHistoryError(errorText(cause, 'Security Code History লোড করা যায়নি।'));
     } finally { setCodeHistoryLoading(false); }
   }, [codeHistoryPage, codeHistoryPurpose]);
+
+  const loadHostelInsights = useCallback(async (hostelId, periodId = null) => {
+    if (!hostelId) return;
+    const requestId = ++insightsRequestRef.current;
+    setInsightsLoading(true); setInsightsError('');
+    try {
+      const result = await platformAdminGetHostelInsights(hostelId, periodId || null);
+      if (requestId !== insightsRequestRef.current) return;
+      setInsightsData(result || null);
+      if (!periodId && result?.selected_period_id) {
+        const nextPeriodId = String(result.selected_period_id);
+        setInsightsPeriodId((current) => current === nextPeriodId ? current : nextPeriodId);
+      }
+    } catch (cause) {
+      if (requestId === insightsRequestRef.current) {
+        setInsightsData(null);
+        setInsightsError(errorText(cause, 'মেসের সারসংক্ষেপ লোড করা যায়নি।'));
+      }
+    } finally {
+      if (requestId === insightsRequestRef.current) setInsightsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hostels.length) return;
+    const stillExists = hostels.some((hostel) => String(hostel.hostel_id) === String(insightsHostelId));
+    if (!insightsHostelId || !stillExists) {
+      const preferred = hostels.find((hostel) => hostel.platform_status === 'active') || hostels[0];
+      setInsightsHostelId(String(preferred.hostel_id));
+      setInsightsPeriodId('');
+      setInsightsData(null);
+    }
+  }, [hostels, insightsHostelId]);
+
+  useEffect(() => {
+    if (tab === 'insights' && reauthenticated && insightsHostelId) {
+      loadHostelInsights(insightsHostelId, insightsPeriodId || null);
+    }
+  }, [tab, reauthenticated, insightsHostelId, insightsPeriodId, loadHostelInsights]);
 
   useEffect(() => { if (tab === 'audit' && reauthenticated) loadAuditLog(); }, [tab, reauthenticated, loadAuditLog]);
   useEffect(() => { if (tab === 'security' && reauthenticated) loadCodeHistory(); }, [tab, reauthenticated, loadCodeHistory, codeHistoryReload]);
@@ -614,7 +674,7 @@ export function SuperAdminPage({ user }) {
     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
     <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
-    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
     {tab === 'overview' && <section className="platform-stats-grid">
       <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
       <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
@@ -627,6 +687,47 @@ export function SuperAdminPage({ user }) {
       <Stat label="Super Admin" value={metrics.superAdmins} icon="shield-check"/>
       <div className="card platform-privacy-note"><Icon name="shield" size={22}/><div><strong>Privacy boundary</strong><p>এই Overview-তে শুধু সামগ্রিক সংখ্যা দেখানো হয়। ব্যক্তিগত সদস্যের আর্থিক বা মিলের বিস্তারিত এখানে দেখানো হয় না।</p></div></div>
     </section>}
+    {tab === 'insights' && <section className="card platform-panel platform-insights-panel">
+      <div className="platform-panel-heading"><div><span className="eyebrow">HOSTEL INTELLIGENCE</span><h3>মেসভিত্তিক বিস্তারিত সারসংক্ষেপ</h3><p>নির্বাচিত মেসের মাসভিত্তিক মিল, বাজার ও আর্থিক Aggregate দেখা যাবে। ব্যক্তিগত সদস্যের লেনদেন এখানে প্রকাশ করা হয় না।</p></div><button type="button" className="secondary-button compact" disabled={insightsLoading || !insightsHostelId} onClick={()=>loadHostelInsights(insightsHostelId,insightsPeriodId||null)}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+      <div className="platform-insights-toolbar">
+        <label className="field-label"><span>মেস নির্বাচন</span><select value={insightsHostelId} onChange={(event)=>{setInsightsHostelId(event.target.value);setInsightsPeriodId('');setInsightsData(null);}}><option value="">মেস নির্বাচন করুন</option>{hostels.map((hostel)=><option key={hostel.hostel_id} value={hostel.hostel_id}>{hostel.name} · {hostel.platform_status==='suspended'?'স্থগিত':'সক্রিয়'}</option>)}</select></label>
+        <label className="field-label"><span>মাস নির্বাচন</span><select value={insightsPeriodId} onChange={(event)=>setInsightsPeriodId(event.target.value)} disabled={!insightsHostelId || !(insightsData?.periods || []).length}><option value="">স্বয়ংক্রিয়ভাবে সর্বশেষ মাস</option>{(insightsData?.periods || []).map((period)=><option key={period.id} value={period.id}>{period.label} · {periodStatusLabel(period.status)}</option>)}</select></label>
+      </div>
+      {insightsError && <div className="inline-error platform-alert"><Icon name="warning" size={16}/>{insightsError}</div>}
+      {insightsLoading ? <div className="platform-empty"><LoadingSpinner label="মেসের সারসংক্ষেপ লোড হচ্ছে..."/></div> : insightsError ? null : !insightsHostelId ? <div className="platform-empty-state"><Icon name="home" size={28}/><strong>কোনো মেস নির্বাচন করা হয়নি</strong><span>প্রথমে মেস নির্বাচন করুন।</span></div> : !insightsData?.period ? <div className="platform-empty-state"><Icon name="calendar" size={28}/><strong>এই মেসে এখনো কোনো মাস তৈরি হয়নি</strong><span>মাস তৈরি হলে তার সারসংক্ষেপ এখানে দেখা যাবে।</span></div> : <>
+        <div className="platform-insights-period-head"><div><span className="eyebrow">{insightsData.hostel?.name || 'নির্বাচিত মেস'}</span><h4>{insightsData.period.label}</h4><p>{insightsData.period.start_date} — {insightsData.period.end_date}</p><p className="platform-insights-manager-meta">প্রধান ম্যানেজার: {insightsData.summary.primary_manager_assigned===null?'তথ্য নেই':insightsData.summary.primary_manager_assigned?'নিযুক্ত':'নিযুক্ত নেই'}</p></div><span className={`platform-status ${insightsData.period.status==='running'?'status-active':insightsData.period.snapshot_only?'status-inactive':'status-period-closed'}`}>{periodStatusLabel(insightsData.period.status)}</span></div>
+        {insightsData.summary?.snapshot_only && <div className="platform-insights-snapshot-note"><Icon name="archive" size={17}/><span>এই মাসের বিস্তারিত রেকর্ড সংরক্ষণ নীতিমালা অনুযায়ী মুছে ফেলা হয়েছে। এখানে সর্বশেষ সংরক্ষিত Aggregate Summary দেখানো হচ্ছে; কিছু দৈনিক ও সদস্যসংক্রান্ত তথ্য আর উপলভ্য নয়।</span></div>}
+        <div className="platform-insights-section"><div className="platform-insights-section-title"><h4>মাস ও সদস্য</h4><span>মাসের সময়সীমা ও সদস্য অবস্থা</span></div><div className="platform-insights-grid">
+          <InsightStat label="এই মাসে সদস্য" value={insightsData.summary.period_members} icon="users"/>
+          <InsightStat label="বর্তমানে সক্রিয় সদস্য" value={insightsData.summary.active_members_now} icon="user-check"/>
+          <InsightStat label="সহকারী ম্যানেজার" value={insightsData.summary.assistant_manager_count} icon="users"/>
+          <InsightStat label="অপেক্ষমাণ মিল অনুরোধ" value={insightsData.summary.pending_meal_requests} icon="clock"/>
+        </div></div>
+        <div className="platform-insights-section"><div className="platform-insights-section-title"><h4>মিলের অগ্রগতি</h4><span>{insightsData.summary.snapshot_only?'আর্কাইভে সংরক্ষিত মিল':'শুধু চূড়ান্ত হওয়া দিনের হিসাব'}</span></div><div className="platform-insights-grid">
+          <InsightStat label={insightsData.summary.snapshot_only?'সংরক্ষিত সকালের মিল':'চূড়ান্ত সকালের মিল'} value={insightsData.summary.finalized_breakfast} icon="sun"/>
+          <InsightStat label={insightsData.summary.snapshot_only?'সংরক্ষিত দুপুরের মিল':'চূড়ান্ত দুপুরের মিল'} value={insightsData.summary.finalized_lunch} icon="sun"/>
+          <InsightStat label={insightsData.summary.snapshot_only?'সংরক্ষিত রাতের মিল':'চূড়ান্ত রাতের মিল'} value={insightsData.summary.finalized_dinner} icon="moon"/>
+          <InsightStat label={insightsData.summary.snapshot_only?'মোট সংরক্ষিত মিল':'মোট চূড়ান্ত মিল'} value={insightsData.summary.finalized_meals_total} icon="utensils"/>
+          <InsightStat label="মোট ক্যালেন্ডার দিন" value={insightsData.summary.period_days} icon="calendar"/>
+          <InsightStat label="চূড়ান্ত হওয়া দিন" value={insightsData.summary.finalized_days} icon="calendar-check"/>
+          <InsightStat label="বাতিল দিন" value={insightsData.summary.cancelled_days} icon="calendar"/>
+          <InsightStat label="চূড়ান্ত দিনের অনুপাত" value={insightsData.summary.finalized_days_percent} format="percent" icon="calendar-check"/>
+        </div></div>
+        <div className="platform-insights-section"><div className="platform-insights-section-title"><h4>বাজার ও আর্থিক সারসংক্ষেপ</h4><span>ব্যক্তিগত লেনদেন নয়, মেসের মোট হিসাব · নগদ ও বাজার ক্রেডিট আলাদা</span></div><div className="platform-insights-grid">
+          <InsightStat label="মোট বাজার" value={insightsData.summary.market_total} format="currency" icon="shopping-basket"/>
+          <InsightStat label="বাজার এন্ট্রি" value={insightsData.summary.market_entry_count} icon="receipt"/>
+          <InsightStat label="নগদ ডিপোজিট" value={insightsData.summary.cash_deposit_total} format="currency" icon="wallet"/>
+          <InsightStat label="বাজার বাবদ ক্রেডিট" value={insightsData.summary.market_credit_total} format="currency" icon="hand-coins"/>
+          <InsightStat label="অন্যান্য খরচ" value={insightsData.summary.other_expense_total} format="currency" icon="receipt"/>
+          <InsightStat label="খালার টাকা" value={insightsData.summary.khala_expense_total} format="currency" icon="hand-coins"/>
+          <InsightStat label="নেট সমন্বয়" value={insightsData.summary.adjustment_net} format="currency" icon="info"/>
+          <InsightStat label="মোট পরিচালন ব্যয়" value={insightsData.summary.operating_expense_total} format="currency" icon="file-text"/>
+          <InsightStat label="মিল রেট" value={insightsData.summary.meal_rate} format="currency" icon="trophy"/>
+        </div></div>
+        <div className="platform-insights-footer"><span><Icon name="shield-check" size={15}/> শুধু Aggregate তথ্য · সদস্যভিত্তিক হিসাব গোপন</span><small>তথ্য তৈরি: {formatPlatformDate(insightsData.generated_at)}</small></div>
+      </>}
+    </section>}
+
     {tab === 'audit' && <section className="card platform-panel platform-audit-panel">
       <div className="platform-panel-heading"><div><h3>প্ল্যাটফর্ম Audit Log</h3><p>গুরুত্বপূর্ণ প্রশাসনিক কাজের সময়, কর্মী ও লক্ষ্য রেকর্ড। সংবেদনশীল কোড বা ব্যক্তিগত তথ্য দেখানো হয় না।</p></div><button type="button" className="secondary-button compact" disabled={auditLoading} onClick={loadAuditLog}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
       <form className="platform-audit-filters" onSubmit={(event)=>{event.preventDefault();setAuditPage(0);setAuditSearch(auditSearchDraft.trim());}}>

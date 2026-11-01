@@ -4455,3 +4455,35 @@ body {
   .platform-code-history-toolbar { justify-content: stretch; }
   .platform-code-history-toolbar .field-label { width: 100%; }
 }
+
+/* Super Admin Phase 2 — aggregate-only hostel insights */
+.platform-insights-panel { display:grid; gap:18px; }
+.platform-insights-toolbar { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:14px; border:1px solid #dfe9e4; border-radius:16px; background:#f7faf8; }
+.platform-insights-toolbar .field-label { margin:0; min-width:0; }
+.platform-insights-toolbar select { width:100%; min-height:44px; padding:10px 12px; border:1px solid #d6e2dc; border-radius:11px; background:#fff; color:#1c382d; font:inherit; font-size:13px; outline:none; }
+.platform-insights-toolbar select:focus { border-color:#4b9a77; box-shadow:0 0 0 3px #4b9a771c; }
+.platform-insights-period-head { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:18px 20px; border:1px solid #dcebe3; border-radius:17px; background:linear-gradient(120deg,#f1faf5,#f7fbff); }
+.platform-insights-period-head h4 { margin:3px 0 4px; color:#173f30; font-size:clamp(18px,2vw,24px); }
+.platform-insights-period-head p { margin:0; color:#6b8075; font-size:12px; }
+.platform-insights-period-head .status-period-closed { color:#566c60; background:#edf3ef; }
+.platform-insights-period-head .platform-insights-manager-meta { margin-top:5px; color:#4b7862; font-size:11px; font-weight:700; }
+.platform-insights-section { display:grid; gap:11px; }
+.platform-insights-section + .platform-insights-section { padding-top:17px; border-top:1px solid #e7eee9; }
+.platform-insights-section-title { display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.platform-insights-section-title h4 { margin:0; color:#1e4435; font-size:15px; }
+.platform-insights-section-title span { color:#7a8b83; font-size:11px; }
+.platform-insights-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.platform-insight-stat { min-width:0; display:flex; align-items:flex-start; gap:10px; padding:14px; border:1px solid #e0eae4; border-radius:14px; background:#fff; box-shadow:0 3px 12px #173f3007; }
+.platform-insight-stat-icon { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; border-radius:11px; background:#eaf5ee; color:#26704f; }
+.platform-insight-stat-copy { min-width:0; display:grid; gap:4px; }
+.platform-insight-stat-copy small { color:#71847a; font-size:11px; line-height:1.45; }
+.platform-insight-stat-copy strong { color:#1b4031; font-size:clamp(15px,1.6vw,20px); line-height:1.25; overflow-wrap:anywhere; font-weight:850; }
+.platform-insight-stat-copy > span { color:#87968e; font-size:10px; line-height:1.4; }
+.platform-insights-snapshot-note { display:flex; align-items:flex-start; gap:9px; padding:12px 14px; border:1px solid #d8e5f0; border-radius:13px; background:#f1f7fc; color:#345b7c; font-size:12px; line-height:1.6; }
+.platform-insights-snapshot-note svg { flex:0 0 auto; margin-top:1px; }
+.platform-insights-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding-top:12px; border-top:1px solid #e7eee9; color:#74847c; font-size:11px; }
+.platform-insights-footer > span { display:inline-flex; align-items:center; gap:6px; color:#4c7661; }
+.platform-insights-footer small { font-size:10px; }
+@media(max-width:900px){.platform-insights-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(max-width:640px){.platform-insights-toolbar{grid-template-columns:1fr;padding:12px}.platform-insights-period-head{align-items:flex-start;padding:15px;flex-direction:column}.platform-insights-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.platform-insight-stat{padding:11px;gap:8px}.platform-insight-stat-icon{width:30px;height:30px;flex-basis:30px;border-radius:9px}.platform-insight-stat-copy small{font-size:10px}.platform-insight-stat-copy strong{font-size:15px}.platform-insights-section-title{align-items:flex-start;flex-direction:column;gap:3px}.platform-insights-footer{align-items:flex-start;flex-direction:column}}
+@media(max-width:360px){.platform-insights-grid{grid-template-columns:1fr}.platform-insight-stat{align-items:center}.platform-insight-stat-copy strong{font-size:17px}}

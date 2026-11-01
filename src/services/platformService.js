@@ -310,3 +310,17 @@ export async function platformAdminListAccessCodeHistory({ limit = 20, offset = 
   if (error) throw error;
   return firstRow(data) || {};
 }
+
+
+// Super Admin hostel/month insights. The backend returns aggregate-only data
+// and never exposes member-level financial or meal records.
+export async function platformAdminGetHostelInsights(hostelId, periodId = null) {
+  assertSupabase();
+  if (!hostelId) throw new Error('একটি মেস নির্বাচন করুন।');
+  const { data, error } = await supabase.rpc('platform_admin_get_hostel_insights', {
+    p_hostel_id: hostelId,
+    p_period_id: periodId || null,
+  });
+  if (error) throw error;
+  return firstRow(data) || {};
+}
