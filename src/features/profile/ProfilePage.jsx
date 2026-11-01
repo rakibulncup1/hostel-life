@@ -38,7 +38,7 @@ export function ProfilePage() {
 
   const displayName = profile?.full_name || name || 'ব্যবহারকারী';
   const role = isManager ? 'ম্যানেজার' : 'সদস্য';
-  const themeLabels = useMemo(() => ({ system: 'সিস্টেম অনুযায়ী', light: 'লাইট', dark: 'ডার্ক' }), []);
+  const themeLabels = useMemo(() => ({ system: 'সিস্টেম অনুযায়ী', light: 'লাইট', dark: 'ডার্ক', blue: 'আকাশি নীল' }), []);
 
   const saveProfile = async (event) => {
     event.preventDefault();
@@ -157,7 +157,7 @@ export function ProfilePage() {
 
       <section className="card profile-section-card">
         <div className="profile-section-head"><div><span className="eyebrow">ব্যক্তিগত পছন্দ</span><h2>থিম</h2></div></div>
-        <div className="theme-choice-grid">{Object.keys(themeLabels).map((key) => <button className={`theme-choice ${theme === key ? 'selected' : ''}`} key={key} type="button" onClick={() => setThemeChoice(key)}><Icon name={key === 'dark' ? 'moon' : key === 'light' ? 'sun' : 'monitor'} size={18} /><span>{themeLabels[key]}</span>{theme === key && <Icon name="check" size={16} />}</button>)}</div>
+        <div className="theme-choice-grid">{Object.keys(themeLabels).map((key) => <button className={`theme-choice theme-choice-${key} ${theme === key ? 'selected' : ''}`} key={key} type="button" onClick={() => setThemeChoice(key)} aria-pressed={theme === key}><Icon name={key === 'dark' ? 'moon' : key === 'light' ? 'sun' : key === 'blue' ? 'droplet' : 'monitor'} size={18} /><span>{themeLabels[key]}</span>{theme === key && <Icon name="check" size={16} />}</button>)}</div>
       </section>
 
       <div className="profile-footer-links"><button type="button" className="text-button" onClick={() => navigateTo('/app/menu/developer')}>হোস্টেল লাইফ সাপোর্ট <Icon name="arrow-right" size={14} /></button></div>

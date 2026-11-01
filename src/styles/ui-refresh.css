@@ -4221,3 +4221,185 @@ body {
     border-radius: 13px;
   }
 }
+
+/* ================================================================
+   Hostel Life V1.9 — entry-page hierarchy and Sky Blue theme
+   Scoped to entry surfaces, theme selectors and existing theme variables.
+   ================================================================ */
+
+/* The fourth palette is a light, calm blue option. Existing component styles
+   continue to use the shared CSS variables, so no feature-specific restyling
+   or data-layer changes are needed. */
+:root[data-theme="blue"] {
+  color-scheme: light;
+  --bg: #edf5fc;
+  --surface: #fbfdff;
+  --surface-2: #e5f0fa;
+  --text: #183149;
+  --muted: #60788d;
+  --line: #cbddeb;
+  --primary: #428bc8;
+  --primary-strong: #286fae;
+  --primary-soft: #dceeff;
+  --danger: #c84858;
+  --danger-soft: #ffedf0;
+  --warning: #996719;
+  --warning-soft: #fff4dc;
+  --shadow: 0 14px 36px rgba(39, 89, 130, .11);
+}
+
+/* A four-choice grid remains readable on desktop and becomes two columns on
+   phones instead of shrinking the theme labels into narrow single rows. */
+.theme-choice-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.theme-choice-blue { border-color: #b9d8f0; background: linear-gradient(145deg, #e8f4ff, #d9ecfc); color: #286fae; }
+.theme-choice-blue.selected { border-color: #70addc; background: #d4eaff; color: #155b97; box-shadow: 0 0 0 2px rgba(66, 139, 200, .11); }
+:root[data-theme="blue"] .theme-choice-blue { border-color: #94bee0; background: #dceeff; color: #236aa8; }
+:root[data-theme="blue"] .theme-choice-blue.selected { background: #cce6fb; border-color: #5e9fd1; color: #15588f; }
+@media (max-width: 560px) {
+  .theme-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Make the mobile auth title feel like a deliberate hero card, separated from
+   the form controls below it. Desktop split-panel layout is left untouched. */
+@media (max-width: 700px) {
+  .auth-page .auth-form-panel .auth-form-intro {
+    width: fit-content;
+    max-width: 100%;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    padding: 8px 13px;
+    border-color: rgba(112, 178, 143, .32);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(35, 91, 62, .46), rgba(24, 59, 43, .72));
+    color: #d9f2e2;
+    box-shadow: 0 7px 20px rgba(0, 0, 0, .12);
+  }
+  .auth-page .auth-form-panel .auth-form-intro svg { flex: 0 0 auto; color: #9ce2b7; }
+  .auth-page .auth-form-panel .auth-form-intro span { color: #d9f2e2; }
+  .auth-page .auth-form-panel .auth-header {
+    display: block;
+    width: 100%;
+    margin: 0 auto 19px;
+    padding: 17px 14px 16px;
+    border: 1px solid rgba(113, 165, 132, .28);
+    border-radius: 19px;
+    background: linear-gradient(145deg, rgba(28, 54, 40, .94), rgba(17, 35, 27, .97));
+    text-align: center !important;
+    box-shadow: 0 9px 24px rgba(0, 0, 0, .12), inset 0 1px 0 rgba(255, 255, 255, .035);
+  }
+  .auth-page .auth-form-panel .auth-header > div { width: 100%; min-width: 0; margin-inline: auto; }
+  .auth-page .auth-form-panel .auth-header .eyebrow {
+    display: inline-flex;
+    justify-content: center;
+    margin: 0 auto 7px;
+    padding: 4px 10px;
+    border: 1px solid rgba(120, 191, 151, .24);
+    border-radius: 999px;
+    background: rgba(54, 112, 76, .23);
+    color: #a8e6bc;
+    text-align: center;
+  }
+  .auth-page .auth-form-panel .auth-header h2 {
+    max-width: 26ch;
+    margin: 0 auto;
+    color: #f3faf5;
+    font-size: clamp(22px, 6vw, 27px);
+    line-height: 1.42;
+    text-align: center;
+    text-wrap: pretty;
+  }
+  .auth-page .auth-form-panel .auth-header p {
+    max-width: 42ch;
+    margin: 8px auto 0;
+    color: #b8cdbf;
+    font-size: 12px;
+    line-height: 1.75;
+    text-align: center;
+    text-wrap: pretty;
+  }
+  .auth-page .auth-form-panel .register-email-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    margin: 7px 0 3px;
+    padding: 9px 10px;
+    border: 1px solid rgba(108, 164, 129, .25);
+    border-left: 3px solid #54b77d;
+    border-radius: 11px;
+    background: rgba(27, 57, 40, .72);
+    color: #c6dfce;
+    font-size: 10.5px;
+    line-height: 1.65;
+  }
+  .auth-page .auth-form-panel .register-email-hint svg { flex: 0 0 auto; margin-top: 1px; color: #9bdfb3; }
+  .auth-page .auth-form-panel .register-email-hint span { min-width: 0; }
+  .auth-page .auth-form-panel .auth-switch { justify-content: center; flex-wrap: wrap; text-align: center; }
+  .auth-page .auth-form-panel .text-button.align-end { align-self: center; justify-self: center; text-align: center; }
+  .auth-page .auth-form-panel .password-reset-policy { padding: 12px; border-radius: 14px; }
+  .auth-page .auth-form-panel .password-reset-policy-title { justify-content: center; text-align: center; }
+  .auth-page .auth-form-panel .password-reset-policy p { text-align: left; }
+}
+
+/* Join/create: present the account-ready message as a compact information
+   panel and keep the choice heading centered. The action logic is unchanged. */
+.onboarding-brand-header .onboarding-brand-description {
+  display: block;
+  width: min(620px, 100%);
+  margin: 10px auto 0;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft) 72%, var(--surface));
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.75;
+  text-align: center;
+}
+:root[data-theme="dark"] .onboarding-brand-header .onboarding-brand-description {
+  border-color: rgba(112, 186, 145, .26);
+  background: rgba(26, 58, 39, .58);
+  color: #c4d9ca;
+}
+.onboarding-choice-intro { text-align: center; }
+.onboarding-choice-intro h2,
+.onboarding-choice-intro p { margin-inline: auto; }
+.onboarding-account-switch-row { justify-content: flex-end; }
+.onboarding-account-switch-row .onboarding-switch-account { margin-left: auto; }
+@media (max-width: 700px) {
+  .onboarding-brand-header .onboarding-brand-description { margin-top: 11px; padding: 9px 11px; font-size: 11px; }
+  .onboarding-choice-intro { padding: 11px 12px; border: 1px solid rgba(112, 186, 145, .23); border-radius: 14px; background: rgba(23, 51, 35, .5); }
+  .onboarding-choice-intro .eyebrow { display: block; }
+  .onboarding-choice-intro h2 { font-size: clamp(18px, 5vw, 22px); }
+  .onboarding-choice-intro p { margin-top: 6px; }
+  .onboarding-account-switch-row { justify-content: center; margin-top: 12px; }
+  .onboarding-account-switch-row .onboarding-switch-account { width: 100%; justify-content: center; }
+}
+
+/* Registration email reminder is a compact information card at every width. */
+.auth-form-panel .register-email-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 7px 0 3px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-left: 3px solid var(--primary);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--primary-soft) 68%, var(--surface));
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.65;
+}
+.auth-form-panel .register-email-hint svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
+.auth-form-panel .register-email-hint span { min-width: 0; color: inherit; }
+:root[data-theme="dark"] .auth-form-panel .register-email-hint {
+  border-color: rgba(108, 164, 129, .25);
+  border-left-color: #54b77d;
+  background: rgba(27, 57, 40, .72);
+  color: #c6dfce;
+}
+:root[data-theme="dark"] .auth-form-panel .register-email-hint svg { color: #9bdfb3; }

@@ -49,7 +49,7 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
           <p>মিল থেকে মাসিক হিসাব—সবকিছু নিরাপদে, সুন্দরভাবে, এক জায়গায়।</p>
         </div>
         <div className="auth-form-panel">
-          <div className="auth-form-intro">অ্যাকাউন্ট অ্যাক্সেস <span aria-hidden="true">•</span> নিরাপদ ও সহজ</div>
+          <div className="auth-form-intro"><Icon name="shield-check" size={15} /><span>অ্যাকাউন্ট অ্যাক্সেস · নিরাপদ ও সহজ</span></div>
           <div className="auth-header">
             <div>
               <span className="eyebrow">{title === "আপনার অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>
@@ -190,7 +190,7 @@ function RegisterForm() {
         </div>
         <label className="field-label">
           <span>ইমেইল</span>
-          <small className="register-email-hint">রেজিস্ট্রেশন ও পাসওয়ার্ড পুনরুদ্ধারের সময় আপনার পরিচয় যাচাই করা হতে পারে। তাই সঠিক ইমেইল ব্যবহার করুন।</small>
+          <small className="register-email-hint"><Icon name="info" size={14} /><span>রেজিস্ট্রেশন ও পাসওয়ার্ড পুনরুদ্ধারের সময় আপনার পরিচয় যাচাই করা হতে পারে। তাই সঠিক ইমেইল ব্যবহার করুন।</span></small>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
         </label>
         <label className="field-label">

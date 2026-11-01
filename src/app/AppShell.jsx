@@ -281,6 +281,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         <button className={theme === 'light' ? 'active' : ''} onClick={() => changeTheme('light')}>লাইট</button>
         <button className={theme === 'system' ? 'active' : ''} onClick={() => changeTheme('system')}>সিস্টেম</button>
         <button className={theme === 'dark' ? 'active' : ''} onClick={() => changeTheme('dark')}>ডার্ক</button>
+        <button className={theme === 'blue' ? 'active' : ''} onClick={() => changeTheme('blue')}>আকাশি</button>
       </div>
     </div>
   );
