@@ -283,3 +283,30 @@ export async function platformAdminListClosedPeriods() {
   if(error) throw error;
   return Array.isArray(data) ? data : [];
 }
+
+
+// Read-only, server-scoped Super Admin observability endpoints.
+// The browser never queries platform_audit_log or platform_access_codes directly.
+export async function platformAdminListAuditLogs({ limit = 25, offset = 0, action = null, targetType = null, search = null } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_audit_logs', {
+    p_limit: Math.min(100, Math.max(1, Number(limit) || 25)),
+    p_offset: Math.max(0, Number(offset) || 0),
+    p_action: action || null,
+    p_target_type: targetType || null,
+    p_search: search || null,
+  });
+  if (error) throw error;
+  return firstRow(data) || {};
+}
+
+export async function platformAdminListAccessCodeHistory({ limit = 20, offset = 0, purpose = null } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_access_code_history', {
+    p_limit: Math.min(100, Math.max(1, Number(limit) || 20)),
+    p_offset: Math.max(0, Number(offset) || 0),
+    p_purpose: purpose || null,
+  });
+  if (error) throw error;
+  return firstRow(data) || {};
+}

@@ -14,6 +14,7 @@ import {
   platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
   platformAdminListExpiredArchives, platformAdminDeleteExpiredArchive,
   platformAdminFinalizeArchiveSummary, platformAdminVerifyArchiveSummary, platformAdminListSavedSummaries,
+  platformAdminListAuditLogs, platformAdminListAccessCodeHistory,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -51,6 +52,47 @@ function Field({ label, value, onChange, type = 'text', maxLength, multiline = f
 }
 function Stat({ label, value, icon }) {
   return <div className="platform-stat"><span className="platform-stat-icon"><Icon name={icon} size={19}/></span><div><small>{label}</small><strong>{value === undefined || value === null || value === '' ? '—' : Number(value).toLocaleString('en-US')}</strong></div></div>;
+}
+
+const AUDIT_ACTION_LABELS = {
+  hostel_created: 'নতুন মেস তৈরি',
+  hostel_status_changed: 'মেসের স্ট্যাটাস পরিবর্তন',
+  user_blocked: 'অ্যাকাউন্ট ব্লক',
+  user_unblocked: 'অ্যাকাউন্ট আনব্লক',
+  public_settings_updated: 'পাবলিক সেটিংস পরিবর্তন',
+  platform_gate_changed: 'Security Gate পরিবর্তন',
+  access_code_generated: 'নতুন Access Code তৈরি',
+  hostel_flag_changed: 'মেসের লেবেল পরিবর্তন',
+  user_flag_changed: 'অ্যাকাউন্টের লেবেল পরিবর্তন',
+  hostel_permanently_deleted: 'মেস স্থায়ীভাবে মুছে ফেলা',
+  member_permanently_deleted: 'সদস্য স্থায়ীভাবে মুছে ফেলা',
+  retention_policy_updated: 'ডেটা সংরক্ষণ নীতি পরিবর্তন',
+  archive_summary_saved: 'আর্কাইভ সামারি সংরক্ষণ',
+  archive_summary_verified: 'আর্কাইভ সামারি যাচাই',
+  archive_period_purged: 'আর্কাইভের বিস্তারিত অপসারণ',
+};
+const AUDIT_TARGET_LABELS = {
+  hostel: 'মেস', user: 'অ্যাকাউন্ট', member: 'সদস্য', access_code: 'Security Code',
+  platform_settings: 'প্ল্যাটফর্ম সেটিংস', platform_retention_policy: 'সংরক্ষণ নীতি', monthly_periods: 'মাসের আর্কাইভ',
+};
+const AUDIT_DETAIL_LABELS = {
+  purpose: 'কোডের ধরন', required: 'বাধ্যতামূলক', max_uses: 'ব্যবহারসীমা', expires_at: 'মেয়াদ', verified: 'যাচাইকৃত',
+  member_accounts_deleted: 'মুছে ফেলা Auth অ্যাকাউন্ট', auth_account_deleted: 'Auth অ্যাকাউন্ট মুছে ফেলা',
+  final_summary_preserved: 'সামারি সংরক্ষিত', flag: 'লেবেল', enabled: 'চালু', previous: 'আগের অবস্থা',
+  detail_months: 'বিস্তারিত রাখার মাস', summary_months: 'সামারি রাখার মাস', period_label: 'মাস',
+  end_date: 'শেষ তারিখ', retention_expiry: 'সংরক্ষণ মেয়াদ',
+};
+function formatPlatformDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' });
+}
+function auditActionLabel(action) { return AUDIT_ACTION_LABELS[action] || String(action || 'অন্যান্য কার্যক্রম').replaceAll('_', ' '); }
+function auditTargetLabel(target) { return AUDIT_TARGET_LABELS[target] || target || 'অনির্দিষ্ট'; }
+function codePurposeLabel(purpose) { return purpose === 'registration' ? 'Registration' : purpose === 'hostel_creation' ? 'মেস তৈরি' : 'অনির্দিষ্ট'; }
+function codeStatusLabel(status) {
+  return ({ available: 'মেয়াদ ও ব্যবহারসীমা আছে', expired: 'মেয়াদ শেষ', revoked: 'বাতিল', exhausted: 'ব্যবহারসীমা শেষ' })[status] || 'অজানা';
 }
 
 export function SuperAdminPage({ user }) {
@@ -106,6 +148,22 @@ export function SuperAdminPage({ user }) {
   const [orphanBusy, setOrphanBusy] = useState(false);
   const [orphanError, setOrphanError] = useState('');
   const [orphanScanInfo, setOrphanScanInfo] = useState(null);
+  const [auditRows, setAuditRows] = useState([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(0);
+  const [auditActionFilter, setAuditActionFilter] = useState('all');
+  const [auditTargetFilter, setAuditTargetFilter] = useState('all');
+  const [auditSearchDraft, setAuditSearchDraft] = useState('');
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState('');
+  const [codeHistoryRows, setCodeHistoryRows] = useState([]);
+  const [codeHistoryTotal, setCodeHistoryTotal] = useState(0);
+  const [codeHistoryPage, setCodeHistoryPage] = useState(0);
+  const [codeHistoryPurpose, setCodeHistoryPurpose] = useState('all');
+  const [codeHistoryLoading, setCodeHistoryLoading] = useState(false);
+  const [codeHistoryError, setCodeHistoryError] = useState('');
+  const [codeHistoryReload, setCodeHistoryReload] = useState(0);
 
   const pageSize = 20;
 
@@ -121,6 +179,40 @@ export function SuperAdminPage({ user }) {
     } catch (cause) { setError(errorText(cause, 'Super Admin তথ্য লোড করা যায়নি।')); }
     finally { setBusy(false); }
   }, []);
+  const loadAuditLog = useCallback(async () => {
+    setAuditLoading(true); setAuditError('');
+    try {
+      const result = await platformAdminListAuditLogs({
+        limit: pageSize, offset: auditPage * pageSize,
+        action: auditActionFilter === 'all' ? null : auditActionFilter,
+        targetType: auditTargetFilter === 'all' ? null : auditTargetFilter,
+        search: auditSearch || null,
+      });
+      setAuditRows(Array.isArray(result?.items) ? result.items : []);
+      setAuditTotal(Number(result?.total_count) || 0);
+    } catch (cause) {
+      setAuditRows([]); setAuditTotal(0);
+      setAuditError(errorText(cause, 'Audit Log লোড করা যায়নি।'));
+    } finally { setAuditLoading(false); }
+  }, [auditPage, auditActionFilter, auditTargetFilter, auditSearch]);
+
+  const loadCodeHistory = useCallback(async () => {
+    setCodeHistoryLoading(true); setCodeHistoryError('');
+    try {
+      const result = await platformAdminListAccessCodeHistory({
+        limit: pageSize, offset: codeHistoryPage * pageSize,
+        purpose: codeHistoryPurpose === 'all' ? null : codeHistoryPurpose,
+      });
+      setCodeHistoryRows(Array.isArray(result?.items) ? result.items : []);
+      setCodeHistoryTotal(Number(result?.total_count) || 0);
+    } catch (cause) {
+      setCodeHistoryRows([]); setCodeHistoryTotal(0);
+      setCodeHistoryError(errorText(cause, 'Security Code History লোড করা যায়নি।'));
+    } finally { setCodeHistoryLoading(false); }
+  }, [codeHistoryPage, codeHistoryPurpose]);
+
+  useEffect(() => { if (tab === 'audit' && reauthenticated) loadAuditLog(); }, [tab, reauthenticated, loadAuditLog]);
+  useEffect(() => { if (tab === 'security' && reauthenticated) loadCodeHistory(); }, [tab, reauthenticated, loadCodeHistory, codeHistoryReload]);
 
   useEffect(() => {
     let live = true;
@@ -508,6 +600,7 @@ export function SuperAdminPage({ user }) {
     setBusy(true); setError(''); setNotice(''); setGenerated(null);
     try {
       setGenerated(await platformAdminGenerateAccessCode(purpose, Number(ttl), Number(maxUses)));
+      setCodeHistoryPage(0); setCodeHistoryPurpose('all'); setCodeHistoryReload((value) => value + 1);
       setNotice('নতুন কোড তৈরি হয়েছে। এটি এখন একবারই দেখানো হবে—নিরাপদ স্থানে কপি করুন।');
     } catch (cause) { setError(errorText(cause, 'নতুন কোড তৈরি করা যায়নি।')); }
     finally { setBusy(false); }
@@ -519,10 +612,39 @@ export function SuperAdminPage({ user }) {
 
   return <main className="platform-page">
     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
-    <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে মিলের রেকর্ড, লেনদেন বা আর্থিক তথ্য দেখানো হয় না।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
+    <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
-    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
-    {tab === 'overview' && <section className="platform-stats-grid"><Stat label="মোট মেস" value={metrics.hostels} icon="home"/><Stat label="মোট অ্যাকাউন্ট" value={metrics.users} icon="users"/><Stat label="সক্রিয় মেম্বারশিপ" value={metrics.activeMemberships} icon="user-plus"/><Stat label="স্থগিত মেস" value={metrics.suspendedHostels} icon="lock"/><Stat label="আগে বন্ধ করা মেস" value={metrics.softDeletedHostels} icon="file"/><Stat label="ব্লক করা ব্যবহারকারী" value={metrics.blockedUsers} icon="shield"/><div className="card platform-privacy-note"><Icon name="shield" size={22}/><div><strong>Privacy boundary</strong><p>মেস-মেম্বার API শুধু পরিচয় ও স্ট্যাটাস ফেরত দেয়; finance এবং meal data query করা হয় না।</p></div></div></section>}
+    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    {tab === 'overview' && <section className="platform-stats-grid">
+      <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
+      <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
+      <Stat label="স্থগিত মেস" value={metrics.suspendedHostels} icon="lock"/>
+      <Stat label="মোট অ্যাকাউন্ট" value={metrics.users} icon="users"/>
+      <Stat label="সক্রিয় মেম্বারশিপ" value={metrics.activeMemberships} icon="user-plus"/>
+      <Stat label="নিষ্ক্রিয় মেম্বারশিপ" value={metrics.inactiveMemberships} icon="user"/>
+      <Stat label="গত ৩০ দিনে তৈরি মেস" value={metrics.recentHostels} icon="calendar"/>
+      <Stat label="ব্লক করা অ্যাকাউন্ট" value={metrics.blockedUsers} icon="shield"/>
+      <Stat label="Super Admin" value={metrics.superAdmins} icon="shield-check"/>
+      <div className="card platform-privacy-note"><Icon name="shield" size={22}/><div><strong>Privacy boundary</strong><p>এই Overview-তে শুধু সামগ্রিক সংখ্যা দেখানো হয়। ব্যক্তিগত সদস্যের আর্থিক বা মিলের বিস্তারিত এখানে দেখানো হয় না।</p></div></div>
+    </section>}
+    {tab === 'audit' && <section className="card platform-panel platform-audit-panel">
+      <div className="platform-panel-heading"><div><h3>প্ল্যাটফর্ম Audit Log</h3><p>গুরুত্বপূর্ণ প্রশাসনিক কাজের সময়, কর্মী ও লক্ষ্য রেকর্ড। সংবেদনশীল কোড বা ব্যক্তিগত তথ্য দেখানো হয় না।</p></div><button type="button" className="secondary-button compact" disabled={auditLoading} onClick={loadAuditLog}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+      <form className="platform-audit-filters" onSubmit={(event)=>{event.preventDefault();setAuditPage(0);setAuditSearch(auditSearchDraft.trim());}}>
+        <label className="field-label"><span>কাজের ধরন</span><select value={auditActionFilter} onChange={(event)=>{setAuditPage(0);setAuditActionFilter(event.target.value);}}><option value="all">সব কাজ</option>{Object.entries(AUDIT_ACTION_LABELS).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="field-label"><span>লক্ষ্যের ধরন</span><select value={auditTargetFilter} onChange={(event)=>{setAuditPage(0);setAuditTargetFilter(event.target.value);}}><option value="all">সব</option>{Object.entries(AUDIT_TARGET_LABELS).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="field-label platform-audit-search"><span>খুঁজুন</span><input value={auditSearchDraft} maxLength={120} onChange={(event)=>setAuditSearchDraft(event.target.value)} placeholder="কাজ, ID, কারণ বা অ্যাডমিন"/></label>
+        <button className="primary-button" type="submit" disabled={auditLoading}>খুঁজুন</button>
+        {(auditSearch || auditActionFilter !== 'all' || auditTargetFilter !== 'all') && <button className="secondary-button" type="button" disabled={auditLoading} onClick={()=>{setAuditSearchDraft('');setAuditSearch('');setAuditActionFilter('all');setAuditTargetFilter('all');setAuditPage(0);}}>ফিল্টার মুছুন</button>}
+      </form>
+      {auditError && <div className="inline-error platform-alert">{auditError}</div>}
+      {auditLoading ? <div className="platform-empty"><LoadingSpinner label="Audit Log লোড হচ্ছে..."/></div> : auditRows.length === 0 ? <div className="platform-empty-state"><Icon name="history" size={28}/><strong>কোনো কার্যক্রম পাওয়া যায়নি</strong><span>ফিল্টার পরিবর্তন করুন অথবা পরে আবার রিফ্রেশ করুন।</span></div> : <div className="platform-audit-list">{auditRows.map((row)=><article className="platform-audit-item" key={row.id}>
+        <div className="platform-audit-top"><div><strong>{auditActionLabel(row.action)}</strong><small>{auditTargetLabel(row.target_type)} · {row.target_id || '—'}</small></div><time>{formatPlatformDate(row.created_at)}</time></div>
+        <div className="platform-audit-actor"><Icon name="user" size={14}/>{row.actor_name || 'অজানা অ্যাকাউন্ট'}</div>
+        {row.reason && <p className="platform-audit-reason">কারণ: {row.reason}</p>}
+        {row.details && Object.entries(row.details).length > 0 && <div className="platform-audit-details">{Object.entries(row.details).map(([key,value])=><span key={key}>{AUDIT_DETAIL_LABELS[key] || key}: {typeof value === 'boolean' ? (value ? 'হ্যাঁ' : 'না') : String(value)}</span>)}</div>}
+      </article>)}</div>}
+      <div className="platform-history-pager"><span>{auditTotal.toLocaleString('bn-BD')}টি রেকর্ড · পৃষ্ঠা {auditTotal ? auditPage + 1 : 0} / {Math.max(1,Math.ceil(auditTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={auditLoading || auditPage===0} onClick={()=>setAuditPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={auditLoading || (auditPage+1)*pageSize>=auditTotal} onClick={()=>setAuditPage(value=>value+1)}>পরের</button></div></div>
+    </section>}
     {tab === 'hostels' && <section className="platform-two-col platform-admin-workspace">
       <div className="card platform-panel">
         <div className="platform-panel-heading"><div><h3>মেস ডিরেক্টরি</h3><p>{filteredHostels.length} / {hostels.length}টি মেস · আর্থিক/মিলের তথ্য দেখানো হয় না</p></div></div>
@@ -605,8 +727,31 @@ export function SuperAdminPage({ user }) {
           <div className="platform-retention-list">{expiredArchives.map(entry => <div className="platform-retention-row" key={`${entry.hostel_id}-${entry.period_id}`}><div><strong>{entry.hostel_name || 'মেস'} · {entry.period_label || 'মাস'}</strong><small>মেয়াদ শেষ: {entry.expired_at || 'সার্ভার যাচাইকৃত'}</small></div><div className="platform-archive-actions"><button className="secondary-button compact" type="button" disabled={retentionLoading} onClick={() => prepareArchiveSummary(entry)}>সামারি সংরক্ষণ</button><button className="secondary-button compact" type="button" disabled={retentionLoading || !savedSummaries.some(row => row.period_id === entry.period_id && !row.purged_at) || savedSummaries.some(row => row.period_id === entry.period_id && Boolean(row.verified_at))} onClick={() => verifyArchiveSummary(entry)}>{savedSummaries.some(row => row.period_id === entry.period_id && row.verified_at) ? 'সামারি যাচাইকৃত' : 'সামারি যাচাই'}</button><button className="danger-button" type="button" disabled={retentionLoading || !savedSummaries.some(row => row.period_id === entry.period_id && !row.purged_at && row.verified_at)} onClick={() => deleteExpiredArchive(entry)}>স্থায়ীভাবে মুছুন</button></div></div>)}</div>}
       </div>
     </section>}
-    {tab === 'security' && <section className="platform-settings-grid"><div className="card platform-panel"><div className="platform-panel-heading"><div><h3>Permission code controls</h3><p>নতুন কোড তৈরি হলে আগের কোড একই purpose-এ সঙ্গে সঙ্গে বাতিল হবে।</p></div></div><label className="platform-toggle"><span><strong>নতুন অ্যাকাউন্টে কোড বাধ্যতামূলক</strong><small>Registration page-এ কোড চাইবে</small></span><input type="checkbox" checked={Boolean(settings.registration_code_required)} disabled={busy} onChange={(e)=>changeGate('registration',e.target.checked)}/></label><label className="platform-toggle"><span><strong>মেস তৈরিতে কোড বাধ্যতামূলক</strong><small>নতুন মেস তৈরির আগে কোড যাচাই হবে</small></span><input type="checkbox" checked={Boolean(settings.hostel_creation_code_required)} disabled={busy} onChange={(e)=>changeGate('hostel_creation',e.target.checked)}/></label><Field label="কোডের মেয়াদ (মিনিট, ৫–১০০৮০)" type="number" value={ttl} onChange={setTtl}/><Field label="সর্বোচ্চ ব্যবহার (১–১০০০)" type="number" value={maxUses} onChange={setMaxUses}/><div className="platform-code-buttons"><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('registration')}>Registration code তৈরি</button><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('hostel_creation')}>Hostel creation code তৈরি</button></div>{generated&&<div className="platform-generated-code"><small>{generated.purpose==='registration'?'Registration':'Hostel creation'} · মেয়াদ {new Date(generated.expires_at).toLocaleString()}</small><code>{generated.code}</code><button className="primary-button" type="button" onClick={async()=>{try{await navigator.clipboard.writeText(generated.code);setNotice('কোড কপি হয়েছে।');}catch{setNotice('কপি করা যায়নি—কোডটি হাতে কপি করুন।');}}}>কোড কপি করুন</button><p>এটি এখন একবারই দেখানো হয়েছে। নিরাপদ স্থানে রাখুন এবং সাধারণ নোটিশে প্রকাশ করবেন না।</p></div>}</div><div className="card platform-panel"><div className="platform-panel-heading"><div><h3>Security rules</h3><p>Role ও অ্যাক্সেস কোড</p></div></div><ul className="platform-security-list"><li>সাধারণ সাইন-আপের role সবসময় <code>user</code> হবে।</li><li>Super Admin role শুধু project owner Supabase SQL Editor থেকে সেট করবেন।</li><li>প্রতিটি admin RPC ডাটাবেজেই Super Admin role যাচাই করে।</li><li>এই প্যানেল কোনো আর্থিক বা meal data query করে না।</li></ul></div></section>}
-    {deleteDialog && selected && (() => {
+    {tab === 'security' && <>
+      <section className="platform-settings-grid">
+        <div className="card platform-panel">
+          <div className="platform-panel-heading"><div><h3>Permission code controls</h3><p>নতুন কোড তৈরি হলে আগের কোড একই purpose-এ সঙ্গে সঙ্গে বাতিল হবে।</p></div></div>
+          <label className="platform-toggle"><span><strong>নতুন অ্যাকাউন্টে কোড বাধ্যতামূলক</strong><small>Registration page-এ কোড চাইবে</small></span><input type="checkbox" checked={Boolean(settings.registration_code_required)} disabled={busy} onChange={(e)=>changeGate('registration',e.target.checked)}/></label>
+          <label className="platform-toggle"><span><strong>মেস তৈরিতে কোড বাধ্যতামূলক</strong><small>নতুন মেস তৈরির আগে কোড যাচাই হবে</small></span><input type="checkbox" checked={Boolean(settings.hostel_creation_code_required)} disabled={busy} onChange={(e)=>changeGate('hostel_creation',e.target.checked)}/></label>
+          <Field label="কোডের মেয়াদ (মিনিট, ৫–১০০৮০)" type="number" value={ttl} onChange={setTtl}/>
+          <Field label="সর্বোচ্চ ব্যবহার (১–১০০০)" type="number" value={maxUses} onChange={setMaxUses}/>
+          <div className="platform-code-buttons"><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('registration')}>Registration code তৈরি</button><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('hostel_creation')}>Hostel creation code তৈরি</button></div>
+          {generated&&<div className="platform-generated-code"><small>{generated.purpose==='registration'?'Registration':'Hostel creation'} · মেয়াদ {formatPlatformDate(generated.expires_at)}</small><code>{generated.code}</code><button className="primary-button" type="button" onClick={async()=>{try{await navigator.clipboard.writeText(generated.code);setNotice('কোড কপি হয়েছে।');}catch{setNotice('কপি করা যায়নি—কোডটি হাতে কপি করুন।');}}}>কোড কপি করুন</button><p>এটি এখন একবারই দেখানো হয়েছে। নিরাপদ স্থানে রাখুন এবং সাধারণ নোটিশে প্রকাশ করবেন না।</p></div>}
+        </div>
+        <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>Security rules</h3><p>Role ও অ্যাক্সেস কোড</p></div></div><ul className="platform-security-list"><li>সাধারণ সাইন-আপের role সবসময় <code>user</code> হবে।</li><li>Super Admin role শুধু project owner Supabase SQL Editor থেকে সেট করবেন।</li><li>প্রতিটি admin RPC ডাটাবেজেই Super Admin role যাচাই করে।</li><li>কোডের আসল মান বা hash ইতিহাসে দেখানো হয় না।</li></ul></div>
+      </section>
+      <section className="card platform-panel platform-code-history-panel">
+        <div className="platform-panel-heading"><div><h3>Access Code History</h3><p>আগে তৈরি হওয়া কোডের মেয়াদ, ব্যবহার ও বাতিলের অবস্থা। আসল কোড বা Hash কখনো দেখানো হয় না।</p></div><button type="button" className="secondary-button compact" disabled={codeHistoryLoading} onClick={loadCodeHistory}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+        <div className="platform-code-history-toolbar"><label className="field-label"><span>কোডের ধরন</span><select value={codeHistoryPurpose} onChange={(event)=>{setCodeHistoryPage(0);setCodeHistoryPurpose(event.target.value);}}><option value="all">সব কোড</option><option value="registration">Registration</option><option value="hostel_creation">মেস তৈরি</option></select></label></div>
+        {codeHistoryError && <div className="inline-error platform-alert">{codeHistoryError}</div>}
+        {codeHistoryLoading ? <div className="platform-empty"><LoadingSpinner label="কোডের ইতিহাস লোড হচ্ছে..."/></div> : codeHistoryRows.length === 0 ? <div className="platform-empty-state"><Icon name="lock" size={26}/><strong>কোনো কোডের ইতিহাস নেই</strong><span>নতুন কোড তৈরি হলে সেটির ইতিহাস এখানে দেখা যাবে।</span></div> : <div className="platform-code-history-list">{codeHistoryRows.map((row)=><article className="platform-code-history-item" key={row.id}>
+          <div className="platform-audit-top"><div><strong>{codePurposeLabel(row.purpose)}</strong><small>তৈরি করেছেন: {row.created_by_name || 'অজানা অ্যাকাউন্ট'}</small></div><span className={`platform-code-state state-${row.status}`}>{codeStatusLabel(row.status)}</span></div>
+          <div className="platform-code-history-metrics"><span>ব্যবহার <b>{Number(row.use_count)||0} / {Number(row.max_uses)||0}</b></span><span>তৈরি <b>{formatPlatformDate(row.created_at)}</b></span><span>মেয়াদ <b>{formatPlatformDate(row.expires_at)}</b></span>{row.revoked_at && <span>বাতিল <b>{formatPlatformDate(row.revoked_at)}</b></span>}</div>
+        </article>)}</div>}
+        <div className="platform-history-pager"><span>{codeHistoryTotal.toLocaleString('bn-BD')}টি কোড · পৃষ্ঠা {codeHistoryTotal ? codeHistoryPage + 1 : 0} / {Math.max(1,Math.ceil(codeHistoryTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={codeHistoryLoading || codeHistoryPage===0} onClick={()=>setCodeHistoryPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={codeHistoryLoading || (codeHistoryPage+1)*pageSize>=codeHistoryTotal} onClick={()=>setCodeHistoryPage(value=>value+1)}>পরের</button></div></div>
+      </section>
+    </>}
+     {deleteDialog && selected && (() => {
       const member = deleteDialog.kind === 'member' ? deleteDialog.member : null;
       const required = member ? `DELETE MEMBER ${member.user_id}` : `DELETE HOSTEL ${selected.hostel_id}`;
       return <div className="modal-backdrop" role="presentation"><section className="card platform-delete-dialog" role="dialog" aria-modal="true" aria-label="স্থায়ী ডিলিট নিশ্চিতকরণ">

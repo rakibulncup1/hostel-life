@@ -1,8 +1,6 @@
 /**
- * The shipped PostgreSQL platform_admin_get_overview() JSON contract uses
- * *_count fields. Older UI builds used different keys and rendered zero for
- * missing values, making a populated database look empty.
- * Unknown metrics stay null (never synthesize a zero).
+ * Normalizes the exact platform_admin_get_overview() JSON contract.
+ * Missing metrics remain null rather than being fabricated as zero.
  */
 export function normalizePlatformOverview(payload) {
   const value = Array.isArray(payload) ? payload[0] || {} : payload || {};
@@ -20,8 +18,10 @@ export function normalizePlatformOverview(payload) {
     activeHostels: numberFrom('active_hostel_count', 'active_hostels'),
     users: numberFrom('user_count', 'users'),
     activeMemberships: numberFrom('member_count', 'active_memberships'),
+    inactiveMemberships: numberFrom('inactive_member_count', 'inactive_memberships'),
     suspendedHostels: numberFrom('suspended_hostel_count', 'suspended_hostels'),
-    softDeletedHostels: numberFrom('soft_deleted_hostel_count', 'soft_deleted_hostels'),
     blockedUsers: numberFrom('blocked_user_count', 'blocked_users'),
+    superAdmins: numberFrom('super_admin_count', 'super_admins'),
+    recentHostels: numberFrom('recent_hostels', 'recent_hostel_count'),
   };
 }
