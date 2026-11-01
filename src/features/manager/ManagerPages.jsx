@@ -608,7 +608,7 @@ export function HostelSettingsPage() {
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="মেস সেটিংস পরিবর্তনের জন্য অনলাইন সংযোগ প্রয়োজন।" />;
 
   return (
-    <PrimaryManagerGuard>
+    <ManagerGuard>
       <div className="page-stack">
         <PageHeader title="মেস সেটিংস" icon="lock" description="মেসের পরিচয় এবং যুক্ত হওয়ার কোড পরিচালনা করুন।" />
         <form className="card manager-form-card" onSubmit={saveName}>
@@ -622,7 +622,7 @@ export function HostelSettingsPage() {
         </section>
         {confirmCode && <ConfirmModal title="নতুন যুক্ত হওয়ার কোড তৈরি করবেন?" description="নতুন কোড তৈরি করলে আগের যুক্ত হওয়ার কোড দিয়ে আর নতুন সদস্য যুক্ত হতে পারবে না।" confirmLabel="নতুন কোড তৈরি করুন" busy={codeBusy} onClose={() => setConfirmCode(false)} onConfirm={regen} />}
       </div>
-    </PrimaryManagerGuard>
+    </ManagerGuard>
   );
 }
 
