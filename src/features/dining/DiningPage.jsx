@@ -35,7 +35,7 @@ import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
-import { canSubmitMealDay, getMealDayStatusText } from '../../utils/mealPolicy';
+import { canSubmitMealDay, getMealDayStatusText, isDhakaFinalizationDue } from '../../utils/mealPolicy';
 import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
 import { parseMarketPaste, sanitizeMarketInput } from '../../utils/marketPaste';
@@ -1089,6 +1089,17 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   }, [activeMembers, date, selectedMember, toast]);
 
   useEffect(() => { load(); }, [load]);
+
+  // If the screen was opened before 21:00 Dhaka, refresh today's day status
+  // after the finalization boundary. fetchMealEntryData triggers the existing
+  // lazy-finalization RPC, so this also works when pg_cron is unavailable.
+  useEffect(() => {
+    if (date !== todayValue() || dayStatus?.status === 'finalized' || loading) return undefined;
+    const timer = window.setInterval(() => {
+      if (isDhakaFinalizationDue(date, new Date())) load();
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, [date, dayStatus?.status, loading, load]);
 
   const setValue = (memberId, key, value) => {
     setEntries((current) => ({ ...current, [memberId]: { ...current[memberId], [key]: clampMeal(value) } }));

@@ -27,3 +27,19 @@ export function getMealDayStatusText(day, now = Date.now()) {
   if (day.status === 'locked') return isCutoffPassed(day, now) ? 'লকড' : 'লক হতে যাচ্ছে';
   return isCutoffPassed(day, now) ? 'কাট-অফ শেষ' : 'এখন দেওয়া যাবে';
 }
+
+/** Returns true only for the current Bangladesh calendar day at/after its 21:00 finalization time. */
+export function isDhakaFinalizationDue(mealDate, now = new Date()) {
+  if (!mealDate) return false;
+  const instant = now instanceof Date ? now : new Date(now);
+  if (!Number.isFinite(instant.getTime())) return false;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Dhaka',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(instant);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const today = `${values.year}-${values.month}-${values.day}`;
+  const minutes = Number(values.hour || 0) * 60 + Number(values.minute || 0);
+  return String(mealDate).slice(0, 10) === today && minutes >= (21 * 60);
+}

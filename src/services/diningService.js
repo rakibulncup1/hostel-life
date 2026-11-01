@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 import { rpcWithFallback } from '../lib/rpcCompatibility';
 import { cachedRequest, invalidateRequestCache } from '../lib/requestCache';
 import { normalizeRunningPeriodPayload } from '../utils/period';
+import { isDhakaFinalizationDue } from '../utils/mealPolicy';
 
 function assertSupabase() {
   if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
@@ -235,6 +236,13 @@ export async function fetchMealDayStates(startDate, endDate, periodId = null) {
 
 export async function fetchMealEntryData(date, periodId = null) {
   assertSupabase();
+  // The dedicated manager screen reads daily_meal_days directly. Trigger the
+  // existing lazy-finalization RPC for today's day after 21:00 Dhaka so the UI
+  // sees the same finalized status even when pg_cron is disabled or delayed.
+  if (isDhakaFinalizationDue(date, new Date())) {
+    const { error: finalizeError } = await supabase.rpc('get_meal_details', { p_meal_date: date });
+    if (finalizeError) throw finalizeError;
+  }
   let dayQuery = supabase
     .from('daily_meal_days')
     .select('id, period_id, meal_date, status, cutoff_at, finalizes_at, locked_at, finalized_at')

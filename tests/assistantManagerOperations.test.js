@@ -9,6 +9,7 @@ const drawer = read('src/components/MenuDrawer.jsx');
 const managerPages = read('src/features/manager/ManagerPages.jsx');
 const help = read('src/features/menu/MenuPages.jsx');
 const migration = read('supabase/migrations/Run22_assistant_manager_operations.sql');
+const run23 = read('supabase/migrations/Run23_same_day_final_meal_entry.sql');
 const run8 = read('supabase/migrations/Run8.sql');
 
 test('finalized-day direct entry is available to primary manager and assigned running-period assistant', () => {
@@ -39,7 +40,7 @@ test('Run22 grants final meal entry only after verifying exact running-period ma
   assert.ok(fn.indexOf('v_period.id, false, false') > fn.indexOf('SELECT \* INTO v_period'));
   assert.doesNotMatch(fn, /assert_hostel_manager\(v_hostel, NULL, true, false\)/);
   assert.match(fn, /v_day\.status <> 'finalized'/);
-  assert.match(fn, /v_date >= \(now\(\) AT TIME ZONE 'Asia\/Dhaka'\)::date/);
+  // Run23 supersedes Run22's original past-only date guard; see the dedicated boundary test below.
 });
 
 test('Run22 opens only the two existing hostel settings RPCs to active operational managers', () => {
@@ -52,6 +53,19 @@ test('Run22 opens only the two existing hostel settings RPCs to active operation
   assert.match(migration, /to_regprocedure\('private\.is_assistant_manager\(uuid,uuid\)'\)/);
   assert.match(migration, /CREATE OR REPLACE FUNCTION public\.get_my_membership\(\)[\s\S]*?a\.membership_id = m\.id[\s\S]*?THEN h\.join_code/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.get_my_membership\(\) TO authenticated/);
+});
+
+test('Run23 allows today only after 21:00 Dhaka, blocks future dates, and lazily finalizes due day rows', () => {
+  const start = run23.indexOf('CREATE OR REPLACE FUNCTION public.manager_set_meal_entries');
+  const end = run23.indexOf('$function$;', start) + '$function$;'.length;
+  const fn = run23.slice(start, end);
+  assert.match(fn, /v_date > v_dhaka_today/);
+  assert.doesNotMatch(fn, /v_date >= v_dhaka_today/);
+  assert.match(fn, /v_date = v_dhaka_today AND v_dhaka_now::time < TIME '21:00'/);
+  assert.match(fn, /PERFORM private\.ensure_period_days\(v_period\.id\)/);
+  assert.match(fn, /PERFORM private\.finalize_due_days\(v_hostel, v_period\.id\)/);
+  assert.match(fn, /assert_hostel_manager\(v_hostel, v_period\.id, false, false\)/);
+  assert.match(fn, /v_day\.finalizes_at IS NULL OR v_day\.finalizes_at > clock_timestamp\(\)/);
 });
 
 test('archive correction remains primary-manager-only and help explains the new assistant permissions', () => {
