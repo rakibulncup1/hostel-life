@@ -4594,7 +4594,7 @@ body {
 .platform-backup-notice>svg{flex:0 0 auto;color:#9a5a1c;margin-top:1px;}
 .platform-backup-notice strong{display:block;font-size:13px;color:var(--text);}
 .platform-backup-notice p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.65;}
-.platform-backup-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+.platform-backup-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
 .platform-backup-option{min-width:0;display:flex;flex-direction:column;gap:12px;padding:17px;border:1px solid var(--line);border-radius:17px;background:var(--surface);}
 .platform-backup-option-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:var(--surface-2);color:var(--primary-strong);}
 .platform-backup-option h4{margin:0;color:var(--text);font-size:15px;}
@@ -4611,5 +4611,5 @@ body {
 .platform-backup-policy small{display:block;margin-top:5px;color:var(--muted);font-size:11px;line-height:1.6;}
 .platform-backup-local-note{display:flex;align-items:flex-start;gap:9px;padding:12px 14px;border-radius:13px;background:var(--surface-2);color:var(--muted);font-size:11px;line-height:1.7;}
 .platform-backup-local-note svg{flex:0 0 auto;color:var(--primary-strong);margin-top:1px;}
-@media(max-width:900px){.platform-backup-options{grid-template-columns:1fr 1fr}.platform-backup-option:last-child{grid-column:1/-1}}
-@media(max-width:640px){.platform-backup-options,.platform-backup-policy{grid-template-columns:1fr}.platform-backup-option:last-child{grid-column:auto}.platform-backup-download{align-items:flex-start;flex-direction:column}.platform-backup-download .primary-button{width:100%;justify-content:center}.platform-backup-shield{width:42px;height:42px;border-radius:13px}}
+@media(max-width:900px){.platform-backup-options{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.platform-backup-options,.platform-backup-policy{grid-template-columns:1fr}.platform-backup-download{align-items:flex-start;flex-direction:column}.platform-backup-download .primary-button{width:100%;justify-content:center}.platform-backup-shield{width:42px;height:42px;border-radius:13px}}

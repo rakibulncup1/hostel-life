@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import queue
 import threading
 import tkinter as tk
@@ -14,7 +15,9 @@ from core import (
     find_stale_staging_dirs,
     create_hostel_backup,
     create_master_backup,
+    dry_run_restore,
     list_hostels,
+    restore_backup,
     verify_backup,
 )
 
@@ -25,8 +28,8 @@ class BackupAssistantApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("920x780")
-        self.minsize(800, 680)
+        self.geometry("1020x900")
+        self.minsize(840, 720)
         self.configure(bg="#f3f6f8")
         self.events: queue.Queue = queue.Queue()
         self.busy = False
@@ -46,6 +49,16 @@ class BackupAssistantApp(tk.Tk):
         self.hostel_password_confirm = tk.StringVar()
         self.verify_file = tk.StringVar()
         self.verify_password = tk.StringVar()
+        self.restore_file = tk.StringVar()
+        self.restore_password = tk.StringVar()
+        self.target_project_url = tk.StringVar()
+        self.target_project_ref = tk.StringVar()
+        self.target_database_url = tk.StringVar()
+        self.target_service_key = tk.StringVar()
+        self.restore_workspace = tk.StringVar()
+        self.restore_source_dir = tk.StringVar()
+        self.restore_confirmation = tk.StringVar()
+        self.restore_plan = None
         self.selected_hostel = tk.StringVar()
         self.status = tk.StringVar(value="Backup নিতে প্রস্তুত")
         self.progress_value = tk.IntVar(value=0)
@@ -105,12 +118,15 @@ class BackupAssistantApp(tk.Tk):
         master_tab = ttk.Frame(self.notebook, padding=14)
         hostel_tab = ttk.Frame(self.notebook, padding=14)
         verify_tab = ttk.Frame(self.notebook, padding=14)
+        restore_tab = ttk.Frame(self.notebook, padding=14)
         self.notebook.add(master_tab, text="Master Backup")
         self.notebook.add(hostel_tab, text="Hostel Backup")
         self.notebook.add(verify_tab, text="Verify Backup")
+        self.notebook.add(restore_tab, text="Restore & Recovery")
         self._build_master(master_tab)
         self._build_hostel(hostel_tab)
         self._build_verify(verify_tab)
+        self._build_restore(restore_tab)
 
         bottom = ttk.Frame(outer)
         bottom.pack(fill="x", pady=(12, 0))
@@ -126,7 +142,7 @@ class BackupAssistantApp(tk.Tk):
         self.log_box.pack(side="left", fill="both", expand=True)
         log_scroll.pack(side="right", fill="y")
         self._append_log("প্রথমবার ব্যবহারের আগে README_BN.md পড়ুন।")
-        self._append_log("Master Backup-এর জন্য Supabase CLI ও চালু Docker Desktop প্রয়োজন।")
+        self._append_log("Master Backup: Supabase CLI + Docker · Master Restore: PostgreSQL psql · Hostel Restore: Psycopg · Dry Run আগে চালাতে হবে।")
 
     def _field(self, parent, label, variable, row, column, width=40, show=None):
         frame = ttk.Frame(parent, style="Panel.TFrame")
@@ -175,7 +191,7 @@ class BackupAssistantApp(tk.Tk):
         ttk.Entry(parent, textvariable=self.hostel_password_confirm, show="•").pack(fill="x", pady=(3, 10))
         self.hostel_button = ttk.Button(parent, text="নির্বাচিত মেসের Backup তৈরি করুন", style="Primary.TButton", command=self._start_hostel)
         self.hostel_button.pack(anchor="e")
-        ttk.Label(parent, text="এটি Master Backup-এর বিকল্প নয়। Auth User Account বা Global Configuration এতে থাকবে না; একই User ID-গুলো Target Project-এ থাকতে হবে। Restore সুবিধা Module 2-তে আসবে।", wraplength=820, foreground="#7b4b22").pack(anchor="w", pady=(14, 0))
+        ttk.Label(parent, text="এটি Master Backup-এর বিকল্প নয়। Auth User Account বা Global Configuration এতে থাকবে না; সংশ্লিষ্ট User ID-গুলো Target Project-এ আগে থাকতে হবে। Restore & Recovery Tab থেকে Dry Run করে মেসভিত্তিক Restore করা যাবে।", wraplength=820, foreground="#7b4b22").pack(anchor="w", pady=(14, 0))
 
     def _build_verify(self, parent) -> None:
         ttk.Label(parent, text="Backup Integrity Check", font=("Segoe UI", 13, "bold")).pack(anchor="w")
@@ -188,6 +204,174 @@ class BackupAssistantApp(tk.Tk):
         ttk.Entry(parent, textvariable=self.verify_password, show="•").pack(fill="x", pady=(3, 10))
         self.verify_button = ttk.Button(parent, text="Backup যাচাই করুন", style="Primary.TButton", command=self._start_verify)
         self.verify_button.pack(anchor="e")
+
+    def _build_restore(self, parent) -> None:
+        ttk.Label(parent, text="Restore & Disaster Recovery", font=("Segoe UI", 13, "bold")).pack(anchor="w")
+        ttk.Label(
+            parent,
+            text="আগে Backup Verify হবে। Master Backup শুধুমাত্র নতুন/খালি Target Project-এ Restore করা যাবে। Hostel Backup সামঞ্জস্যপূর্ণ Schema-তে নতুন Hostel হিসেবে যোগ হবে; আগে থেকে থাকা Data Overwrite হবে না।",
+            wraplength=900,
+        ).pack(anchor="w", pady=(5, 10))
+
+        backup_box = ttk.LabelFrame(parent, text="Encrypted Backup", padding=10)
+        backup_box.pack(fill="x", pady=(0, 8))
+        ttk.Label(backup_box, text=".hlbackup File", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        row = ttk.Frame(backup_box)
+        row.pack(fill="x", pady=(3, 7))
+        ttk.Entry(row, textvariable=self.restore_file).pack(side="left", fill="x", expand=True, padx=(0, 8))
+        ttk.Button(row, text="Backup File", command=self._choose_restore_file).pack(side="right")
+        self._field(backup_box, "Backup Encryption Password", self.restore_password, row=1, column=0, width=70, show="•")
+
+        target_box = ttk.LabelFrame(parent, text="Target Supabase Project (যেখানে Restore হবে)", padding=10)
+        target_box.pack(fill="x", pady=(0, 8))
+        self._field(target_box, "Target Project URL", self.target_project_url, row=0, column=0, width=50)
+        self._field(target_box, "Target Project Ref", self.target_project_ref, row=0, column=1, width=25)
+        self._field(target_box, "Target PostgreSQL Connection String", self.target_database_url, row=1, column=0, width=80, show="•")
+        self._field(target_box, "Target Supabase Secret Key (sb_secret) / Legacy service_role", self.target_service_key, row=2, column=0, width=80, show="•")
+        ttk.Label(target_box, text="পুরোনো Project-এর Key নয়; Target Project থেকে নতুন Key দিন। Credential Restore Journal/Log-এ রাখা হয় না।", foreground="#8a4a1e", wraplength=900).grid(row=6, column=0, columnspan=2, sticky="w", pady=(2, 0))
+
+        local_box = ttk.LabelFrame(parent, text="Local Restore Workspace", padding=10)
+        local_box.pack(fill="x", pady=(0, 8))
+        ttk.Label(local_box, text="Restore Workspace Folder (Journal ও অস্থায়ী Plaintext এখানে থাকবে)", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        row = ttk.Frame(local_box)
+        row.pack(fill="x", pady=(3, 7))
+        ttk.Entry(row, textvariable=self.restore_workspace).pack(side="left", fill="x", expand=True, padx=(0, 8))
+        ttk.Button(row, text="Workspace Folder", command=self._choose_restore_workspace).pack(side="right")
+        ttk.Label(local_box, text="Optional: Website / Edge Function Source Restore Folder (খালি Folder দিন)", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        row2 = ttk.Frame(local_box)
+        row2.pack(fill="x", pady=(3, 4))
+        ttk.Entry(row2, textvariable=self.restore_source_dir).pack(side="left", fill="x", expand=True, padx=(0, 8))
+        ttk.Button(row2, text="Source Folder", command=self._choose_restore_source).pack(side="right")
+
+        actions = ttk.Frame(parent)
+        actions.pack(fill="x", pady=(3, 8))
+        ttk.Button(actions, text="প্রথমে Dry Run / Target Check", command=self._start_restore_dry_run).pack(side="left")
+        self.restore_button = ttk.Button(actions, text="Restore / Resume শুরু করুন", style="Primary.TButton", command=self._start_restore)
+        self.restore_button.pack(side="right")
+        ttk.Label(parent, text="Restore Confirmation: Dry Run সফল হওয়ার পরে নিচে ঠিক এইভাবে লিখুন: RESTORE <Target Project Ref>", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        ttk.Entry(parent, textvariable=self.restore_confirmation).pack(fill="x", pady=(3, 8))
+        ttk.Label(
+            parent,
+            text="সতর্কতা: Master Restore-এ Database Schema/Data ও Auth account নতুন Project-এ তৈরি হবে। Restore মাঝপথে বন্ধ হলে একই Backup, Target ও Workspace দিয়ে Resume করুন। অন্য Backup/Target দিয়ে পুরোনো Journal ব্যবহার করবেন না। কোনো DB Reset/Drop/Truncate চালানো হয় না।",
+            wraplength=900,
+            foreground="#8a4a1e",
+        ).pack(anchor="w", pady=(6, 0))
+
+    def _choose_restore_file(self) -> None:
+        path = filedialog.askopenfilename(title="Encrypted Backup নির্বাচন করুন", filetypes=[("Hostel Life Backup", "*.hlbackup"), ("All files", "*.*")])
+        if path:
+            self.restore_file.set(path)
+            self.restore_plan = None
+
+    def _choose_restore_workspace(self) -> None:
+        path = filedialog.askdirectory(title="Restore Workspace Folder নির্বাচন করুন")
+        if path:
+            self.restore_workspace.set(path)
+
+    def _choose_restore_source(self) -> None:
+        path = filedialog.askdirectory(title="Website/Project Source Restore Folder নির্বাচন করুন")
+        if path:
+            self.restore_source_dir.set(path)
+
+    def _restore_signature(self) -> tuple[str, ...]:
+        file_path = Path(self.restore_file.get().strip())
+        digest = ""
+        try:
+            if file_path.is_file():
+                hasher = hashlib.sha256()
+                with file_path.open("rb") as handle:
+                    while True:
+                        chunk = handle.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        hasher.update(chunk)
+                digest = hasher.hexdigest()
+        except OSError:
+            digest = ""
+        connection_fingerprint = hashlib.sha256(
+            "|".join((
+                self.target_project_url.get().strip(),
+                self.target_database_url.get().strip(),
+                self.target_project_ref.get().strip(),
+                hashlib.sha256(self.target_service_key.get().strip().encode("utf-8")).hexdigest(),
+            )).encode("utf-8")
+        ).hexdigest()
+        return (
+            str(file_path.resolve()) if file_path else "",
+            digest,
+            connection_fingerprint,
+            self.restore_workspace.get().strip(),
+            self.restore_source_dir.get().strip(),
+        )
+
+    def _start_restore_dry_run(self) -> None:
+        path = Path(self.restore_file.get().strip())
+        workspace = Path(self.restore_workspace.get().strip()) if self.restore_workspace.get().strip() else None
+        if not path.is_file() or not self.restore_password.get():
+            messagebox.showerror("Backup অসম্পূর্ণ", "Backup File ও Password দিন।")
+            return
+        if not all((self.target_project_url.get().strip(), self.target_project_ref.get().strip(), self.target_database_url.get().strip(), self.target_service_key.get().strip(), workspace)):
+            messagebox.showerror("Target অসম্পূর্ণ", "Target Project URL, Ref, Database Connection String, Storage Secret/Service Role Key ও Restore Workspace দিন।")
+            return
+        if not messagebox.askyesno("Dry Run নিশ্চিত করুন", "Dry Run Backup-এর Integrity যাচাই এবং Target Database-এ শুধু Read-only Check করবে। কোনো Data Restore/পরিবর্তন হবে না। চালাবেন?"):
+            return
+        values = {
+            "backup_file": path,
+            "password": self.restore_password.get(),
+            "target_database_url": self.target_database_url.get().strip(),
+            "target_project_url": self.target_project_url.get().strip(),
+            "target_project_ref": self.target_project_ref.get().strip(),
+            "target_service_key": self.target_service_key.get().strip(),
+        }
+        self.restore_plan = None
+        def worker():
+            result = dry_run_restore(**values)
+            self.events.put(("restore_plan", result))
+        self._run_worker(worker)
+
+    def _start_restore(self) -> None:
+        path = Path(self.restore_file.get().strip())
+        workspace_text = self.restore_workspace.get().strip()
+        signature = self._restore_signature()
+        if not path.is_file() or not self.restore_password.get():
+            messagebox.showerror("Backup অসম্পূর্ণ", "Backup File ও Password দিন।")
+            return
+        if not workspace_text:
+            messagebox.showerror("Workspace নেই", "Restore Workspace Folder নির্বাচন করুন।")
+            return
+        if self.restore_plan != signature:
+            messagebox.showerror("Dry Run দরকার", "Backup File/Target/Workspace বদলেছে অথবা Dry Run করা হয়নি। আগে Dry Run চালান।")
+            return
+        ref = self.target_project_ref.get().strip().lower()
+        expected = f"RESTORE {ref}"
+        if self.restore_confirmation.get().strip() != expected:
+            messagebox.showerror("Confirmation মেলেনি", f"নিশ্চিত করার জন্য ঠিক এই লেখা লিখুন:\n{expected}")
+            return
+        if not all((self.target_project_url.get().strip(), self.target_database_url.get().strip(), self.target_service_key.get().strip())):
+            messagebox.showerror("Target অসম্পূর্ণ", "Target Project URL, Database Connection String ও Target Secret/Service Role Key দিন।")
+            return
+        source_folder = Path(self.restore_source_dir.get().strip()) if self.restore_source_dir.get().strip() else None
+        warning = (
+            f"Backup: {path.name}\nTarget Project Ref: {ref}\n\n"
+            "এই Project-এ Restore চালানো হবে। Master Backup হলে Target অবশ্যই নতুন/খালি Project হতে হবে। "
+            "একবার Restore শুরু হলে Database Data তৈরি হবে। শুরু করবেন?"
+        )
+        if not messagebox.askyesno("Restore Final Confirmation", warning):
+            return
+        values = {
+            "backup_file": path,
+            "password": self.restore_password.get(),
+            "target_database_url": self.target_database_url.get().strip(),
+            "target_project_url": self.target_project_url.get().strip(),
+            "target_project_ref": ref,
+            "target_service_key": self.target_service_key.get().strip(),
+            "workspace_dir": Path(workspace_text),
+            "restore_project_source_to": source_folder,
+        }
+        def worker():
+            result = restore_backup(**values, log=lambda m: self.events.put(("log", m)), progress=lambda stage, pct: self.events.put(("progress", (stage, pct))))
+            self.events.put(("restore_done", result))
+        self._run_worker(worker)
 
     def _choose_destination(self) -> None:
         path = filedialog.askdirectory(title="Backup Folder নির্বাচন করুন")
@@ -220,10 +404,13 @@ class BackupAssistantApp(tk.Tk):
             checks = check_prerequisites()
             for key, value in checks.items():
                 self.events.put(("log", f"{key}: {value}"))
-            if checks.get("master_backup_ready"):
-                self.events.put(("done", (True, "Master Backup-এর প্রয়োজনীয় Tool পাওয়া গেছে। Storage Key ও CLI Login আলাদাভাবে যাচাই হবে।")))
+            if checks.get("restore_ready"):
+                self.events.put(("done", (True, "Restore-এর স্থানীয় Tool পাওয়া গেছে (Python, PostgreSQL psql, cryptography, requests)। Target-এর Credential ও Dry Run আলাদাভাবে যাচাই হবে।")))
             elif checks.get("hostel_backup_ready"):
-                self.events.put(("done", (False, "Hostel Backup-এর Python dependency পাওয়া গেছে। Master Backup-এর জন্য Supabase CLI ও Docker দরকার।")))
+                missing = []
+                if not checks.get("psql"):
+                    missing.append("PostgreSQL Client Tools / psql (Master Restore-এর জন্য)")
+                self.events.put(("done", (False, "Hostel Backup-এর Python dependency পাওয়া গেছে। Restore-এর জন্য অনুপস্থিত: " + (", ".join(missing) or "প্রয়োজনীয় Python Package") + ". README_BN.md দেখুন।")))
             else:
                 self.events.put(("done", (False, "প্রয়োজনীয় Python Package ইনস্টল করুন। README_BN.md দেখুন।")))
         self._run_worker(worker)
@@ -364,7 +551,7 @@ class BackupAssistantApp(tk.Tk):
         self.busy = True
         self.progress_value.set(0)
         self.status.set("কাজ শুরু হচ্ছে...")
-        for widget in (getattr(self, "master_button", None), getattr(self, "hostel_button", None), getattr(self, "verify_button", None)):
+        for widget in (getattr(self, "master_button", None), getattr(self, "hostel_button", None), getattr(self, "verify_button", None), getattr(self, "restore_button", None)):
             if widget:
                 widget.configure(state="disabled")
         thread = threading.Thread(target=self._worker_wrapper, args=(worker,), daemon=True)
@@ -404,6 +591,29 @@ class BackupAssistantApp(tk.Tk):
                     self.hostel_lookup = {f"{row['name']} · {row['id'][:8]}": row["id"] for row in payload}
                     self.hostel_combo["values"] = list(self.hostel_lookup.keys())
                     self.selected_hostel.set(next(iter(self.hostel_lookup), ""))
+                elif kind == "restore_plan":
+                    self.restore_plan = self._restore_signature()
+                    self.status.set("Dry Run সফল — Restore প্রস্তুত")
+                    self.progress_value.set(100)
+                    self._append_log(f"Backup Type: {payload.get('backup_type')}")
+                    self._append_log(f"Source Project Ref: {payload.get('project_ref')}")
+                    self._append_log(f"Target Project Ref: {payload.get('target', {}).get('project_ref')}")
+                    if payload.get("backup_type") == "MASTER":
+                        self._append_log(f"Auth Users: {payload.get('auth_user_count', 0):,} · Storage Objects: {payload.get('storage_object_count', 0):,} · Buckets: {payload.get('bucket_count', 0)}")
+                    else:
+                        self._append_log(f"Hostel ID: {payload.get('hostel_id')} · Tables: {payload.get('hostel_table_count', 0)} · Rows: {payload.get('hostel_row_count', 0):,}")
+                    for warning in payload.get("limitations", []):
+                        self._append_log(f"পরিকল্পনা: {warning}")
+                    messagebox.showinfo("Dry Run সফল", f"Backup Integrity ও Target Check সফল।\n\nType: {payload.get('backup_type')}\nSource: {payload.get('project_ref')}\nTarget: {payload.get('target', {}).get('project_ref')}\n\nএখন Confirmation লিখে Restore শুরু করতে পারবেন।")
+                elif kind == "restore_done":
+                    self.status.set("Restore সম্পন্ন")
+                    self.progress_value.set(100)
+                    self._append_log(f"Restore সফল: Target {payload.get('target_project_ref')}")
+                    self._append_log(f"Restore Journal: {payload.get('journal')}")
+                    for warning in payload.get("warnings", []):
+                        self._append_log(f"পরবর্তী যাচাই: {warning}")
+                    messagebox.showinfo("Restore সফল", f"Restore সম্পন্ন হয়েছে।\n\nTarget Project: {payload.get('target_project_ref')}\nJournal: {payload.get('journal')}\n\nলগের পরবর্তী যাচাইগুলো সম্পন্ন করুন।")
+                    self._clear_secrets()
                 elif kind == "done":
                     success, payload = payload
                     if success and isinstance(payload, dict) and payload.get("file"):
@@ -433,7 +643,7 @@ class BackupAssistantApp(tk.Tk):
                     messagebox.showerror("Backup Error", str(payload))
                 elif kind == "worker_finished":
                     self.busy = False
-                    for widget in (getattr(self, "master_button", None), getattr(self, "hostel_button", None), getattr(self, "verify_button", None)):
+                    for widget in (getattr(self, "master_button", None), getattr(self, "hostel_button", None), getattr(self, "verify_button", None), getattr(self, "restore_button", None)):
                         if widget:
                             widget.configure(state="normal")
         except queue.Empty:
@@ -449,6 +659,11 @@ class BackupAssistantApp(tk.Tk):
         self.hostel_password.set("")
         self.hostel_password_confirm.set("")
         self.verify_password.set("")
+        self.restore_password.set("")
+        self.target_database_url.set("")
+        self.target_service_key.set("")
+        self.restore_confirmation.set("")
+        self.restore_plan = None
         # Keep database_url in memory only until the user closes the utility,
         # allowing another export without retyping. It is never written to disk/logs.
 

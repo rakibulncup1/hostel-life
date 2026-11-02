@@ -950,6 +950,10 @@ export function SuperAdminPage({ user }) {
           <span className="platform-backup-option-icon"><Icon name="file-text" size={22}/></span>
           <div><h4>Verify Existing Backup</h4><p>আগে তৈরি করা Backup-এর Password দিয়ে AES-GCM Authentication, ZIP Structure ও প্রতিটি ফাইলের SHA-256 যাচাই করুন।</p><ul><li>শুধু Read/Verify</li><li>Live Database পরিবর্তন করে না</li></ul></div>
         </article>
+        <article className="platform-backup-option">
+          <span className="platform-backup-option-icon"><Icon name="shield-check" size={22}/></span>
+          <div><h4>Restore & Disaster Recovery</h4><p>আলাদা Windows Assistant-এর Restore Tab থেকে Backup যাচাই, Target Project পরীক্ষা এবং ধাপে ধাপে Restore/Resume করুন।</p><ul><li>Master Restore শুধু নতুন/খালি Project-এ</li><li>Hostel Restore-এ Schema ও ID Conflict Check</li><li>Dry Run ও `RESTORE` Confirmation বাধ্যতামূলক</li></ul></div>
+        </article>
       </div>
       <div className="platform-backup-download">
         <div><strong>Hostel Life Backup Assistant</strong><p>Windows 10/11-এর জন্য Portable Python Utility। প্রথমবার চালাতে Python Package, Supabase CLI, Docker Desktop ও PostgreSQL Client Tool লাগবে।</p></div>
@@ -960,7 +964,7 @@ export function SuperAdminPage({ user }) {
         <div><Icon name="folder" size={18}/><span><strong>দুটি আলাদা কপি রাখুন</strong><small>একটি কম্পিউটারে, আরেকটি আলাদা USB বা নিরাপদ অন্য ডিভাইসে। শুধু একই Supabase Project-এর Storage-এ Backup রাখবেন না।</small></span></div>
         <div><Icon name="lock" size={18}/><span><strong>Encryption Password হারাবেন না</strong><small>Password ছাড়া AES-256-GCM Backup খোলা যাবে না। Password আলাদা নিরাপদ স্থানে রাখুন।</small></span></div>
       </div>
-      <div className="platform-backup-local-note"><Icon name="info" size={16}/><span>এই Web Panel আপনার কম্পিউটারের Local Folder বা Backup History পড়তে পারে না। Backup Assistant-এর History শুধু আপনার কম্পিউটারে থাকবে। এই Panel কোনো Backup তৈরি, Upload বা Restore করছে না। Restore সুবিধা আলাদা Module 2-তে তৈরি হবে।</span></div>
+      <div className="platform-backup-local-note"><Icon name="info" size={16}/><span>এই Web Panel আপনার কম্পিউটারের Local Folder বা Backup History পড়তে পারে না। Backup Assistant-এর History ও Restore Journal শুধু আপনার কম্পিউটারে থাকবে। Restore কাজ আলাদা Windows Assistant-এ Dry Run ও Confirmation-এর পর চালাতে হবে; এই Web Panel নিজে Live Database Restore করে না। Cron Job/Edge Function স্বয়ংক্রিয়ভাবে চালু বা Deploy করা হয় না।</span></div>
     </section>}
 
     {tab === 'hostels' && <section className="platform-two-col platform-admin-workspace">

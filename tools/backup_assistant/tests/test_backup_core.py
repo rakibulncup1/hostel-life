@@ -127,7 +127,7 @@ class BackupCoreTests(unittest.TestCase):
             verify_temp.write_bytes(b"temporary plaintext zip")
             unrelated = root / ".not_a_backup"
             unrelated.mkdir()
-            self.assertEqual(find_stale_staging_dirs(root), [staging, verify_temp])
+            self.assertEqual(find_stale_staging_dirs(root), sorted([staging, verify_temp]))
             with self.assertRaises(BackupError):
                 cleanup_staging_dir(unrelated)
             cleanup_staging_dir(staging)

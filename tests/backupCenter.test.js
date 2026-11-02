@@ -31,3 +31,16 @@ test('Portable Backup Assistant includes encryption, verification and separated 
   assert.match(core, /secret_names_only\.json/);
   assert.doesNotMatch(page, /service_role|SUPABASE_SERVICE_ROLE_KEY|Database Connection String/);
 });
+
+test('Restore & Recovery is delivered in the local assistant with dry-run and typed confirmation', () => {
+  const core = fs.readFileSync(path.join(utility, 'core.py'), 'utf8');
+  const gui = fs.readFileSync(path.join(utility, 'backup_assistant.py'), 'utf8');
+  assert.match(page, /Restore & Disaster Recovery/);
+  assert.match(gui, /Restore & Recovery/);
+  assert.match(gui, /প্রথমে Dry Run \/ Target Check/);
+  assert.match(gui, /RESTORE \{ref\}/);
+  assert.match(core, /def dry_run_restore/);
+  assert.match(core, /def restore_backup/);
+  assert.match(core, /No reset\/drop\/truncate commands are used/);
+  assert.match(core, /_copy_review_files_without_overwrite/);
+});
