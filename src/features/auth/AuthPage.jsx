@@ -76,6 +76,27 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [sessionPolicyNotice, setSessionPolicyNotice] = useState('');
+
+  useEffect(() => {
+    const readStoredNotice = () => {
+      try {
+        const message = window.sessionStorage.getItem('hostel-life-session-limit-notice-v1');
+        if (message) {
+          setSessionPolicyNotice(message);
+          window.sessionStorage.removeItem('hostel-life-session-limit-notice-v1');
+        }
+      } catch { /* The inline message is best-effort when browser storage is unavailable. */ }
+    };
+    const onSessionLimitNotice = (event) => {
+      const message = event?.detail?.message;
+      if (typeof message === 'string' && message.trim()) setSessionPolicyNotice(message);
+      else readStoredNotice();
+    };
+    window.addEventListener('hostel-life-session-limit-notice', onSessionLimitNotice);
+    readStoredNotice();
+    return () => window.removeEventListener('hostel-life-session-limit-notice', onSessionLimitNotice);
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -87,10 +108,19 @@ function LoginForm() {
     try {
       const { error } = await signIn({ email, password });
       if (error) throw error;
-      await refreshIdentity().catch(() => undefined);
+      try {
+        await refreshIdentity();
+      } catch (identityError) {
+        if (identityError?.code === 'SESSION_LIMIT_EXCEEDED' || identityError?.code === 'SESSION_LIMIT_SIGNOUT_FAILED') throw identityError;
+        // A temporary profile fetch failure is handled by the existing identity recovery screen.
+      }
       toast.success('সফলভাবে লগইন হয়েছে।');
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'লগইন করা যায়নি। তথ্যগুলো আবার যাচাই করুন।'));
+      if (error?.code === 'SESSION_LIMIT_EXCEEDED' || error?.code === 'SESSION_LIMIT_SIGNOUT_FAILED') {
+        setSessionPolicyNotice(error.message);
+      } else {
+        toast.error(getFriendlySupabaseError(error, 'লগইন করা যায়নি। তথ্যগুলো আবার যাচাই করুন।'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -98,6 +128,7 @@ function LoginForm() {
 
   return (
     <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার তথ্য দিয়ে নিরাপদে Hostel Life-এ লগইন করুন।">
+      {sessionPolicyNotice && <div className="auth-policy-notice" role="alert"><Icon name="shield-alert" size={18} /><span>{sessionPolicyNotice}</span><button type="button" aria-label="বার্তা বন্ধ করুন" onClick={() => setSessionPolicyNotice('')}>×</button></div>}
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
           <span>ইমেইল</span>

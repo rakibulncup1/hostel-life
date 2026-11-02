@@ -13,11 +13,22 @@ import { OnboardingPage } from '../features/onboarding/OnboardingPage';
 import { InactiveMembershipPage } from '../features/account/InactiveMembershipPage';
 import { IdentityErrorPage } from '../features/account/IdentityErrorPage';
 import { SuperAdminPage } from '../features/platform/SuperAdminPage';
+import { HostelInvitePage } from '../features/invites/HostelInvitePage';
+import { getPendingHostelLinkToken } from '../utils/pendingHostelLink';
+import { AppDownloadPage } from '../features/menu/AppDownloadPage';
+import { fetchPlatformPublicSettings } from '../services/platformService';
+import { THEME_KEY, THEME_VALUES, applyPlatformDefaultTheme } from './theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useAuth } from '../contexts/AuthContext';
 
 function getPath() {
-  return window.location.pathname || '/app/dashboard';
+  const pathname = window.location.pathname || '/app/dashboard';
+  // New invitation links keep the bearer token in the URL fragment. Fragments
+  // are never sent in HTTP requests or ordinary Referer headers.
+  if (pathname === '/invite' && /^#[0-9a-f]{64}$/.test(window.location.hash || '')) {
+    return `/invite/${window.location.hash.slice(1)}`;
+  }
+  return pathname;
 }
 
 function resolveAppPage(pathname, isManager) {
@@ -33,6 +44,7 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/privacy-policy') return <PrivacyPolicyPage />;
   if (pathname === '/app/menu/terms') return <TermsPage />;
   if (pathname === '/app/menu/how-to-use') return <HowToUsePage />;
+  if (pathname === '/app/menu/app-download') return <AppDownloadPage />;
   if (pathname === '/app/menu/send-notification') return <SendNotificationPage />;
   if (pathname === '/app/menu/archive') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/reports') return <ReportsPage />;
@@ -60,6 +72,19 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    try {
+      const savedTheme = window.localStorage.getItem(THEME_KEY);
+      if (THEME_VALUES.includes(savedTheme)) return () => { active = false; };
+    } catch { /* Continue to server default when storage access is restricted. */ }
+    fetchPlatformPublicSettings().then((settings) => {
+      if (!active) return;
+      if (THEME_VALUES.includes(settings?.default_theme)) applyPlatformDefaultTheme(settings.default_theme);
+    }).catch(() => { /* Keep the safe dark fallback on older or unavailable deployments. */ });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
     if (auth.authLoading || auth.user?.app_metadata?.must_change_password) return;
     if (pathname === '/super-admin') {
       if (!auth.isAuthenticated) navigateTo('/auth/login', true);
@@ -69,6 +94,20 @@ export function App() {
     const inAuth = pathname.startsWith('/auth/');
     const inApp = pathname.startsWith('/app/');
     const inOnboarding = pathname.startsWith('/onboarding');
+    const inSharedLink = pathname.startsWith('/invite/');
+    if (inSharedLink) return;
+
+    if (auth.isAuthenticated && (inAuth || inOnboarding || pathname === '/')) {
+      try {
+        // Preserve a pending invitation through registration/email confirmation.
+        // It is only an authenticated Join Request flow; it never opens dashboard data.
+        const pendingToken = getPendingHostelLinkToken();
+        if (pendingToken) {
+          navigateTo(`/invite#${pendingToken}`, true);
+          return;
+        }
+      } catch { /* Local storage is optional; continue with normal routing. */ }
+    }
 
     if (!auth.isAuthenticated) {
       if (pathname === '/') navigateTo('/auth/login', true);
@@ -115,6 +154,7 @@ export function App() {
     else if (pathname.includes('/menu/privacy-policy')) title = 'Hostel Life — গোপনীয়তা ও নীতিমালা';
     else if (pathname.includes('/menu/terms')) title = 'Hostel Life — ব্যবহারের শর্তাবলী';
     else if (pathname.includes('/menu/how-to-use')) title = 'Hostel Life — কীভাবে ব্যবহার করব';
+    else if (pathname.includes('/menu/app-download')) title = 'Hostel Life — অ্যাপ ডাউনলোড';
     else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
     else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
@@ -142,6 +182,10 @@ export function App() {
   }
 
   if (auth.authLoading) return <LoadingSpinner label="সেশন যাচাই হচ্ছে..." />;
+
+  if (pathname.startsWith('/invite/')) {
+    return <HostelInvitePage pathname={pathname} />;
+  }
 
   if (!auth.isAuthenticated) return <AuthPage pathname="/auth/login" />;
 

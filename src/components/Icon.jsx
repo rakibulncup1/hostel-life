@@ -63,6 +63,10 @@ const paths = {
   file: 'M6 3h8l4 4v14H6zM14 3v5h5',
   book: 'M4 4.5A2.5 2.5 0 0 1 6.5 2H20v18H6.5A2.5 2.5 0 0 0 4 22zM4 4.5V22M8 6h8M8 10h8',
   monitor: 'M4 5h16v11H4zM9 21h6M12 16v5',
+  smartphone: 'M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM11 18h2',
+  compass: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM15.5 8.5l-2 5-5 2 2-5z',
+  chrome: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 22l-5.2-9M2.5 8h10M12 13l4.5-8',
+  'heart-handshake': 'M20.8 8.7a4.5 4.5 0 0 0-6.4-6.4L12 4.7l-2.4-2.4a4.5 4.5 0 0 0-6.4 6.4l2.1 2.1M3 13l4.5 4.5a2 2 0 0 0 2.8 0L12 16l1.7 1.5a2 2 0 0 0 2.8 0L21 13l-4-4-5 4-3-2-3 2H3z',
 };
 
 export function Icon({ name, size = 20, strokeWidth = 1.8, className = '' }) {

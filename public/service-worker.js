@@ -1,5 +1,5 @@
 // Bump this cache name when changing the cached app-shell contract.
-const CACHE_NAME = 'hostel-life-shell-v16';
+const CACHE_NAME = 'hostel-life-shell-v17';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -68,6 +68,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
+    // Invitation tokens are bearer credentials. Never cache an invitation
+    // navigation request/response; the app shell may be fetched network-only.
+    if (url.pathname === '/invite' || url.pathname.startsWith('/invite/')) {
+      event.respondWith(fetch(request, { cache: 'no-store' }));
+      return;
+    }
     event.respondWith(
       networkFirst(request, '/index.html').catch(() => caches.match('/index.html'))
     );

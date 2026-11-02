@@ -11,6 +11,7 @@ import {
   fetchPlatformPublicSettings, platformAdminGenerateAccessCode, platformAdminGetOverview,
   platformAdminListHostelMembers, platformAdminListHostelRoleBadges, platformAdminListHostels, platformAdminSetGate,
   platformAdminSetHostelStatus, platformAdminSetUserBlocked, platformAdminUpdatePublicSettings,
+  platformAdminSetDefaultTheme, platformAdminGetSessionPolicy, platformAdminSetMaxDevicesPerUser,
   platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel,
   platformAdminPermanentlyDeleteMember, uploadDeveloperPhoto,
   platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
@@ -26,7 +27,7 @@ const EMPTY_SETTINGS = {
   announcement_enabled: false, announcement_title: '', announcement_body: '',
   registration_code_required: false, hostel_creation_code_required: false,
   developer_name: '', developer_title: '', developer_photo_url: '', developer_email: '',
-  developer_phone: '', developer_portfolio_url: '',
+  developer_phone: '', developer_portfolio_url: '', default_theme: 'dark', max_devices_per_user: 10,
 };
 const errorText = (error, fallback) => /platform_admin_|get_platform_public_settings|function .* does not exist|schema cache/i.test(String(error?.message || ''))
   ? 'Super Admin SQL এখনো প্রয়োগ করা হয়নি। প্রথমে প্রয়োজনীয় Super Admin SQL Migration চালিয়ে schema reload হওয়া পর্যন্ত অপেক্ষা করুন।'
@@ -107,6 +108,36 @@ function formatPlatformDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' });
+}
+function timeZoneOffsetMinutes(date, timeZone = 'Asia/Dhaka') {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const representedAsUtc = Date.UTC(
+    Number(values.year), Number(values.month) - 1, Number(values.day),
+    Number(values.hour), Number(values.minute), Number(values.second),
+  );
+  return Math.round((representedAsUtc - date.getTime()) / 60000);
+}
+function toDhakaDateTimeInput(date) {
+  const shifted = new Date(date.getTime() + timeZoneOffsetMinutes(date) * 60000);
+  return shifted.toISOString().slice(0, 16);
+}
+function fromDhakaDateTimeInput(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value || '');
+  if (!match) return new Date(NaN);
+  const [, year, month, day, hour, minute] = match;
+  const localAsUtc = Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute));
+  let timestamp = localAsUtc;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const offset = timeZoneOffsetMinutes(new Date(timestamp));
+    const next = localAsUtc - offset * 60000;
+    if (next === timestamp) break;
+    timestamp = next;
+  }
+  return new Date(timestamp);
 }
 function presenceLabel(member) {
   if (!member?.last_seen_at) return 'এখনো Last Seen রেকর্ড হয়নি';
@@ -216,6 +247,8 @@ export function SuperAdminPage({ user }) {
   const [members, setMembers] = useState([]);
   const [memberListLoadedHostelId, setMemberListLoadedHostelId] = useState('');
   const [settings, setSettings] = useState(EMPTY_SETTINGS);
+  const [defaultThemeBusy, setDefaultThemeBusy] = useState(false);
+  const [deviceLimitBusy, setDeviceLimitBusy] = useState(false);
   const [reason, setReason] = useState('');
   const [ttl, setTtl] = useState('1440');
   const [maxUses, setMaxUses] = useState('1');
@@ -341,19 +374,25 @@ export function SuperAdminPage({ user }) {
     const requestId = ++refreshRequestRef.current;
     setBusy(true); setError('');
     const results = await Promise.allSettled([
-      platformAdminGetOverview(), platformAdminListHostels(), fetchPlatformPublicSettings({ force: true }),
+      platformAdminGetOverview(), platformAdminListHostels(), fetchPlatformPublicSettings({ force: true }), platformAdminGetSessionPolicy(),
     ]);
     if (requestId !== refreshRequestRef.current) return;
     const failures = [];
-    const [summary, allHostels, publicSettings] = results;
+    const [summary, allHostels, publicSettings, sessionPolicy] = results;
     if (summary.status === 'fulfilled') setOverview(summary.value || {});
     else failures.push(`Overview: ${errorText(summary.reason, 'তথ্য লোড হয়নি')}`);
     if (allHostels.status === 'fulfilled') setHostels(Array.isArray(allHostels.value) ? allHostels.value : []);
     else failures.push(`মেস তালিকা: ${errorText(allHostels.reason, 'তথ্য লোড হয়নি')}`);
     if (publicSettings.status === 'fulfilled') {
       const settingsValue = publicSettings.value;
-      setSettings({ ...EMPTY_SETTINGS, ...(Array.isArray(settingsValue) ? settingsValue[0] : settingsValue || {}) });
+      const sessionPolicyValue = sessionPolicy.status === 'fulfilled' ? sessionPolicy.value : {};
+      setSettings({
+        ...EMPTY_SETTINGS,
+        ...(Array.isArray(settingsValue) ? settingsValue[0] : settingsValue || {}),
+        max_devices_per_user: Number(sessionPolicyValue?.max_devices_per_user) || 10,
+      });
     } else failures.push(`প্ল্যাটফর্ম সেটিংস: ${errorText(publicSettings.reason, 'তথ্য লোড হয়নি')}`);
+    if (sessionPolicy.status === 'rejected') failures.push(`Device Policy: ${errorText(sessionPolicy.reason, 'তথ্য লোড হয়নি')}`);
     setError(failures.length ? `কিছু Super Admin তথ্য লোড হয়নি; সফল তথ্যগুলো ব্যবহার করা যাবে। ${failures.join(' · ')}` : '');
     setBusy(false);
   }, []);
@@ -963,6 +1002,34 @@ export function SuperAdminPage({ user }) {
     finally { setDeveloperPhotoBusy(false); }
   };
 
+  const saveDeviceLimit = async () => {
+    const limit = Number(settings.max_devices_per_user);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 30) {
+      setError('সর্বোচ্চ Device/Browser Session সংখ্যা ১ থেকে ৩০-এর মধ্যে নির্বাচন করুন।');
+      return;
+    }
+    setDeviceLimitBusy(true); setError(''); setNotice('');
+    try {
+      await platformAdminSetMaxDevicesPerUser(limit);
+      setNotice(`প্রতি অ্যাকাউন্টে সর্বোচ্চ ${limit.toLocaleString('bn-BD')}টি আলাদা Browser/Device Login Session সংরক্ষণ করা হবে। সক্রিয় সেশনগুলো পরবর্তী যাচাই বা Heartbeat-এ নতুন নীতি অনুসরণ করবে।`);
+      await refresh();
+    } catch (cause) {
+      setError(errorText(cause, 'Device/Browser Session Limit সংরক্ষণ করা যায়নি।'));
+    } finally {
+      setDeviceLimitBusy(false);
+    }
+  };
+
+  const saveDefaultTheme = async () => {
+    setDefaultThemeBusy(true); setError(''); setNotice('');
+    try {
+      await platformAdminSetDefaultTheme(settings.default_theme || 'dark');
+      setNotice('নতুন ব্যবহারকারী ও নতুন ডিভাইসের ডিফল্ট থিম সংরক্ষিত হয়েছে। যাঁদের ডিভাইসে আগে থেকেই থিম পছন্দ সেভ আছে, সেটি পরিবর্তন হবে না।');
+      await refresh();
+    } catch (cause) { setError(errorText(cause, 'ডিফল্ট থিম সংরক্ষণ করা যায়নি।')); }
+    finally { setDefaultThemeBusy(false); }
+  };
+
   const saveSettings = async (event) => {
     event.preventDefault(); setBusy(true); setError(''); setNotice('');
     try {
@@ -1297,6 +1364,8 @@ export function SuperAdminPage({ user }) {
       {recoveryResult && <div className="platform-generated-code"><strong>একবার দেখানো অস্থায়ী পাসওয়ার্ড</strong><code>{recoveryResult}</code><p>এটি নিরাপদ মাধ্যমে শুধু সংশ্লিষ্ট ব্যবহারকারীকে দিন। এখানে বা নোটিফিকেশনে সংরক্ষণ করবেন না। ব্যবহারকারী লগইন করলে পাসওয়ার্ড পরিবর্তন বাধ্যতামূলক।</p><button type="button" className="secondary-button" onClick={()=>setRecoveryResult('')}>পাসওয়ার্ড স্ক্রিন থেকে সরান</button></div>}
     </section>}
     {tab === 'settings' && <form className="platform-settings-grid" onSubmit={saveSettings}>
+      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>নতুন ব্যবহারকারীর Default Theme</h3><p>যাঁদের ব্রাউজারে আগে থেকে Theme Preference নেই, তাঁদের প্রথম প্রবেশে এই থিম ব্যবহার হবে। সংরক্ষিত ব্যক্তিগত পছন্দ পরিবর্তন হবে না।</p></div></div><label className="field-label"><span>ডিফল্ট থিম</span><select value={settings.default_theme || 'dark'} onChange={(e) => setSettings((old) => ({ ...old, default_theme: e.target.value }))}><option value="system">সিস্টেম</option><option value="light">লাইট</option><option value="dark">ডার্ক</option><option value="blue">আকাশি</option></select></label><button type="button" className="secondary-button" disabled={defaultThemeBusy} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button></section>
+      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>একটি অ্যাকাউন্টে সর্বোচ্চ Device / Browser Session</h3><p>একই Browser-এর একাধিক Tab একটি Session হিসেবে গণ্য হবে। আলাদা Browser Profile বা ডিভাইসে নতুন Login করলে আলাদা Session হিসেবে গণনা হবে।</p></div><span className="platform-status">১–৩০</span></div><label className="field-label"><span>সর্বোচ্চ সক্রিয় Login Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label><div className="platform-retention-hint"><Icon name="shield-check" size={15}/> সীমা ছাড়ালে নতুন/সাম্প্রতিক Session-এর অ্যাক্সেস বন্ধ হবে; আগে থেকে থাকা পুরোনো Session-গুলো অগ্রাধিকার পাবে। নীতি পরিবর্তনের পর ব্যবহারকারী পরবর্তী Login, পরিচয় যাচাই বা সক্রিয় Session Heartbeat-এ সীমা অনুযায়ী যাচাই হবে।</div><button type="button" className="secondary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Limit সংরক্ষণ করুন'}</button></section>
       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Global announcement</h3><p>ড্যাশবোর্ডের ওপরে সবার জন্য ব্যানার নোটিশ</p></div></div><label className="platform-toggle"><span><strong>নোটিশ চালু</strong><small>চালু থাকলে অ্যাপের ব্যবহারকারীরা ব্যানার দেখবেন</small></span><input type="checkbox" checked={Boolean(settings.announcement_enabled)} onChange={(e)=>setSettings((old)=>({...old,announcement_enabled:e.target.checked}))}/></label><Field label="নোটিশ শিরোনাম" value={settings.announcement_title} onChange={(v)=>setSettings((old)=>({...old,announcement_title:v}))} maxLength={160}/><Field label="নোটিশের বিবরণ" value={settings.announcement_body} onChange={(v)=>setSettings((old)=>({...old,announcement_body:v}))} maxLength={3000} multiline/></section>
       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Developer Info</h3><p>তথ্য ও ছবি Supabase-এ সংরক্ষণ হবে</p></div></div><Field label="নাম" value={settings.developer_name} onChange={(v)=>setSettings((old)=>({...old,developer_name:v}))} maxLength={160}/><Field label="পরিচয় / পদবি" value={settings.developer_title} onChange={(v)=>setSettings((old)=>({...old,developer_title:v}))} maxLength={240}/>
         <div className="developer-photo-uploader"><div className="developer-photo-preview">{settings.developer_photo_url?<img src={settings.developer_photo_url} alt="Developer preview"/>:<span><Icon name="camera" size={24}/></span>}</div><div className="developer-photo-copy"><strong>Developer-এর ছবি</strong><small>JPG / PNG / WEBP · সর্বোচ্চ ৫ MB। আপলোড করলে Supabase Storage-এ ফাইল থাকবে।</small><input ref={developerPhotoInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleDeveloperPhoto}/><button type="button" className="secondary-button compact" disabled={developerPhotoBusy||busy} onClick={()=>developerPhotoInputRef.current?.click()}><Icon name="camera" size={15}/>{developerPhotoBusy?'আপলোড হচ্ছে...':'ছবি আপলোড করুন'}</button></div></div>

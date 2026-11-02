@@ -3,6 +3,7 @@ import { useToast } from '../../components/Toast';
 import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 import { supabase } from '../../lib/supabase';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,6 +13,8 @@ import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
 import { normalizeRunningPeriodPayload } from '../../utils/period';
 import { applyTheme, getThemePreference } from '../../app/theme';
 import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
+import { createHostelJoinRequestFromInvite as createHostelJoinRequestFromLink, getHostelInviteLinkInfo as getHostelAccessLinkInfo, getMyHostelJoinRequestStatus } from '../../services/hostelInviteService';
+import { clearPendingHostelLinkToken, getPendingHostelLinkToken } from '../../utils/pendingHostelLink';
 
 
 function OnboardingBrand({ title, description }) {
@@ -37,6 +40,8 @@ function OnboardingTopbar() {
 export function OnboardingPage() {
   const online = useOnlineStatus();
   const toast = useToast();
+  const { canInstall, installed, install } = useInstallPrompt();
+  const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
   const { profile, refreshIdentity, signOutLocal } = useAuth();
   const [mode, setMode] = useState('join');
   const [joinCode, setJoinCode] = useState('');
@@ -48,6 +53,12 @@ export function OnboardingPage() {
   const [createdHostel, setCreatedHostel] = useState(null);
   const [initialMonthStatus, setInitialMonthStatus] = useState('not-started');
   const [initialMonthError, setInitialMonthError] = useState('');
+  const [pendingLinkToken, setPendingLinkToken] = useState(() => getPendingHostelLinkToken());
+  const [pendingLinkInfo, setPendingLinkInfo] = useState(null);
+  const [pendingLinkError, setPendingLinkError] = useState('');
+  const [joinRequestStatus, setJoinRequestStatus] = useState(null);
+  const [joinRequestNote, setJoinRequestNote] = useState('');
+  const [joinRequestBusy, setJoinRequestBusy] = useState(false);
 
   useLayoutEffect(() => {
     applyTheme(getThemePreference());
@@ -58,6 +69,98 @@ export function OnboardingPage() {
     fetchPlatformPublicSettings().then((settings) => { if (active) setHostelCodeRequired(Boolean(settings?.hostel_creation_code_required)); }).catch(() => { /* Compatibility with pre-Phase-2 projects. */ });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (installed || pendingLinkToken) return undefined;
+    let alreadySeen = false;
+    try { alreadySeen = localStorage.getItem('hostel-life-install-nudge-v1') === '1'; } catch { /* Session-level reminder is still acceptable when storage is unavailable. */ }
+    if (alreadySeen) return undefined;
+    const timer = window.setTimeout(() => setInstallNudgeOpen(true), 2600);
+    return () => window.clearTimeout(timer);
+  }, [installed, pendingLinkToken]);
+
+  const dismissInstallNudge = () => {
+    try { localStorage.setItem('hostel-life-install-nudge-v1', '1'); } catch { /* The prompt remains dismissible for this page session. */ }
+    setInstallNudgeOpen(false);
+  };
+
+  const handleInstallNudge = async () => {
+    if (!canInstall) {
+      dismissInstallNudge();
+      return;
+    }
+    try {
+      const accepted = await install();
+      if (accepted) toast.success('Hostel Life ইনস্টল করার অনুরোধ গ্রহণ করা হয়েছে।');
+      dismissInstallNudge();
+    } catch (error) {
+      console.error('Install prompt failed:', error);
+      toast.error('অ্যাপ ইনস্টল করা যায়নি। ব্রাউজারের Install App অপশন ব্যবহার করুন।');
+      dismissInstallNudge();
+    }
+  };
+
+  useEffect(() => {
+    if (!pendingLinkToken || !online) return undefined;
+    let active = true;
+    setPendingLinkError('');
+    Promise.allSettled([
+      getHostelAccessLinkInfo(pendingLinkToken),
+      getMyHostelJoinRequestStatus(pendingLinkToken),
+    ]).then(async ([infoResult, statusResult]) => {
+      if (!active) return;
+      if (infoResult.status === 'fulfilled') setPendingLinkInfo(infoResult.value);
+      else setPendingLinkError(statusResult.status === 'fulfilled' && statusResult.value?.status === 'pending'
+        ? 'লিংকটি আর নতুন অনুরোধ নিচ্ছে না, তবে আপনার আগের অনুরোধ এখনো অপেক্ষমাণ। ম্যানেজারের সিদ্ধান্তের জন্য অপেক্ষা করুন।'
+        : getFriendlySupabaseError(infoResult.reason, 'Invitation Link-এর তথ্য পাওয়া যায়নি।'));
+      if (statusResult.status === 'fulfilled') {
+        setJoinRequestStatus(statusResult.value);
+        if (statusResult.value?.status === 'approved') {
+          clearPendingHostelLinkToken();
+          await refreshIdentity();
+          navigateTo('/app/dashboard', true);
+        }
+      } else if (statusResult.reason?.code !== 'PGRST202') setPendingLinkError((old) => old || getFriendlySupabaseError(statusResult.reason, 'Join Request-এর অবস্থা যাচাই করা যায়নি।'));
+    });
+    return () => { active = false; };
+  }, [pendingLinkToken, online, refreshIdentity]);
+
+  const submitLinkedJoinRequest = async () => {
+    if (!pendingLinkToken || !online || joinRequestBusy) return;
+    setJoinRequestBusy(true); setPendingLinkError('');
+    try {
+      const result = await createHostelJoinRequestFromLink(pendingLinkToken, joinRequestNote);
+      setJoinRequestStatus(result);
+      if (result.status === 'already_member') {
+        await refreshIdentity();
+        navigateTo('/app/dashboard', true);
+      } else if (result.status === 'pending') {
+        toast.success('Join Request ম্যানেজারের কাছে পাঠানো হয়েছে। অনুমোদন না পাওয়া পর্যন্ত আপনি শুধু অনুরোধের অবস্থা দেখতে পারবেন।');
+      }
+    } catch (error) {
+      setPendingLinkError(getFriendlySupabaseError(error, 'Join Request পাঠানো যায়নি।'));
+    } finally { setJoinRequestBusy(false); }
+  };
+
+  const refreshLinkedRequestStatus = async () => {
+    if (!pendingLinkToken || joinRequestBusy) return;
+    setJoinRequestBusy(true); setPendingLinkError('');
+    try {
+      const status = await getMyHostelJoinRequestStatus(pendingLinkToken);
+      setJoinRequestStatus(status);
+      if (status.status === 'approved') {
+        await refreshIdentity();
+        navigateTo('/app/dashboard', true);
+      }
+      if (status.status === 'rejected') toast.info('আপনার Join Request অনুমোদিত হয়নি। চাইলে অন্য মেসে সাধারণ Join Code ব্যবহার করতে পারেন।');
+    } catch (error) { setPendingLinkError(getFriendlySupabaseError(error, 'অনুরোধের অবস্থা পাওয়া যায়নি।')); }
+    finally { setJoinRequestBusy(false); }
+  };
+
+  const clearPendingLink = () => {
+    clearPendingHostelLinkToken();
+    setPendingLinkToken(''); setPendingLinkInfo(null); setJoinRequestStatus(null); setPendingLinkError('');
+  };
 
   const switchAccount = async () => {
     if (switchingAccount || submitting) return;
@@ -82,8 +185,8 @@ export function OnboardingPage() {
       return;
     }
     const code = joinCode.trim().toUpperCase();
-    if (code.length < 6) {
-      toast.error('সঠিক Join Code দিন।');
+    if (!/^[0-9A-F]{12}$/.test(code)) {
+      toast.error('১২ অক্ষরের সঠিক Join Code দিন।');
       return;
     }
     setSubmitting(true);
@@ -91,6 +194,7 @@ export function OnboardingPage() {
       const { error } = await supabase.rpc('join_hostel', { p_join_code: code });
       if (error) throw error;
       toast.success('সফলভাবে মেসে যুক্ত হয়েছেন।');
+      clearPendingHostelLinkToken(); setPendingLinkToken(''); setPendingLinkInfo(null); setJoinRequestStatus(null);
       await refreshIdentity();
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'মেসে যুক্ত হওয়া যায়নি। Join Code যাচাই করুন।'));
@@ -121,6 +225,7 @@ export function OnboardingPage() {
       // Hostel creation has succeeded. A failure to initialize its first period must
       // not falsely tell the user that hostel creation itself failed.
       const newHostel = data ?? { name: hostelName.trim() };
+      clearPendingHostelLinkToken(); setPendingLinkToken(''); setPendingLinkInfo(null); setJoinRequestStatus(null);
       setCreatedHostel(newHostel);
       try {
         await ensureInitialRunningMonth();
@@ -212,6 +317,16 @@ export function OnboardingPage() {
             </div>
           </div>
         </section>
+      {installNudgeOpen && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
+        <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-install-title">
+          <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
+          <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
+          <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
+          <h2 id="onboarding-install-title">অ্যাপটি ইনস্টল করে আরও সহজে ব্যবহার করুন</h2>
+          <p>হোম স্ক্রিনে যোগ করলে এক ট্যাপেই Hostel Life খুলতে পারবেন। Android/কম্পিউটারে ব্রাউজারের Install App অপশন এবং iPhone-এ Share → Add to Home Screen ব্যবহার করুন।</p>
+          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'বুঝেছি'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+        </section>
+      </div>}
       </main>
     );
   }
@@ -226,13 +341,31 @@ export function OnboardingPage() {
             description="আপনার অ্যাকাউন্ট প্রস্তুত। এখন একটি মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
           />
 
+          {pendingLinkToken && <section className="onboarding-linked-request card" aria-label="Invitation Link দিয়ে মেসে যোগদান">
+            <div className="onboarding-linked-request-icon"><Icon name="link" size={22}/></div>
+            <div className="onboarding-linked-request-copy">
+              <span className="eyebrow">HOSTEL INVITATION</span>
+              <h2>{pendingLinkInfo?.hostel_name || 'আমন্ত্রিত মেসে যোগদান'}</h2>
+              <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে Join Code লাগবে না। আপনার অনুরোধ পাঠান; ম্যানেজার বা অনুমোদিত সহকারী ম্যানেজার যাচাই করে সিদ্ধান্ত দেবেন।' : 'Invitation Link যাচাই করা হচ্ছে...')}</p>
+              {joinRequestStatus?.status === 'pending' && <div className="inline-success"><Icon name="clock" size={16}/> আপনার অনুরোধ অপেক্ষমাণ। অনুমোদনের পর মেসে প্রবেশ করতে পারবেন।</div>}
+              {joinRequestStatus?.status === 'rejected' && <div className="inline-error"><Icon name="info" size={16}/> এই অনুরোধটি অনুমোদিত হয়নি। চাইলে নিচে সাধারণ Join Code বা নতুন মেস তৈরির পদ্ধতি ব্যবহার করুন। {joinRequestStatus.review_note || ''}</div>}
+              {joinRequestStatus?.status === 'approved' && <div className="inline-success"><Icon name="check-circle" size={16}/> অনুরোধ অনুমোদিত হয়েছে। অ্যাকাউন্ট যাচাই করা হচ্ছে...</div>}
+              {(!joinRequestStatus || joinRequestStatus.status === 'not_submitted' || joinRequestStatus.status === 'rejected') && <>
+                <label className="field-label"><span>ম্যানেজারের জন্য বার্তা (ঐচ্ছিক)</span><textarea rows={2} maxLength={500} value={joinRequestNote} onChange={(e) => setJoinRequestNote(e.target.value)} placeholder="নিজের পরিচয় বা যোগদানের কারণ লিখুন"/></label>
+                <button type="button" className="primary-button large" disabled={!online || joinRequestBusy || !pendingLinkInfo} onClick={submitLinkedJoinRequest}>{joinRequestBusy ? 'অনুরোধ পাঠানো হচ্ছে...' : 'মেসে যোগদানের অনুরোধ পাঠান'}</button>
+              </>}
+              {joinRequestStatus?.status === 'pending' && <button type="button" className="secondary-button" disabled={joinRequestBusy} onClick={refreshLinkedRequestStatus}>{joinRequestBusy ? 'যাচাই হচ্ছে...' : 'অনুরোধের অবস্থা যাচাই করুন'}</button>}
+              {joinRequestStatus?.status !== 'pending' && <button type="button" className="onboarding-switch-account" onClick={clearPendingLink}>এই আমন্ত্রণটি সরিয়ে সাধারণভাবে এগিয়ে যান</button>}
+            </div>
+          </section>}
+
           <div className="onboarding-account-switch-row">
-            <span>ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন?</span>
             <button type="button" className="onboarding-switch-account" onClick={switchAccount} disabled={switchingAccount || submitting}>
-              <Icon name="logout" size={15} /> {switchingAccount ? 'অ্যাকাউন্ট পরিবর্তন হচ্ছে...' : 'লগইন / রেজিস্ট্রেশন পেজে ফিরুন'}
+              <Icon name="logout" size={15} /> {switchingAccount ? 'অ্যাকাউন্ট পরিবর্তন হচ্ছে...' : 'অন্য অ্যাকাউন্ট ব্যবহার করুন'}
             </button>
           </div>
 
+          {joinRequestStatus?.status === 'pending' ? <div className="onboarding-linked-request-waiting" role="status"><Icon name="clock" size={20}/><strong>আপনার Join Request পর্যালোচনাধীন</strong><p>অনুমোদন বা প্রত্যাখ্যানের সিদ্ধান্ত না আসা পর্যন্ত অন্য মেসে যুক্ত হওয়া বা নতুন মেস তৈরি করা যাবে না। অনুরোধের অবস্থা যাচাই করুন।</p><button type="button" className="secondary-button" disabled={joinRequestBusy || !online} onClick={refreshLinkedRequestStatus}>{joinRequestBusy ? 'যাচাই হচ্ছে...' : 'অনুরোধের অবস্থা যাচাই করুন'}</button></div> : <>
           <div className="onboarding-choice-intro">
             <span className="eyebrow">শুরু করার উপায়</span>
             <h2>আপনি কীভাবে শুরু করতে চান?</h2>
@@ -266,10 +399,11 @@ export function OnboardingPage() {
                     type="text"
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="যেমন: AB12CD34"
+                    placeholder="যেমন: A1B2C3D4E5F6"
                     inputMode="text"
                     autoCapitalize="characters"
                     maxLength={12}
+                    minLength={12}
                     required
                   />
                 </label>
@@ -296,6 +430,7 @@ export function OnboardingPage() {
               </form>
             )}
           </section>
+          </>}
 
           {!online && (
             <div className="inline-error onboarding-offline"><Icon name="offline" size={17} /><span>মেসে যুক্ত হওয়া বা নতুন মেস তৈরি করতে ইন্টারনেট সংযোগ চালু করুন।</span></div>
@@ -307,6 +442,16 @@ export function OnboardingPage() {
           </div>
         </div>
       </section>
+      {installNudgeOpen && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
+        <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-install-title">
+          <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
+          <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
+          <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
+          <h2 id="onboarding-install-title">অ্যাপটি ইনস্টল করে আরও সহজে ব্যবহার করুন</h2>
+          <p>হোম স্ক্রিনে যোগ করলে এক ট্যাপেই Hostel Life খুলতে পারবেন। Android/কম্পিউটারে ব্রাউজারের Install App অপশন এবং iPhone-এ Share → Add to Home Screen ব্যবহার করুন।</p>
+          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'বুঝেছি'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+        </section>
+      </div>}
     </main>
   );
 

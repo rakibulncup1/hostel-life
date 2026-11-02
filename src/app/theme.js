@@ -1,14 +1,20 @@
 export const THEME_KEY = 'hostel-life-theme';
+export const THEME_DEFAULT_KEY = 'hostel-life-server-default-theme';
 
 export const THEME_VALUES = Object.freeze(['system', 'light', 'dark', 'blue']);
 
-export function getThemePreference() {
+function readThemeKey(key) {
   try {
-    const saved = window.localStorage.getItem(THEME_KEY);
-    return THEME_VALUES.includes(saved) ? saved : 'dark';
+    const value = window.localStorage.getItem(key);
+    return THEME_VALUES.includes(value) ? value : null;
   } catch {
-    return 'dark';
+    return null;
   }
+}
+
+export function getThemePreference() {
+  // An explicit choice made by the user always wins over the platform default.
+  return readThemeKey(THEME_KEY) || readThemeKey(THEME_DEFAULT_KEY) || 'dark';
 }
 
 export function applyTheme(theme = getThemePreference()) {
@@ -21,6 +27,21 @@ export function applyTheme(theme = getThemePreference()) {
 
   root.dataset.theme = effective;
   root.dataset.themePreference = preference;
+  return effective;
+}
+
+export function applyPlatformDefaultTheme(theme) {
+  if (!THEME_VALUES.includes(theme)) return getThemePreference();
+  try {
+    window.localStorage.setItem(THEME_DEFAULT_KEY, theme);
+  } catch {
+    // The active page can still use the server default if storage is blocked.
+  }
+  // Do not overwrite an explicit preference made by this user on this device.
+  const explicitPreference = readThemeKey(THEME_KEY);
+  const effective = explicitPreference || theme;
+  applyTheme(effective);
+  window.dispatchEvent(new Event('hostel-life-theme-change'));
   return effective;
 }
 

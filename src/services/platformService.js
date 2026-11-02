@@ -416,3 +416,25 @@ export async function platformAdminCheckSecurityTelemetry() {
   if (error) throw error;
   return data || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' };
 }
+
+export async function platformAdminSetDefaultTheme(theme) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_set_default_theme', { p_theme: theme });
+  if (error) throw error;
+  invalidatePlatformPublicSettingsCache();
+  return firstRow(data) || data;
+}
+
+export async function platformAdminGetSessionPolicy() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_session_policy');
+  if (error) throw error;
+  return firstRow(data) || { max_devices_per_user: 10 };
+}
+
+export async function platformAdminSetMaxDevicesPerUser(limit) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_set_max_devices_per_user', { p_limit: Number(limit) });
+  if (error) throw error;
+  return firstRow(data) || data;
+}

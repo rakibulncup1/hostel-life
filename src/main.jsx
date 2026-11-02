@@ -7,6 +7,7 @@ import './styles/global.css';
 import './styles/ui-refresh.css';
 import './styles/public-entry.css';
 import './styles/platform-visual-refresh.css';
+import './styles/app-download.css';
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {

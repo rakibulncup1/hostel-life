@@ -6,6 +6,8 @@ import { MenuDrawer } from '../components/MenuDrawer';
 import { NotificationsPopover } from '../components/NotificationsPopover';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
+import { InstallPromptProvider } from '../contexts/InstallPromptContext';
+import { getThemePreference, saveThemePreference } from './theme';
 import { OfflineState } from '../components/OfflineState';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -34,7 +36,8 @@ export function navigateTo(keyOrPath, replace = false) {
 
 export function AppShell({ pathname, children, membership, profile, isManager, user }) {
   const isOnline = useOnlineStatus();
-  const { canInstall, install } = useInstallPrompt();
+  const installPrompt = useInstallPrompt();
+  const { canInstall, installed, install } = installPrompt;
   const { signOut } = useAuth();
   const { context: managementContext, period, isPrimaryManager, isAssistantManager, isOperationalManager, refresh: refreshManagementContext } = useManagementContext();
   const hasRunningPeriod = Boolean(period?.period_id || period?.id);
@@ -57,7 +60,8 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [pinnedManagerNotice, setPinnedManagerNotice] = useState(null);
   const [platformSettings, setPlatformSettings] = useState(null);
   const unreadFetchInFlightRef = useRef(null);
-  const [theme, setTheme] = useState(() => localStorage.getItem('hostel-life-theme') || 'dark');
+  const [theme, setTheme] = useState(() => getThemePreference());
+  const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
 
   const active = pathToKey(pathname);
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
@@ -71,7 +75,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   }, [user?.id]);
 
   useEffect(() => {
-    const syncTheme = () => setTheme(localStorage.getItem('hostel-life-theme') || 'dark');
+    const syncTheme = () => setTheme(getThemePreference());
     window.addEventListener('hostel-life-theme-change', syncTheme);
     return () => window.removeEventListener('hostel-life-theme-change', syncTheme);
   }, []);
@@ -87,6 +91,18 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     media?.addEventListener?.('change', apply);
     return () => media?.removeEventListener?.('change', apply);
   }, [theme]);
+
+  useEffect(() => {
+    if (installed) {
+      setInstallNudgeOpen(false);
+      return undefined;
+    }
+    let seen = false;
+    try { seen = localStorage.getItem('hostel-life-install-nudge-v1') === '1'; } catch { /* Show once per app session when storage is unavailable. */ }
+    if (seen) return undefined;
+    const timer = window.setTimeout(() => setInstallNudgeOpen(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [installed, user?.id]);
 
   const loadUnread = useCallback(async () => {
     if (!isOnline || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) {
@@ -155,7 +171,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       return;
     }
 
-    if (!isOnline && !['developer', 'privacy-policy', 'terms', 'how-to-use'].includes(key)) {
+    if (!isOnline && !['developer', 'privacy-policy', 'terms', 'how-to-use', 'app-download'].includes(key)) {
       toast.warning('মেনুর এই কাজটি চালাতে ইন্টারনেট সংযোগ প্রয়োজন।');
       return;
     }
@@ -171,6 +187,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       'privacy-policy': '/app/menu/privacy-policy',
       terms: '/app/menu/terms',
       'how-to-use': '/app/menu/how-to-use',
+      'app-download': '/app/menu/app-download',
       'send-notification': '/app/menu/send-notification',
       'reports': '/app/menu/reports',
       'meal-sheet': '/app/menu/meal-sheet',
@@ -201,12 +218,23 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
 
   const changeTheme = (next) => {
     setTheme(next);
-    localStorage.setItem('hostel-life-theme', next);
-    window.dispatchEvent(new Event('hostel-life-theme-change'));
+    saveThemePreference(next);
     toast.success('থিম পছন্দ সংরক্ষণ হয়েছে।');
   };
 
+  const dismissInstallNudge = () => {
+    try { localStorage.setItem('hostel-life-install-nudge-v1', '1'); } catch { /* session-level dismissal still applies */ }
+    setInstallNudgeOpen(false);
+  };
+
+  const handleNudgeInstall = async () => {
+    dismissInstallNudge();
+    if (canInstall) await installApp();
+    else navigateTo('/app/menu/app-download');
+  };
+
   return (
+    <InstallPromptProvider value={{ canInstall, installed, install }}>
     <div className="app-shell">
       <Header
         hostelName={membership?.hostel_name || 'Hostel Life'}
@@ -261,7 +289,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       )}
 
       <main className="app-main">
-        {!isOnline && active !== 'dashboard' && !pathname.startsWith('/app/menu/privacy-policy') && !pathname.startsWith('/app/menu/terms') && !pathname.startsWith('/app/menu/how-to-use') && !pathname.startsWith('/app/menu/developer') ? <OfflineState onBack={() => navigateTo('/app/dashboard')} /> : children}
+        {!isOnline && active !== 'dashboard' && !pathname.startsWith('/app/menu/privacy-policy') && !pathname.startsWith('/app/menu/terms') && !pathname.startsWith('/app/menu/how-to-use') && !pathname.startsWith('/app/menu/developer') && !pathname.startsWith('/app/menu/app-download') ? <OfflineState onBack={() => navigateTo('/app/dashboard')} /> : children}
         <footer className="app-copyright-footer">
           <span>Copyright © {new Date().getFullYear()} Hostel-Life. All rights reserved.</span>
           <span>Designed &amp; Developed by <a href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noreferrer">Rakibul Islam Samrat</a></span>
@@ -291,6 +319,18 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         <button className={theme === 'dark' ? 'active' : ''} onClick={() => changeTheme('dark')}>ডার্ক</button>
         <button className={theme === 'blue' ? 'active' : ''} onClick={() => changeTheme('blue')}>আকাশি</button>
       </div>
+
+      {installNudgeOpen && !installed && <div className="install-nudge-backdrop" role="presentation">
+        <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="install-nudge-title">
+          <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
+          <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
+          <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
+          <h2 id="install-nudge-title">মোবাইলে Hostel Life ব্যবহার আরও সহজ করুন</h2>
+          <p>হোম স্ক্রিনে অ্যাপটি যোগ করলে এক ট্যাপেই খুলতে পারবেন। বারবার ব্রাউজারে খুঁজতে হবে না।</p>
+          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleNudgeInstall}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'ইনস্টল করার নিয়ম দেখুন'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+        </section>
+      </div>}
     </div>
+    </InstallPromptProvider>
   );
 }
