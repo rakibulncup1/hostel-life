@@ -8,3 +8,15 @@ Thumbs.db
 .vscode/
 *.log
 npm-debug.log*
+
+# Hostel Life local backup artefacts (never commit backup data)
+*.hlbackup
+*.hlbackup.sha256
+backup_history.json
+.hostel_life_master_*/
+.hostel_life_hostel_*/
+tools/backup_assistant/build/
+tools/backup_assistant/dist/
+tools/backup_assistant/__pycache__/
+tools/backup_assistant/tests/__pycache__/
+.hl_verify_*.zip

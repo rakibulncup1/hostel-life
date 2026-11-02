@@ -770,7 +770,7 @@ export function SuperAdminPage({ user }) {
     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
     <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
-    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
     {tab === 'overview' && <section className="platform-stats-grid">
       <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
       <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
@@ -929,6 +929,38 @@ export function SuperAdminPage({ user }) {
         <div className="platform-report-table-wrap"><table className="platform-report-table"><thead><tr><th>মেস</th><th>অবস্থা</th><th>মাস</th><th>মোট মিল</th><th>বাজার</th><th>নগদ ডিপোজিট</th><th>বাজার ক্রেডিট</th><th>পরিচালন ব্যয়</th></tr></thead><tbody>{(reportData.items||[]).map((row)=><tr key={row.hostel_id}><td>{row.hostel_name}</td><td>{row.platform_status==='active'?'সক্রিয়':'স্থগিত'}</td><td>{Number(row.periods_in_range||0).toLocaleString('bn-BD')}</td><td>{Number(row.total_meals||0).toLocaleString('bn-BD')}</td><td>{formatReportCurrency(row.market_total)}</td><td>{formatReportCurrency(row.cash_deposit)}</td><td>{formatReportCurrency(row.market_credit)}</td><td>{formatReportCurrency(row.operating_expense)}</td></tr>)}</tbody></table></div>
         <div className="platform-insights-footer"><span><Icon name="shield-check" size={15}/> মেসভিত্তিক Aggregate · ব্যক্তিগত লেনদেন অন্তর্ভুক্ত নয়</span><small>{(reportData.items||[]).length.toLocaleString('bn-BD')}টি মেস</small></div>
       </>}
+    </section>}
+
+    {tab === 'backup' && <section className="card platform-panel platform-backup-center">
+      <div className="platform-panel-heading">
+        <div><span className="eyebrow">LOCAL BACKUP · ENCRYPTED</span><h3>Backup & Recovery Center</h3><p>সম্পূর্ণ সিস্টেম অথবা নির্বাচিত মেসের Backup আপনার নিজের কম্পিউটারে তৈরি করুন। Backup কোনো Supabase Bucket-এ পাঠানো হয় না।</p></div>
+        <span className="platform-backup-shield"><Icon name="shield-check" size={25}/></span>
+      </div>
+      <div className="platform-backup-notice"><Icon name="lock" size={18}/><div><strong>Secret Browser-এ ব্যবহার করবেন না</strong><p>Database Password, Service Role Key বা Encryption Password এই Web Page-এ দিতে হবে না। এগুলো শুধু আলাদা Windows Backup Assistant-এ স্থানীয়ভাবে দিতে হবে; Utility-ও এগুলো Backup History বা Log-এ সংরক্ষণ করে না।</p></div></div>
+      <div className="platform-backup-options">
+        <article className="platform-backup-option">
+          <span className="platform-backup-option-icon"><Icon name="database" size={22}/></span>
+          <div><h4>Full Master Backup</h4><p>Database Roles, Schema, Data, Auth User/Identity, Storage File, SQL Migration, Edge Function Source এবং Website Source একত্রে এনক্রিপ্টেড Backup।</p><ul><li>নতুন Supabase Project-এ পূর্ণ Restore-এর ভিত্তি</li><li>AES-256-GCM এনক্রিপশন ও SHA-256 যাচাই</li><li>একটি আলাদা `.hlbackup` ফাইল</li></ul></div>
+        </article>
+        <article className="platform-backup-option">
+          <span className="platform-backup-option-icon"><Icon name="home" size={22}/></span>
+          <div><h4>Selected Hostel Backup</h4><p>শুধু নির্বাচিত মেসের সদস্যপদ, মাস, মিল, বাজার, জমা-খরচ, নোটিশ এবং সংশ্লিষ্ট সদস্যদের Avatar-এর Logical Export।</p><ul><li>অন্য মেসের তথ্য অন্তর্ভুক্ত নয়</li><li>Auth Account বা Global Settings অন্তর্ভুক্ত নয়</li><li>সামঞ্জস্যপূর্ণ Hostel Life Schema প্রয়োজন</li></ul></div>
+        </article>
+        <article className="platform-backup-option">
+          <span className="platform-backup-option-icon"><Icon name="file-text" size={22}/></span>
+          <div><h4>Verify Existing Backup</h4><p>আগে তৈরি করা Backup-এর Password দিয়ে AES-GCM Authentication, ZIP Structure ও প্রতিটি ফাইলের SHA-256 যাচাই করুন।</p><ul><li>শুধু Read/Verify</li><li>Live Database পরিবর্তন করে না</li></ul></div>
+        </article>
+      </div>
+      <div className="platform-backup-download">
+        <div><strong>Hostel Life Backup Assistant</strong><p>Windows 10/11-এর জন্য Portable Python Utility। প্রথমবার চালাতে Python Package, Supabase CLI, Docker Desktop ও PostgreSQL Client Tool লাগবে।</p></div>
+        <a className="primary-button" href="/downloads/Hostel_Life_Backup_Assistant_Windows_Package.zip" download><Icon name="download" size={16}/> Assistant Download</a>
+      </div>
+      <div className="platform-backup-policy">
+        <div><Icon name="calendar" size={18}/><span><strong>প্রস্তাবিত সময়সূচি</strong><small>সপ্তাহে একবার Master Backup এবং বড় SQL Migration-এর আগে আরেকটি Backup। মাস বন্ধের আগে/পরে প্রয়োজনমতো Hostel Backup।</small></span></div>
+        <div><Icon name="folder" size={18}/><span><strong>দুটি আলাদা কপি রাখুন</strong><small>একটি কম্পিউটারে, আরেকটি আলাদা USB বা নিরাপদ অন্য ডিভাইসে। শুধু একই Supabase Project-এর Storage-এ Backup রাখবেন না।</small></span></div>
+        <div><Icon name="lock" size={18}/><span><strong>Encryption Password হারাবেন না</strong><small>Password ছাড়া AES-256-GCM Backup খোলা যাবে না। Password আলাদা নিরাপদ স্থানে রাখুন।</small></span></div>
+      </div>
+      <div className="platform-backup-local-note"><Icon name="info" size={16}/><span>এই Web Panel আপনার কম্পিউটারের Local Folder বা Backup History পড়তে পারে না। Backup Assistant-এর History শুধু আপনার কম্পিউটারে থাকবে। এই Panel কোনো Backup তৈরি, Upload বা Restore করছে না। Restore সুবিধা আলাদা Module 2-তে তৈরি হবে।</span></div>
     </section>}
 
     {tab === 'hostels' && <section className="platform-two-col platform-admin-workspace">
