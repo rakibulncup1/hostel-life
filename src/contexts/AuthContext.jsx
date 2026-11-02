@@ -111,9 +111,16 @@ export function AuthProvider({ children }) {
     if (!supabaseConfigReady || !supabase) return () => { mounted = false; };
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      // TOKEN_REFRESHED only rotates the credential. The app does not consume the
-      // access token from React state, so do not re-run three identity RPCs for it.
+      // Token rotation is not a new login and must not inflate login counts.
       if (event === 'TOKEN_REFRESHED') return;
+      // Leave the Supabase auth callback lock before making an RPC request.
+      if (event === 'SIGNED_IN' && nextSession?.user?.id) {
+        window.setTimeout(() => {
+          supabase.rpc('hl_record_my_login').then(({ error: logError }) => {
+            if (logError) console.warn('Hostel Life login activity could not be recorded:', logError.message);
+          }).catch(() => undefined);
+        }, 0);
+      }
       if (event === 'INITIAL_SESSION') {
         setSession((current) => {
           if (current?.user?.id !== nextSession?.user?.id) invalidateRequestCache();
@@ -143,6 +150,43 @@ export function AuthProvider({ children }) {
 
 
   useEffect(() => {
+    if (!session?.user?.id || !supabase) return undefined;
+    let active = true;
+    let lastInteractionAt = Date.now();
+    const heartbeat = () => {
+      if (!active || !navigator.onLine || document.visibilityState === 'hidden') return;
+      // An idle tab is not a reliable signal that a person is still using the app.
+      if (Date.now() - lastInteractionAt > 20 * 60 * 1000) return;
+      supabase.rpc('hl_touch_my_presence').then(({ error }) => {
+        if (error && active) console.warn('Hostel Life presence heartbeat could not be recorded:', error.message);
+      }).catch(() => undefined);
+    };
+    // Resume presence immediately on the first real interaction after an idle
+    // period; the server still throttles database writes to one per 10 minutes.
+    const markInteraction = () => {
+      const now = Date.now();
+      const wasIdle = now - lastInteractionAt > 20 * 60 * 1000;
+      lastInteractionAt = now;
+      if (wasIdle) heartbeat();
+    };
+    const onInteraction = () => { markInteraction(); heartbeat(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') onInteraction(); };
+    const interactionEvents = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'];
+    interactionEvents.forEach((eventName) => window.addEventListener(eventName, markInteraction, { passive: true }));
+    heartbeat();
+    const interval = window.setInterval(heartbeat, 15 * 60 * 1000);
+    window.addEventListener('focus', onInteraction);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      interactionEvents.forEach((eventName) => window.removeEventListener(eventName, markInteraction));
+      window.removeEventListener('focus', onInteraction);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
     if (session?.user?.id) requestPersistentStorage().catch(() => undefined);
   }, [session?.user?.id]);
 
@@ -157,6 +201,7 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
+    await supabase.rpc('hl_record_my_global_logout').catch(() => undefined);
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     clearIdentity();
@@ -165,6 +210,7 @@ export function AuthProvider({ children }) {
   const signOutLocal = useCallback(async () => {
     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
     // Only remove the current browser's session. Other devices stay signed in.
+    await supabase.rpc('hl_record_my_logout').catch(() => undefined);
     const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) throw error;
     setSession(null);

@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('forced password success uses a fresh sign-in instead of potentially stale refreshSession', () => {
+test('forced password success uses the monitored fresh sign-in service instead of stale refreshSession', () => {
   const source = read('src/features/auth/ForcedPasswordChange.jsx');
-  assert.match(source, /auth\.signInWithPassword\(\{ email, password \}\)/);
+  const authService = read('src/services/authService.js');
+  assert.match(source, /verifyPassword\(\{ email, password \}\)/);
+  assert.match(authService, /export async function verifyPassword\(\{ email, password \}\)[\s\S]*?return signIn\(\{ email, password \}\)/);
   assert.doesNotMatch(source, /auth\.refreshSession\(/);
   assert.match(source, /reloginNeeded/);
   assert.match(source, /12000/);

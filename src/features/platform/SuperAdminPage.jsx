@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { supabase } from '../../lib/supabase';
+import { verifyPassword } from '../../services/authService';
 import { normalizePlatformOverview } from '../../utils/platformOverview';
 import { buildPlatformReportCsv, getPlatformReportFilename } from '../../utils/platformReportCsv';
 import {
@@ -17,6 +18,8 @@ import {
   platformAdminFinalizeArchiveSummary, platformAdminVerifyArchiveSummary, platformAdminListSavedSummaries,
   platformAdminListAuditLogs, platformAdminListAccessCodeHistory, platformAdminGetHostelInsights,
   platformAdminGetSystemHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
+  platformAdminListActivity, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
+  platformAdminGetSecurityOverview, platformAdminListSecurityEvents,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -104,6 +107,68 @@ function formatPlatformDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' });
+}
+function presenceLabel(member) {
+  if (!member?.last_seen_at) return 'এখনো Last Seen রেকর্ড হয়নি';
+  return member.is_online ? 'সাম্প্রতিক সক্রিয়' : 'এখন সক্রিয় নয়';
+}
+const ACTIVITY_EVENT_LABELS = {
+  'auth.login': 'সফল লগইন', 'auth.logout': 'লগআউট', 'notification.sent': 'নোটিফিকেশন পাঠানো হয়েছে', 'profiles.update': 'প্রোফাইল তথ্য পরিবর্তন',
+  'membership.insert': 'সদস্য যুক্ত হয়েছে', 'membership.update': 'সদস্যপদ পরিবর্তন', 'membership.delete': 'সদস্যপদ মুছে ফেলা',
+  'period.insert': 'নতুন মাস তৈরি', 'period.update': 'মাসের সেটিংস পরিবর্তন', 'period.delete': 'মাস মুছে ফেলা',
+  'meal_day.insert': 'মিলের দিন তৈরি', 'meal_day.update': 'মিলের দিনের অবস্থা পরিবর্তন', 'meal_day.delete': 'মিলের দিন মুছে ফেলা',
+  'meal_record.insert': 'মিল রেকর্ড তৈরি', 'meal_record.update': 'মিল রেকর্ড পরিবর্তন', 'meal_record.delete': 'মিল রেকর্ড মুছে ফেলা',
+  'meal_request.insert': 'মিল অনুরোধ তৈরি', 'meal_request.update': 'মিল অনুরোধ পর্যালোচনা/পরিবর্তন', 'meal_request.delete': 'মিল অনুরোধ মুছে ফেলা',
+  'market_entry.insert': 'বাজার এন্ট্রি তৈরি', 'market_entry.update': 'বাজার এন্ট্রি পরিবর্তন', 'market_entry.delete': 'বাজার এন্ট্রি মুছে ফেলা',
+  'market_item.insert': 'বাজারের আইটেম যোগ', 'market_item.update': 'বাজারের আইটেম পরিবর্তন', 'market_item.delete': 'বাজারের আইটেম বাদ',
+  'ledger_entry.insert': 'হিসাব এন্ট্রি তৈরি', 'ledger_entry.update': 'হিসাব এন্ট্রি পরিবর্তন', 'ledger_entry.delete': 'হিসাব এন্ট্রি মুছে ফেলা',
+  'khala_payment.insert': 'খালার টাকা এন্ট্রি', 'khala_payment.update': 'খালার টাকা এন্ট্রি পরিবর্তন', 'khala_payment.delete': 'খালার টাকা এন্ট্রি মুছে ফেলা',
+  'assistant_manager.insert': 'সহকারী ম্যানেজার নিযুক্ত', 'assistant_manager.delete': 'সহকারী ম্যানেজার বাতিল',
+  'archive_permission.insert': 'আর্কাইভ সম্পাদনার অনুমতি', 'archive_permission.update': 'আর্কাইভ অনুমতি পরিবর্তন', 'archive_permission.delete': 'আর্কাইভ অনুমতি বাতিল',
+};
+const ARCHIVE_ACTIVITY_LABELS = {
+  'archive.insert:market_entry': 'বাজার এন্ট্রি যোগ',
+  'archive.update:market_entry': 'বাজার এন্ট্রি সংশোধন',
+  'archive.update:market_void': 'বাজার এন্ট্রি বাতিল',
+  'archive.insert:deposit': 'সদস্যের জমা যোগ',
+  'archive.insert:other_expense': 'অন্যান্য খরচ যোগ',
+  'archive.update:transaction': 'হিসাব সংশোধন',
+  'archive.insert:khala_money': 'খালার টাকা এন্ট্রি',
+  'archive.update:khala_void': 'খালার টাকা এন্ট্রি বাতিল',
+  'archive.update:meal_request': 'মিল অনুরোধ সংশোধন',
+  'archive.update:correction_approved': 'মিল সংশোধন অনুমোদন',
+  'archive.update:correction_rejected': 'মিল সংশোধন প্রত্যাখ্যান',
+  'archive.update:late_meal_approved': 'লেট মিল অনুমোদন',
+  'archive.update:late_meal_rejected': 'লেট মিল প্রত্যাখ্যান',
+  'archive.update:manager_meal_edit': 'ম্যানেজারের মিল সম্পাদনা',
+  'archive.update:emergency_override': 'জরুরি মিল পরিবর্তন',
+  'archive.update:final_meal': 'চূড়ান্ত মিল সংশোধন',
+};
+function activityEventLabel(eventType) {
+  if (ACTIVITY_EVENT_LABELS[eventType]) return ACTIVITY_EVENT_LABELS[eventType];
+  if (ARCHIVE_ACTIVITY_LABELS[eventType]) return ARCHIVE_ACTIVITY_LABELS[eventType];
+  if (String(eventType || '').startsWith('platform.')) {
+    const action = String(eventType).slice(9);
+    return AUDIT_ACTION_LABELS[action] || `প্রশাসনিক কাজ · ${action.replaceAll('_', ' ')}`;
+  }
+  if (String(eventType || '').startsWith('archive.')) return 'আর্কাইভ কার্যক্রম';
+  return String(eventType || 'অন্যান্য কার্যক্রম').replaceAll('.', ' · ').replaceAll('_', ' ');
+}
+function securityEventLabel(eventType) {
+  return ({ login_failed: 'ব্যর্থ লগইন চেষ্টা', signup_failed: 'ব্যর্থ রেজিস্ট্রেশন', signup_submitted: 'রেজিস্ট্রেশন অনুরোধ', password_reset_failed: 'ব্যর্থ পাসওয়ার্ড রিসেট' })[eventType] || eventType || 'অন্যান্য';
+}
+function activityChangedFields(metadata) {
+  const fields = Array.isArray(metadata?.changed_fields) ? metadata.changed_fields : [];
+  const labels = {
+    status: 'স্ট্যাটাস', role: 'ভূমিকা', primary_manager_membership_id: 'প্রধান ম্যানেজার',
+    end_date: 'শেষ তারিখ', start_date: 'শুরুর তারিখ', actual_breakfast: 'সকালের মিল', actual_lunch: 'দুপুরের মিল',
+    actual_dinner: 'রাতের মিল', planned_breakfast: 'সকালের পরিকল্পনা', planned_lunch: 'দুপুরের পরিকল্পনা',
+    planned_dinner: 'রাতের পরিকল্পনা', final_breakfast: 'চূড়ান্ত সকালের মিল', final_lunch: 'চূড়ান্ত দুপুরের মিল',
+    final_dinner: 'চূড়ান্ত রাতের মিল', entry_date: 'এন্ট্রির তারিখ', total_amount: 'মোট পরিমাণ',
+    amount: 'পরিমাণ', ledger_type: 'হিসাবের ধরন', buyer_membership_id: 'ক্রেতা', membership_id: 'সদস্য',
+    revoked_at: 'অনুমতি বাতিল', expires_at: 'মেয়াদ',
+  };
+  return fields.map((field) => labels[field] || field.replaceAll('_', ' ')).join(' · ');
 }
 function auditActionLabel(action) { return AUDIT_ACTION_LABELS[action] || String(action || 'অন্যান্য কার্যক্রম').replaceAll('_', ' '); }
 function auditTargetLabel(target) { return AUDIT_TARGET_LABELS[target] || target || 'অনির্দিষ্ট'; }
@@ -196,6 +261,36 @@ export function SuperAdminPage({ user }) {
   const [auditSearch, setAuditSearch] = useState('');
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditError, setAuditError] = useState('');
+  const [activityView, setActivityView] = useState('timeline');
+  const [activityRows, setActivityRows] = useState([]);
+  const [activityTotal, setActivityTotal] = useState(0);
+  const [activityPage, setActivityPage] = useState(0);
+  const [activityHostelFilter, setActivityHostelFilter] = useState('all');
+  const [activityEventFilter, setActivityEventFilter] = useState('all');
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState('');
+  const [securityOverview, setSecurityOverview] = useState(null);
+  const [securityRows, setSecurityRows] = useState([]);
+  const [securityTotal, setSecurityTotal] = useState(0);
+  const [securityPage, setSecurityPage] = useState(0);
+  const [securityEventFilter, setSecurityEventFilter] = useState('all');
+  const [securityIpSearchDraft, setSecurityIpSearchDraft] = useState('');
+  const [securityIpSearch, setSecurityIpSearch] = useState('');
+  const [securityLoading, setSecurityLoading] = useState(false);
+  const [securityError, setSecurityError] = useState('');
+  const [memberActivityTarget, setMemberActivityTarget] = useState(null);
+  const [memberActivityOverview, setMemberActivityOverview] = useState(null);
+  const [memberActivityRows, setMemberActivityRows] = useState([]);
+  const [memberSessionRows, setMemberSessionRows] = useState([]);
+  const [memberSessionTotal, setMemberSessionTotal] = useState(0);
+  const [memberSessionPage, setMemberSessionPage] = useState(0);
+  const [memberSessionLoading, setMemberSessionLoading] = useState(false);
+  const memberSessionRequestRef = useRef(0);
+  const [memberActivityTotal, setMemberActivityTotal] = useState(0);
+  const [memberActivityPage, setMemberActivityPage] = useState(0);
+  const [memberActivityLoading, setMemberActivityLoading] = useState(false);
+  const [memberActivityError, setMemberActivityError] = useState('');
+  const memberActivityRequestRef = useRef(0);
   const [codeHistoryRows, setCodeHistoryRows] = useState([]);
   const [codeHistoryTotal, setCodeHistoryTotal] = useState(0);
   const [codeHistoryPage, setCodeHistoryPage] = useState(0);
@@ -257,6 +352,90 @@ export function SuperAdminPage({ user }) {
       setAuditError(errorText(cause, 'Audit Log লোড করা যায়নি।'));
     } finally { setAuditLoading(false); }
   }, [auditPage, auditActionFilter, auditTargetFilter, auditSearch]);
+
+  const loadActivity = useCallback(async () => {
+    setActivityLoading(true); setActivityError('');
+    try {
+      const result = await platformAdminListActivity({
+        hostelId: activityHostelFilter === 'all' ? null : activityHostelFilter,
+        eventType: activityEventFilter === 'all' ? null : activityEventFilter,
+        limit: pageSize, offset: activityPage * pageSize,
+      });
+      setActivityRows(Array.isArray(result?.items) ? result.items : []);
+      setActivityTotal(Number(result?.total_count) || 0);
+    } catch (cause) {
+      setActivityRows([]); setActivityTotal(0);
+      setActivityError(errorText(cause, 'Activity Log লোড করা যায়নি।'));
+    } finally { setActivityLoading(false); }
+  }, [activityHostelFilter, activityEventFilter, activityPage]);
+
+  const loadSecurityMonitor = useCallback(async () => {
+    setSecurityLoading(true); setSecurityError('');
+    try {
+      const [overviewResult, listResult] = await Promise.all([
+        platformAdminGetSecurityOverview(),
+        platformAdminListSecurityEvents({
+          eventType: securityEventFilter === 'all' ? null : securityEventFilter,
+          ipSearch: securityIpSearch || null,
+          limit: pageSize, offset: securityPage * pageSize,
+        }),
+      ]);
+      setSecurityOverview(overviewResult || {});
+      setSecurityRows(Array.isArray(listResult?.items) ? listResult.items : []);
+      setSecurityTotal(Number(listResult?.total_count) || 0);
+    } catch (cause) {
+      setSecurityOverview(null); setSecurityRows([]); setSecurityTotal(0);
+      setSecurityError(errorText(cause, 'Security Monitoring লোড করা যায়নি।'));
+    } finally { setSecurityLoading(false); }
+  }, [securityEventFilter, securityIpSearch, securityPage]);
+
+  const loadMemberActivity = useCallback(async (member, page = 0) => {
+    if (!member?.hostel_id || !member?.user_id) return;
+    const requestId = ++memberActivityRequestRef.current;
+    setMemberActivityLoading(true); setMemberActivityError('');
+    try {
+      const [overviewResult, listResult] = await Promise.all([
+        platformAdminGetMemberActivityOverview(member.hostel_id, member.user_id),
+        platformAdminListMemberActivity(member.hostel_id, member.user_id, pageSize, page * pageSize),
+      ]);
+      if (requestId !== memberActivityRequestRef.current) return;
+      setMemberActivityOverview(overviewResult || {});
+      setMemberActivityRows(Array.isArray(listResult?.items) ? listResult.items : []);
+      setMemberActivityTotal(Number(listResult?.total_count) || 0);
+      setMemberActivityPage(page);
+    } catch (cause) {
+      if (requestId === memberActivityRequestRef.current) {
+        setMemberActivityOverview(null); setMemberActivityRows([]); setMemberActivityTotal(0);
+        setMemberActivityError(errorText(cause, 'সদস্যের Activity Log লোড করা যায়নি।'));
+      }
+    } finally { if (requestId === memberActivityRequestRef.current) setMemberActivityLoading(false); }
+  }, []);
+
+  const loadMemberSessions = useCallback(async (member, page = 0) => {
+    if (!member?.hostel_id || !member?.user_id) return;
+    const requestId = ++memberSessionRequestRef.current;
+    setMemberSessionLoading(true);
+    try {
+      const result = await platformAdminListMemberSessions(member.hostel_id, member.user_id, 20, page * 20);
+      if (requestId !== memberSessionRequestRef.current) return;
+      setMemberSessionRows(Array.isArray(result?.items) ? result.items : []);
+      setMemberSessionTotal(Number(result?.total_count) || 0);
+      setMemberSessionPage(page);
+    } catch (cause) {
+      if (requestId === memberSessionRequestRef.current) {
+        setMemberSessionRows([]); setMemberSessionTotal(0);
+        setMemberActivityError(errorText(cause, 'Login History লোড করা যায়নি।'));
+      }
+    } finally { if (requestId === memberSessionRequestRef.current) setMemberSessionLoading(false); }
+  }, []);
+
+  const openMemberActivity = (member) => {
+    setMemberActivityTarget(member);
+    setMemberActivityOverview(null); setMemberActivityRows([]); setMemberSessionRows([]);
+    setMemberSessionTotal(0); setMemberActivityPage(0); setMemberSessionPage(0);
+    loadMemberActivity(member, 0);
+    loadMemberSessions(member, 0);
+  };
 
   const loadCodeHistory = useCallback(async () => {
     setCodeHistoryLoading(true); setCodeHistoryError('');
@@ -366,6 +545,8 @@ export function SuperAdminPage({ user }) {
   }, [tab, reauthenticated, insightsHostelId, insightsPeriodId, loadHostelInsights]);
 
   useEffect(() => { if (tab === 'audit' && reauthenticated) loadAuditLog(); }, [tab, reauthenticated, loadAuditLog]);
+  useEffect(() => { if (tab === 'activity' && reauthenticated && activityView === 'timeline') loadActivity(); }, [tab, reauthenticated, activityView, loadActivity]);
+  useEffect(() => { if (tab === 'activity' && reauthenticated && activityView === 'security') loadSecurityMonitor(); }, [tab, reauthenticated, activityView, loadSecurityMonitor]);
   useEffect(() => { if (tab === 'security' && reauthenticated) loadCodeHistory(); }, [tab, reauthenticated, loadCodeHistory, codeHistoryReload]);
   useEffect(() => { if (tab === 'health' && reauthenticated) loadSystemHealth(); }, [tab, reauthenticated, loadSystemHealth]);
   useEffect(() => { if (tab === 'notices' && reauthenticated) loadNoticeMonitoring(); }, [tab, reauthenticated, loadNoticeMonitoring]);
@@ -494,14 +675,14 @@ export function SuperAdminPage({ user }) {
   const reauthenticate = async (event) => {
     event.preventDefault(); setGateError(''); setReauthBusy(true);
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({ email: user?.email, password });
+      const { error: authError } = await verifyPassword({ email: user?.email, password });
       if (authError) throw authError;
       setPassword(''); setReauthenticated(true); setNotice('পাসওয়ার্ড যাচাই সফল হয়েছে।');
     } catch { setGateError('পাসওয়ার্ড মিলেনি। আপনার মূল অ্যাকাউন্টের পাসওয়ার্ড যাচাই করুন।'); }
     finally { setReauthBusy(false); }
   };
   const openHostel = async (hostel) => {
-    setSelected(hostel); setMembers([]); setMemberListLoadedHostelId(''); setMemberRoles({}); setReason(''); setBusy(true); setError('');
+    setSelected(hostel); setMembers([]); setMemberListLoadedHostelId(''); setMemberRoles({}); setReason(''); setMemberActivityTarget(null); setMemberActivityOverview(null); setMemberActivityRows([]); setBusy(true); setError('');
     try {
       const list = await platformAdminListHostelMembers(hostel.hostel_id);
       if (!Array.isArray(list)) throw new Error('সদস্য তালিকার সঠিক ফলাফল পাওয়া যায়নি।');
@@ -770,7 +951,7 @@ export function SuperAdminPage({ user }) {
     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
     <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
-    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
     {tab === 'overview' && <section className="platform-stats-grid">
       <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
       <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
@@ -842,6 +1023,24 @@ export function SuperAdminPage({ user }) {
       </article>)}</div>}
       <div className="platform-history-pager"><span>{auditTotal.toLocaleString('bn-BD')}টি রেকর্ড · পৃষ্ঠা {auditTotal ? auditPage + 1 : 0} / {Math.max(1,Math.ceil(auditTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={auditLoading || auditPage===0} onClick={()=>setAuditPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={auditLoading || (auditPage+1)*pageSize>=auditTotal} onClick={()=>setAuditPage(value=>value+1)}>পরের</button></div></div>
     </section>}
+    {tab === 'activity' && <section className="card platform-panel platform-monitor-panel">
+      <div className="platform-panel-heading"><div><span className="eyebrow">USER & SECURITY OBSERVABILITY</span><h3>Activity Log ও Security Monitoring</h3><p>মেসের কাজ, সদস্য Login/Logout এবং অ্যাপের মাধ্যমে আসা ব্যর্থ Login/Registration প্রচেষ্টা পর্যবেক্ষণ করুন।</p></div><button type="button" className="secondary-button compact" disabled={activityLoading||securityLoading} onClick={activityView==='timeline'?loadActivity:loadSecurityMonitor}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+      <div className="platform-filter-pills" role="tablist" aria-label="Activity Monitor View"><button type="button" role="tab" aria-selected={activityView==='timeline'} className={activityView==='timeline'?'active':''} onClick={()=>setActivityView('timeline')}>Activity Timeline</button><button type="button" role="tab" aria-selected={activityView==='security'} className={activityView==='security'?'active':''} onClick={()=>setActivityView('security')}>Security Monitor</button></div>
+      {activityView==='timeline' ? <>
+        <div className="platform-activity-filters"><label className="field-label"><span>মেস</span><select value={activityHostelFilter} onChange={(event)=>{setActivityHostelFilter(event.target.value);setActivityPage(0);}}><option value="all">সব মেস</option>{hostels.map((hostel)=><option value={hostel.hostel_id} key={hostel.hostel_id}>{hostel.name}</option>)}</select></label><label className="field-label"><span>কার্যক্রম</span><select value={activityEventFilter} onChange={(event)=>{setActivityEventFilter(event.target.value);setActivityPage(0);}}><option value="all">সব কার্যক্রম</option><option value="auth.login">সফল লগইন</option><option value="auth.logout">লগআউট</option><option value="notification.sent">নোটিফিকেশন পাঠানো</option><option value="meal_request.insert">মিল অনুরোধ</option><option value="market_entry.insert">বাজার এন্ট্রি</option><option value="ledger_entry.insert">হিসাব এন্ট্রি</option><option value="membership.insert">সদস্য যোগ</option><option value="membership.update">সদস্য পরিবর্তন</option><option value="period.insert">মাস/পিরিয়ড তৈরি</option><option value="meal_day.insert">মিল ডে তৈরি</option><option value="meal_record.update">মিল পরিবর্তন</option><option value="market_entry.update">বাজার পরিবর্তন</option><option value="khala_payment.insert">খালার টাকা</option><option value="profiles.update">প্রোফাইল পরিবর্তন</option></select></label></div>
+        {activityError && <div className="inline-error platform-alert">{activityError}</div>}
+        {activityLoading ? <div className="platform-empty"><LoadingSpinner label="Activity Log লোড হচ্ছে..."/></div> : activityRows.length===0 ? <div className="platform-empty-state"><Icon name="activity" size={28}/><strong>কোনো কার্যক্রম পাওয়া যায়নি</strong><span>Module 3 migration চালু হওয়ার পর নতুন কার্যক্রম এখানে দেখা যাবে।</span></div> : <div className="platform-audit-list">{activityRows.map((row)=><article className="platform-audit-item" key={row.id}><div className="platform-audit-top"><div><strong>{activityEventLabel(row.event_type)}</strong><small>{row.hostel_name || 'প্ল্যাটফর্ম'} · {row.source_table || 'auth'}</small></div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-audit-actor"><Icon name="user" size={14}/>{row.actor_name || 'সিস্টেম/অজানা'}{row.subject_name && row.subject_name!=='—' ? ` · সংশ্লিষ্ট: ${row.subject_name}`:''}</div>{activityChangedFields(row.metadata) && <p className="platform-audit-reason">পরিবর্তিত অংশ: {activityChangedFields(row.metadata)}</p>}{row.ip_address && <small className="platform-security-ip">Login IP: {row.ip_address}</small>}</article>)}</div>}
+        <div className="platform-history-pager"><span>{activityTotal.toLocaleString('bn-BD')}টি কার্যক্রম · পৃষ্ঠা {activityTotal?activityPage+1:0} / {Math.max(1,Math.ceil(activityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={activityLoading||activityPage===0} onClick={()=>setActivityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={activityLoading||(activityPage+1)*pageSize>=activityTotal} onClick={()=>setActivityPage(value=>value+1)}>পরের</button></div></div>
+      </> : <>
+        <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Log-এ শুধু অ্যাপের মাধ্যমে পাঠানো Login/Registration প্রচেষ্টা থাকবে। Password বা আসল Email সংরক্ষণ করা হয় না। IP ঠিকানা কেবল Super Admin দেখতে পারবেন; নতুন Security Event এলে ৯০ দিনের বেশি পুরোনো Event পরিষ্কার হয়। IP একা কোনো ব্যক্তির পরিচয় বা অপরাধের প্রমাণ নয়।</span></div>
+        {securityOverview && <div className="platform-phase3-stat-grid"><Stat label="শেষ ২৪ ঘণ্টার Event" value={securityOverview.events_24h} icon="activity"/><Stat label="শেষ ৭ দিনের Event" value={securityOverview.events_7d} icon="calendar"/><Stat label="ব্যর্থ Login · ২৪ ঘণ্টা" value={securityOverview.failed_logins_24h} icon="lock"/><Stat label="ব্যর্থ Registration · ২৪ ঘণ্টা" value={securityOverview.failed_signups_24h} icon="user-x"/><Stat label="Registration অনুরোধ · ২৪ ঘণ্টা" value={securityOverview.signup_submitted_24h} icon="user-plus"/><Stat label="Password Reset ব্যর্থ · ২৪ ঘণ্টা" value={securityOverview.password_reset_failed_24h} icon="key-round"/><Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/><Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/></div>}
+        <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="password_reset_failed">ব্যর্থ Password Reset</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button>{(securityIpSearch||securityEventFilter!=='all')&&<button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityEventFilter('all');setSecurityPage(0);}}>ফিল্টার মুছুন</button>}</form>
+        {securityError && <div className="inline-error platform-alert">{securityError}</div>}
+        {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>কোনো Security Event নেই</strong><span>অ্যাপের Login ও Registration প্রচেষ্টা এখানে রেকর্ড হবে।</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
+        <div className="platform-history-pager"><span>{securityTotal.toLocaleString('bn-BD')}টি Event · পৃষ্ঠা {securityTotal?securityPage+1:0} / {Math.max(1,Math.ceil(securityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={securityLoading||securityPage===0} onClick={()=>setSecurityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={securityLoading||(securityPage+1)*pageSize>=securityTotal} onClick={()=>setSecurityPage(value=>value+1)}>পরের</button></div></div>
+      </>}
+    </section>}
+
     {tab === 'health' && <section className="card platform-panel platform-phase3-panel">
       <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM HEALTH</span><h3>মেসের কার্যক্রম ও সিস্টেম স্বাস্থ্য</h3><p>মেসভিত্তিক অপারেশনাল সংকেত। এগুলো সম্ভাব্য সমস্যা শনাক্ত করে; কোনো মেসে স্বয়ংক্রিয় পরিবর্তন করে না।</p></div><button type="button" className="secondary-button compact" disabled={healthLoading} onClick={loadSystemHealth}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
       <div className="platform-phase3-toolbar"><label className="field-label"><span>কত দিনের নিষ্ক্রিয়তাকে সতর্কতা ধরবে</span><select value={healthStaleDays} onChange={(event)=>setHealthStaleDays(event.target.value)}><option value="7">৭ দিন</option><option value="14">১৪ দিন</option><option value="30">৩০ দিন</option><option value="60">৬০ দিন</option></select></label><span className="platform-phase3-note">শুধু পর্যবেক্ষণ · নতুন মেসে ৪৮ ঘণ্টা ছাড় · ৮+ অপেক্ষমাণ অনুরোধে সতর্কতা · কোনো অটোমেটিক ব্লক নয়</span></div>
@@ -984,7 +1183,7 @@ export function SuperAdminPage({ user }) {
       </div>
       <div className="card platform-panel">
         {selected?<>
-          <div className="platform-panel-heading"><div><span className="eyebrow">মেস কন্ট্রোল</span><h3>{selected.name}</h3><p>মেস ID: <code>{selected.hostel_id}</code></p></div><button className="text-button" type="button" onClick={()=>{setSelected(null);setMembers([]);setMemberListLoadedHostelId('');}}>বন্ধ করুন</button></div>
+          <div className="platform-panel-heading"><div><span className="eyebrow">মেস কন্ট্রোল</span><h3>{selected.name}</h3><p>মেস ID: <code>{selected.hostel_id}</code></p></div><button className="text-button" type="button" onClick={()=>{memberActivityRequestRef.current+=1;memberSessionRequestRef.current+=1;setSelected(null);setMembers([]);setMemberListLoadedHostelId('');setMemberActivityTarget(null);setMemberActivityOverview(null);setMemberActivityRows([]);setMemberSessionRows([]);setMemberSessionTotal(0);}}>বন্ধ করুন</button></div>
           <div className="platform-flag-actions"><button type="button" className={selected.is_favorite?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'favorite')}>⭐ {selected.is_favorite?'পছন্দে আছে':'পছন্দে রাখুন'}</button><button type="button" className={selected.is_trusted?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'trusted')}>✓ {selected.is_trusted?'বিশ্বস্ত চিহ্নিত':'বিশ্বস্ত হিসেবে চিহ্নিত'}</button></div>
           <Field label="অ্যাকশন নোট / কারণ (ঐচ্ছিক)" value={reason} onChange={setReason} maxLength={300}/>
           <div className="platform-action-row"><button className="secondary-button" disabled={busy||selectedStatus==='active'} type="button" onClick={()=>changeHostelStatus('active')}>চালু করুন</button><button className="secondary-button" disabled={busy||selectedStatus==='suspended'} type="button" onClick={()=>changeHostelStatus('suspended')}>স্থগিত করুন</button></div>
@@ -993,9 +1192,39 @@ export function SuperAdminPage({ user }) {
           <Field label="সদস্য খুঁজুন (নাম, ফোন বা ID)" value={memberQuery} onChange={setMemberQuery} maxLength={120}/>
           <div className="platform-filter-pills" role="group" aria-label="সদস্য ফিল্টার">{[['all','সব'],['manager','প্রধান ম্যানেজার'],['assistant','সহকারী'],['member','সাধারণ সদস্য'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['blocked','ব্লক']].map(([key,label])=><button type="button" key={key} className={memberFilter===key?'active':''} onClick={()=>setMemberFilter(key)}>{label}</button>)}</div>
           {busy?<LoadingSpinner label="তথ্য আপডেট হচ্ছে..."/>:sortedMembers.length===0?<p className="platform-empty">এই ফিল্টারে কোনো সদস্য নেই।</p>:<div className="platform-members-list">{visibleMembers.map((member)=><div className="platform-member-row" key={member.membership_id}>
-            <div className="platform-avatar">{member.avatar_url ? <img src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : String(member.full_name||'স').slice(0,1)}</div><div className="platform-member-copy"><strong>{member.full_name||'নাম নেই'}</strong><div className="platform-role-badges">{memberRoles[member.membership_id]?.primary && <span className="primary">প্রধান ম্যানেজার</span>}{memberRoles[member.membership_id]?.assistant && <span className="assistant">সহকারী ম্যানেজার</span>}{memberRoles[member.membership_id] && !memberRoles[member.membership_id].primary && !memberRoles[member.membership_id].assistant && <span>সাধারণ সদস্য</span>}</div><small>{member.phone||'ফোন নেই'} · যোগদান {member.joined_at?new Date(member.joined_at).toLocaleDateString():'—'}</small>{member.email && <small className="platform-member-email">{member.email}</small>}<small className="platform-hostel-id">{member.user_id}</small><div className="platform-member-flags">{member.is_favorite&&<span>⭐ পছন্দের</span>}{member.is_trusted&&<span>✓ বিশ্বস্ত</span>}{member.is_blocked&&<span className="blocked-flag">ব্লক করা</span>}</div></div>
-            <div className="platform-member-actions"><span className={`platform-status ${member.status==='active'?'status-active':'status-inactive'}`}>{member.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span><div className="platform-member-action-buttons"><button className={member.is_favorite?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="পছন্দের চিহ্ন" onClick={()=>toggleMemberFlag(member,'favorite')}>⭐</button><button className={member.is_trusted?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="বিশ্বস্ত চিহ্ন" onClick={()=>toggleMemberFlag(member,'trusted')}>✓</button><button className={member.is_blocked?'secondary-button':'danger-button'} disabled={busy||member.user_id===user?.id} type="button" onClick={()=>toggleBlock(member)}>{member.is_blocked?'আনব্লক':'ব্লক'}</button><button className="secondary-button compact" disabled={busy||recoveryBusy||member.user_id===user?.id} type="button" onClick={()=>{setRecoveryTarget(member);setRecoveryResult('');setRecoveryNote('');setRecoveryVerified(false);}}>পাসওয়ার্ড সহায়তা</button><button className="danger-button" disabled={busy||member.user_id===user?.id} type="button" onClick={() => { setDeleteDialog({kind:'member', member}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>স্থায়ী ডিলিট</button></div></div>
+            <div className="platform-avatar">{member.avatar_url ? <img src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : String(member.full_name||'স').slice(0,1)}</div><div className="platform-member-copy"><strong>{member.full_name||'নাম নেই'}</strong><div className="platform-role-badges">{memberRoles[member.membership_id]?.primary && <span className="primary">প্রধান ম্যানেজার</span>}{memberRoles[member.membership_id]?.assistant && <span className="assistant">সহকারী ম্যানেজার</span>}{memberRoles[member.membership_id] && !memberRoles[member.membership_id].primary && !memberRoles[member.membership_id].assistant && <span>সাধারণ সদস্য</span>}</div><small>{member.phone||'ফোন নেই'} · যোগদান {member.joined_at?new Date(member.joined_at).toLocaleDateString():'—'}</small>{member.email && <small className="platform-member-email">{member.email}</small>}<small className="platform-hostel-id">{member.user_id}</small><small className="platform-member-presence">Last Seen: {member.last_seen_at ? `${presenceLabel(member)} · ${formatPlatformDate(member.last_seen_at)}` : 'এখনো রেকর্ড হয়নি'} · Last Login: {member.last_login_at ? formatPlatformDate(member.last_login_at) : 'তথ্য নেই'}</small><div className="platform-member-flags">{member.is_favorite&&<span>⭐ পছন্দের</span>}{member.is_trusted&&<span>✓ বিশ্বস্ত</span>}{member.is_blocked&&<span className="blocked-flag">ব্লক করা</span>}</div></div>
+            <div className="platform-member-actions"><span className={`platform-status ${member.status==='active'?'status-active':'status-inactive'}`}>{member.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span><div className="platform-member-action-buttons"><button className={member.is_favorite?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="পছন্দের চিহ্ন" onClick={()=>toggleMemberFlag(member,'favorite')}>⭐</button><button className={member.is_trusted?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="বিশ্বস্ত চিহ্ন" onClick={()=>toggleMemberFlag(member,'trusted')}>✓</button><button className={member.is_blocked?'secondary-button':'danger-button'} disabled={busy||member.user_id===user?.id} type="button" onClick={()=>toggleBlock(member)}>{member.is_blocked?'আনব্লক':'ব্লক'}</button><button className="secondary-button compact" type="button" onClick={()=>openMemberActivity(member)}>Activity</button><button className="secondary-button compact" disabled={busy||recoveryBusy||member.user_id===user?.id} type="button" onClick={()=>{setRecoveryTarget(member);setRecoveryResult('');setRecoveryNote('');setRecoveryVerified(false);}}>পাসওয়ার্ড সহায়তা</button><button className="danger-button" disabled={busy||member.user_id===user?.id} type="button" onClick={() => { setDeleteDialog({kind:'member', member}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>স্থায়ী ডিলিট</button></div></div>
           </div>)}</div>}
+          {memberActivityTarget && <section className="platform-member-activity" aria-label="সদস্যের Activity Log">
+            <div className="platform-panel-heading"><div><span className="eyebrow">MEMBER ACTIVITY</span><h3>{memberActivityTarget.full_name || 'সদস্য'} · Activity</h3><p>শুধু এই মেসে এই সদস্যের করা ও তাকে-সম্পর্কিত কাজ।</p></div><button className="text-button" type="button" onClick={()=>{memberActivityRequestRef.current+=1;memberSessionRequestRef.current+=1;setMemberActivityTarget(null);setMemberActivityOverview(null);setMemberActivityRows([]);setMemberSessionRows([]);setMemberSessionTotal(0);}}>বন্ধ করুন</button></div>
+            {memberActivityError && <div className="inline-error platform-alert">{memberActivityError}</div>}
+            {memberActivityOverview && <div className="platform-presence-grid">
+              <div><small>বর্তমান অবস্থা</small><strong>{memberActivityOverview.is_online?'সাম্প্রতিক সক্রিয়':'এখন সক্রিয় নয়'}</strong></div>
+              <div><small>Last Seen</small><strong>{formatPlatformDate(memberActivityOverview.last_seen_at)}</strong></div>
+              <div><small>Last Login</small><strong>{formatPlatformDate(memberActivityOverview.last_login_at)}</strong></div>
+              <div><small>Last Logout</small><strong>{formatPlatformDate(memberActivityOverview.last_logout_at)}</strong></div>
+              <div><small>সফল Login Session</small><strong>{Number(memberActivityOverview.login_count||0).toLocaleString('bn-BD')}</strong></div>
+              <div><small>সর্বশেষ Login IP</small><strong>{memberActivityOverview.last_login_ip || 'রেকর্ড নেই'}</strong></div>
+            </div>}
+            <div className="platform-login-session-history">
+              <div className="platform-session-heading"><strong>Login History</strong><span>{memberSessionTotal.toLocaleString('bn-BD')}টি Session</span></div>
+              {memberSessionLoading ? <div className="platform-empty"><LoadingSpinner label="Login History লোড হচ্ছে..."/></div> : memberSessionRows.length===0 ? <p className="platform-activity-history-note">এই মেসে এখনো কোনো Session History রেকর্ড হয়নি।</p> : memberSessionRows.map((session,index)=><article className="platform-login-session" key={`${session.logged_in_at}-${index}`}>
+                <div><strong>{session.session_status==='signed_out'?'লগআউট সম্পন্ন':session.session_status==='recently_active'?'সাম্প্রতিক সক্রিয়':'শেষ Seen পুরোনো'}</strong><small>Login: {formatPlatformDate(session.logged_in_at)} · Last Seen: {formatPlatformDate(session.last_seen_at)}</small>{session.last_logout_at&&<small>Logout: {formatPlatformDate(session.last_logout_at)}</small>}</div>
+                <div><small>IP: {session.ip_address||'রেকর্ড নেই'}</small>{session.user_agent&&<small className="platform-session-agent">{session.user_agent}</small>}</div>
+              </article>)}
+              {memberSessionTotal>20 && <div className="platform-history-pager"><span>Login History · পৃষ্ঠা {memberSessionPage+1} / {Math.ceil(memberSessionTotal/20)}</span><div><button className="secondary-button compact" type="button" disabled={memberSessionLoading||memberSessionPage===0} onClick={()=>loadMemberSessions(memberActivityTarget,Math.max(0,memberSessionPage-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={memberSessionLoading||(memberSessionPage+1)*20>=memberSessionTotal} onClick={()=>loadMemberSessions(memberActivityTarget,memberSessionPage+1)}>পরের</button></div></div>}
+              <p className="platform-activity-history-note">একই অ্যাকাউন্টের আলাদা ডিভাইসের Session আলাদাভাবে দেখানো হয়; Session ID প্রকাশ করা হয় না।</p>
+            </div>
+            {memberActivityOverview?.history_available_from && <p className="platform-activity-history-note">Activity History সংরক্ষণ শুরু: {formatPlatformDate(memberActivityOverview.history_available_from)}। Migration-এর আগের কাজ এখানে থাকবে না।</p>}
+            {memberActivityLoading ? <div className="platform-empty"><LoadingSpinner label="সদস্যের Activity Log লোড হচ্ছে..."/></div> : memberActivityRows.length===0 ? <div className="platform-empty-state"><Icon name="history" size={24}/><strong>এখনো Activity Log নেই</strong><span>Module 3 চালুর পরের কার্যক্রম এখানে জমা হবে।</span></div> : <div className="platform-audit-list">{memberActivityRows.map((row)=><article className="platform-audit-item" key={row.id}>
+              <div className="platform-audit-top"><div><strong>{activityEventLabel(row.event_type)}</strong><small>{row.source_table || 'auth'} · {row.target_id || '—'}</small></div><time>{formatPlatformDate(row.created_at)}</time></div>
+              <div className="platform-audit-actor"><Icon name="user" size={14}/>{row.actor_name || 'অজানা'}{row.subject_name && row.subject_name !== '—' ? ` · সংশ্লিষ্ট: ${row.subject_name}` : ''}</div>
+              {activityChangedFields(row.metadata) && <p className="platform-audit-reason">পরিবর্তিত অংশ: {activityChangedFields(row.metadata)}</p>}
+              {row.ip_address && <small className="platform-security-ip">Login IP: {row.ip_address}</small>}
+            </article>)}</div>}
+            {memberActivityTotal > pageSize && <div className="platform-history-pager"><span>{memberActivityTotal.toLocaleString('bn-BD')}টি কার্যক্রম · পৃষ্ঠা {memberActivityPage+1} / {Math.ceil(memberActivityTotal/pageSize)}</span><div><button className="secondary-button compact" type="button" disabled={memberActivityLoading||memberActivityPage===0} onClick={()=>loadMemberActivity(memberActivityTarget,Math.max(0,memberActivityPage-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={memberActivityLoading||(memberActivityPage+1)*pageSize>=memberActivityTotal} onClick={()=>loadMemberActivity(memberActivityTarget,memberActivityPage+1)}>পরের</button></div></div>}
+            <div className="platform-activity-footer"><span>ব্যক্তিগত নোট, পাসওয়ার্ড ও আর্থিক পরিমাণ Activity Log-এ সংরক্ষণ করা হয় না।</span><button className="secondary-button compact" type="button" disabled={memberActivityLoading} onClick={()=>{loadMemberActivity(memberActivityTarget,memberActivityPage);loadMemberSessions(memberActivityTarget,memberSessionPage);}}><Icon name="refresh" size={14}/> রিফ্রেশ</button></div>
+          </section>}
           {sortedMembers.length > pageSize && <div className="platform-pagination"><button className="secondary-button compact" type="button" disabled={memberPage === 1} onClick={() => setMemberPage(page => page - 1)}>আগের</button><span>{memberPage} / {Math.ceil(sortedMembers.length / pageSize)}</span><button className="secondary-button compact" type="button" disabled={memberPage * pageSize >= sortedMembers.length} onClick={() => setMemberPage(page => page + 1)}>পরের</button></div>}
         </>:<div className="platform-empty-state"><Icon name="users" size={28}/><strong>একটি মেস নির্বাচন করুন</strong><span>মেসের পরিচয় ও সদস্য-ব্যবস্থাপনা এখান থেকে করা যাবে।</span></div>}
       </div>

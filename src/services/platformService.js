@@ -357,3 +357,70 @@ export async function platformAdminGetPlatformReport(fromDate, toDate) {
   if (error) throw error;
   return firstRow(data) || {};
 }
+
+// V1.18 Module 3 — server-authorized observability. All sensitive reads are RPCs;
+// browser code never selects from private tracking tables directly.
+export async function platformAdminListActivity({ hostelId = null, eventType = null, limit = 30, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_activity', {
+    p_hostel_id: hostelId || null,
+    p_event_type: eventType || null,
+    p_limit: Number(limit) || 30,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return data || { items: [], total_count: 0 };
+}
+
+export async function platformAdminGetMemberActivityOverview(hostelId, userId) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_member_activity_overview', {
+    p_hostel_id: hostelId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || {};
+}
+
+export async function platformAdminListMemberActivity(hostelId, userId, limit = 30, offset = 0) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_member_activity', {
+    p_hostel_id: hostelId,
+    p_user_id: userId,
+    p_limit: Number(limit) || 30,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return data || { items: [], total_count: 0 };
+}
+
+export async function platformAdminListMemberSessions(hostelId, userId, limit = 20, offset = 0) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_member_sessions', {
+    p_hostel_id: hostelId,
+    p_user_id: userId,
+    p_limit: Number(limit) || 20,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return data || { items: [], total_count: 0 };
+}
+
+export async function platformAdminGetSecurityOverview() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_security_overview');
+  if (error) throw error;
+  return firstRow(data) || data || {};
+}
+
+export async function platformAdminListSecurityEvents({ eventType = null, ipSearch = null, limit = 30, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_security_events', {
+    p_event_type: eventType || null,
+    p_ip_search: ipSearch || null,
+    p_limit: Number(limit) || 30,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return data || { items: [], total_count: 0 };
+}

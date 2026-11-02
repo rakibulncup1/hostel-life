@@ -1,0 +1,2 @@
+[functions.record-auth-event]
+verify_jwt = false
