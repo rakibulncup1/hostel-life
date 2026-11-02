@@ -54,25 +54,10 @@ export async function platformAdminListHostelMembers(hostelId) {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_list_hostel_members_v3', { p_hostel_id: hostelId });
   if (error) throw error;
-  const rows = Array.isArray(data) ? data : [];
-  if (!rows.length) return rows;
-  // The read-only Module B directory exposes email/avatar to super admins only.
-  // Merge strictly by user_id, so another hostel's data never enters this list.
-  // This RPC has a 100-record limit; do not scan the entire platform on every click.
-  try {
-    const { data: directory, error: directoryError } = await supabase.rpc('hl_b_platform_member_directory', { p_limit: 100, p_offset: 0 });
-    if (!directoryError && Array.isArray(directory?.items)) {
-      const lookup = new Map(directory.items.map(row => [String(row.user_id), row]));
-      return rows.map(row => {
-        const identity = lookup.get(String(row.user_id));
-        return identity ? {
-          ...row, email: identity.email || row.email || null,
-          avatar_url: identity.avatar_url || row.avatar_url || null,
-        } : row;
-      });
-    }
-  } catch { /* keep original administrative list if optional RPC fails */ }
-  return rows;
+  // Run27's hostel-scoped RPC already returns email/avatar for every member in
+  // this hostel. A second global directory RPC was capped at 100 rows, added
+  // latency, and could never reliably enrich members beyond that first page.
+  return Array.isArray(data) ? data : [];
 }
 
 export async function platformAdminListHostelRoleBadges(hostelId) {

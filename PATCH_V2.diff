@@ -1,0 +1,497 @@
+diff --git a/src/features/platform/SuperAdminPage.jsx b/src/features/platform/SuperAdminPage.jsx
+index a56a175..041fbb8 100644
+--- a/src/features/platform/SuperAdminPage.jsx
++++ b/src/features/platform/SuperAdminPage.jsx
+@@ -285,12 +285,24 @@ export function SuperAdminPage({ user }) {
+   const [memberSessionTotal, setMemberSessionTotal] = useState(0);
+   const [memberSessionPage, setMemberSessionPage] = useState(0);
+   const [memberSessionLoading, setMemberSessionLoading] = useState(false);
++  const [memberSessionError, setMemberSessionError] = useState('');
+   const memberSessionRequestRef = useRef(0);
+   const [memberActivityTotal, setMemberActivityTotal] = useState(0);
+   const [memberActivityPage, setMemberActivityPage] = useState(0);
+   const [memberActivityLoading, setMemberActivityLoading] = useState(false);
+   const [memberActivityError, setMemberActivityError] = useState('');
+   const memberActivityRequestRef = useRef(0);
++  // Ignore late responses when filters, pages, or selected hostel change quickly.
++  const refreshRequestRef = useRef(0);
++  const hostelMembersRequestRef = useRef(0);
++  const auditRequestRef = useRef(0);
++  const activityRequestRef = useRef(0);
++  const securityRequestRef = useRef(0);
++  const codeHistoryRequestRef = useRef(0);
++  const healthRequestRef = useRef(0);
++  const noticeMonitorRequestRef = useRef(0);
++  const retentionRequestRef = useRef(0);
++  const reportRequestRef = useRef(0);
+   const [codeHistoryRows, setCodeHistoryRows] = useState([]);
+   const [codeHistoryTotal, setCodeHistoryTotal] = useState(0);
+   const [codeHistoryPage, setCodeHistoryPage] = useState(0);
+@@ -325,18 +337,28 @@ export function SuperAdminPage({ user }) {
+   const pageSize = 20;
+ 
+   const refresh = useCallback(async () => {
++    const requestId = ++refreshRequestRef.current;
+     setBusy(true); setError('');
+-    try {
+-      const [summary, allHostels, publicSettings] = await Promise.all([
+-        platformAdminGetOverview(), platformAdminListHostels(), fetchPlatformPublicSettings({ force: true }),
+-      ]);
+-      setOverview(summary || {});
+-      setHostels(allHostels || []);
+-      setSettings({ ...EMPTY_SETTINGS, ...(Array.isArray(publicSettings) ? publicSettings[0] : publicSettings || {}) });
+-    } catch (cause) { setError(errorText(cause, 'Super Admin তথ্য লোড করা যায়নি।')); }
+-    finally { setBusy(false); }
++    const results = await Promise.allSettled([
++      platformAdminGetOverview(), platformAdminListHostels(), fetchPlatformPublicSettings({ force: true }),
++    ]);
++    if (requestId !== refreshRequestRef.current) return;
++    const failures = [];
++    const [summary, allHostels, publicSettings] = results;
++    if (summary.status === 'fulfilled') setOverview(summary.value || {});
++    else failures.push(`Overview: ${errorText(summary.reason, 'তথ্য লোড হয়নি')}`);
++    if (allHostels.status === 'fulfilled') setHostels(Array.isArray(allHostels.value) ? allHostels.value : []);
++    else failures.push(`মেস তালিকা: ${errorText(allHostels.reason, 'তথ্য লোড হয়নি')}`);
++    if (publicSettings.status === 'fulfilled') {
++      const settingsValue = publicSettings.value;
++      setSettings({ ...EMPTY_SETTINGS, ...(Array.isArray(settingsValue) ? settingsValue[0] : settingsValue || {}) });
++    } else failures.push(`প্ল্যাটফর্ম সেটিংস: ${errorText(publicSettings.reason, 'তথ্য লোড হয়নি')}`);
++    setError(failures.length ? `কিছু Super Admin তথ্য লোড হয়নি; সফল তথ্যগুলো ব্যবহার করা যাবে। ${failures.join(' · ')}` : '');
++    setBusy(false);
+   }, []);
++
+   const loadAuditLog = useCallback(async () => {
++    const requestId = ++auditRequestRef.current;
+     setAuditLoading(true); setAuditError('');
+     try {
+       const result = await platformAdminListAuditLogs({
+@@ -345,15 +367,16 @@ export function SuperAdminPage({ user }) {
+         targetType: auditTargetFilter === 'all' ? null : auditTargetFilter,
+         search: auditSearch || null,
+       });
++      if (requestId !== auditRequestRef.current) return;
+       setAuditRows(Array.isArray(result?.items) ? result.items : []);
+       setAuditTotal(Number(result?.total_count) || 0);
+     } catch (cause) {
+-      setAuditRows([]); setAuditTotal(0);
+-      setAuditError(errorText(cause, 'Audit Log লোড করা যায়নি।'));
+-    } finally { setAuditLoading(false); }
++      if (requestId === auditRequestRef.current) setAuditError(errorText(cause, 'Audit Log রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
++    } finally { if (requestId === auditRequestRef.current) setAuditLoading(false); }
+   }, [auditPage, auditActionFilter, auditTargetFilter, auditSearch]);
+ 
+   const loadActivity = useCallback(async () => {
++    const requestId = ++activityRequestRef.current;
+     setActivityLoading(true); setActivityError('');
+     try {
+       const result = await platformAdminListActivity({
+@@ -361,60 +384,64 @@ export function SuperAdminPage({ user }) {
+         eventType: activityEventFilter === 'all' ? null : activityEventFilter,
+         limit: pageSize, offset: activityPage * pageSize,
+       });
++      if (requestId !== activityRequestRef.current) return;
+       setActivityRows(Array.isArray(result?.items) ? result.items : []);
+       setActivityTotal(Number(result?.total_count) || 0);
+     } catch (cause) {
+-      setActivityRows([]); setActivityTotal(0);
+-      setActivityError(errorText(cause, 'Activity Log লোড করা যায়নি।'));
+-    } finally { setActivityLoading(false); }
++      if (requestId === activityRequestRef.current) setActivityError(errorText(cause, 'Activity Log রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
++    } finally { if (requestId === activityRequestRef.current) setActivityLoading(false); }
+   }, [activityHostelFilter, activityEventFilter, activityPage]);
+ 
+   const loadSecurityMonitor = useCallback(async () => {
++    const requestId = ++securityRequestRef.current;
+     setSecurityLoading(true); setSecurityError('');
+-    try {
+-      const [overviewResult, listResult] = await Promise.all([
+-        platformAdminGetSecurityOverview(),
+-        platformAdminListSecurityEvents({
+-          eventType: securityEventFilter === 'all' ? null : securityEventFilter,
+-          ipSearch: securityIpSearch || null,
+-          limit: pageSize, offset: securityPage * pageSize,
+-        }),
+-      ]);
+-      setSecurityOverview(overviewResult || {});
+-      setSecurityRows(Array.isArray(listResult?.items) ? listResult.items : []);
+-      setSecurityTotal(Number(listResult?.total_count) || 0);
+-    } catch (cause) {
+-      setSecurityOverview(null); setSecurityRows([]); setSecurityTotal(0);
+-      setSecurityError(errorText(cause, 'Security Monitoring লোড করা যায়নি।'));
+-    } finally { setSecurityLoading(false); }
++    const results = await Promise.allSettled([
++      platformAdminGetSecurityOverview(),
++      platformAdminListSecurityEvents({
++        eventType: securityEventFilter === 'all' ? null : securityEventFilter,
++        ipSearch: securityIpSearch || null,
++        limit: pageSize, offset: securityPage * pageSize,
++      }),
++    ]);
++    if (requestId !== securityRequestRef.current) return;
++    const failures = [];
++    const [overviewResult, listResult] = results;
++    if (overviewResult.status === 'fulfilled') setSecurityOverview(overviewResult.value || {});
++    else failures.push(`Security Summary: ${errorText(overviewResult.reason, 'লোড হয়নি')}`);
++    if (listResult.status === 'fulfilled') {
++      setSecurityRows(Array.isArray(listResult.value?.items) ? listResult.value.items : []);
++      setSecurityTotal(Number(listResult.value?.total_count) || 0);
++    } else failures.push(`Security Event List: ${errorText(listResult.reason, 'লোড হয়নি')}`);
++    setSecurityError(failures.length ? `কিছু Security তথ্য লোড হয়নি; সফল অংশটি দেখা যাচ্ছে। ${failures.join(' · ')}` : '');
++    setSecurityLoading(false);
+   }, [securityEventFilter, securityIpSearch, securityPage]);
+ 
+   const loadMemberActivity = useCallback(async (member, page = 0) => {
+     if (!member?.hostel_id || !member?.user_id) return;
+     const requestId = ++memberActivityRequestRef.current;
+     setMemberActivityLoading(true); setMemberActivityError('');
+-    try {
+-      const [overviewResult, listResult] = await Promise.all([
+-        platformAdminGetMemberActivityOverview(member.hostel_id, member.user_id),
+-        platformAdminListMemberActivity(member.hostel_id, member.user_id, pageSize, page * pageSize),
+-      ]);
+-      if (requestId !== memberActivityRequestRef.current) return;
+-      setMemberActivityOverview(overviewResult || {});
+-      setMemberActivityRows(Array.isArray(listResult?.items) ? listResult.items : []);
+-      setMemberActivityTotal(Number(listResult?.total_count) || 0);
++    const results = await Promise.allSettled([
++      platformAdminGetMemberActivityOverview(member.hostel_id, member.user_id),
++      platformAdminListMemberActivity(member.hostel_id, member.user_id, pageSize, page * pageSize),
++    ]);
++    if (requestId !== memberActivityRequestRef.current) return;
++    const failures = [];
++    const [overviewResult, listResult] = results;
++    if (overviewResult.status === 'fulfilled') setMemberActivityOverview(overviewResult.value || {});
++    else failures.push(`সদস্যের উপস্থিতি: ${errorText(overviewResult.reason, 'লোড হয়নি')}`);
++    if (listResult.status === 'fulfilled') {
++      setMemberActivityRows(Array.isArray(listResult.value?.items) ? listResult.value.items : []);
++      setMemberActivityTotal(Number(listResult.value?.total_count) || 0);
+       setMemberActivityPage(page);
+-    } catch (cause) {
+-      if (requestId === memberActivityRequestRef.current) {
+-        setMemberActivityOverview(null); setMemberActivityRows([]); setMemberActivityTotal(0);
+-        setMemberActivityError(errorText(cause, 'সদস্যের Activity Log লোড করা যায়নি।'));
+-      }
+-    } finally { if (requestId === memberActivityRequestRef.current) setMemberActivityLoading(false); }
++    } else failures.push(`Activity Log: ${errorText(listResult.reason, 'লোড হয়নি')}`);
++    setMemberActivityError(failures.join(' · '));
++    setMemberActivityLoading(false);
+   }, []);
+ 
+   const loadMemberSessions = useCallback(async (member, page = 0) => {
+     if (!member?.hostel_id || !member?.user_id) return;
+     const requestId = ++memberSessionRequestRef.current;
+-    setMemberSessionLoading(true);
++    setMemberSessionLoading(true); setMemberSessionError('');
+     try {
+       const result = await platformAdminListMemberSessions(member.hostel_id, member.user_id, 20, page * 20);
+       if (requestId !== memberSessionRequestRef.current) return;
+@@ -422,70 +449,72 @@ export function SuperAdminPage({ user }) {
+       setMemberSessionTotal(Number(result?.total_count) || 0);
+       setMemberSessionPage(page);
+     } catch (cause) {
+-      if (requestId === memberSessionRequestRef.current) {
+-        setMemberSessionRows([]); setMemberSessionTotal(0);
+-        setMemberActivityError(errorText(cause, 'Login History লোড করা যায়নি।'));
+-      }
++      if (requestId === memberSessionRequestRef.current) setMemberSessionError(errorText(cause, 'Login History লোড করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
+     } finally { if (requestId === memberSessionRequestRef.current) setMemberSessionLoading(false); }
+   }, []);
+ 
+   const openMemberActivity = (member) => {
+     setMemberActivityTarget(member);
+     setMemberActivityOverview(null); setMemberActivityRows([]); setMemberSessionRows([]);
++    setMemberActivityError(''); setMemberSessionError('');
+     setMemberSessionTotal(0); setMemberActivityPage(0); setMemberSessionPage(0);
+     loadMemberActivity(member, 0);
+     loadMemberSessions(member, 0);
+   };
+ 
+   const loadCodeHistory = useCallback(async () => {
++    const requestId = ++codeHistoryRequestRef.current;
+     setCodeHistoryLoading(true); setCodeHistoryError('');
+     try {
+       const result = await platformAdminListAccessCodeHistory({
+         limit: pageSize, offset: codeHistoryPage * pageSize,
+         purpose: codeHistoryPurpose === 'all' ? null : codeHistoryPurpose,
+       });
++      if (requestId !== codeHistoryRequestRef.current) return;
+       setCodeHistoryRows(Array.isArray(result?.items) ? result.items : []);
+       setCodeHistoryTotal(Number(result?.total_count) || 0);
+     } catch (cause) {
+-      setCodeHistoryRows([]); setCodeHistoryTotal(0);
+-      setCodeHistoryError(errorText(cause, 'Security Code History লোড করা যায়নি।'));
+-    } finally { setCodeHistoryLoading(false); }
++      if (requestId === codeHistoryRequestRef.current) setCodeHistoryError(errorText(cause, 'Security Code History রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
++    } finally { if (requestId === codeHistoryRequestRef.current) setCodeHistoryLoading(false); }
+   }, [codeHistoryPage, codeHistoryPurpose]);
+ 
+   const loadSystemHealth = useCallback(async () => {
++    const requestId = ++healthRequestRef.current;
+     setHealthLoading(true); setHealthError('');
+     try {
+       const result = await platformAdminGetSystemHealth(Number(healthStaleDays) || 14);
++      if (requestId !== healthRequestRef.current) return;
+       setHealthData(result || null);
+     } catch (cause) {
+-      setHealthData(null);
+-      setHealthError(errorText(cause, 'System Health লোড করা যায়নি।'));
+-    } finally { setHealthLoading(false); }
++      if (requestId === healthRequestRef.current) setHealthError(errorText(cause, 'System Health রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
++    } finally { if (requestId === healthRequestRef.current) setHealthLoading(false); }
+   }, [healthStaleDays]);
+ 
+   const loadNoticeMonitoring = useCallback(async () => {
++    const requestId = ++noticeMonitorRequestRef.current;
+     setNoticeMonitorLoading(true); setNoticeMonitorError('');
+     try {
+       const result = await platformAdminListNoticeMonitoring({
+         limit: pageSize, offset: noticeMonitorPage * pageSize, search: noticeMonitorSearch || null,
+       });
++      if (requestId !== noticeMonitorRequestRef.current) return;
+       setNoticeMonitorData(result || null);
+       setNoticeMonitorRows(Array.isArray(result?.items) ? result.items : []);
+       setNoticeMonitorTotal(Number(result?.total_count) || 0);
+     } catch (cause) {
+-      setNoticeMonitorData(null); setNoticeMonitorRows([]); setNoticeMonitorTotal(0);
+-      setNoticeMonitorError(errorText(cause, 'নোটিশের তালিকা লোড করা যায়নি।'));
+-    } finally { setNoticeMonitorLoading(false); }
++      if (requestId === noticeMonitorRequestRef.current) setNoticeMonitorError(errorText(cause, 'নোটিশের তালিকা রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
++    } finally { if (requestId === noticeMonitorRequestRef.current) setNoticeMonitorLoading(false); }
+   }, [noticeMonitorPage, noticeMonitorSearch]);
+ 
+   const generatePlatformReport = useCallback(async () => {
++    const requestId = ++reportRequestRef.current;
+     setReportLoading(true); setReportError(''); setReportData(null);
+     try {
+       const result = await platformAdminGetPlatformReport(reportFromDate, reportToDate);
+-      setReportData(result || null);
++      if (requestId === reportRequestRef.current) setReportData(result || null);
+     } catch (cause) {
+-      setReportError(errorText(cause, 'প্ল্যাটফর্ম রিপোর্ট তৈরি করা যায়নি।'));
+-    } finally { setReportLoading(false); }
++      if (requestId === reportRequestRef.current) setReportError(errorText(cause, 'প্ল্যাটফর্ম রিপোর্ট তৈরি করা যায়নি।'));
++    } finally { if (requestId === reportRequestRef.current) setReportLoading(false); }
+   }, [reportFromDate, reportToDate]);
+ 
+   const downloadPlatformReport = useCallback(() => {
+@@ -592,29 +621,28 @@ export function SuperAdminPage({ user }) {
+   const visibleMembers = sortedMembers.slice((memberPage - 1) * pageSize, memberPage * pageSize);
+ 
+   const loadRetention = useCallback(async () => {
++    const requestId = ++retentionRequestRef.current;
+     setRetentionLoading(true); setRetentionError('');
+     const results = await Promise.allSettled([
+       platformAdminGetRetention(), platformAdminListExpiredArchives(), platformAdminListSavedSummaries(), platformAdminListClosedPeriods(),
+     ]);
++    if (requestId !== retentionRequestRef.current) return;
+     const failures = [];
+     const [policyResult, queueResult, savedResult, closedResult] = results;
+     if (policyResult.status === 'fulfilled') {
+       const policy = policyResult.value || {};
+       setRetention(policy);
+       setRetentionDraft({ detail: String(policy.detail_months ?? 2), summary: String(policy.summary_months ?? 6) });
+-    } else { setRetention(null); failures.push(`নীতি: ${errorText(policyResult.reason, 'লোড হয়নি')}`); }
++    } else failures.push(`নীতি: ${errorText(policyResult.reason, 'লোড হয়নি')}`);
+     if (queueResult.status === 'fulfilled') {
+       setExpiredArchives(Array.isArray(queueResult.value) ? queueResult.value : []);
+       setExpiredArchivesLoaded(true);
+-    } else {
+-      setExpiredArchives([]); setExpiredArchivesLoaded(false);
+-      failures.push(`মেয়াদোত্তীর্ণ তালিকা: ${errorText(queueResult.reason, 'লোড হয়নি')}`);
+-    }
++    } else failures.push(`মেয়াদোত্তীর্ণ তালিকা: ${errorText(queueResult.reason, 'লোড হয়নি')}`);
+     if (savedResult.status === 'fulfilled') setSavedSummaries(Array.isArray(savedResult.value) ? savedResult.value : []);
+-    else { setSavedSummaries([]); failures.push(`সংরক্ষিত সামারি: ${errorText(savedResult.reason, 'লোড হয়নি')}`); }
++    else failures.push(`সংরক্ষিত সামারি: ${errorText(savedResult.reason, 'লোড হয়নি')}`);
+     if (closedResult.status === 'fulfilled') setClosedPeriods(Array.isArray(closedResult.value) ? closedResult.value : []);
+-    else {setClosedPeriods([]);failures.push(`বন্ধ মাসের তালিকা: ${errorText(closedResult.reason,'লোড হয়নি')}`);}
+-    setRetentionError(failures.length ? `কিছু তথ্য লোড হয়নি; সফল তালিকা নিচে দেখা যাচ্ছে। ${failures.join(' · ')}` : '');
++    else failures.push(`বন্ধ মাসের তালিকা: ${errorText(closedResult.reason, 'লোড হয়নি')}`);
++    setRetentionError(failures.length ? `কিছু তথ্য রিফ্রেশ হয়নি; আগের সফল তথ্য রাখা হয়েছে। ${failures.join(' · ')}` : '');
+     setRetentionLoading(false);
+   }, []);
+   useEffect(() => { if (tab === 'retention' && reauthenticated) loadRetention(); }, [tab, reauthenticated, loadRetention]);
+@@ -682,17 +710,29 @@ export function SuperAdminPage({ user }) {
+     finally { setReauthBusy(false); }
+   };
+   const openHostel = async (hostel) => {
+-    setSelected(hostel); setMembers([]); setMemberListLoadedHostelId(''); setMemberRoles({}); setReason(''); setMemberActivityTarget(null); setMemberActivityOverview(null); setMemberActivityRows([]); setBusy(true); setError('');
++    const requestId = ++hostelMembersRequestRef.current;
++    memberActivityRequestRef.current += 1; memberSessionRequestRef.current += 1;
++    setSelected(hostel); setMembers([]); setMemberListLoadedHostelId(''); setMemberRoles({}); setReason('');
++    setMemberActivityTarget(null); setMemberActivityOverview(null); setMemberActivityRows([]); setMemberSessionRows([]);
++    setMemberActivityError(''); setMemberSessionError(''); setBusy(true); setError('');
+     try {
+       const list = await platformAdminListHostelMembers(hostel.hostel_id);
++      if (requestId !== hostelMembersRequestRef.current) return;
+       if (!Array.isArray(list)) throw new Error('সদস্য তালিকার সঠিক ফলাফল পাওয়া যায়নি।');
+       setMembers(list);
+       setMemberListLoadedHostelId(hostel.hostel_id);
+-      try { setMemberRoles(await platformAdminListHostelRoleBadges(hostel.hostel_id)); }
+-      catch { setMemberRoles({}); setNotice('সদস্য তালিকা এসেছে, তবে ম্যানেজার পরিচয় পেতে নতুন SQL migration চালাতে হবে।'); }
+-    }
+-    catch (cause) { setError(errorText(cause, 'সদস্য তালিকা লোড করা যায়নি।')); }
+-    finally { setBusy(false); }
++      try {
++        const roles = await platformAdminListHostelRoleBadges(hostel.hostel_id);
++        if (requestId === hostelMembersRequestRef.current) setMemberRoles(roles);
++      } catch {
++        if (requestId === hostelMembersRequestRef.current) {
++          setMemberRoles({});
++          setNotice('সদস্য তালিকা এসেছে, তবে ম্যানেজার/সহকারী পরিচয়ের ব্যাজ লোড হয়নি। রিফ্রেশ করে আবার চেষ্টা করুন।');
++        }
++      }
++    } catch (cause) {
++      if (requestId === hostelMembersRequestRef.current) setError(errorText(cause, 'সদস্য তালিকা লোড করা যায়নি।'));
++    } finally { if (requestId === hostelMembersRequestRef.current) setBusy(false); }
+   };
+   const changeHostelStatus = async (status) => {
+     if (!selected) return;
+@@ -1027,7 +1067,7 @@ export function SuperAdminPage({ user }) {
+       <div className="platform-panel-heading"><div><span className="eyebrow">USER & SECURITY OBSERVABILITY</span><h3>Activity Log ও Security Monitoring</h3><p>মেসের কাজ, সদস্য Login/Logout এবং অ্যাপের মাধ্যমে আসা ব্যর্থ Login/Registration প্রচেষ্টা পর্যবেক্ষণ করুন।</p></div><button type="button" className="secondary-button compact" disabled={activityLoading||securityLoading} onClick={activityView==='timeline'?loadActivity:loadSecurityMonitor}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+       <div className="platform-filter-pills" role="tablist" aria-label="Activity Monitor View"><button type="button" role="tab" aria-selected={activityView==='timeline'} className={activityView==='timeline'?'active':''} onClick={()=>setActivityView('timeline')}>Activity Timeline</button><button type="button" role="tab" aria-selected={activityView==='security'} className={activityView==='security'?'active':''} onClick={()=>setActivityView('security')}>Security Monitor</button></div>
+       {activityView==='timeline' ? <>
+-        <div className="platform-activity-filters"><label className="field-label"><span>মেস</span><select value={activityHostelFilter} onChange={(event)=>{setActivityHostelFilter(event.target.value);setActivityPage(0);}}><option value="all">সব মেস</option>{hostels.map((hostel)=><option value={hostel.hostel_id} key={hostel.hostel_id}>{hostel.name}</option>)}</select></label><label className="field-label"><span>কার্যক্রম</span><select value={activityEventFilter} onChange={(event)=>{setActivityEventFilter(event.target.value);setActivityPage(0);}}><option value="all">সব কার্যক্রম</option><option value="auth.login">সফল লগইন</option><option value="auth.logout">লগআউট</option><option value="notification.sent">নোটিফিকেশন পাঠানো</option><option value="meal_request.insert">মিল অনুরোধ</option><option value="market_entry.insert">বাজার এন্ট্রি</option><option value="ledger_entry.insert">হিসাব এন্ট্রি</option><option value="membership.insert">সদস্য যোগ</option><option value="membership.update">সদস্য পরিবর্তন</option><option value="period.insert">মাস/পিরিয়ড তৈরি</option><option value="meal_day.insert">মিল ডে তৈরি</option><option value="meal_record.update">মিল পরিবর্তন</option><option value="market_entry.update">বাজার পরিবর্তন</option><option value="khala_payment.insert">খালার টাকা</option><option value="profiles.update">প্রোফাইল পরিবর্তন</option></select></label></div>
++        <div className="platform-activity-filters"><label className="field-label"><span>মেস</span><select value={activityHostelFilter} onChange={(event)=>{setActivityHostelFilter(event.target.value);setActivityPage(0);}}><option value="all">সব মেস</option>{hostels.map((hostel)=><option value={hostel.hostel_id} key={hostel.hostel_id}>{hostel.name}</option>)}</select></label><label className="field-label"><span>কার্যক্রম</span><select value={activityEventFilter} onChange={(event)=>{setActivityEventFilter(event.target.value);setActivityPage(0);}}><option value="all">সব কার্যক্রম</option><optgroup label="ব্যবহারকারী ও মেসের কার্যক্রম">{Object.entries(ACTIVITY_EVENT_LABELS).map(([value,label])=><option value={value} key={value}>{label}</option>)}</optgroup><optgroup label="আর্কাইভ কার্যক্রম">{Object.entries(ARCHIVE_ACTIVITY_LABELS).map(([value,label])=><option value={value} key={value}>{label}</option>)}</optgroup><optgroup label="Super Admin কার্যক্রম">{Object.entries(AUDIT_ACTION_LABELS).map(([action,label])=><option value={`platform.${action}`} key={`platform.${action}`}>{label}</option>)}</optgroup></select></label></div>
+         {activityError && <div className="inline-error platform-alert">{activityError}</div>}
+         {activityLoading ? <div className="platform-empty"><LoadingSpinner label="Activity Log লোড হচ্ছে..."/></div> : activityRows.length===0 ? <div className="platform-empty-state"><Icon name="activity" size={28}/><strong>কোনো কার্যক্রম পাওয়া যায়নি</strong><span>Module 3 migration চালু হওয়ার পর নতুন কার্যক্রম এখানে দেখা যাবে।</span></div> : <div className="platform-audit-list">{activityRows.map((row)=><article className="platform-audit-item" key={row.id}><div className="platform-audit-top"><div><strong>{activityEventLabel(row.event_type)}</strong><small>{row.hostel_name || 'প্ল্যাটফর্ম'} · {row.source_table || 'auth'}</small></div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-audit-actor"><Icon name="user" size={14}/>{row.actor_name || 'সিস্টেম/অজানা'}{row.subject_name && row.subject_name!=='—' ? ` · সংশ্লিষ্ট: ${row.subject_name}`:''}</div>{activityChangedFields(row.metadata) && <p className="platform-audit-reason">পরিবর্তিত অংশ: {activityChangedFields(row.metadata)}</p>}{row.ip_address && <small className="platform-security-ip">Login IP: {row.ip_address}</small>}</article>)}</div>}
+         <div className="platform-history-pager"><span>{activityTotal.toLocaleString('bn-BD')}টি কার্যক্রম · পৃষ্ঠা {activityTotal?activityPage+1:0} / {Math.max(1,Math.ceil(activityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={activityLoading||activityPage===0} onClick={()=>setActivityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={activityLoading||(activityPage+1)*pageSize>=activityTotal} onClick={()=>setActivityPage(value=>value+1)}>পরের</button></div></div>
+@@ -1174,7 +1214,7 @@ export function SuperAdminPage({ user }) {
+           {[['all','সব'],['manager','প্রধান ম্যানেজার'],['assistant','সহকারী'],['member','সাধারণ সদস্য'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['suspended','স্থগিত']].map(([key,label])=><button type="button" key={key} className={hostelFilter===key?'active':''} onClick={()=>setHostelFilter(key)}>{label}</button>)}
+         </div>
+         {filteredHostels.length===0?<p className="platform-empty">এই ফিল্টারে কোনো মেস পাওয়া যায়নি।</p>:<div className="platform-hostel-list">{visibleHostels.map((hostel)=><div className={`platform-hostel-entry ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} key={hostel.hostel_id}>
+-          <button className={`platform-hostel-row ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} type="button" onClick={()=>openHostel(hostel)}>
++          <button className={`platform-hostel-row ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} type="button" disabled={busy} onClick={()=>openHostel(hostel)}>
+             <span className="platform-hostel-icon"><Icon name="home" size={19}/></span><span className="platform-hostel-copy"><strong>{hostel.name}</strong><small>{hostel.member_count} জন সক্রিয় সদস্য · {hostel.created_at?new Date(hostel.created_at).toLocaleDateString():'—'}</small><small className="platform-hostel-id">{hostel.hostel_id}</small></span><span className={`platform-status status-${hostel.platform_status||'active'}`}>{hostel.platform_status==='soft_deleted'?'বন্ধ':hostel.platform_status==='suspended'?'স্থগিত':'সক্রিয়'}</span>
+           </button>
+           <div className="platform-quick-flags"><button type="button" title="পছন্দের মেস" aria-pressed={Boolean(hostel.is_favorite)} className={hostel.is_favorite?'flag-active':''} disabled={busy} onClick={()=>toggleHostelFlag(hostel,'favorite')}>⭐</button><button type="button" title="বিশ্বস্ত মেস" aria-pressed={Boolean(hostel.is_trusted)} className={hostel.is_trusted?'flag-active':''} disabled={busy} onClick={()=>toggleHostelFlag(hostel,'trusted')}>✓</button></div>
+@@ -1183,7 +1223,7 @@ export function SuperAdminPage({ user }) {
+       </div>
+       <div className="card platform-panel">
+         {selected?<>
+-          <div className="platform-panel-heading"><div><span className="eyebrow">মেস কন্ট্রোল</span><h3>{selected.name}</h3><p>মেস ID: <code>{selected.hostel_id}</code></p></div><button className="text-button" type="button" onClick={()=>{memberActivityRequestRef.current+=1;memberSessionRequestRef.current+=1;setSelected(null);setMembers([]);setMemberListLoadedHostelId('');setMemberActivityTarget(null);setMemberActivityOverview(null);setMemberActivityRows([]);setMemberSessionRows([]);setMemberSessionTotal(0);}}>বন্ধ করুন</button></div>
++          <div className="platform-panel-heading"><div><span className="eyebrow">মেস কন্ট্রোল</span><h3>{selected.name}</h3><p>মেস ID: <code>{selected.hostel_id}</code></p></div><button className="text-button" type="button" disabled={busy} onClick={()=>{memberActivityRequestRef.current+=1;memberSessionRequestRef.current+=1;hostelMembersRequestRef.current+=1;setBusy(false);setSelected(null);setMembers([]);setMemberListLoadedHostelId('');setMemberActivityTarget(null);setMemberActivityOverview(null);setMemberActivityRows([]);setMemberSessionRows([]);setMemberSessionTotal(0);setMemberActivityError('');setMemberSessionError('');}}>বন্ধ করুন</button></div>
+           <div className="platform-flag-actions"><button type="button" className={selected.is_favorite?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'favorite')}>⭐ {selected.is_favorite?'পছন্দে আছে':'পছন্দে রাখুন'}</button><button type="button" className={selected.is_trusted?'platform-flag-button active':'platform-flag-button'} disabled={busy} onClick={()=>toggleHostelFlag(selected,'trusted')}>✓ {selected.is_trusted?'বিশ্বস্ত চিহ্নিত':'বিশ্বস্ত হিসেবে চিহ্নিত'}</button></div>
+           <Field label="অ্যাকশন নোট / কারণ (ঐচ্ছিক)" value={reason} onChange={setReason} maxLength={300}/>
+           <div className="platform-action-row"><button className="secondary-button" disabled={busy||selectedStatus==='active'} type="button" onClick={()=>changeHostelStatus('active')}>চালু করুন</button><button className="secondary-button" disabled={busy||selectedStatus==='suspended'} type="button" onClick={()=>changeHostelStatus('suspended')}>স্থগিত করুন</button></div>
+@@ -1196,7 +1236,7 @@ export function SuperAdminPage({ user }) {
+             <div className="platform-member-actions"><span className={`platform-status ${member.status==='active'?'status-active':'status-inactive'}`}>{member.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span><div className="platform-member-action-buttons"><button className={member.is_favorite?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="পছন্দের চিহ্ন" onClick={()=>toggleMemberFlag(member,'favorite')}>⭐</button><button className={member.is_trusted?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="বিশ্বস্ত চিহ্ন" onClick={()=>toggleMemberFlag(member,'trusted')}>✓</button><button className={member.is_blocked?'secondary-button':'danger-button'} disabled={busy||member.user_id===user?.id} type="button" onClick={()=>toggleBlock(member)}>{member.is_blocked?'আনব্লক':'ব্লক'}</button><button className="secondary-button compact" type="button" onClick={()=>openMemberActivity(member)}>Activity</button><button className="secondary-button compact" disabled={busy||recoveryBusy||member.user_id===user?.id} type="button" onClick={()=>{setRecoveryTarget(member);setRecoveryResult('');setRecoveryNote('');setRecoveryVerified(false);}}>পাসওয়ার্ড সহায়তা</button><button className="danger-button" disabled={busy||member.user_id===user?.id} type="button" onClick={() => { setDeleteDialog({kind:'member', member}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>স্থায়ী ডিলিট</button></div></div>
+           </div>)}</div>}
+           {memberActivityTarget && <section className="platform-member-activity" aria-label="সদস্যের Activity Log">
+-            <div className="platform-panel-heading"><div><span className="eyebrow">MEMBER ACTIVITY</span><h3>{memberActivityTarget.full_name || 'সদস্য'} · Activity</h3><p>শুধু এই মেসে এই সদস্যের করা ও তাকে-সম্পর্কিত কাজ।</p></div><button className="text-button" type="button" onClick={()=>{memberActivityRequestRef.current+=1;memberSessionRequestRef.current+=1;setMemberActivityTarget(null);setMemberActivityOverview(null);setMemberActivityRows([]);setMemberSessionRows([]);setMemberSessionTotal(0);}}>বন্ধ করুন</button></div>
++            <div className="platform-panel-heading"><div><span className="eyebrow">MEMBER ACTIVITY</span><h3>{memberActivityTarget.full_name || 'সদস্য'} · Activity</h3><p>শুধু এই মেসে এই সদস্যের করা ও তাকে-সম্পর্কিত কাজ।</p></div><button className="text-button" type="button" onClick={()=>{memberActivityRequestRef.current+=1;memberSessionRequestRef.current+=1;setMemberActivityTarget(null);setMemberActivityOverview(null);setMemberActivityRows([]);setMemberSessionRows([]);setMemberSessionTotal(0);setMemberActivityError('');setMemberSessionError('');}}>বন্ধ করুন</button></div>
+             {memberActivityError && <div className="inline-error platform-alert">{memberActivityError}</div>}
+             {memberActivityOverview && <div className="platform-presence-grid">
+               <div><small>বর্তমান অবস্থা</small><strong>{memberActivityOverview.is_online?'সাম্প্রতিক সক্রিয়':'এখন সক্রিয় নয়'}</strong></div>
+@@ -1208,7 +1248,7 @@ export function SuperAdminPage({ user }) {
+             </div>}
+             <div className="platform-login-session-history">
+               <div className="platform-session-heading"><strong>Login History</strong><span>{memberSessionTotal.toLocaleString('bn-BD')}টি Session</span></div>
+-              {memberSessionLoading ? <div className="platform-empty"><LoadingSpinner label="Login History লোড হচ্ছে..."/></div> : memberSessionRows.length===0 ? <p className="platform-activity-history-note">এই মেসে এখনো কোনো Session History রেকর্ড হয়নি।</p> : memberSessionRows.map((session,index)=><article className="platform-login-session" key={`${session.logged_in_at}-${index}`}>
++              {memberSessionError && <div className="inline-error platform-alert">{memberSessionError}</div>}{memberSessionLoading ? <div className="platform-empty"><LoadingSpinner label="Login History লোড হচ্ছে..."/></div> : memberSessionRows.length===0 ? <p className="platform-activity-history-note">এই মেসে এখনো কোনো Session History রেকর্ড হয়নি।</p> : memberSessionRows.map((session,index)=><article className="platform-login-session" key={`${session.logged_in_at}-${index}`}>
+                 <div><strong>{session.session_status==='signed_out'?'লগআউট সম্পন্ন':session.session_status==='recently_active'?'সাম্প্রতিক সক্রিয়':'শেষ Seen পুরোনো'}</strong><small>Login: {formatPlatformDate(session.logged_in_at)} · Last Seen: {formatPlatformDate(session.last_seen_at)}</small>{session.last_logout_at&&<small>Logout: {formatPlatformDate(session.last_logout_at)}</small>}</div>
+                 <div><small>IP: {session.ip_address||'রেকর্ড নেই'}</small>{session.user_agent&&<small className="platform-session-agent">{session.user_agent}</small>}</div>
+               </article>)}
+diff --git a/src/services/platformService.js b/src/services/platformService.js
+index b5f1ce4..420ab71 100644
+--- a/src/services/platformService.js
++++ b/src/services/platformService.js
+@@ -54,25 +54,10 @@ export async function platformAdminListHostelMembers(hostelId) {
+   assertSupabase();
+   const { data, error } = await supabase.rpc('platform_admin_list_hostel_members_v3', { p_hostel_id: hostelId });
+   if (error) throw error;
+-  const rows = Array.isArray(data) ? data : [];
+-  if (!rows.length) return rows;
+-  // The read-only Module B directory exposes email/avatar to super admins only.
+-  // Merge strictly by user_id, so another hostel's data never enters this list.
+-  // This RPC has a 100-record limit; do not scan the entire platform on every click.
+-  try {
+-    const { data: directory, error: directoryError } = await supabase.rpc('hl_b_platform_member_directory', { p_limit: 100, p_offset: 0 });
+-    if (!directoryError && Array.isArray(directory?.items)) {
+-      const lookup = new Map(directory.items.map(row => [String(row.user_id), row]));
+-      return rows.map(row => {
+-        const identity = lookup.get(String(row.user_id));
+-        return identity ? {
+-          ...row, email: identity.email || row.email || null,
+-          avatar_url: identity.avatar_url || row.avatar_url || null,
+-        } : row;
+-      });
+-    }
+-  } catch { /* keep original administrative list if optional RPC fails */ }
+-  return rows;
++  // Run27's hostel-scoped RPC already returns email/avatar for every member in
++  // this hostel. A second global directory RPC was capped at 100 rows, added
++  // latency, and could never reliably enrich members beyond that first page.
++  return Array.isArray(data) ? data : [];
+ }
+ 
+ export async function platformAdminListHostelRoleBadges(hostelId) {
+--- a/tests/oct29PlatformContract.test.js
++++ b/tests/oct29PlatformContract.test.js
+@@ -29,5 +29,6 @@
+ test('role directory failure does not hide member list',()=>{
+  const jsx=file('src/features/platform/SuperAdminPage.jsx');
+  assert.match(jsx,/setMembers\(list\);/);
+- assert.match(jsx,/try \{ setMemberRoles\(await platformAdminListHostelRoleBadges/);
++ assert.match(jsx,/setMembers\(list\);[\s\S]*?try \{\s*const roles = await platformAdminListHostelRoleBadges/);
++ assert.match(jsx,/ম্যানেজার\/সহকারী পরিচয়ের ব্যাজ লোড হয়নি/);
+ });
+--- /dev/null
++++ b/tests/superAdminHardening.test.js
+@@ -0,0 +1,56 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import fs from 'node:fs';
++import path from 'node:path';
++import { fileURLToPath } from 'node:url';
++
++const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
++const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
++const page = read('src/features/platform/SuperAdminPage.jsx');
++const service = read('src/services/platformService.js');
++
++test('Super Admin overview refresh keeps independent successful sections when one RPC fails', () => {
++  assert.match(page, /Promise\.allSettled\(\[\s*platformAdminGetOverview\(\),\s*platformAdminListHostels\(\),\s*fetchPlatformPublicSettings\(\{ force: true \}\)/);
++  assert.match(page, /কিছু Super Admin তথ্য লোড হয়নি; সফল তথ্যগুলো ব্যবহার করা যাবে/);
++});
++
++test('Super Admin audit, activity, security, codes, health, notices and reports ignore stale responses', () => {
++  for (const ref of ['auditRequestRef', 'activityRequestRef', 'securityRequestRef', 'codeHistoryRequestRef', 'healthRequestRef', 'noticeMonitorRequestRef', 'reportRequestRef']) {
++    assert.match(page, new RegExp(`const requestId = \\+\\+${ref}\\.current`), `${ref} must issue a monotonically increasing request id`);
++    assert.match(page, new RegExp(`requestId (?:!==|===) ${ref}\\.current`), `${ref} must ignore stale results`);
++  }
++});
++
++test('Security summary and event list load independently instead of hiding both on one RPC failure', () => {
++  assert.match(page, /const results = await Promise\.allSettled\(\[\s*platformAdminGetSecurityOverview\(\),[\s\S]*?platformAdminListSecurityEvents/);
++  assert.match(page, /Security Summary:/);
++  assert.match(page, /Security Event List:/);
++});
++
++test('Activity filter exposes every defined table/archive/platform action label', () => {
++  assert.match(page, /Object\.entries\(ACTIVITY_EVENT_LABELS\)/);
++  assert.match(page, /Object\.entries\(ARCHIVE_ACTIVITY_LABELS\)/);
++  assert.match(page, /Object\.entries\(AUDIT_ACTION_LABELS\)/);
++  assert.doesNotMatch(page, /<option value="meal_request\.insert">/);
++});
++
++test('Member session history errors are displayed separately from member activity errors', () => {
++  assert.match(page, /const \[memberSessionError, setMemberSessionError\] = useState\(''\)/);
++  assert.match(page, /setMemberSessionError\(errorText\(cause, 'Login History/);
++  assert.match(page, /\{memberSessionError && <div className="inline-error platform-alert">\{memberSessionError\}<\/div>\}/);
++});
++
++test('Hostel-scoped member RPC is the sole source for the complete member card identity fields', () => {
++  assert.match(service, /platform_admin_list_hostel_members_v3/);
++  assert.match(service, /Run27's hostel-scoped RPC already returns email\/avatar for every member/);
++  assert.doesNotMatch(service, /hl_b_platform_member_directory/);
++  const sql = read('supabase/migrations/Run27_activity_presence_security_monitoring.sql');
++  assert.match(sql, /'avatar_url',p\.avatar_url/);
++  assert.match(sql, /'email',\(SELECT u\.email FROM auth\.users u WHERE u\.id=m\.user_id\)/);
++});
++
++test('Backup Assistant download link resolves to a packaged local asset', () => {
++  const asset = path.join(root, 'public/downloads/Hostel_Life_Backup_Assistant_Windows_Package.zip');
++  assert.ok(fs.existsSync(asset), 'Backup Assistant ZIP must exist in public/downloads');
++  assert.match(page, /href="\/downloads\/Hostel_Life_Backup_Assistant_Windows_Package\.zip"/);
++});

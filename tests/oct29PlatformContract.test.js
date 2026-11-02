@@ -29,5 +29,6 @@ test('Auth account deletion checks other memberships before admin API',()=>{
 test('role directory failure does not hide member list',()=>{
  const jsx=file('src/features/platform/SuperAdminPage.jsx');
  assert.match(jsx,/setMembers\(list\);/);
- assert.match(jsx,/try \{ setMemberRoles\(await platformAdminListHostelRoleBadges/);
+ assert.match(jsx,/setMembers\(list\);[\s\S]*?try \{\s*const roles = await platformAdminListHostelRoleBadges/);
+ assert.match(jsx,/ম্যানেজার\/সহকারী পরিচয়ের ব্যাজ লোড হয়নি/);
 });
