@@ -128,7 +128,7 @@ function LoginForm() {
 
   return (
     <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার তথ্য দিয়ে নিরাপদে Hostel Life-এ লগইন করুন।">
-      {sessionPolicyNotice && <div className="auth-policy-notice" role="alert"><Icon name="shield-alert" size={18} /><span>{sessionPolicyNotice}</span><button type="button" aria-label="বার্তা বন্ধ করুন" onClick={() => setSessionPolicyNotice('')}>×</button></div>}
+      {sessionPolicyNotice && <div className="auth-session-dialog-backdrop" role="presentation"><section className="auth-session-dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-session-dialog-title" aria-describedby="auth-session-dialog-description"><span className="auth-session-dialog-icon"><Icon name="shield-alert" size={25}/></span><h3 id="auth-session-dialog-title">নিরাপত্তার কারণে লগআউট</h3><p id="auth-session-dialog-description">{sessionPolicyNotice}</p><button type="button" className="primary-button large" onClick={() => setSessionPolicyNotice('')}>বুঝেছি, আবার লগইন করব</button></section></div>}
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
           <span>ইমেইল</span>

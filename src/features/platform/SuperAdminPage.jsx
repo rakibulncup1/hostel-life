@@ -11,7 +11,7 @@ import {
   fetchPlatformPublicSettings, platformAdminGenerateAccessCode, platformAdminGetOverview,
   platformAdminListHostelMembers, platformAdminListHostelRoleBadges, platformAdminListHostels, platformAdminSetGate,
   platformAdminSetHostelStatus, platformAdminSetUserBlocked, platformAdminUpdatePublicSettings,
-  platformAdminSetDefaultTheme, platformAdminGetSessionPolicy, platformAdminSetMaxDevicesPerUser,
+  platformAdminSetDefaultTheme, platformAdminGetSessionPolicy, platformAdminSetSessionPolicy,
   platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel,
   platformAdminPermanentlyDeleteMember, uploadDeveloperPhoto,
   platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
@@ -27,7 +27,7 @@ const EMPTY_SETTINGS = {
   announcement_enabled: false, announcement_title: '', announcement_body: '',
   registration_code_required: false, hostel_creation_code_required: false,
   developer_name: '', developer_title: '', developer_photo_url: '', developer_email: '',
-  developer_phone: '', developer_portfolio_url: '', default_theme: 'dark', max_devices_per_user: 10,
+  developer_phone: '', developer_portfolio_url: '', default_theme: 'dark', max_devices_per_user: 10, session_timeout_minutes: 0,
 };
 const errorText = (error, fallback) => /platform_admin_|get_platform_public_settings|function .* does not exist|schema cache/i.test(String(error?.message || ''))
   ? 'Super Admin SQL এখনো প্রয়োগ করা হয়নি। প্রথমে প্রয়োজনীয় Super Admin SQL Migration চালিয়ে schema reload হওয়া পর্যন্ত অপেক্ষা করুন।'
@@ -390,6 +390,7 @@ export function SuperAdminPage({ user }) {
         ...EMPTY_SETTINGS,
         ...(Array.isArray(settingsValue) ? settingsValue[0] : settingsValue || {}),
         max_devices_per_user: Number(sessionPolicyValue?.max_devices_per_user) || 10,
+        session_timeout_minutes: Number(sessionPolicyValue?.session_timeout_minutes) || 0,
       });
     } else failures.push(`প্ল্যাটফর্ম সেটিংস: ${errorText(publicSettings.reason, 'তথ্য লোড হয়নি')}`);
     if (sessionPolicy.status === 'rejected') failures.push(`Device Policy: ${errorText(sessionPolicy.reason, 'তথ্য লোড হয়নি')}`);
@@ -1004,17 +1005,23 @@ export function SuperAdminPage({ user }) {
 
   const saveDeviceLimit = async () => {
     const limit = Number(settings.max_devices_per_user);
+    const timeoutMinutes = Number(settings.session_timeout_minutes || 0);
     if (!Number.isInteger(limit) || limit < 1 || limit > 30) {
-      setError('সর্বোচ্চ Device/Browser Session সংখ্যা ১ থেকে ৩০-এর মধ্যে নির্বাচন করুন।');
+      setError('একসঙ্গে সর্বোচ্চ Login Session সংখ্যা ১ থেকে ৩০-এর মধ্যে নির্বাচন করুন।');
+      return;
+    }
+    if (!Number.isInteger(timeoutMinutes) || timeoutMinutes < 0 || timeoutMinutes > 10080) {
+      setError('Session-এর সময় ০ থেকে ১০,০৮০ মিনিটের মধ্যে নির্বাচন করুন।');
       return;
     }
     setDeviceLimitBusy(true); setError(''); setNotice('');
     try {
-      await platformAdminSetMaxDevicesPerUser(limit);
-      setNotice(`প্রতি অ্যাকাউন্টে সর্বোচ্চ ${limit.toLocaleString('bn-BD')}টি আলাদা Browser/Device Login Session সংরক্ষণ করা হবে। সক্রিয় সেশনগুলো পরবর্তী যাচাই বা Heartbeat-এ নতুন নীতি অনুসরণ করবে।`);
+      const result = await platformAdminSetSessionPolicy(limit, timeoutMinutes);
+      const timeoutLabel = timeoutMinutes === 0 ? 'নির্দিষ্ট সময়সীমা নেই' : `${timeoutMinutes.toLocaleString('bn-BD')} মিনিট`;
+      setNotice(`Session Policy সংরক্ষিত হয়েছে। নতুন Login এলে সবচেয়ে পুরোনো Session স্বয়ংক্রিয়ভাবে বন্ধ হবে। প্রতি Session-এর সময়: ${timeoutLabel}।${Number(result?.revoked_sessions) ? ` ${Number(result.revoked_sessions).toLocaleString('bn-BD')}টি পুরোনো Session বন্ধ করা হয়েছে।` : ''}`);
       await refresh();
     } catch (cause) {
-      setError(errorText(cause, 'Device/Browser Session Limit সংরক্ষণ করা যায়নি।'));
+      setError(errorText(cause, 'Session Policy সংরক্ষণ করা যায়নি।'));
     } finally {
       setDeviceLimitBusy(false);
     }
@@ -1365,7 +1372,7 @@ export function SuperAdminPage({ user }) {
     </section>}
     {tab === 'settings' && <form className="platform-settings-grid" onSubmit={saveSettings}>
       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>নতুন ব্যবহারকারীর Default Theme</h3><p>যাঁদের ব্রাউজারে আগে থেকে Theme Preference নেই, তাঁদের প্রথম প্রবেশে এই থিম ব্যবহার হবে। সংরক্ষিত ব্যক্তিগত পছন্দ পরিবর্তন হবে না।</p></div></div><label className="field-label"><span>ডিফল্ট থিম</span><select value={settings.default_theme || 'dark'} onChange={(e) => setSettings((old) => ({ ...old, default_theme: e.target.value }))}><option value="system">সিস্টেম</option><option value="light">লাইট</option><option value="dark">ডার্ক</option><option value="blue">আকাশি</option></select></label><button type="button" className="secondary-button" disabled={defaultThemeBusy} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button></section>
-      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>একটি অ্যাকাউন্টে সর্বোচ্চ Device / Browser Session</h3><p>একই Browser-এর একাধিক Tab একটি Session হিসেবে গণ্য হবে। আলাদা Browser Profile বা ডিভাইসে নতুন Login করলে আলাদা Session হিসেবে গণনা হবে।</p></div><span className="platform-status">১–৩০</span></div><label className="field-label"><span>সর্বোচ্চ সক্রিয় Login Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label><div className="platform-retention-hint"><Icon name="shield-check" size={15}/> সীমা ছাড়ালে নতুন/সাম্প্রতিক Session-এর অ্যাক্সেস বন্ধ হবে; আগে থেকে থাকা পুরোনো Session-গুলো অগ্রাধিকার পাবে। নীতি পরিবর্তনের পর ব্যবহারকারী পরবর্তী Login, পরিচয় যাচাই বা সক্রিয় Session Heartbeat-এ সীমা অনুযায়ী যাচাই হবে।</div><button type="button" className="secondary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Limit সংরক্ষণ করুন'}</button></section>
+      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Login Session নিরাপত্তা</h3><p>একই Browser Session-এর একাধিক Tab একটিই গণ্য হবে। নতুন ডিভাইস/Browser থেকে Login হলে নতুন Session চালু থাকবে এবং সবচেয়ে পুরোনো Session স্বয়ংক্রিয়ভাবে বন্ধ হবে।</p></div><span className="platform-status">১–৩০</span></div><label className="field-label"><span>এক অ্যাকাউন্টে একসঙ্গে সর্বোচ্চ Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label><label className="field-label"><span>প্রতি Login Session কতক্ষণ সক্রিয় থাকবে?</span><select value={settings.session_timeout_minutes ?? 0} onChange={(e) => setSettings((old) => ({ ...old, session_timeout_minutes: Number(e.target.value) }))}><option value={0}>সময় নির্ধারণ নেই</option><option value={15}>১৫ মিনিট</option><option value={30}>৩০ মিনিট</option><option value={60}>১ ঘণ্টা</option><option value={120}>২ ঘণ্টা</option><option value={240}>৪ ঘণ্টা</option><option value={480}>৮ ঘণ্টা</option><option value={720}>১২ ঘণ্টা</option><option value={1440}>২৪ ঘণ্টা</option><option value={4320}>৩ দিন</option><option value={10080}>৭ দিন</option></select></label><div className="platform-retention-hint"><Icon name="shield-check" size={15}/> নতুন Login হলে সবচেয়ে পুরোনো Session বাদ যাবে। নির্ধারিত সময় শেষ হলে খোলা অ্যাপ নিজে থেকে লগআউট হবে এবং কারণসহ বার্তা দেখাবে। “সময় নির্ধারণ নেই” রাখলে শুধু Device Session সংখ্যা নিয়ন্ত্রণ হবে।</div><button type="button" className="secondary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Policy সংরক্ষণ করুন'}</button></section>
       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Global announcement</h3><p>ড্যাশবোর্ডের ওপরে সবার জন্য ব্যানার নোটিশ</p></div></div><label className="platform-toggle"><span><strong>নোটিশ চালু</strong><small>চালু থাকলে অ্যাপের ব্যবহারকারীরা ব্যানার দেখবেন</small></span><input type="checkbox" checked={Boolean(settings.announcement_enabled)} onChange={(e)=>setSettings((old)=>({...old,announcement_enabled:e.target.checked}))}/></label><Field label="নোটিশ শিরোনাম" value={settings.announcement_title} onChange={(v)=>setSettings((old)=>({...old,announcement_title:v}))} maxLength={160}/><Field label="নোটিশের বিবরণ" value={settings.announcement_body} onChange={(v)=>setSettings((old)=>({...old,announcement_body:v}))} maxLength={3000} multiline/></section>
       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Developer Info</h3><p>তথ্য ও ছবি Supabase-এ সংরক্ষণ হবে</p></div></div><Field label="নাম" value={settings.developer_name} onChange={(v)=>setSettings((old)=>({...old,developer_name:v}))} maxLength={160}/><Field label="পরিচয় / পদবি" value={settings.developer_title} onChange={(v)=>setSettings((old)=>({...old,developer_title:v}))} maxLength={240}/>
         <div className="developer-photo-uploader"><div className="developer-photo-preview">{settings.developer_photo_url?<img src={settings.developer_photo_url} alt="Developer preview"/>:<span><Icon name="camera" size={24}/></span>}</div><div className="developer-photo-copy"><strong>Developer-এর ছবি</strong><small>JPG / PNG / WEBP · সর্বোচ্চ ৫ MB। আপলোড করলে Supabase Storage-এ ফাইল থাকবে।</small><input ref={developerPhotoInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleDeveloperPhoto}/><button type="button" className="secondary-button compact" disabled={developerPhotoBusy||busy} onClick={()=>developerPhotoInputRef.current?.click()}><Icon name="camera" size={15}/>{developerPhotoBusy?'আপলোড হচ্ছে...':'ছবি আপলোড করুন'}</button></div></div>

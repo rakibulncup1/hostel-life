@@ -1,0 +1,916 @@
+diff --git a/src/contexts/AuthContext.jsx b/src/contexts/AuthContext.jsx
+index ddfc3f3..b5b9030 100644
+--- a/src/contexts/AuthContext.jsx
++++ b/src/contexts/AuthContext.jsx
+@@ -7,21 +7,28 @@ import { readIdentitySnapshot, requestPersistentStorage, saveIdentitySnapshot }
+ const AuthContext = createContext(null);
+ 
+ const LOGOUT_AUDIT_TIMEOUT_MS = 1500;
+-const SESSION_POLICY_CACHE_MS = 90 * 1000;
++const SESSION_POLICY_CACHE_MS = 15 * 1000;
+ const SESSION_LIMIT_NOTICE_KEY = 'hostel-life-session-limit-notice-v1';
+ const SESSION_LIMIT_NOTICE_EVENT = 'hostel-life-session-limit-notice';
+ 
+ function sessionPolicyCacheKey(session) {
+   const userId = session?.user?.id || 'unknown-user';
+-  // Supabase's expires_at remains stable for the life of an access token.
+-  // The database evaluates the actual auth.sessions id from the signed JWT.
+-  return `${userId}:${session?.expires_at || session?.access_token?.slice(-24) || 'current'}`;
++  // Prefer a token-specific suffix so a rapid account/session switch cannot
++  // reuse another browser session's cached policy response.
++  return `${userId}:${session?.access_token?.slice(-24) || session?.expires_at || 'current'}`;
+ }
+ 
+-function sessionLimitError(limit) {
+-  const error = new Error(`এই অ্যাকাউন্টে সর্বোচ্চ ${Number(limit || 10).toLocaleString('bn-BD')}টি আলাদা ডিভাইস/ব্রাউজার সেশন অনুমোদিত। এই ডিভাইসের সেশনটি নির্ধারিত সীমার বাইরে থাকায় অ্যাক্সেস বন্ধ করা হয়েছে। আগে তৈরি বৈধ সেশনগুলো অগ্রাধিকার পায়।`);
++function sessionLimitError(policy) {
++  const reason = String(policy?.reason || 'session_revoked');
++  const message = reason === 'session_expired'
++    ? 'নিরাপত্তার কারণে আপনার লগইন সেশনের নির্ধারিত সময় শেষ হয়েছে। আবার লগইন করে Hostel Life ব্যবহার করুন।'
++    : reason === 'session_revoked' || reason === 'device_limit'
++      ? 'এই অ্যাকাউন্টে নতুন লগইন হওয়ায় এই ডিভাইসের পুরোনো সেশন বন্ধ করা হয়েছে। নিরাপত্তার জন্য আবার লগইন করুন।'
++      : 'এই লগইন সেশনটি আর সক্রিয় নেই। নিরাপত্তার জন্য আবার লগইন করুন।';
++  const error = new Error(message);
+   error.code = 'SESSION_LIMIT_EXCEEDED';
+-  error.maxDevices = Number(limit || 10);
++  error.reason = reason;
++  error.maxDevices = Number(policy?.max_devices_per_user || 10);
+   return error;
+ }
+ 
+@@ -91,6 +98,7 @@ export function AuthProvider({ children }) {
+   const [identityLoading, setIdentityLoading] = useState(false);
+   const [identityError, setIdentityError] = useState(null);
+   const [offlineIdentity, setOfflineIdentity] = useState(false);
++  const [sessionExpiryAt, setSessionExpiryAt] = useState(null);
+ 
+   const clearIdentity = useCallback(() => {
+     invalidateRequestCache();
+@@ -104,6 +112,21 @@ export function AuthProvider({ children }) {
+   const sessionPolicyCacheRef = useRef(new Map());
+   const sessionPolicyInFlightRef = useRef(new Map());
+ 
++  const endCurrentSessionWithNotice = useCallback(async (message) => {
++    try { window.sessionStorage.setItem(SESSION_LIMIT_NOTICE_KEY, message); } catch { /* best-effort notice */ }
++    try { window.dispatchEvent(new CustomEvent(SESSION_LIMIT_NOTICE_EVENT, { detail: { message } })); } catch { /* best-effort notice */ }
++    try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Confirm local state below. */ }
++    try {
++      const { data } = await supabase.auth.getSession();
++      if (!data?.session) {
++        setSession(null);
++        setSessionExpiryAt(null);
++        clearIdentity();
++        sessionPolicyCacheRef.current.clear();
++      }
++    } catch { /* The Auth listener will clear local identity when storage is removed. */ }
++  }, [clearIdentity]);
++
+   const enforceSessionLimit = useCallback(async (targetSession) => {
+     if (!supabaseConfigReady || !supabase || !targetSession?.user?.id) return null;
+     const cacheKey = sessionPolicyCacheKey(targetSession);
+@@ -117,25 +140,18 @@ export function AuthProvider({ children }) {
+       if (error) throw error;
+       const policy = Array.isArray(data) ? data[0] ?? null : data;
+       if (!policy || policy.allowed !== true) {
+-        const denied = sessionLimitError(policy?.max_devices_per_user);
+-        try { window.sessionStorage.setItem(SESSION_LIMIT_NOTICE_KEY, denied.message); } catch { /* Notification is best-effort. */ }
+-        try { window.dispatchEvent(new CustomEvent(SESSION_LIMIT_NOTICE_EVENT, { detail: { message: denied.message } })); } catch { /* UI notification is best-effort. */ }
+-
+-        // A denied session only signs out this browser. Other sessions are not
+-        // revoked or deleted from the server by this client-side action.
+-        try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Confirm local state below. */ }
++        const denied = sessionLimitError(policy || {});
++        await endCurrentSessionWithNotice(denied.message);
+         const { data: current, error: currentError } = await supabase.auth.getSession();
+         if (currentError || current?.session) {
+-          const failure = new Error('Device/Browser Session Limit অতিক্রম করেছে, কিন্তু এই ডিভাইসের স্থানীয় সেশন নিরাপদে বন্ধ করা যায়নি। আবার চেষ্টা করুন।');
++          const failure = new Error('নিরাপত্তার কারণে সেশন বন্ধ করার চেষ্টা করা হয়েছে, কিন্তু এই ডিভাইসের স্থানীয় লগইন পরিষ্কার হয়নি। আবার চেষ্টা করুন।');
+           failure.code = 'SESSION_LIMIT_SIGNOUT_FAILED';
+           throw failure;
+         }
+-        setSession(null);
+-        clearIdentity();
+-        sessionPolicyCacheRef.current.clear();
+         throw denied;
+       }
+ 
++      setSessionExpiryAt(policy.expires_at || null);
+       sessionPolicyCacheRef.current.set(cacheKey, { checkedAt: Date.now(), result: policy });
+       // Keep only a few recent token/expiry keys in memory.
+       if (sessionPolicyCacheRef.current.size > 8) {
+@@ -148,7 +164,7 @@ export function AuthProvider({ children }) {
+     sessionPolicyInFlightRef.current.set(cacheKey, task);
+     try { return await task; }
+     finally { if (sessionPolicyInFlightRef.current.get(cacheKey) === task) sessionPolicyInFlightRef.current.delete(cacheKey); }
+-  }, [clearIdentity]);
++  }, [clearIdentity, endCurrentSessionWithNotice]);
+ 
+   const refreshIdentity = useCallback(async () => {
+     if (!session?.user) {
+@@ -224,6 +240,7 @@ export function AuthProvider({ children }) {
+       if (event === 'TOKEN_REFRESHED') return;
+       // Leave the Supabase auth callback lock before making an RPC request.
+       if (event === 'SIGNED_IN' && nextSession?.user?.id) {
++        setSessionExpiryAt(null);
+         window.setTimeout(async () => {
+           try {
+             await enforceSessionLimit(nextSession);
+@@ -247,6 +264,7 @@ export function AuthProvider({ children }) {
+       }
+       setAuthLoading(false);
+       if (!nextSession) {
++        setSessionExpiryAt(null);
+         clearIdentity();
+         setOfflineIdentity(false);
+       }
+@@ -264,6 +282,20 @@ export function AuthProvider({ children }) {
+   }, [session, refreshIdentity]);
+ 
+ 
++  useEffect(() => {
++    if (!session?.user?.id || !sessionExpiryAt) return undefined;
++    const expiresAt = new Date(sessionExpiryAt).getTime();
++    if (!Number.isFinite(expiresAt)) return undefined;
++    const remaining = expiresAt - Date.now();
++    const message = 'নিরাপত্তার কারণে আপনার লগইন সেশনের নির্ধারিত সময় শেষ হয়েছে। আবার লগইন করে Hostel Life ব্যবহার করুন।';
++    if (remaining <= 0) {
++      endCurrentSessionWithNotice(message);
++      return undefined;
++    }
++    const timer = window.setTimeout(() => endCurrentSessionWithNotice(message), Math.min(remaining, 2147483000));
++    return () => window.clearTimeout(timer);
++  }, [session?.user?.id, sessionExpiryAt, endCurrentSessionWithNotice]);
++
+   useEffect(() => {
+     if (!session?.user?.id || !supabase) return undefined;
+     let active = true;
+@@ -295,7 +327,7 @@ export function AuthProvider({ children }) {
+     const interactionEvents = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'];
+     interactionEvents.forEach((eventName) => window.addEventListener(eventName, markInteraction, { passive: true }));
+     heartbeat();
+-    const interval = window.setInterval(heartbeat, 15 * 60 * 1000);
++    const interval = window.setInterval(heartbeat, 60 * 1000);
+     window.addEventListener('focus', onInteraction);
+     document.addEventListener('visibilitychange', onVisible);
+     return () => {
+@@ -327,6 +359,7 @@ export function AuthProvider({ children }) {
+     const activityRecorded = await recordLogoutBestEffort();
+     const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
+     setSession(null);
++    setSessionExpiryAt(null);
+     clearIdentity();
+     return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
+   }, [clearIdentity]);
+@@ -337,6 +370,7 @@ export function AuthProvider({ children }) {
+     const activityRecorded = await recordLogoutBestEffort();
+     const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
+     setSession(null);
++    setSessionExpiryAt(null);
+     clearIdentity();
+     return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
+   }, [clearIdentity]);
+@@ -354,10 +388,11 @@ export function AuthProvider({ children }) {
+     identityLoading,
+     identityError,
+     offlineIdentity,
++    sessionExpiryAt,
+     refreshIdentity,
+     signOut,
+     signOutLocal,
+-  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityError, offlineIdentity, refreshIdentity, signOut, signOutLocal]);
++  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityError, offlineIdentity, sessionExpiryAt, refreshIdentity, signOut, signOutLocal]);
+ 
+   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+ }
+diff --git a/src/features/auth/AuthPage.jsx b/src/features/auth/AuthPage.jsx
+index d20923f..00d430a 100644
+--- a/src/features/auth/AuthPage.jsx
++++ b/src/features/auth/AuthPage.jsx
+@@ -128,7 +128,7 @@ function LoginForm() {
+ 
+   return (
+     <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার তথ্য দিয়ে নিরাপদে Hostel Life-এ লগইন করুন।">
+-      {sessionPolicyNotice && <div className="auth-policy-notice" role="alert"><Icon name="shield-alert" size={18} /><span>{sessionPolicyNotice}</span><button type="button" aria-label="বার্তা বন্ধ করুন" onClick={() => setSessionPolicyNotice('')}>×</button></div>}
++      {sessionPolicyNotice && <div className="auth-session-dialog-backdrop" role="presentation"><section className="auth-session-dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-session-dialog-title" aria-describedby="auth-session-dialog-description"><span className="auth-session-dialog-icon"><Icon name="shield-alert" size={25}/></span><h3 id="auth-session-dialog-title">নিরাপত্তার কারণে লগআউট</h3><p id="auth-session-dialog-description">{sessionPolicyNotice}</p><button type="button" className="primary-button large" onClick={() => setSessionPolicyNotice('')}>বুঝেছি, আবার লগইন করব</button></section></div>}
+       <form className="form-stack" onSubmit={submit}>
+         <label className="field-label">
+           <span>ইমেইল</span>
+diff --git a/src/features/platform/SuperAdminPage.jsx b/src/features/platform/SuperAdminPage.jsx
+index 9d9c886..50dbf94 100644
+--- a/src/features/platform/SuperAdminPage.jsx
++++ b/src/features/platform/SuperAdminPage.jsx
+@@ -11,7 +11,7 @@ import {
+   fetchPlatformPublicSettings, platformAdminGenerateAccessCode, platformAdminGetOverview,
+   platformAdminListHostelMembers, platformAdminListHostelRoleBadges, platformAdminListHostels, platformAdminSetGate,
+   platformAdminSetHostelStatus, platformAdminSetUserBlocked, platformAdminUpdatePublicSettings,
+-  platformAdminSetDefaultTheme, platformAdminGetSessionPolicy, platformAdminSetMaxDevicesPerUser,
++  platformAdminSetDefaultTheme, platformAdminGetSessionPolicy, platformAdminSetSessionPolicy,
+   platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel,
+   platformAdminPermanentlyDeleteMember, uploadDeveloperPhoto,
+   platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
+@@ -27,7 +27,7 @@ const EMPTY_SETTINGS = {
+   announcement_enabled: false, announcement_title: '', announcement_body: '',
+   registration_code_required: false, hostel_creation_code_required: false,
+   developer_name: '', developer_title: '', developer_photo_url: '', developer_email: '',
+-  developer_phone: '', developer_portfolio_url: '', default_theme: 'dark', max_devices_per_user: 10,
++  developer_phone: '', developer_portfolio_url: '', default_theme: 'dark', max_devices_per_user: 10, session_timeout_minutes: 0,
+ };
+ const errorText = (error, fallback) => /platform_admin_|get_platform_public_settings|function .* does not exist|schema cache/i.test(String(error?.message || ''))
+   ? 'Super Admin SQL এখনো প্রয়োগ করা হয়নি। প্রথমে প্রয়োজনীয় Super Admin SQL Migration চালিয়ে schema reload হওয়া পর্যন্ত অপেক্ষা করুন।'
+@@ -390,6 +390,7 @@ export function SuperAdminPage({ user }) {
+         ...EMPTY_SETTINGS,
+         ...(Array.isArray(settingsValue) ? settingsValue[0] : settingsValue || {}),
+         max_devices_per_user: Number(sessionPolicyValue?.max_devices_per_user) || 10,
++        session_timeout_minutes: Number(sessionPolicyValue?.session_timeout_minutes) || 0,
+       });
+     } else failures.push(`প্ল্যাটফর্ম সেটিংস: ${errorText(publicSettings.reason, 'তথ্য লোড হয়নি')}`);
+     if (sessionPolicy.status === 'rejected') failures.push(`Device Policy: ${errorText(sessionPolicy.reason, 'তথ্য লোড হয়নি')}`);
+@@ -1004,17 +1005,23 @@ export function SuperAdminPage({ user }) {
+ 
+   const saveDeviceLimit = async () => {
+     const limit = Number(settings.max_devices_per_user);
++    const timeoutMinutes = Number(settings.session_timeout_minutes || 0);
+     if (!Number.isInteger(limit) || limit < 1 || limit > 30) {
+-      setError('সর্বোচ্চ Device/Browser Session সংখ্যা ১ থেকে ৩০-এর মধ্যে নির্বাচন করুন।');
++      setError('একসঙ্গে সর্বোচ্চ Login Session সংখ্যা ১ থেকে ৩০-এর মধ্যে নির্বাচন করুন।');
++      return;
++    }
++    if (!Number.isInteger(timeoutMinutes) || timeoutMinutes < 0 || timeoutMinutes > 10080) {
++      setError('Session-এর সময় ০ থেকে ১০,০৮০ মিনিটের মধ্যে নির্বাচন করুন।');
+       return;
+     }
+     setDeviceLimitBusy(true); setError(''); setNotice('');
+     try {
+-      await platformAdminSetMaxDevicesPerUser(limit);
+-      setNotice(`প্রতি অ্যাকাউন্টে সর্বোচ্চ ${limit.toLocaleString('bn-BD')}টি আলাদা Browser/Device Login Session সংরক্ষণ করা হবে। সক্রিয় সেশনগুলো পরবর্তী যাচাই বা Heartbeat-এ নতুন নীতি অনুসরণ করবে।`);
++      const result = await platformAdminSetSessionPolicy(limit, timeoutMinutes);
++      const timeoutLabel = timeoutMinutes === 0 ? 'নির্দিষ্ট সময়সীমা নেই' : `${timeoutMinutes.toLocaleString('bn-BD')} মিনিট`;
++      setNotice(`Session Policy সংরক্ষিত হয়েছে। নতুন Login এলে সবচেয়ে পুরোনো Session স্বয়ংক্রিয়ভাবে বন্ধ হবে। প্রতি Session-এর সময়: ${timeoutLabel}।${Number(result?.revoked_sessions) ? ` ${Number(result.revoked_sessions).toLocaleString('bn-BD')}টি পুরোনো Session বন্ধ করা হয়েছে।` : ''}`);
+       await refresh();
+     } catch (cause) {
+-      setError(errorText(cause, 'Device/Browser Session Limit সংরক্ষণ করা যায়নি।'));
++      setError(errorText(cause, 'Session Policy সংরক্ষণ করা যায়নি।'));
+     } finally {
+       setDeviceLimitBusy(false);
+     }
+@@ -1365,7 +1372,7 @@ export function SuperAdminPage({ user }) {
+     </section>}
+     {tab === 'settings' && <form className="platform-settings-grid" onSubmit={saveSettings}>
+       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>নতুন ব্যবহারকারীর Default Theme</h3><p>যাঁদের ব্রাউজারে আগে থেকে Theme Preference নেই, তাঁদের প্রথম প্রবেশে এই থিম ব্যবহার হবে। সংরক্ষিত ব্যক্তিগত পছন্দ পরিবর্তন হবে না।</p></div></div><label className="field-label"><span>ডিফল্ট থিম</span><select value={settings.default_theme || 'dark'} onChange={(e) => setSettings((old) => ({ ...old, default_theme: e.target.value }))}><option value="system">সিস্টেম</option><option value="light">লাইট</option><option value="dark">ডার্ক</option><option value="blue">আকাশি</option></select></label><button type="button" className="secondary-button" disabled={defaultThemeBusy} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button></section>
+-      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>একটি অ্যাকাউন্টে সর্বোচ্চ Device / Browser Session</h3><p>একই Browser-এর একাধিক Tab একটি Session হিসেবে গণ্য হবে। আলাদা Browser Profile বা ডিভাইসে নতুন Login করলে আলাদা Session হিসেবে গণনা হবে।</p></div><span className="platform-status">১–৩০</span></div><label className="field-label"><span>সর্বোচ্চ সক্রিয় Login Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label><div className="platform-retention-hint"><Icon name="shield-check" size={15}/> সীমা ছাড়ালে নতুন/সাম্প্রতিক Session-এর অ্যাক্সেস বন্ধ হবে; আগে থেকে থাকা পুরোনো Session-গুলো অগ্রাধিকার পাবে। নীতি পরিবর্তনের পর ব্যবহারকারী পরবর্তী Login, পরিচয় যাচাই বা সক্রিয় Session Heartbeat-এ সীমা অনুযায়ী যাচাই হবে।</div><button type="button" className="secondary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Limit সংরক্ষণ করুন'}</button></section>
++      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Login Session নিরাপত্তা</h3><p>একই Browser Session-এর একাধিক Tab একটিই গণ্য হবে। নতুন ডিভাইস/Browser থেকে Login হলে নতুন Session চালু থাকবে এবং সবচেয়ে পুরোনো Session স্বয়ংক্রিয়ভাবে বন্ধ হবে।</p></div><span className="platform-status">১–৩০</span></div><label className="field-label"><span>এক অ্যাকাউন্টে একসঙ্গে সর্বোচ্চ Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label><label className="field-label"><span>প্রতি Login Session কতক্ষণ সক্রিয় থাকবে?</span><select value={settings.session_timeout_minutes ?? 0} onChange={(e) => setSettings((old) => ({ ...old, session_timeout_minutes: Number(e.target.value) }))}><option value={0}>সময় নির্ধারণ নেই</option><option value={15}>১৫ মিনিট</option><option value={30}>৩০ মিনিট</option><option value={60}>১ ঘণ্টা</option><option value={120}>২ ঘণ্টা</option><option value={240}>৪ ঘণ্টা</option><option value={480}>৮ ঘণ্টা</option><option value={720}>১২ ঘণ্টা</option><option value={1440}>২৪ ঘণ্টা</option><option value={4320}>৩ দিন</option><option value={10080}>৭ দিন</option></select></label><div className="platform-retention-hint"><Icon name="shield-check" size={15}/> নতুন Login হলে সবচেয়ে পুরোনো Session বাদ যাবে। নির্ধারিত সময় শেষ হলে খোলা অ্যাপ নিজে থেকে লগআউট হবে এবং কারণসহ বার্তা দেখাবে। “সময় নির্ধারণ নেই” রাখলে শুধু Device Session সংখ্যা নিয়ন্ত্রণ হবে।</div><button type="button" className="secondary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Policy সংরক্ষণ করুন'}</button></section>
+       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Global announcement</h3><p>ড্যাশবোর্ডের ওপরে সবার জন্য ব্যানার নোটিশ</p></div></div><label className="platform-toggle"><span><strong>নোটিশ চালু</strong><small>চালু থাকলে অ্যাপের ব্যবহারকারীরা ব্যানার দেখবেন</small></span><input type="checkbox" checked={Boolean(settings.announcement_enabled)} onChange={(e)=>setSettings((old)=>({...old,announcement_enabled:e.target.checked}))}/></label><Field label="নোটিশ শিরোনাম" value={settings.announcement_title} onChange={(v)=>setSettings((old)=>({...old,announcement_title:v}))} maxLength={160}/><Field label="নোটিশের বিবরণ" value={settings.announcement_body} onChange={(v)=>setSettings((old)=>({...old,announcement_body:v}))} maxLength={3000} multiline/></section>
+       <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Developer Info</h3><p>তথ্য ও ছবি Supabase-এ সংরক্ষণ হবে</p></div></div><Field label="নাম" value={settings.developer_name} onChange={(v)=>setSettings((old)=>({...old,developer_name:v}))} maxLength={160}/><Field label="পরিচয় / পদবি" value={settings.developer_title} onChange={(v)=>setSettings((old)=>({...old,developer_title:v}))} maxLength={240}/>
+         <div className="developer-photo-uploader"><div className="developer-photo-preview">{settings.developer_photo_url?<img src={settings.developer_photo_url} alt="Developer preview"/>:<span><Icon name="camera" size={24}/></span>}</div><div className="developer-photo-copy"><strong>Developer-এর ছবি</strong><small>JPG / PNG / WEBP · সর্বোচ্চ ৫ MB। আপলোড করলে Supabase Storage-এ ফাইল থাকবে।</small><input ref={developerPhotoInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleDeveloperPhoto}/><button type="button" className="secondary-button compact" disabled={developerPhotoBusy||busy} onClick={()=>developerPhotoInputRef.current?.click()}><Icon name="camera" size={15}/>{developerPhotoBusy?'আপলোড হচ্ছে...':'ছবি আপলোড করুন'}</button></div></div>
+diff --git a/src/services/platformService.js b/src/services/platformService.js
+index 508199a..8797d28 100644
+--- a/src/services/platformService.js
++++ b/src/services/platformService.js
+@@ -429,12 +429,21 @@ export async function platformAdminGetSessionPolicy() {
+   assertSupabase();
+   const { data, error } = await supabase.rpc('platform_admin_get_session_policy');
+   if (error) throw error;
+-  return firstRow(data) || { max_devices_per_user: 10 };
++  return firstRow(data) || { max_devices_per_user: 10, session_timeout_minutes: 0 };
+ }
+ 
+-export async function platformAdminSetMaxDevicesPerUser(limit) {
++export async function platformAdminSetSessionPolicy(limit, timeoutMinutes = 0) {
+   assertSupabase();
+-  const { data, error } = await supabase.rpc('platform_admin_set_max_devices_per_user', { p_limit: Number(limit) });
++  const { data, error } = await supabase.rpc('platform_admin_set_session_policy', {
++    p_limit: Number(limit),
++    p_timeout_minutes: Number(timeoutMinutes),
++  });
+   if (error) throw error;
+   return firstRow(data) || data;
+ }
++
++// Backward-compatible service alias for older callers.
++export async function platformAdminSetMaxDevicesPerUser(limit) {
++  const current = await platformAdminGetSessionPolicy();
++  return platformAdminSetSessionPolicy(limit, current?.session_timeout_minutes || 0);
++}
+diff --git a/src/styles/public-entry.css b/src/styles/public-entry.css
+index 7fdf93e..d90973b 100644
+--- a/src/styles/public-entry.css
++++ b/src/styles/public-entry.css
+@@ -508,3 +508,13 @@
+ .auth-policy-notice > svg { flex:0 0 auto; margin-top:1px; color:var(--danger, #b42318); }
+ .auth-policy-notice > span { flex:1; min-width:0; }
+ .auth-policy-notice > button { flex:0 0 28px; width:28px; height:28px; border:0; border-radius:8px; background:var(--surface-2); color:var(--muted); font-size:19px; cursor:pointer; }
++
++
++/* Session termination notice shown after a device is replaced or a timed session expires. */
++.auth-session-dialog-backdrop { position:fixed; inset:0; z-index:10050; display:grid; place-items:center; padding:20px; background:rgb(12 22 35 / 62%); backdrop-filter:blur(7px); }
++.auth-session-dialog { width:min(100%,440px); display:grid; justify-items:center; gap:13px; padding:clamp(22px,5vw,32px); border:1px solid var(--line); border-radius:24px; background:var(--surface); color:var(--text); box-shadow:0 24px 80px rgb(0 0 0 / 28%); text-align:center; }
++.auth-session-dialog-icon { width:54px; height:54px; display:grid; place-items:center; border-radius:18px; background:color-mix(in srgb,var(--danger,#b42318) 12%,var(--surface)); color:var(--danger,#b42318); }
++.auth-session-dialog h3 { margin:0; color:var(--text); font-size:clamp(18px,4vw,21px); font-weight:800; }
++.auth-session-dialog p { max-width:36ch; margin:0; color:var(--muted); font-size:14px; line-height:1.8; }
++.auth-session-dialog .primary-button { width:100%; margin-top:5px; }
++@media (prefers-reduced-motion:no-preference) { .auth-session-dialog { animation:auth-session-dialog-in .18s ease-out; } @keyframes auth-session-dialog-in { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } } }
+diff --git a/supabase/migrations/Run30_corrective_newest_session_wins.sql b/supabase/migrations/Run30_corrective_newest_session_wins.sql
+new file mode 100644
+index 0000000..12a7d00
+--- /dev/null
++++ b/supabase/migrations/Run30_corrective_newest_session_wins.sql
+@@ -0,0 +1,457 @@
++-- ============================================================================
++-- HOSTEL LIFE — Run30
++-- Corrective session policy: newest login wins; oldest sessions are revoked.
++-- Also supports an optional fixed session lifetime configured by Super Admin.
++--
++-- IMPORTANT:
++--   * This migration repairs the previous Run28 policy that denied the newest
++--     session and kept the oldest sessions.
++--   * Existing auth.sessions are backfilled as allowed; this migration itself
++--     does NOT sign users out or delete Auth sessions.
++--   * On the next NEW login, the newest N app sessions are retained and older
++--     ones are revoked at the application/RLS layer. Their clients sign out
++--     locally on the next active heartbeat/focus event.
++--   * A timeout of 0 means no fixed app-level expiry. Existing sessions receive
++--     a fresh timeout window only when Super Admin changes the policy.
++-- ============================================================================
++
++BEGIN;
++SET LOCAL lock_timeout = '8s';
++SET LOCAL statement_timeout = '120s';
++
++DO $run30_preflight$
++BEGIN
++  IF to_regclass('public.platform_settings') IS NULL
++     OR to_regclass('public.profiles') IS NULL
++     OR to_regclass('auth.sessions') IS NULL
++     OR to_regclass('auth.users') IS NULL THEN
++    RAISE EXCEPTION 'Run30 stopped: required platform/auth tables are missing. Apply the existing Run28 migration first.';
++  END IF;
++  IF NOT EXISTS (SELECT 1 FROM public.platform_settings WHERE singleton=true) THEN
++    RAISE EXCEPTION 'Run30 stopped: the singleton platform_settings row is missing; no session policy changes were made.';
++  END IF;
++  IF NOT EXISTS (
++    SELECT 1 FROM information_schema.columns
++    WHERE table_schema='public' AND table_name='platform_settings' AND column_name='max_devices_per_user'
++  ) OR NOT EXISTS (
++    SELECT 1 FROM information_schema.columns
++    WHERE table_schema='auth' AND table_name='sessions' AND column_name='id'
++  ) OR NOT EXISTS (
++    SELECT 1 FROM information_schema.columns
++    WHERE table_schema='auth' AND table_name='sessions' AND column_name='user_id'
++  ) OR NOT EXISTS (
++    SELECT 1 FROM information_schema.columns
++    WHERE table_schema='auth' AND table_name='sessions' AND column_name='created_at'
++  ) OR NOT EXISTS (
++    SELECT 1 FROM information_schema.columns
++    WHERE table_schema='auth' AND table_name='sessions' AND column_name='not_after'
++  ) THEN
++    RAISE EXCEPTION 'Run30 stopped: Run28 session policy or expected Supabase Auth session columns are missing.';
++  END IF;
++  IF to_regprocedure('private.assert_signed_in()') IS NULL
++     OR to_regprocedure('private.is_super_admin()') IS NULL
++     OR to_regprocedure('private.can_access_hostel(uuid)') IS NULL
++     OR to_regprocedure('private.can_manage_hostel(uuid,uuid,boolean,boolean)') IS NULL THEN
++    RAISE EXCEPTION 'Run30 stopped: required Hostel Life authorization helpers are missing.';
++  END IF;
++END;
++$run30_preflight$;
++
++-- ---------------------------------------------------------------------------
++-- 1. Session registry. It is not directly readable/writable by client roles.
++-- ---------------------------------------------------------------------------
++ALTER TABLE public.platform_settings
++  ADD COLUMN IF NOT EXISTS session_timeout_minutes integer NOT NULL DEFAULT 0;
++
++DO $run30_timeout_constraint$
++BEGIN
++  IF NOT EXISTS (
++    SELECT 1 FROM pg_constraint
++    WHERE conrelid='public.platform_settings'::regclass
++      AND conname='platform_settings_session_timeout_check'
++  ) THEN
++    ALTER TABLE public.platform_settings
++      ADD CONSTRAINT platform_settings_session_timeout_check
++      CHECK (session_timeout_minutes BETWEEN 0 AND 10080) NOT VALID;
++  END IF;
++END;
++$run30_timeout_constraint$;
++ALTER TABLE public.platform_settings VALIDATE CONSTRAINT platform_settings_session_timeout_check;
++
++CREATE TABLE IF NOT EXISTS public.hl_auth_sessions (
++  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
++  session_id uuid NOT NULL,
++  auth_created_at timestamptz NOT NULL,
++  registered_at timestamptz NOT NULL DEFAULT now(),
++  last_seen_at timestamptz NOT NULL DEFAULT now(),
++  expires_at timestamptz,
++  revoked_at timestamptz,
++  revoke_reason text,
++  created_at timestamptz NOT NULL DEFAULT now(),
++  updated_at timestamptz NOT NULL DEFAULT now(),
++  PRIMARY KEY (user_id,session_id),
++  CONSTRAINT hl_auth_sessions_revoke_reason_check
++    CHECK (revoke_reason IS NULL OR revoke_reason IN ('device_limit','session_timeout','manual_policy_update','auth_session_missing'))
++);
++CREATE INDEX IF NOT EXISTS hl_auth_sessions_active_user_idx
++  ON public.hl_auth_sessions(user_id,registered_at DESC)
++  WHERE revoked_at IS NULL;
++CREATE INDEX IF NOT EXISTS hl_auth_sessions_expiry_idx
++  ON public.hl_auth_sessions(expires_at)
++  WHERE revoked_at IS NULL AND expires_at IS NOT NULL;
++ALTER TABLE public.hl_auth_sessions ENABLE ROW LEVEL SECURITY;
++REVOKE ALL ON TABLE public.hl_auth_sessions FROM PUBLIC,anon,authenticated;
++
++-- Preserve every currently active Supabase Auth session at migration time.
++-- No old device is revoked merely because this corrective migration is run.
++INSERT INTO public.hl_auth_sessions(
++  user_id,session_id,auth_created_at,registered_at,last_seen_at,expires_at
++)
++SELECT s.user_id,s.id,s.created_at,s.created_at,now(),
++  CASE WHEN ps.session_timeout_minutes>0
++    THEN s.created_at + make_interval(mins=>ps.session_timeout_minutes)
++    ELSE NULL END
++FROM auth.sessions s
++CROSS JOIN LATERAL (
++  SELECT coalesce(session_timeout_minutes,0) AS session_timeout_minutes
++  FROM public.platform_settings WHERE singleton=true LIMIT 1
++) ps
++WHERE s.not_after IS NULL OR s.not_after>now()
++ON CONFLICT(user_id,session_id) DO NOTHING;
++
++-- ---------------------------------------------------------------------------
++-- 2. Current-session validator used by existing restrictive RLS policies.
++--    Unlike Run28, it does not rank old/new sessions and never blocks a newly
++--    created current session merely because it is newer.
++-- ---------------------------------------------------------------------------
++CREATE OR REPLACE FUNCTION private.is_current_auth_session_allowed()
++RETURNS boolean
++LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
++DECLARE
++  v_user uuid := auth.uid();
++  v_session uuid;
++BEGIN
++  IF v_user IS NULL THEN RETURN false; END IF;
++  IF EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=v_user AND p.is_blocked) THEN
++    RETURN false;
++  END IF;
++  BEGIN
++    v_session := nullif(auth.jwt()->>'session_id','')::uuid;
++  EXCEPTION WHEN invalid_text_representation THEN
++    RETURN false;
++  END;
++  IF v_session IS NULL THEN RETURN false; END IF;
++
++  RETURN EXISTS (
++    SELECT 1
++    FROM public.hl_auth_sessions app_s
++    JOIN auth.sessions auth_s ON auth_s.id=app_s.session_id AND auth_s.user_id=app_s.user_id
++    WHERE app_s.user_id=v_user AND app_s.session_id=v_session
++      AND app_s.revoked_at IS NULL
++      AND (app_s.expires_at IS NULL OR app_s.expires_at>now())
++      AND (auth_s.not_after IS NULL OR auth_s.not_after>now())
++  );
++END;
++$$;
++REVOKE ALL ON FUNCTION private.is_current_auth_session_allowed() FROM PUBLIC,anon;
++GRANT EXECUTE ON FUNCTION private.is_current_auth_session_allowed() TO authenticated;
++
++-- Restore the original authorization semantics, adding only the new session
++-- registry check. The period-aware manager rule is copied from the final Run1
++-- definition, not the earlier, less restrictive version.
++CREATE OR REPLACE FUNCTION private.assert_signed_in()
++RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
++BEGIN
++  IF auth.uid() IS NULL THEN
++    RAISE EXCEPTION USING message='এই কাজটি করতে আগে লগইন করুন।',errcode='28000';
++  END IF;
++  IF EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=auth.uid() AND p.is_blocked) THEN
++    RAISE EXCEPTION USING message='আপনার অ্যাকাউন্টটি বর্তমানে ব্লক করা হয়েছে।',errcode='42501';
++  END IF;
++  IF NOT private.is_current_auth_session_allowed() THEN
++    RAISE EXCEPTION USING message='নিরাপত্তার কারণে এই Login Session বন্ধ করা হয়েছে বা এর নির্ধারিত সময় শেষ হয়েছে। আবার লগইন করুন।',errcode='42501';
++  END IF;
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION private.is_super_admin()
++RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
++  SELECT private.is_current_auth_session_allowed()
++    AND EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=auth.uid() AND p.role='super_admin' AND NOT p.is_blocked)
++$$;
++
++CREATE OR REPLACE FUNCTION private.can_access_hostel(p_hostel_id uuid)
++RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
++  SELECT private.is_current_auth_session_allowed() AND (
++    EXISTS (
++      SELECT 1 FROM public.hostel_memberships m
++      JOIN public.profiles p ON p.id=m.user_id
++      JOIN public.hostels h ON h.id=m.hostel_id
++      WHERE m.user_id=auth.uid() AND m.hostel_id=p_hostel_id
++        AND m.status='active' AND NOT p.is_blocked AND h.platform_status='active'
++    ) OR private.is_super_admin()
++  )
++$$;
++
++CREATE OR REPLACE FUNCTION private.can_manage_hostel(
++  p_hostel_id uuid,p_period_id uuid DEFAULT NULL,
++  p_primary_only boolean DEFAULT false,p_allow_archive boolean DEFAULT false
++)
++RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
++  SELECT private.is_current_auth_session_allowed() AND (
++    private.is_super_admin()
++    OR EXISTS (
++      SELECT 1 FROM public.monthly_periods mp
++      WHERE mp.hostel_id=p_hostel_id AND mp.status='running' AND (p_period_id IS NULL OR mp.id=p_period_id)
++        AND (
++          EXISTS (
++            SELECT 1 FROM public.hostel_memberships m JOIN public.profiles p ON p.id=m.user_id
++            WHERE m.id=mp.primary_manager_membership_id AND m.user_id=auth.uid()
++              AND m.status='active' AND NOT p.is_blocked
++          )
++          OR (NOT p_primary_only AND EXISTS (
++            SELECT 1 FROM public.period_assistant_managers a
++            JOIN public.hostel_memberships m ON m.id=a.membership_id
++            JOIN public.profiles p ON p.id=m.user_id
++            WHERE a.period_id=mp.id AND m.user_id=auth.uid()
++              AND m.status='active' AND NOT p.is_blocked
++          ))
++        )
++    )
++    OR (p_period_id IS NULL AND EXISTS (
++      SELECT 1 FROM public.hostel_memberships m JOIN public.profiles p ON p.id=m.user_id
++      WHERE m.hostel_id=p_hostel_id AND m.user_id=auth.uid() AND m.role='manager'
++        AND m.status='active' AND NOT p.is_blocked
++        AND NOT EXISTS (SELECT 1 FROM public.monthly_periods mp WHERE mp.hostel_id=p_hostel_id AND mp.status='running')
++    ))
++    OR (p_allow_archive AND EXISTS (
++      SELECT 1 FROM public.archive_edit_permissions a JOIN public.hostel_memberships m ON m.id=a.membership_id
++      WHERE a.hostel_id=p_hostel_id AND a.period_id=p_period_id AND a.membership_id=private.my_membership_id()
++        AND a.revoked_at IS NULL AND (a.expires_at IS NULL OR a.expires_at>now())
++        AND m.status='active' AND m.user_id=auth.uid()
++    ))
++  )
++$$;
++
++-- ---------------------------------------------------------------------------
++-- 3. Session registration and newest-session-wins eviction.
++--    Existing sessions are kept during Run30. Only a newly created auth session
++--    triggers eviction. The newest configured number remain active.
++-- ---------------------------------------------------------------------------
++CREATE OR REPLACE FUNCTION public.hl_enforce_my_session_limit()
++RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
++DECLARE
++  v_user uuid := auth.uid();
++  v_session uuid;
++  v_auth_created_at timestamptz;
++  v_max integer := 10;
++  v_timeout integer := 0;
++  v_inserted integer := 0;
++  v_row public.hl_auth_sessions%ROWTYPE;
++  v_allowed boolean := false;
++  v_active integer := 0;
++  v_expires_at timestamptz;
++BEGIN
++  IF v_user IS NULL THEN
++    RAISE EXCEPTION USING message='এই কাজটি করতে আগে লগইন করুন।',errcode='28000';
++  END IF;
++  IF EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=v_user AND p.is_blocked) THEN
++    RAISE EXCEPTION USING message='আপনার অ্যাকাউন্টটি বর্তমানে ব্লক করা হয়েছে।',errcode='42501';
++  END IF;
++
++  BEGIN
++    v_session := nullif(auth.jwt()->>'session_id','')::uuid;
++  EXCEPTION WHEN invalid_text_representation THEN
++    v_session := NULL;
++  END;
++  IF v_session IS NULL THEN
++    RETURN jsonb_build_object('allowed',false,'reason','session_id_missing','max_devices_per_user',10);
++  END IF;
++
++  SELECT s.created_at INTO v_auth_created_at
++  FROM auth.sessions s
++  WHERE s.id=v_session AND s.user_id=v_user AND (s.not_after IS NULL OR s.not_after>now());
++  IF v_auth_created_at IS NULL THEN
++    RETURN jsonb_build_object('allowed',false,'reason','auth_session_missing','max_devices_per_user',10);
++  END IF;
++
++  PERFORM pg_advisory_xact_lock(hashtextextended('hostel-life-session-policy:'||v_user::text,0));
++  SELECT greatest(1,least(30,coalesce(max_devices_per_user,10))),
++         greatest(0,least(10080,coalesce(session_timeout_minutes,0)))
++  INTO v_max,v_timeout
++  FROM public.platform_settings WHERE singleton=true;
++  v_max := coalesce(v_max,10);
++  v_timeout := coalesce(v_timeout,0);
++
++  SELECT * INTO v_row FROM public.hl_auth_sessions
++  WHERE user_id=v_user AND session_id=v_session FOR UPDATE;
++
++  IF FOUND THEN
++    IF v_row.revoked_at IS NOT NULL THEN
++      RETURN jsonb_build_object('allowed',false,'reason','session_revoked',
++        'max_devices_per_user',v_max,'active_sessions',0,'expires_at',v_row.expires_at);
++    END IF;
++    IF v_row.expires_at IS NOT NULL AND v_row.expires_at<=now() THEN
++      UPDATE public.hl_auth_sessions
++      SET revoked_at=now(),revoke_reason='session_timeout',updated_at=now()
++      WHERE user_id=v_user AND session_id=v_session AND revoked_at IS NULL;
++      RETURN jsonb_build_object('allowed',false,'reason','session_expired',
++        'max_devices_per_user',v_max,'active_sessions',0,'expires_at',v_row.expires_at);
++    END IF;
++    UPDATE public.hl_auth_sessions SET last_seen_at=now(),updated_at=now()
++    WHERE user_id=v_user AND session_id=v_session;
++  ELSE
++    INSERT INTO public.hl_auth_sessions(
++      user_id,session_id,auth_created_at,registered_at,last_seen_at,expires_at
++    ) VALUES (
++      v_user,v_session,v_auth_created_at,now(),now(),
++      CASE WHEN v_timeout>0 THEN now()+make_interval(mins=>v_timeout) ELSE NULL END
++    ) ON CONFLICT(user_id,session_id) DO NOTHING;
++    GET DIAGNOSTICS v_inserted = ROW_COUNT;
++
++    -- This is the only automatic eviction point: a genuinely new Auth session.
++    -- Always keep the current newly created session first, then the newest others.
++    IF v_inserted=1 THEN
++      WITH ranked AS (
++        SELECT s.session_id,
++          row_number() OVER (ORDER BY (s.session_id=v_session) DESC,s.registered_at DESC,s.session_id DESC) AS position
++        FROM public.hl_auth_sessions s
++        WHERE s.user_id=v_user AND s.revoked_at IS NULL
++          AND (s.expires_at IS NULL OR s.expires_at>now())
++      )
++      UPDATE public.hl_auth_sessions s
++      SET revoked_at=now(),revoke_reason='device_limit',updated_at=now()
++      FROM ranked r
++      WHERE s.user_id=v_user AND s.session_id=r.session_id AND r.position>v_max
++        AND s.revoked_at IS NULL;
++    END IF;
++  END IF;
++
++  SELECT EXISTS (
++    SELECT 1 FROM public.hl_auth_sessions s JOIN auth.sessions a
++      ON a.id=s.session_id AND a.user_id=s.user_id
++    WHERE s.user_id=v_user AND s.session_id=v_session AND s.revoked_at IS NULL
++      AND (s.expires_at IS NULL OR s.expires_at>now())
++      AND (a.not_after IS NULL OR a.not_after>now())
++  ) INTO v_allowed;
++  SELECT count(*) INTO v_active FROM public.hl_auth_sessions s
++  WHERE s.user_id=v_user AND s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>now());
++  SELECT expires_at INTO v_expires_at FROM public.hl_auth_sessions
++  WHERE user_id=v_user AND session_id=v_session;
++
++  RETURN jsonb_build_object(
++    'allowed',v_allowed,'reason',CASE WHEN v_allowed THEN 'active' ELSE 'session_revoked' END,
++    'max_devices_per_user',v_max,'active_sessions',v_active,
++    'session_timeout_minutes',v_timeout,'expires_at',v_expires_at
++  );
++END;
++$$;
++
++-- ---------------------------------------------------------------------------
++-- 4. Super Admin session policy. Existing sessions receive a new window when
++--    the timeout policy is changed. Lowering the cap keeps the newest sessions.
++-- ---------------------------------------------------------------------------
++CREATE OR REPLACE FUNCTION public.platform_admin_get_session_policy()
++RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
++DECLARE v_limit integer; v_timeout integer;
++BEGIN
++  PERFORM private.assert_signed_in();
++  IF NOT private.is_super_admin() THEN
++    RAISE EXCEPTION USING message='শুধু Super Admin Session Policy দেখতে পারবেন।',errcode='42501';
++  END IF;
++  SELECT max_devices_per_user,session_timeout_minutes INTO v_limit,v_timeout
++  FROM public.platform_settings WHERE singleton=true;
++  RETURN jsonb_build_object('max_devices_per_user',coalesce(v_limit,10),
++    'session_timeout_minutes',coalesce(v_timeout,0),'minimum',1,'maximum',30);
++END;
++$$;
++
++CREATE OR REPLACE FUNCTION public.platform_admin_set_session_policy(p_limit integer,p_timeout_minutes integer)
++RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
++DECLARE
++  v_old_limit integer;
++  v_old_timeout integer;
++  v_current_session uuid;
++  v_now timestamptz := now();
++  v_revoked integer := 0;
++BEGIN
++  PERFORM private.assert_signed_in();
++  IF NOT private.is_super_admin() THEN
++    RAISE EXCEPTION USING message='শুধু Super Admin Session Policy পরিবর্তন করতে পারবেন।',errcode='42501';
++  END IF;
++  IF p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 30 THEN
++    RAISE EXCEPTION USING message='একসঙ্গে সর্বোচ্চ Session সংখ্যা ১ থেকে ৩০-এর মধ্যে হতে হবে।',errcode='22023';
++  END IF;
++  IF p_timeout_minutes IS NULL OR p_timeout_minutes NOT BETWEEN 0 AND 10080 THEN
++    RAISE EXCEPTION USING message='Session-এর সময় ০ থেকে ১০,০৮০ মিনিটের মধ্যে হতে হবে।',errcode='22023';
++  END IF;
++  BEGIN v_current_session:=nullif(auth.jwt()->>'session_id','')::uuid;
++  EXCEPTION WHEN invalid_text_representation THEN v_current_session:=NULL; END;
++
++  SELECT max_devices_per_user,session_timeout_minutes INTO v_old_limit,v_old_timeout
++  FROM public.platform_settings WHERE singleton=true FOR UPDATE;
++  UPDATE public.platform_settings
++  SET max_devices_per_user=p_limit,session_timeout_minutes=p_timeout_minutes,
++      updated_by=auth.uid(),updated_at=v_now
++  WHERE singleton=true;
++
++  -- Expired sessions stay expired; changing policy must never revive them.
++  UPDATE public.hl_auth_sessions
++  SET revoked_at=v_now,revoke_reason='session_timeout',updated_at=v_now
++  WHERE revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at<=v_now;
++
++  UPDATE public.hl_auth_sessions
++  SET expires_at=CASE WHEN p_timeout_minutes=0 THEN NULL ELSE v_now+make_interval(mins=>p_timeout_minutes) END,
++      updated_at=v_now
++  WHERE revoked_at IS NULL;
++
++  WITH ranked AS (
++    SELECT s.user_id,s.session_id,
++      row_number() OVER (
++        PARTITION BY s.user_id
++        ORDER BY (s.user_id=auth.uid() AND s.session_id=v_current_session) DESC,
++                 s.registered_at DESC,s.session_id DESC
++      ) AS position
++    FROM public.hl_auth_sessions s
++    WHERE s.revoked_at IS NULL AND (s.expires_at IS NULL OR s.expires_at>v_now)
++  ), revoked AS (
++    UPDATE public.hl_auth_sessions s
++    SET revoked_at=v_now,revoke_reason='manual_policy_update',updated_at=v_now
++    FROM ranked r
++    WHERE s.user_id=r.user_id AND s.session_id=r.session_id
++      AND r.position>p_limit AND s.revoked_at IS NULL
++    RETURNING 1
++  ) SELECT count(*) INTO v_revoked FROM revoked;
++
++  INSERT INTO public.platform_audit_log(actor_user_id,action,target_type,target_id,details)
++  VALUES(auth.uid(),'session_policy_updated','platform_settings','session_policy',
++    jsonb_build_object('old_max_sessions',v_old_limit,'new_max_sessions',p_limit,
++      'old_timeout_minutes',v_old_timeout,'new_timeout_minutes',p_timeout_minutes,
++      'revoked_sessions',v_revoked,'new_login_keeps_newest',true));
++
++  RETURN jsonb_build_object('max_devices_per_user',p_limit,
++    'session_timeout_minutes',p_timeout_minutes,'revoked_sessions',v_revoked,'status','updated');
++END;
++$$;
++
++-- Backward-compatible wrapper for a V5 frontend that still calls the old RPC.
++CREATE OR REPLACE FUNCTION public.platform_admin_set_max_devices_per_user(p_limit integer)
++RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
++DECLARE v_timeout integer;
++BEGIN
++  SELECT coalesce(session_timeout_minutes,0) INTO v_timeout
++  FROM public.platform_settings WHERE singleton=true;
++  RETURN public.platform_admin_set_session_policy(p_limit,coalesce(v_timeout,0));
++END;
++$$;
++
++REVOKE ALL ON FUNCTION public.hl_enforce_my_session_limit() FROM PUBLIC,anon;
++REVOKE ALL ON FUNCTION public.platform_admin_get_session_policy() FROM PUBLIC,anon;
++REVOKE ALL ON FUNCTION public.platform_admin_set_session_policy(integer,integer) FROM PUBLIC,anon;
++REVOKE ALL ON FUNCTION public.platform_admin_set_max_devices_per_user(integer) FROM PUBLIC,anon;
++GRANT EXECUTE ON FUNCTION public.hl_enforce_my_session_limit() TO authenticated;
++GRANT EXECUTE ON FUNCTION public.platform_admin_get_session_policy() TO authenticated;
++GRANT EXECUTE ON FUNCTION public.platform_admin_set_session_policy(integer,integer) TO authenticated;
++GRANT EXECUTE ON FUNCTION public.platform_admin_set_max_devices_per_user(integer) TO authenticated;
++
++COMMIT;
+diff --git a/tests/activityPresenceSecurity.test.js b/tests/activityPresenceSecurity.test.js
+index 7373de2..e62aea2 100644
+--- a/tests/activityPresenceSecurity.test.js
++++ b/tests/activityPresenceSecurity.test.js
+@@ -38,7 +38,7 @@ test('Presence records real login/logout separately from throttled Last Seen', (
+   assert.match(migration, /FROM private\.hl_login_sessions WHERE user_id=v_user_id/);
+   assert.match(authContext, /event === 'SIGNED_IN'/);
+   assert.match(authContext, /hl_record_my_login/);
+-  assert.match(authContext, /15 \* 60 \* 1000/);
++  assert.match(authContext, /60 \* 1000/);
+   assert.match(authContext, /hl_touch_my_presence/);
+   assert.match(authContext, /hl_record_my_logout/);
+ });
+@@ -104,7 +104,7 @@ test('Run27 preserves legacy private-schema access while keeping telemetry table
+   assert.match(verification, /has_table_privilege\('authenticated','private\.hl_activity_events','SELECT'\)/);
+ });
+ 
+-test('Presence is interaction-based, 15-minute heartbeat, and logout-aware', () => {
++test('Presence is interaction-based, throttled heartbeat, and logout-aware', () => {
+   assert.match(authContext, /lastInteractionAt/);
+   assert.match(authContext, /pointerdown/);
+   assert.match(authContext, /visibilityState === 'hidden'/);
+@@ -200,7 +200,7 @@ test('All interactive password verification flows use monitored sign-in service'
+ test('Presence heartbeat resumes immediately after a prolonged idle period', () => {
+   assert.match(authContext, /const wasIdle = now - lastInteractionAt > 20 \* 60 \* 1000/);
+   assert.match(authContext, /if \(wasIdle\) heartbeat\(\)/);
+-  assert.match(authContext, /setInterval\(heartbeat, 15 \* 60 \* 1000\)/);
++  assert.match(authContext, /setInterval\(heartbeat, 60 \* 1000\)/);
+ });
+ 
+ test('Security event retention notice matches event-triggered cleanup behavior', () => {
+diff --git a/tests/authenticatedInviteAndDevicePolicy.test.js b/tests/authenticatedInviteAndDevicePolicy.test.js
+index 550fc56..f70f59e 100644
+--- a/tests/authenticatedInviteAndDevicePolicy.test.js
++++ b/tests/authenticatedInviteAndDevicePolicy.test.js
+@@ -177,7 +177,7 @@ test('Device policy and default theme remain Super Admin controlled and personal
+   assert.match(read('src/app/theme.js'), /readThemeKey\(THEME_KEY\) \|\| readThemeKey\(THEME_DEFAULT_KEY\)/);
+   assert.match(read('src/app/theme.js'), /Do not overwrite an explicit preference/);
+   assert.match(platform, /platformAdminSetDefaultTheme/);
+-  assert.match(platform, /platformAdminSetMaxDevicesPerUser/);
++  assert.match(platform, /platformAdminSetSessionPolicy/);
+ });
+ 
+ test('PWA install page, first-entry prompt and theme-aware Help page are present', () => {
+diff --git a/tests/sessionPolicyRecovery.test.js b/tests/sessionPolicyRecovery.test.js
+new file mode 100644
+index 0000000..8d6597b
+--- /dev/null
++++ b/tests/sessionPolicyRecovery.test.js
+@@ -0,0 +1,92 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++
++const read = (path) => readFileSync(path, 'utf8');
++const migration = read('supabase/migrations/Run30_corrective_newest_session_wins.sql');
++const authContext = read('src/contexts/AuthContext.jsx');
++const authPage = read('src/features/auth/AuthPage.jsx');
++const platform = read('src/features/platform/SuperAdminPage.jsx');
++const service = read('src/services/platformService.js');
++
++function functionSql(name, schema = 'public') {
++  const start = migration.indexOf(`CREATE OR REPLACE FUNCTION ${schema}.${name}`);
++  assert.notEqual(start, -1, `Missing ${schema}.${name}`);
++  const end = migration.indexOf('\n$$;', start);
++  assert.notEqual(end, -1, `Could not find function terminator for ${schema}.${name}`);
++  return migration.slice(start, end + 4);
++}
++
++test('Run30 is one transaction and backfills existing sessions without revoking them', () => {
++  assert.match(migration, /^BEGIN;/m);
++  assert.match(migration, /COMMIT;\s*$/);
++  assert.match(migration, /INSERT INTO public\.hl_auth_sessions[\s\S]*?FROM auth\.sessions[\s\S]*?ON CONFLICT\(user_id,session_id\) DO NOTHING/);
++  assert.match(migration, /No old device is revoked merely because this corrective migration is run/);
++  assert.doesNotMatch(migration, /DELETE\s+FROM\s+auth\.sessions/i);
++  assert.doesNotMatch(migration, /TRUNCATE\s+auth\.sessions/i);
++});
++
++test('Current DB authorization accepts registry-active sessions and blocks revoked or expired sessions only', () => {
++  const allowed = functionSql('is_current_auth_session_allowed', 'private');
++  const assertion = functionSql('assert_signed_in', 'private');
++  assert.match(allowed, /public\.hl_auth_sessions/);
++  assert.match(allowed, /app_s\.revoked_at IS NULL/);
++  assert.match(allowed, /app_s\.expires_at IS NULL OR app_s\.expires_at>now\(\)/);
++  assert.match(allowed, /auth\.sessions/);
++  assert.doesNotMatch(allowed, /row_number\(\)|position BETWEEN|created_at ASC/);
++  assert.match(assertion, /private\.is_current_auth_session_allowed\(\)/);
++});
++
++test('A genuinely new session is registered and keeps the newest sessions, not the oldest', () => {
++  const enforce = functionSql('hl_enforce_my_session_limit');
++  assert.match(enforce, /auth\.jwt\(\)->>'session_id'/);
++  assert.match(enforce, /pg_advisory_xact_lock/);
++  assert.match(enforce, /IF v_inserted=1 THEN/);
++  assert.match(enforce, /ORDER BY \(s\.session_id=v_session\) DESC,s\.registered_at DESC/);
++  assert.match(enforce, /r\.position>v_max/);
++  assert.match(enforce, /revoke_reason='device_limit'/);
++  assert.match(enforce, /'expires_at',v_row\.expires_at/);
++});
++
++test('Existing V5 function callers remain compatible while the new timeout is configurable', () => {
++  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.platform_admin_set_max_devices_per_user\(p_limit integer\)/);
++  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.platform_admin_set_session_policy\(p_limit integer,p_timeout_minutes integer\)/);
++  assert.match(migration, /session_timeout_minutes integer NOT NULL DEFAULT 0/);
++  assert.match(migration, /session_timeout_minutes BETWEEN 0 AND 10080/);
++  assert.match(service, /platform_admin_set_session_policy/);
++  assert.match(platform, /session_timeout_minutes/);
++  assert.match(platform, /নতুন Login এলে সবচেয়ে পুরোনো Session স্বয়ংক্রিয়ভাবে বন্ধ হবে/);
++});
++
++test('Super Admin policy update retains the admin current session and expires/revokes excess sessions safely', () => {
++  const save = functionSql('platform_admin_set_session_policy');
++  assert.match(save, /private\.assert_signed_in\(\)/);
++  assert.match(save, /private\.is_super_admin\(\)/);
++  assert.match(save, /CASE WHEN p_timeout_minutes=0 THEN NULL ELSE v_now\+make_interval/);
++  assert.match(save, /s\.user_id=auth\.uid\(\) AND s\.session_id=v_current_session/);
++  assert.match(save, /r\.position>p_limit/);
++  assert.match(save, /session_policy_updated/);
++});
++
++test('Client checks session status frequently and signs out locally with a clear expiry notice', () => {
++  assert.match(authContext, /SESSION_POLICY_CACHE_MS = 15 \* 1000/);
++  assert.match(authContext, /setInterval\(heartbeat, 60 \* 1000\)/);
++  assert.match(authContext, /sessionExpiryAt/);
++  assert.match(authContext, /endCurrentSessionWithNotice/);
++  assert.match(authContext, /নিরাপত্তার কারণে আপনার লগইন সেশনের নির্ধারিত সময় শেষ হয়েছে/);
++  assert.match(authContext, /signOut\(\{ scope: 'local' \}\)/);
++  assert.match(authPage, /role="alertdialog"/);
++  assert.match(authPage, /নিরাপত্তার কারণে লগআউট/);
++});
++
++test('Expired sessions stay revoked when Super Admin changes the timeout policy', () => {
++  const save = functionSql('platform_admin_set_session_policy');
++  assert.match(save, /expires_at<=v_now/);
++  assert.match(save, /revoke_reason='session_timeout'/);
++  assert.match(save, /WHERE revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at<=v_now/);
++});
++
++test('Run30 refuses to proceed if the singleton platform policy or required Auth expiry column is missing', () => {
++  assert.match(migration, /platform_settings WHERE singleton=true/);
++  assert.match(migration, /table_schema='auth' AND table_name='sessions' AND column_name='not_after'/);
++});

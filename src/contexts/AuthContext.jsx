@@ -7,21 +7,28 @@ import { readIdentitySnapshot, requestPersistentStorage, saveIdentitySnapshot } 
 const AuthContext = createContext(null);
 
 const LOGOUT_AUDIT_TIMEOUT_MS = 1500;
-const SESSION_POLICY_CACHE_MS = 90 * 1000;
+const SESSION_POLICY_CACHE_MS = 15 * 1000;
 const SESSION_LIMIT_NOTICE_KEY = 'hostel-life-session-limit-notice-v1';
 const SESSION_LIMIT_NOTICE_EVENT = 'hostel-life-session-limit-notice';
 
 function sessionPolicyCacheKey(session) {
   const userId = session?.user?.id || 'unknown-user';
-  // Supabase's expires_at remains stable for the life of an access token.
-  // The database evaluates the actual auth.sessions id from the signed JWT.
-  return `${userId}:${session?.expires_at || session?.access_token?.slice(-24) || 'current'}`;
+  // Prefer a token-specific suffix so a rapid account/session switch cannot
+  // reuse another browser session's cached policy response.
+  return `${userId}:${session?.access_token?.slice(-24) || session?.expires_at || 'current'}`;
 }
 
-function sessionLimitError(limit) {
-  const error = new Error(`এই অ্যাকাউন্টে সর্বোচ্চ ${Number(limit || 10).toLocaleString('bn-BD')}টি আলাদা ডিভাইস/ব্রাউজার সেশন অনুমোদিত। এই ডিভাইসের সেশনটি নির্ধারিত সীমার বাইরে থাকায় অ্যাক্সেস বন্ধ করা হয়েছে। আগে তৈরি বৈধ সেশনগুলো অগ্রাধিকার পায়।`);
+function sessionLimitError(policy) {
+  const reason = String(policy?.reason || 'session_revoked');
+  const message = reason === 'session_expired'
+    ? 'নিরাপত্তার কারণে আপনার লগইন সেশনের নির্ধারিত সময় শেষ হয়েছে। আবার লগইন করে Hostel Life ব্যবহার করুন।'
+    : reason === 'session_revoked' || reason === 'device_limit'
+      ? 'এই অ্যাকাউন্টে নতুন লগইন হওয়ায় এই ডিভাইসের পুরোনো সেশন বন্ধ করা হয়েছে। নিরাপত্তার জন্য আবার লগইন করুন।'
+      : 'এই লগইন সেশনটি আর সক্রিয় নেই। নিরাপত্তার জন্য আবার লগইন করুন।';
+  const error = new Error(message);
   error.code = 'SESSION_LIMIT_EXCEEDED';
-  error.maxDevices = Number(limit || 10);
+  error.reason = reason;
+  error.maxDevices = Number(policy?.max_devices_per_user || 10);
   return error;
 }
 
@@ -91,6 +98,7 @@ export function AuthProvider({ children }) {
   const [identityLoading, setIdentityLoading] = useState(false);
   const [identityError, setIdentityError] = useState(null);
   const [offlineIdentity, setOfflineIdentity] = useState(false);
+  const [sessionExpiryAt, setSessionExpiryAt] = useState(null);
 
   const clearIdentity = useCallback(() => {
     invalidateRequestCache();
@@ -103,6 +111,21 @@ export function AuthProvider({ children }) {
 
   const sessionPolicyCacheRef = useRef(new Map());
   const sessionPolicyInFlightRef = useRef(new Map());
+
+  const endCurrentSessionWithNotice = useCallback(async (message) => {
+    try { window.sessionStorage.setItem(SESSION_LIMIT_NOTICE_KEY, message); } catch { /* best-effort notice */ }
+    try { window.dispatchEvent(new CustomEvent(SESSION_LIMIT_NOTICE_EVENT, { detail: { message } })); } catch { /* best-effort notice */ }
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Confirm local state below. */ }
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) {
+        setSession(null);
+        setSessionExpiryAt(null);
+        clearIdentity();
+        sessionPolicyCacheRef.current.clear();
+      }
+    } catch { /* The Auth listener will clear local identity when storage is removed. */ }
+  }, [clearIdentity]);
 
   const enforceSessionLimit = useCallback(async (targetSession) => {
     if (!supabaseConfigReady || !supabase || !targetSession?.user?.id) return null;
@@ -117,25 +140,18 @@ export function AuthProvider({ children }) {
       if (error) throw error;
       const policy = Array.isArray(data) ? data[0] ?? null : data;
       if (!policy || policy.allowed !== true) {
-        const denied = sessionLimitError(policy?.max_devices_per_user);
-        try { window.sessionStorage.setItem(SESSION_LIMIT_NOTICE_KEY, denied.message); } catch { /* Notification is best-effort. */ }
-        try { window.dispatchEvent(new CustomEvent(SESSION_LIMIT_NOTICE_EVENT, { detail: { message: denied.message } })); } catch { /* UI notification is best-effort. */ }
-
-        // A denied session only signs out this browser. Other sessions are not
-        // revoked or deleted from the server by this client-side action.
-        try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* Confirm local state below. */ }
+        const denied = sessionLimitError(policy || {});
+        await endCurrentSessionWithNotice(denied.message);
         const { data: current, error: currentError } = await supabase.auth.getSession();
         if (currentError || current?.session) {
-          const failure = new Error('Device/Browser Session Limit অতিক্রম করেছে, কিন্তু এই ডিভাইসের স্থানীয় সেশন নিরাপদে বন্ধ করা যায়নি। আবার চেষ্টা করুন।');
+          const failure = new Error('নিরাপত্তার কারণে সেশন বন্ধ করার চেষ্টা করা হয়েছে, কিন্তু এই ডিভাইসের স্থানীয় লগইন পরিষ্কার হয়নি। আবার চেষ্টা করুন।');
           failure.code = 'SESSION_LIMIT_SIGNOUT_FAILED';
           throw failure;
         }
-        setSession(null);
-        clearIdentity();
-        sessionPolicyCacheRef.current.clear();
         throw denied;
       }
 
+      setSessionExpiryAt(policy.expires_at || null);
       sessionPolicyCacheRef.current.set(cacheKey, { checkedAt: Date.now(), result: policy });
       // Keep only a few recent token/expiry keys in memory.
       if (sessionPolicyCacheRef.current.size > 8) {
@@ -148,7 +164,7 @@ export function AuthProvider({ children }) {
     sessionPolicyInFlightRef.current.set(cacheKey, task);
     try { return await task; }
     finally { if (sessionPolicyInFlightRef.current.get(cacheKey) === task) sessionPolicyInFlightRef.current.delete(cacheKey); }
-  }, [clearIdentity]);
+  }, [clearIdentity, endCurrentSessionWithNotice]);
 
   const refreshIdentity = useCallback(async () => {
     if (!session?.user) {
@@ -224,6 +240,7 @@ export function AuthProvider({ children }) {
       if (event === 'TOKEN_REFRESHED') return;
       // Leave the Supabase auth callback lock before making an RPC request.
       if (event === 'SIGNED_IN' && nextSession?.user?.id) {
+        setSessionExpiryAt(null);
         window.setTimeout(async () => {
           try {
             await enforceSessionLimit(nextSession);
@@ -247,6 +264,7 @@ export function AuthProvider({ children }) {
       }
       setAuthLoading(false);
       if (!nextSession) {
+        setSessionExpiryAt(null);
         clearIdentity();
         setOfflineIdentity(false);
       }
@@ -263,6 +281,20 @@ export function AuthProvider({ children }) {
     refreshIdentity().catch(() => undefined);
   }, [session, refreshIdentity]);
 
+
+  useEffect(() => {
+    if (!session?.user?.id || !sessionExpiryAt) return undefined;
+    const expiresAt = new Date(sessionExpiryAt).getTime();
+    if (!Number.isFinite(expiresAt)) return undefined;
+    const remaining = expiresAt - Date.now();
+    const message = 'নিরাপত্তার কারণে আপনার লগইন সেশনের নির্ধারিত সময় শেষ হয়েছে। আবার লগইন করে Hostel Life ব্যবহার করুন।';
+    if (remaining <= 0) {
+      endCurrentSessionWithNotice(message);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => endCurrentSessionWithNotice(message), Math.min(remaining, 2147483000));
+    return () => window.clearTimeout(timer);
+  }, [session?.user?.id, sessionExpiryAt, endCurrentSessionWithNotice]);
 
   useEffect(() => {
     if (!session?.user?.id || !supabase) return undefined;
@@ -295,7 +327,7 @@ export function AuthProvider({ children }) {
     const interactionEvents = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'];
     interactionEvents.forEach((eventName) => window.addEventListener(eventName, markInteraction, { passive: true }));
     heartbeat();
-    const interval = window.setInterval(heartbeat, 15 * 60 * 1000);
+    const interval = window.setInterval(heartbeat, 60 * 1000);
     window.addEventListener('focus', onInteraction);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
@@ -327,6 +359,7 @@ export function AuthProvider({ children }) {
     const activityRecorded = await recordLogoutBestEffort();
     const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
     setSession(null);
+    setSessionExpiryAt(null);
     clearIdentity();
     return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
   }, [clearIdentity]);
@@ -337,6 +370,7 @@ export function AuthProvider({ children }) {
     const activityRecorded = await recordLogoutBestEffort();
     const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
     setSession(null);
+    setSessionExpiryAt(null);
     clearIdentity();
     return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
   }, [clearIdentity]);
@@ -354,10 +388,11 @@ export function AuthProvider({ children }) {
     identityLoading,
     identityError,
     offlineIdentity,
+    sessionExpiryAt,
     refreshIdentity,
     signOut,
     signOutLocal,
-  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityError, offlineIdentity, refreshIdentity, signOut, signOutLocal]);
+  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityError, offlineIdentity, sessionExpiryAt, refreshIdentity, signOut, signOutLocal]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

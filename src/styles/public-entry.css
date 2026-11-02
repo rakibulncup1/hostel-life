@@ -508,3 +508,13 @@
 .auth-policy-notice > svg { flex:0 0 auto; margin-top:1px; color:var(--danger, #b42318); }
 .auth-policy-notice > span { flex:1; min-width:0; }
 .auth-policy-notice > button { flex:0 0 28px; width:28px; height:28px; border:0; border-radius:8px; background:var(--surface-2); color:var(--muted); font-size:19px; cursor:pointer; }
+
+
+/* Session termination notice shown after a device is replaced or a timed session expires. */
+.auth-session-dialog-backdrop { position:fixed; inset:0; z-index:10050; display:grid; place-items:center; padding:20px; background:rgb(12 22 35 / 62%); backdrop-filter:blur(7px); }
+.auth-session-dialog { width:min(100%,440px); display:grid; justify-items:center; gap:13px; padding:clamp(22px,5vw,32px); border:1px solid var(--line); border-radius:24px; background:var(--surface); color:var(--text); box-shadow:0 24px 80px rgb(0 0 0 / 28%); text-align:center; }
+.auth-session-dialog-icon { width:54px; height:54px; display:grid; place-items:center; border-radius:18px; background:color-mix(in srgb,var(--danger,#b42318) 12%,var(--surface)); color:var(--danger,#b42318); }
+.auth-session-dialog h3 { margin:0; color:var(--text); font-size:clamp(18px,4vw,21px); font-weight:800; }
+.auth-session-dialog p { max-width:36ch; margin:0; color:var(--muted); font-size:14px; line-height:1.8; }
+.auth-session-dialog .primary-button { width:100%; margin-top:5px; }
+@media (prefers-reduced-motion:no-preference) { .auth-session-dialog { animation:auth-session-dialog-in .18s ease-out; } @keyframes auth-session-dialog-in { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } } }

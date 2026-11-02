@@ -38,7 +38,7 @@ test('Presence records real login/logout separately from throttled Last Seen', (
   assert.match(migration, /FROM private\.hl_login_sessions WHERE user_id=v_user_id/);
   assert.match(authContext, /event === 'SIGNED_IN'/);
   assert.match(authContext, /hl_record_my_login/);
-  assert.match(authContext, /15 \* 60 \* 1000/);
+  assert.match(authContext, /60 \* 1000/);
   assert.match(authContext, /hl_touch_my_presence/);
   assert.match(authContext, /hl_record_my_logout/);
 });
@@ -104,7 +104,7 @@ test('Run27 preserves legacy private-schema access while keeping telemetry table
   assert.match(verification, /has_table_privilege\('authenticated','private\.hl_activity_events','SELECT'\)/);
 });
 
-test('Presence is interaction-based, 15-minute heartbeat, and logout-aware', () => {
+test('Presence is interaction-based, throttled heartbeat, and logout-aware', () => {
   assert.match(authContext, /lastInteractionAt/);
   assert.match(authContext, /pointerdown/);
   assert.match(authContext, /visibilityState === 'hidden'/);
@@ -200,7 +200,7 @@ test('All interactive password verification flows use monitored sign-in service'
 test('Presence heartbeat resumes immediately after a prolonged idle period', () => {
   assert.match(authContext, /const wasIdle = now - lastInteractionAt > 20 \* 60 \* 1000/);
   assert.match(authContext, /if \(wasIdle\) heartbeat\(\)/);
-  assert.match(authContext, /setInterval\(heartbeat, 15 \* 60 \* 1000\)/);
+  assert.match(authContext, /setInterval\(heartbeat, 60 \* 1000\)/);
 });
 
 test('Security event retention notice matches event-triggered cleanup behavior', () => {

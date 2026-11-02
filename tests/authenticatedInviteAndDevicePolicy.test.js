@@ -177,7 +177,7 @@ test('Device policy and default theme remain Super Admin controlled and personal
   assert.match(read('src/app/theme.js'), /readThemeKey\(THEME_KEY\) \|\| readThemeKey\(THEME_DEFAULT_KEY\)/);
   assert.match(read('src/app/theme.js'), /Do not overwrite an explicit preference/);
   assert.match(platform, /platformAdminSetDefaultTheme/);
-  assert.match(platform, /platformAdminSetMaxDevicesPerUser/);
+  assert.match(platform, /platformAdminSetSessionPolicy/);
 });
 
 test('PWA install page, first-entry prompt and theme-aware Help page are present', () => {

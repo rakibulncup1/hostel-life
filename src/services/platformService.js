@@ -429,12 +429,21 @@ export async function platformAdminGetSessionPolicy() {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_get_session_policy');
   if (error) throw error;
-  return firstRow(data) || { max_devices_per_user: 10 };
+  return firstRow(data) || { max_devices_per_user: 10, session_timeout_minutes: 0 };
 }
 
-export async function platformAdminSetMaxDevicesPerUser(limit) {
+export async function platformAdminSetSessionPolicy(limit, timeoutMinutes = 0) {
   assertSupabase();
-  const { data, error } = await supabase.rpc('platform_admin_set_max_devices_per_user', { p_limit: Number(limit) });
+  const { data, error } = await supabase.rpc('platform_admin_set_session_policy', {
+    p_limit: Number(limit),
+    p_timeout_minutes: Number(timeoutMinutes),
+  });
   if (error) throw error;
   return firstRow(data) || data;
+}
+
+// Backward-compatible service alias for older callers.
+export async function platformAdminSetMaxDevicesPerUser(limit) {
+  const current = await platformAdminGetSessionPolicy();
+  return platformAdminSetSessionPolicy(limit, current?.session_timeout_minutes || 0);
 }
