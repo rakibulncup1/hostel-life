@@ -1,4 +1,5 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
       "source": "/super-admin",
@@ -21,12 +22,44 @@
       "destination": "/index.html"
     },
     {
+      "source": "/onboarding",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/onboarding/",
+      "destination": "/index.html"
+    },
+    {
       "source": "/onboarding/(.*)",
       "destination": "/index.html"
     },
     {
       "source": "/account/(.*)",
       "destination": "/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/service-worker.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
     }
   ]
 }

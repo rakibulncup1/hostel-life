@@ -1,5 +1,5 @@
 // Bump this cache name when changing the cached app-shell contract.
-const CACHE_NAME = 'hostel-life-shell-v15';
+const CACHE_NAME = 'hostel-life-shell-v16';
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -45,8 +45,14 @@ async function networkFirst(request, cacheKey = request) {
     // Refresh HTML only as a result of an actual navigation/request. This keeps
     // deployments current without background re-fetches of every static asset.
     const response = await fetch(request);
-    if (response && response.ok) await cache.put(cacheKey, response.clone());
-    return response;
+    if (response && response.ok) {
+      await cache.put(cacheKey, response.clone());
+      return response;
+    }
+    // A transient Vercel 5xx/404 for a SPA route should use the last known-good
+    // app shell when available; direct route rewrites are still configured at Vercel.
+    const cached = await cache.match(cacheKey);
+    return cached || response;
   } catch (error) {
     const cached = await cache.match(cacheKey);
     if (cached) return cached;

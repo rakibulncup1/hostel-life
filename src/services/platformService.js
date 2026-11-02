@@ -409,3 +409,10 @@ export async function platformAdminListSecurityEvents({ eventType = null, ipSear
   if (error) throw error;
   return data || { items: [], total_count: 0 };
 }
+
+export async function platformAdminCheckSecurityTelemetry() {
+  assertSupabase();
+  const { data, error } = await supabase.functions.invoke('record-auth-event', { method: 'GET' });
+  if (error) throw error;
+  return data || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' };
+}

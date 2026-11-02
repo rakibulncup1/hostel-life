@@ -6,9 +6,18 @@ function recordAuthTelemetry(eventType, email, failureCode = 'other') {
   try {
     Promise.resolve(supabase.functions.invoke('record-auth-event', {
       body: { event_type: eventType, email: typeof email === 'string' ? email.trim().toLowerCase() : '', failure_code: failureCode },
-    })).catch(() => undefined);
+    })).then(({ data, error }) => {
+      if (error) {
+        // Never log credentials, email, or request bodies. Keep only safe diagnostics.
+        console.warn('[Hostel Life] Security telemetry delivery failed:', error.message || error.name || 'unknown_error');
+      } else if (data?.accepted === false) {
+        console.warn('[Hostel Life] Security telemetry was not stored:', data.code || data.reason || 'not_accepted');
+      }
+    }).catch((error) => {
+      console.warn('[Hostel Life] Security telemetry request failed:', error?.message || 'network_error');
+    });
   } catch {
-    // A telemetry client error must never interrupt the primary Auth flow.
+    // Telemetry failure must never interrupt the primary Auth flow.
   }
 }
 

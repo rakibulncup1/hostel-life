@@ -6,6 +6,44 @@ import { readIdentitySnapshot, requestPersistentStorage, saveIdentitySnapshot } 
 
 const AuthContext = createContext(null);
 
+const LOGOUT_AUDIT_TIMEOUT_MS = 1500;
+
+async function recordLogoutBestEffort() {
+  let timeoutId;
+  try {
+    const result = await Promise.race([
+      supabase.rpc('hl_record_my_logout'),
+      new Promise((resolve) => {
+        timeoutId = setTimeout(() => resolve({ data: null, error: new Error('logout_audit_timeout') }), LOGOUT_AUDIT_TIMEOUT_MS);
+      }),
+    ]);
+    return !result?.error && result?.data?.recorded === true;
+  } catch {
+    return false;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+async function signOutCurrentDeviceAndConfirm() {
+  let remoteError = null;
+  try {
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    remoteError = error || null;
+  } catch (error) {
+    remoteError = error;
+  }
+
+  // Supabase may report a remote revoke/network error after clearing the local
+  // session. A local account switch is complete only when storage confirms the
+  // current session is gone; a remote acknowledgement is tracked separately.
+  const { data, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw remoteError || sessionError;
+  if (data?.session) throw remoteError || new Error('এই ডিভাইসের সেশন এখনো সক্রিয় রয়েছে। আবার চেষ্টা করুন।');
+
+  return { remoteRevocationConfirmed: !remoteError };
+}
+
 async function loadIdentity() {
   if (!supabaseConfigReady || !supabase) {
     throw new Error('Supabase configuration is missing.');
@@ -202,33 +240,22 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(async () => {
     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
 
-    // A normal app logout ends only this browser's session. Other devices stay
-    // signed in; the database activity log is also session-scoped.
-    let activityRecorded = false;
-    try {
-      const { data, error } = await supabase.rpc('hl_record_my_logout');
-      activityRecorded = !error && data?.recorded === true;
-    } catch {
-      // Audit telemetry must never prevent the user from leaving the account.
-    }
-
-    // Local scope avoids a remote global-revocation request and reliably clears
-    // this device even when the Auth service is temporarily unavailable.
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) throw error;
+    // Audit data is optional telemetry. It must not hold the user on the page.
+    const activityRecorded = await recordLogoutBestEffort();
+    const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
     setSession(null);
     clearIdentity();
-    return { scope: 'local', activityRecorded };
+    return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
   }, [clearIdentity]);
 
   const signOutLocal = useCallback(async () => {
     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
-    // Only remove the current browser's session. Other devices stay signed in.
-    await supabase.rpc('hl_record_my_logout').catch(() => undefined);
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) throw error;
+    // Only this browser's session is removed; another device remains signed in.
+    const activityRecorded = await recordLogoutBestEffort();
+    const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
     setSession(null);
     clearIdentity();
+    return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
   }, [clearIdentity]);
 
   const value = useMemo(() => ({

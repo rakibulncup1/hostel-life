@@ -1,0 +1,485 @@
+--- a/public/service-worker.js
++++ b/public/service-worker.js
+@@ -1,5 +1,5 @@
+ // Bump this cache name when changing the cached app-shell contract.
+-const CACHE_NAME = 'hostel-life-shell-v15';
++const CACHE_NAME = 'hostel-life-shell-v16';
+ const APP_SHELL = [
+   '/',
+   '/index.html',
+@@ -45,8 +45,14 @@
+     // Refresh HTML only as a result of an actual navigation/request. This keeps
+     // deployments current without background re-fetches of every static asset.
+     const response = await fetch(request);
+-    if (response && response.ok) await cache.put(cacheKey, response.clone());
+-    return response;
++    if (response && response.ok) {
++      await cache.put(cacheKey, response.clone());
++      return response;
++    }
++    // A transient Vercel 5xx/404 for a SPA route should use the last known-good
++    // app shell when available; direct route rewrites are still configured at Vercel.
++    const cached = await cache.match(cacheKey);
++    return cached || response;
+   } catch (error) {
+     const cached = await cache.match(cacheKey);
+     if (cached) return cached;
+--- a/src/app/AppShell.jsx
++++ b/src/app/AppShell.jsx
+@@ -140,7 +140,11 @@
+     if (key === 'logout') {
+       try {
+         const result = await signOut();
+-        if (result?.activityRecorded === false) {
++        if (result?.remoteRevocationConfirmed === false && result?.activityRecorded === false) {
++          toast.info('এই ডিভাইস থেকে লগআউট সম্পন্ন হয়েছে। তবে Logout History ও সার্ভার সেশন বাতিলের নিশ্চিতকরণ পাওয়া যায়নি।');
++        } else if (result?.remoteRevocationConfirmed === false) {
++          toast.info('এই ডিভাইস থেকে লগআউট সম্পন্ন হয়েছে। তবে সার্ভার সেশন বাতিলের নিশ্চিতকরণ পাওয়া যায়নি।');
++        } else if (result?.activityRecorded === false) {
+           toast.info('এই ডিভাইস থেকে লগআউট হয়েছে, তবে Logout History সার্ভারে রেকর্ড করা যায়নি।');
+         } else {
+           toast.success('এই ডিভাইস থেকে সফলভাবে লগআউট হয়েছে। অন্য ডিভাইসের সেশন চালু থাকবে।');
+--- a/src/contexts/AuthContext.jsx
++++ b/src/contexts/AuthContext.jsx
+@@ -5,6 +5,44 @@
+ import { readIdentitySnapshot, requestPersistentStorage, saveIdentitySnapshot } from '../services/offlineStore';
+ 
+ const AuthContext = createContext(null);
++
++const LOGOUT_AUDIT_TIMEOUT_MS = 1500;
++
++async function recordLogoutBestEffort() {
++  let timeoutId;
++  try {
++    const result = await Promise.race([
++      supabase.rpc('hl_record_my_logout'),
++      new Promise((resolve) => {
++        timeoutId = setTimeout(() => resolve({ data: null, error: new Error('logout_audit_timeout') }), LOGOUT_AUDIT_TIMEOUT_MS);
++      }),
++    ]);
++    return !result?.error && result?.data?.recorded === true;
++  } catch {
++    return false;
++  } finally {
++    if (timeoutId) clearTimeout(timeoutId);
++  }
++}
++
++async function signOutCurrentDeviceAndConfirm() {
++  let remoteError = null;
++  try {
++    const { error } = await supabase.auth.signOut({ scope: 'local' });
++    remoteError = error || null;
++  } catch (error) {
++    remoteError = error;
++  }
++
++  // Supabase may report a remote revoke/network error after clearing the local
++  // session. A local account switch is complete only when storage confirms the
++  // current session is gone; a remote acknowledgement is tracked separately.
++  const { data, error: sessionError } = await supabase.auth.getSession();
++  if (sessionError) throw remoteError || sessionError;
++  if (data?.session) throw remoteError || new Error('এই ডিভাইসের সেশন এখনো সক্রিয় রয়েছে। আবার চেষ্টা করুন।');
++
++  return { remoteRevocationConfirmed: !remoteError };
++}
+ 
+ async function loadIdentity() {
+   if (!supabaseConfigReady || !supabase) {
+@@ -202,33 +240,22 @@
+   const signOut = useCallback(async () => {
+     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
+ 
+-    // A normal app logout ends only this browser's session. Other devices stay
+-    // signed in; the database activity log is also session-scoped.
+-    let activityRecorded = false;
+-    try {
+-      const { data, error } = await supabase.rpc('hl_record_my_logout');
+-      activityRecorded = !error && data?.recorded === true;
+-    } catch {
+-      // Audit telemetry must never prevent the user from leaving the account.
+-    }
+-
+-    // Local scope avoids a remote global-revocation request and reliably clears
+-    // this device even when the Auth service is temporarily unavailable.
+-    const { error } = await supabase.auth.signOut({ scope: 'local' });
+-    if (error) throw error;
++    // Audit data is optional telemetry. It must not hold the user on the page.
++    const activityRecorded = await recordLogoutBestEffort();
++    const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
+     setSession(null);
+     clearIdentity();
+-    return { scope: 'local', activityRecorded };
++    return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
+   }, [clearIdentity]);
+ 
+   const signOutLocal = useCallback(async () => {
+     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
+-    // Only remove the current browser's session. Other devices stay signed in.
+-    await supabase.rpc('hl_record_my_logout').catch(() => undefined);
+-    const { error } = await supabase.auth.signOut({ scope: 'local' });
+-    if (error) throw error;
++    // Only this browser's session is removed; another device remains signed in.
++    const activityRecorded = await recordLogoutBestEffort();
++    const { remoteRevocationConfirmed } = await signOutCurrentDeviceAndConfirm();
+     setSession(null);
+     clearIdentity();
++    return { scope: 'local', activityRecorded, remoteRevocationConfirmed };
+   }, [clearIdentity]);
+ 
+   const value = useMemo(() => ({
+--- a/src/features/onboarding/OnboardingPage.jsx
++++ b/src/features/onboarding/OnboardingPage.jsx
+@@ -69,7 +69,10 @@
+     if (switchingAccount || submitting) return;
+     setSwitchingAccount(true);
+     try {
+-      await signOutLocal();
++      const result = await signOutLocal();
++      if (result?.remoteRevocationConfirmed === false) {
++        toast.info('এই ডিভাইস থেকে লগআউট সম্পন্ন হয়েছে। তবে সার্ভার সংযোগের কারণে সেশন বাতিলের নিশ্চিতকরণ পাওয়া যায়নি।');
++      }
+       navigateTo('/auth/login', true);
+     } catch (error) {
+       toast.error(getFriendlySupabaseError(error, 'এই ডিভাইস থেকে অ্যাকাউন্ট পরিবর্তন করা যায়নি। আবার চেষ্টা করুন।'));
+--- a/src/features/platform/SuperAdminPage.jsx
++++ b/src/features/platform/SuperAdminPage.jsx
+@@ -19,7 +19,7 @@
+   platformAdminListAuditLogs, platformAdminListAccessCodeHistory, platformAdminGetHostelInsights,
+   platformAdminGetSystemHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
+   platformAdminListActivity, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
+-  platformAdminGetSecurityOverview, platformAdminListSecurityEvents,
++  platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminCheckSecurityTelemetry,
+ } from '../../services/platformService';
+ 
+ const EMPTY_SETTINGS = {
+@@ -278,6 +278,7 @@
+   const [securityIpSearch, setSecurityIpSearch] = useState('');
+   const [securityLoading, setSecurityLoading] = useState(false);
+   const [securityError, setSecurityError] = useState('');
++  const [securityTelemetryStatus, setSecurityTelemetryStatus] = useState(null);
+   const [memberActivityTarget, setMemberActivityTarget] = useState(null);
+   const [memberActivityOverview, setMemberActivityOverview] = useState(null);
+   const [memberActivityRows, setMemberActivityRows] = useState([]);
+@@ -394,7 +395,7 @@
+ 
+   const loadSecurityMonitor = useCallback(async () => {
+     const requestId = ++securityRequestRef.current;
+-    setSecurityLoading(true); setSecurityError('');
++    setSecurityLoading(true); setSecurityError(''); setSecurityTelemetryStatus(null);
+     const results = await Promise.allSettled([
+       platformAdminGetSecurityOverview(),
+       platformAdminListSecurityEvents({
+@@ -402,16 +403,24 @@
+         ipSearch: securityIpSearch || null,
+         limit: pageSize, offset: securityPage * pageSize,
+       }),
++      platformAdminCheckSecurityTelemetry(),
+     ]);
+     if (requestId !== securityRequestRef.current) return;
+     const failures = [];
+-    const [overviewResult, listResult] = results;
++    const [overviewResult, listResult, telemetryResult] = results;
+     if (overviewResult.status === 'fulfilled') setSecurityOverview(overviewResult.value || {});
+     else failures.push(`Security Summary: ${errorText(overviewResult.reason, 'লোড হয়নি')}`);
+     if (listResult.status === 'fulfilled') {
+       setSecurityRows(Array.isArray(listResult.value?.items) ? listResult.value.items : []);
+       setSecurityTotal(Number(listResult.value?.total_count) || 0);
+     } else failures.push(`Security Event List: ${errorText(listResult.reason, 'লোড হয়নি')}`);
++    if (telemetryResult.status === 'fulfilled') {
++      setSecurityTelemetryStatus(telemetryResult.value || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' });
++    } else {
++      const message = await edgeInvokeErrorText(telemetryResult.reason);
++      if (requestId !== securityRequestRef.current) return;
++      setSecurityTelemetryStatus({ ready: false, message });
++    }
+     setSecurityError(failures.length ? `কিছু Security তথ্য লোড হয়নি; সফল অংশটি দেখা যাচ্ছে। ${failures.join(' · ')}` : '');
+     setSecurityLoading(false);
+   }, [securityEventFilter, securityIpSearch, securityPage]);
+@@ -1073,10 +1082,13 @@
+         <div className="platform-history-pager"><span>{activityTotal.toLocaleString('bn-BD')}টি কার্যক্রম · পৃষ্ঠা {activityTotal?activityPage+1:0} / {Math.max(1,Math.ceil(activityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={activityLoading||activityPage===0} onClick={()=>setActivityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={activityLoading||(activityPage+1)*pageSize>=activityTotal} onClick={()=>setActivityPage(value=>value+1)}>পরের</button></div></div>
+       </> : <>
+         <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Log-এ শুধু অ্যাপের মাধ্যমে পাঠানো Login/Registration প্রচেষ্টা থাকবে। Password বা আসল Email সংরক্ষণ করা হয় না। IP ঠিকানা কেবল Super Admin দেখতে পারবেন; নতুন Security Event এলে ৯০ দিনের বেশি পুরোনো Event পরিষ্কার হয়। IP একা কোনো ব্যক্তির পরিচয় বা অপরাধের প্রমাণ নয়।</span></div>
++        {securityTelemetryStatus && (securityTelemetryStatus.ready === true
++          ? <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Telemetry সংযোগ সচল এবং Run27 Database RPC যাচাই হয়েছে। Version: {securityTelemetryStatus.version || '—'}। শূন্য Event মানে এই সময়সীমায় কোনো সংরক্ষিত Security Event নেই।</span></div>
++          : <div className="inline-error platform-alert"><Icon name="alert-triangle" size={17}/> Security Telemetry সংযোগ যাচাই ব্যর্থ। Edge Function Deploy, Origin Allowlist, Server Secret এবং Run27 RPC পরীক্ষা করুন। {securityTelemetryStatus.message || securityTelemetryStatus.code || 'Function অনুপলব্ধ বা পুরোনো সংস্করণে চলছে।'}</div>)}
+         {securityOverview && <div className="platform-phase3-stat-grid"><Stat label="শেষ ২৪ ঘণ্টার Event" value={securityOverview.events_24h} icon="activity"/><Stat label="শেষ ৭ দিনের Event" value={securityOverview.events_7d} icon="calendar"/><Stat label="ব্যর্থ Login · ২৪ ঘণ্টা" value={securityOverview.failed_logins_24h} icon="lock"/><Stat label="ব্যর্থ Registration · ২৪ ঘণ্টা" value={securityOverview.failed_signups_24h} icon="user-x"/><Stat label="Registration অনুরোধ · ২৪ ঘণ্টা" value={securityOverview.signup_submitted_24h} icon="user-plus"/><Stat label="Password Reset ব্যর্থ · ২৪ ঘণ্টা" value={securityOverview.password_reset_failed_24h} icon="key-round"/><Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/><Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/></div>}
+         <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="password_reset_failed">ব্যর্থ Password Reset</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button>{(securityIpSearch||securityEventFilter!=='all')&&<button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityEventFilter('all');setSecurityPage(0);}}>ফিল্টার মুছুন</button>}</form>
+         {securityError && <div className="inline-error platform-alert">{securityError}</div>}
+-        {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>কোনো Security Event নেই</strong><span>অ্যাপের Login ও Registration প্রচেষ্টা এখানে রেকর্ড হবে।</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
++        {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>{securityTelemetryStatus?.ready === false ? 'Security Telemetry এখনো যাচাই করা যায়নি' : 'কোনো Security Event নেই'}</strong><span>{securityTelemetryStatus?.ready === false ? 'সংযোগ সচল না হওয়া পর্যন্ত শূন্য সংখ্যাকে প্রকৃত নিরাপত্তা-তথ্য ধরে নেবেন না।' : 'এখানে ব্যর্থ Login/Registration ও Password Reset প্রচেষ্টা এবং Registration submission রেকর্ড হবে। সফল Login/Logout Activity Timeline-এ দেখা যায়।'}</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
+         <div className="platform-history-pager"><span>{securityTotal.toLocaleString('bn-BD')}টি Event · পৃষ্ঠা {securityTotal?securityPage+1:0} / {Math.max(1,Math.ceil(securityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={securityLoading||securityPage===0} onClick={()=>setSecurityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={securityLoading||(securityPage+1)*pageSize>=securityTotal} onClick={()=>setSecurityPage(value=>value+1)}>পরের</button></div></div>
+       </>}
+     </section>}
+--- a/src/services/authService.js
++++ b/src/services/authService.js
+@@ -6,9 +6,18 @@
+   try {
+     Promise.resolve(supabase.functions.invoke('record-auth-event', {
+       body: { event_type: eventType, email: typeof email === 'string' ? email.trim().toLowerCase() : '', failure_code: failureCode },
+-    })).catch(() => undefined);
++    })).then(({ data, error }) => {
++      if (error) {
++        // Never log credentials, email, or request bodies. Keep only safe diagnostics.
++        console.warn('[Hostel Life] Security telemetry delivery failed:', error.message || error.name || 'unknown_error');
++      } else if (data?.accepted === false) {
++        console.warn('[Hostel Life] Security telemetry was not stored:', data.code || data.reason || 'not_accepted');
++      }
++    }).catch((error) => {
++      console.warn('[Hostel Life] Security telemetry request failed:', error?.message || 'network_error');
++    });
+   } catch {
+-    // A telemetry client error must never interrupt the primary Auth flow.
++    // Telemetry failure must never interrupt the primary Auth flow.
+   }
+ }
+ 
+--- a/src/services/platformService.js
++++ b/src/services/platformService.js
+@@ -409,3 +409,10 @@
+   if (error) throw error;
+   return data || { items: [], total_count: 0 };
+ }
++
++export async function platformAdminCheckSecurityTelemetry() {
++  assertSupabase();
++  const { data, error } = await supabase.functions.invoke('record-auth-event', { method: 'GET' });
++  if (error) throw error;
++  return data || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' };
++}
+--- a/supabase/functions/record-auth-event/index.ts
++++ b/supabase/functions/record-auth-event/index.ts
+@@ -3,7 +3,7 @@
+ // Deploy with verify_jwt=false; service-role access remains server-only.
+ import { createClient } from 'npm:@supabase/supabase-js@2';
+ 
+-const VERSION = '2026-11-02-auth-security-telemetry-1';
++const VERSION = '2026-11-02-auth-security-telemetry-2';
+ const DEFAULT_ALLOWED_ORIGINS = [
+   'https://hostellife-bd.vercel.app',
+   'https://easy-hostellife.vercel.app',
+@@ -24,6 +24,18 @@
+   return [...new Set(values.map((value) => value.replace(/\/$/, '')))];
+ }
+ 
++function serviceRoleKey(): string {
++  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
++  if (legacy) return legacy;
++  // Supabase is introducing SUPABASE_SECRET_KEYS while retaining legacy keys.
++  try {
++    const parsed = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
++    return typeof parsed?.default === 'string' ? parsed.default.trim() : '';
++  } catch {
++    return '';
++  }
++}
++
+ function response(body: Record<string, unknown>, status: number, origin: string, origins: string[]): Response {
+   const headers = new Headers({
+     'Content-Type': 'application/json; charset=utf-8',
+@@ -34,7 +46,7 @@
+     headers.set('Access-Control-Allow-Origin', origin);
+   }
+   headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+-  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
++  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+   return new Response(JSON.stringify(body), { status, headers });
+ }
+ 
+@@ -97,12 +109,12 @@
+     return new Response(null, { status: 204, headers: {
+       'Access-Control-Allow-Origin': origin,
+       'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
++      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+       'Cache-Control': 'no-store',
+       'Vary': 'Origin',
+     }});
+   }
+-  if (request.method !== 'POST') {
++  if (!['GET', 'POST'].includes(request.method)) {
+     return response({ code: 'METHOD_NOT_ALLOWED', request_id: requestId }, 405, origin, origins);
+   }
+   if (!origin || !origins.includes(normalizedOrigin)) {
+@@ -110,17 +122,55 @@
+   }
+ 
+   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+-  const hmacSecret = Deno.env.get('HOSTEL_SECURITY_HMAC_SECRET') ?? '';
+-  if (!supabaseUrl || !serviceRoleKey || hmacSecret.length < 32) {
++  const adminKey = serviceRoleKey();
++  // A dedicated stable HMAC secret is preferred. The server-only Supabase key
++  // is a safe fallback so telemetry does not silently stay empty when the
++  // optional custom secret has not yet been configured.
++  const configuredHmacSecret = Deno.env.get('HOSTEL_SECURITY_HMAC_SECRET')?.trim() ?? '';
++  const hmacSecret = configuredHmacSecret || adminKey;
++  if (!supabaseUrl || !adminKey || hmacSecret.length < 32) {
+     console.error('record-auth-event configuration missing', {
+       request_id: requestId,
+       has_url: Boolean(supabaseUrl),
+-      has_service_role_key: Boolean(serviceRoleKey),
+-      has_hmac_secret: hmacSecret.length >= 32,
++      has_server_key: Boolean(adminKey),
++      has_hmac_key: hmacSecret.length >= 32,
+     });
+     // Telemetry failure must never interfere with the actual Supabase Auth flow.
+     return response({ accepted: false, code: 'TELEMETRY_NOT_CONFIGURED', request_id: requestId }, 503, origin, origins);
++  }
++
++  const admin = createClient(supabaseUrl, adminKey, {
++    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
++  });
++
++  // Read-only health check. The deliberately invalid event type is rejected
++  // by Run27 with SQLSTATE 22023 before any insert; that proves the RPC exists
++  // and is callable without creating a synthetic Security Event.
++  if (request.method === 'GET') {
++    try {
++      const { error } = await admin.rpc('hl_record_public_security_event', {
++        p_event_type: '__hostel_life_health_check__',
++        p_identity_fingerprint: null,
++        p_ip_fingerprint: null,
++        p_request_ip: null,
++        p_failure_code: null,
++        p_user_agent: null,
++        p_request_origin: normalizedOrigin,
++      });
++      if (error?.code === '22023') {
++        return response({ ready: true, database_rpc_ready: true, version: VERSION }, 200, origin, origins);
++      }
++      const rpcMissing = error?.code === '42883' || error?.code === 'PGRST202' || /could not find the function|function .* does not exist/i.test(error?.message ?? '');
++      const code = rpcMissing ? 'TELEMETRY_RPC_MISSING' : 'TELEMETRY_DATABASE_UNAVAILABLE';
++      return response({ ready: false, code, version: VERSION }, 503, origin, origins);
++    } catch (error) {
++      console.error('record-auth-event health check failed', { request_id: requestId, message: String(error) });
++      return response({ ready: false, code: 'TELEMETRY_HEALTH_CHECK_FAILED', version: VERSION }, 503, origin, origins);
++    }
++  }
++
++  if (request.method !== 'POST') {
++    return response({ code: 'METHOD_NOT_ALLOWED', request_id: requestId }, 405, origin, origins);
+   }
+ 
+   let body: { event_type?: unknown; email?: unknown; failure_code?: unknown };
+@@ -143,9 +193,6 @@
+   const failureCode = typeof body.failure_code === 'string' && ALLOWED_FAILURE_CODES.has(body.failure_code)
+     ? body.failure_code : null;
+ 
+-  const admin = createClient(supabaseUrl, serviceRoleKey, {
+-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+-  });
+   try {
+     const { data, error } = await admin.rpc('hl_record_public_security_event', {
+       p_event_type: eventType,
+--- a/tests/logoutSecurityTelemetryVercelRegression.test.js
++++ b/tests/logoutSecurityTelemetryVercelRegression.test.js
+@@ -0,0 +1,55 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import fs from 'node:fs';
++
++const auth = fs.readFileSync('src/contexts/AuthContext.jsx', 'utf8');
++const onboarding = fs.readFileSync('src/features/onboarding/OnboardingPage.jsx', 'utf8');
++const edge = fs.readFileSync('supabase/functions/record-auth-event/index.ts', 'utf8');
++const admin = fs.readFileSync('src/features/platform/SuperAdminPage.jsx', 'utf8');
++const service = fs.readFileSync('src/services/platformService.js', 'utf8');
++const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
++const sw = fs.readFileSync('public/service-worker.js', 'utf8');
++const authService = fs.readFileSync('src/services/authService.js', 'utf8');
++
++test('onboarding logout cannot be held indefinitely by the optional audit RPC', () => {
++  assert.match(auth, /LOGOUT_AUDIT_TIMEOUT_MS\s*=\s*1500/);
++  assert.match(auth, /Promise\.race\(/);
++  assert.match(auth, /recordLogoutBestEffort\(\)/);
++  assert.match(auth, /supabase\.auth\.signOut\(\{ scope: 'local' \}\)/);
++  assert.match(auth, /getSession\(\)/);
++  assert.match(onboarding, /await signOutLocal\(\)/);
++});
++
++test('remote signout acknowledgement failures are distinguished from local logout state', () => {
++  assert.match(auth, /remoteRevocationConfirmed/);
++  assert.match(auth, /if \(data\?\.session\) throw/);
++  assert.match(onboarding, /remoteRevocationConfirmed === false/);
++});
++
++test('security telemetry supports a read-only health probe that checks the Run27 RPC without inserting events', () => {
++  assert.match(edge, /request\.method === 'GET'/);
++  assert.match(edge, /__hostel_life_health_check__/);
++  assert.match(edge, /error\?\.code === '22023'/);
++  assert.match(edge, /database_rpc_ready: true/);
++  assert.match(admin, /platformAdminCheckSecurityTelemetry/);
++  assert.match(service, /functions\.invoke\('record-auth-event', \{ method: 'GET' \}\)/);
++});
++
++test('security panel warns when telemetry ingestion is not ready instead of presenting zero as definitive', () => {
++  assert.match(admin, /Security Telemetry সংযোগ যাচাই ব্যর্থ/);
++  assert.match(admin, /শূন্য সংখ্যাকে প্রকৃত নিরাপত্তা-তথ্য ধরে নেবেন না/);
++  assert.match(authService, /Security telemetry delivery failed/);
++});
++
++test('Edge Function can use Supabase-provided secret keys and a server-only HMAC fallback', () => {
++  assert.match(edge, /SUPABASE_SECRET_KEYS/);
++  assert.match(edge, /configuredHmacSecret \|\| adminKey/);
++  assert.doesNotMatch(edge, /body\.password|p_password/);
++});
++
++test('Vercel supports the exact onboarding route and the standard Vite SPA fallback', () => {
++  assert.ok(vercel.rewrites.some((route) => route.source === '/onboarding' && route.destination === '/index.html'));
++  assert.ok(vercel.rewrites.some((route) => route.source === '/(.*)' && route.destination === '/index.html'));
++  assert.match(sw, /hostel-life-shell-v16/);
++  assert.match(sw, /const cached = await cache\.match\(cacheKey\);\n    return cached \|\| response;/);
++});
+--- a/vercel.json
++++ b/vercel.json
+@@ -1,4 +1,5 @@
+ {
++  "$schema": "https://openapi.vercel.sh/vercel.json",
+   "rewrites": [
+     {
+       "source": "/super-admin",
+@@ -21,12 +22,44 @@
+       "destination": "/index.html"
+     },
+     {
++      "source": "/onboarding",
++      "destination": "/index.html"
++    },
++    {
++      "source": "/onboarding/",
++      "destination": "/index.html"
++    },
++    {
+       "source": "/onboarding/(.*)",
+       "destination": "/index.html"
+     },
+     {
+       "source": "/account/(.*)",
+       "destination": "/index.html"
++    },
++    {
++      "source": "/(.*)",
++      "destination": "/index.html"
++    }
++  ],
++  "headers": [
++    {
++      "source": "/index.html",
++      "headers": [
++        {
++          "key": "Cache-Control",
++          "value": "no-cache, no-store, must-revalidate"
++        }
++      ]
++    },
++    {
++      "source": "/service-worker.js",
++      "headers": [
++        {
++          "key": "Cache-Control",
++          "value": "no-cache, no-store, must-revalidate"
++        }
++      ]
+     }
+   ]
+ }

@@ -3,7 +3,7 @@
 // Deploy with verify_jwt=false; service-role access remains server-only.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-11-02-auth-security-telemetry-1';
+const VERSION = '2026-11-02-auth-security-telemetry-2';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
@@ -24,6 +24,18 @@ function allowedOrigins(): string[] {
   return [...new Set(values.map((value) => value.replace(/\/$/, '')))];
 }
 
+function serviceRoleKey(): string {
+  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
+  if (legacy) return legacy;
+  // Supabase is introducing SUPABASE_SECRET_KEYS while retaining legacy keys.
+  try {
+    const parsed = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+    return typeof parsed?.default === 'string' ? parsed.default.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
 function response(body: Record<string, unknown>, status: number, origin: string, origins: string[]): Response {
   const headers = new Headers({
     'Content-Type': 'application/json; charset=utf-8',
@@ -34,7 +46,7 @@ function response(body: Record<string, unknown>, status: number, origin: string,
     headers.set('Access-Control-Allow-Origin', origin);
   }
   headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   return new Response(JSON.stringify(body), { status, headers });
 }
 
@@ -97,12 +109,12 @@ Deno.serve(async (request) => {
     return new Response(null, { status: 204, headers: {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Cache-Control': 'no-store',
       'Vary': 'Origin',
     }});
   }
-  if (request.method !== 'POST') {
+  if (!['GET', 'POST'].includes(request.method)) {
     return response({ code: 'METHOD_NOT_ALLOWED', request_id: requestId }, 405, origin, origins);
   }
   if (!origin || !origins.includes(normalizedOrigin)) {
@@ -110,17 +122,55 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-  const hmacSecret = Deno.env.get('HOSTEL_SECURITY_HMAC_SECRET') ?? '';
-  if (!supabaseUrl || !serviceRoleKey || hmacSecret.length < 32) {
+  const adminKey = serviceRoleKey();
+  // A dedicated stable HMAC secret is preferred. The server-only Supabase key
+  // is a safe fallback so telemetry does not silently stay empty when the
+  // optional custom secret has not yet been configured.
+  const configuredHmacSecret = Deno.env.get('HOSTEL_SECURITY_HMAC_SECRET')?.trim() ?? '';
+  const hmacSecret = configuredHmacSecret || adminKey;
+  if (!supabaseUrl || !adminKey || hmacSecret.length < 32) {
     console.error('record-auth-event configuration missing', {
       request_id: requestId,
       has_url: Boolean(supabaseUrl),
-      has_service_role_key: Boolean(serviceRoleKey),
-      has_hmac_secret: hmacSecret.length >= 32,
+      has_server_key: Boolean(adminKey),
+      has_hmac_key: hmacSecret.length >= 32,
     });
     // Telemetry failure must never interfere with the actual Supabase Auth flow.
     return response({ accepted: false, code: 'TELEMETRY_NOT_CONFIGURED', request_id: requestId }, 503, origin, origins);
+  }
+
+  const admin = createClient(supabaseUrl, adminKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+
+  // Read-only health check. The deliberately invalid event type is rejected
+  // by Run27 with SQLSTATE 22023 before any insert; that proves the RPC exists
+  // and is callable without creating a synthetic Security Event.
+  if (request.method === 'GET') {
+    try {
+      const { error } = await admin.rpc('hl_record_public_security_event', {
+        p_event_type: '__hostel_life_health_check__',
+        p_identity_fingerprint: null,
+        p_ip_fingerprint: null,
+        p_request_ip: null,
+        p_failure_code: null,
+        p_user_agent: null,
+        p_request_origin: normalizedOrigin,
+      });
+      if (error?.code === '22023') {
+        return response({ ready: true, database_rpc_ready: true, version: VERSION }, 200, origin, origins);
+      }
+      const rpcMissing = error?.code === '42883' || error?.code === 'PGRST202' || /could not find the function|function .* does not exist/i.test(error?.message ?? '');
+      const code = rpcMissing ? 'TELEMETRY_RPC_MISSING' : 'TELEMETRY_DATABASE_UNAVAILABLE';
+      return response({ ready: false, code, version: VERSION }, 503, origin, origins);
+    } catch (error) {
+      console.error('record-auth-event health check failed', { request_id: requestId, message: String(error) });
+      return response({ ready: false, code: 'TELEMETRY_HEALTH_CHECK_FAILED', version: VERSION }, 503, origin, origins);
+    }
+  }
+
+  if (request.method !== 'POST') {
+    return response({ code: 'METHOD_NOT_ALLOWED', request_id: requestId }, 405, origin, origins);
   }
 
   let body: { event_type?: unknown; email?: unknown; failure_code?: unknown };
@@ -143,9 +193,6 @@ Deno.serve(async (request) => {
   const failureCode = typeof body.failure_code === 'string' && ALLOWED_FAILURE_CODES.has(body.failure_code)
     ? body.failure_code : null;
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
   try {
     const { data, error } = await admin.rpc('hl_record_public_security_event', {
       p_event_type: eventType,

@@ -140,7 +140,11 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     if (key === 'logout') {
       try {
         const result = await signOut();
-        if (result?.activityRecorded === false) {
+        if (result?.remoteRevocationConfirmed === false && result?.activityRecorded === false) {
+          toast.info('এই ডিভাইস থেকে লগআউট সম্পন্ন হয়েছে। তবে Logout History ও সার্ভার সেশন বাতিলের নিশ্চিতকরণ পাওয়া যায়নি।');
+        } else if (result?.remoteRevocationConfirmed === false) {
+          toast.info('এই ডিভাইস থেকে লগআউট সম্পন্ন হয়েছে। তবে সার্ভার সেশন বাতিলের নিশ্চিতকরণ পাওয়া যায়নি।');
+        } else if (result?.activityRecorded === false) {
           toast.info('এই ডিভাইস থেকে লগআউট হয়েছে, তবে Logout History সার্ভারে রেকর্ড করা যায়নি।');
         } else {
           toast.success('এই ডিভাইস থেকে সফলভাবে লগআউট হয়েছে। অন্য ডিভাইসের সেশন চালু থাকবে।');

@@ -19,7 +19,7 @@ import {
   platformAdminListAuditLogs, platformAdminListAccessCodeHistory, platformAdminGetHostelInsights,
   platformAdminGetSystemHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
   platformAdminListActivity, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
-  platformAdminGetSecurityOverview, platformAdminListSecurityEvents,
+  platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminCheckSecurityTelemetry,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -278,6 +278,7 @@ export function SuperAdminPage({ user }) {
   const [securityIpSearch, setSecurityIpSearch] = useState('');
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securityError, setSecurityError] = useState('');
+  const [securityTelemetryStatus, setSecurityTelemetryStatus] = useState(null);
   const [memberActivityTarget, setMemberActivityTarget] = useState(null);
   const [memberActivityOverview, setMemberActivityOverview] = useState(null);
   const [memberActivityRows, setMemberActivityRows] = useState([]);
@@ -394,7 +395,7 @@ export function SuperAdminPage({ user }) {
 
   const loadSecurityMonitor = useCallback(async () => {
     const requestId = ++securityRequestRef.current;
-    setSecurityLoading(true); setSecurityError('');
+    setSecurityLoading(true); setSecurityError(''); setSecurityTelemetryStatus(null);
     const results = await Promise.allSettled([
       platformAdminGetSecurityOverview(),
       platformAdminListSecurityEvents({
@@ -402,16 +403,24 @@ export function SuperAdminPage({ user }) {
         ipSearch: securityIpSearch || null,
         limit: pageSize, offset: securityPage * pageSize,
       }),
+      platformAdminCheckSecurityTelemetry(),
     ]);
     if (requestId !== securityRequestRef.current) return;
     const failures = [];
-    const [overviewResult, listResult] = results;
+    const [overviewResult, listResult, telemetryResult] = results;
     if (overviewResult.status === 'fulfilled') setSecurityOverview(overviewResult.value || {});
     else failures.push(`Security Summary: ${errorText(overviewResult.reason, 'লোড হয়নি')}`);
     if (listResult.status === 'fulfilled') {
       setSecurityRows(Array.isArray(listResult.value?.items) ? listResult.value.items : []);
       setSecurityTotal(Number(listResult.value?.total_count) || 0);
     } else failures.push(`Security Event List: ${errorText(listResult.reason, 'লোড হয়নি')}`);
+    if (telemetryResult.status === 'fulfilled') {
+      setSecurityTelemetryStatus(telemetryResult.value || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' });
+    } else {
+      const message = await edgeInvokeErrorText(telemetryResult.reason);
+      if (requestId !== securityRequestRef.current) return;
+      setSecurityTelemetryStatus({ ready: false, message });
+    }
     setSecurityError(failures.length ? `কিছু Security তথ্য লোড হয়নি; সফল অংশটি দেখা যাচ্ছে। ${failures.join(' · ')}` : '');
     setSecurityLoading(false);
   }, [securityEventFilter, securityIpSearch, securityPage]);
@@ -1073,10 +1082,13 @@ export function SuperAdminPage({ user }) {
         <div className="platform-history-pager"><span>{activityTotal.toLocaleString('bn-BD')}টি কার্যক্রম · পৃষ্ঠা {activityTotal?activityPage+1:0} / {Math.max(1,Math.ceil(activityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={activityLoading||activityPage===0} onClick={()=>setActivityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={activityLoading||(activityPage+1)*pageSize>=activityTotal} onClick={()=>setActivityPage(value=>value+1)}>পরের</button></div></div>
       </> : <>
         <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Log-এ শুধু অ্যাপের মাধ্যমে পাঠানো Login/Registration প্রচেষ্টা থাকবে। Password বা আসল Email সংরক্ষণ করা হয় না। IP ঠিকানা কেবল Super Admin দেখতে পারবেন; নতুন Security Event এলে ৯০ দিনের বেশি পুরোনো Event পরিষ্কার হয়। IP একা কোনো ব্যক্তির পরিচয় বা অপরাধের প্রমাণ নয়।</span></div>
+        {securityTelemetryStatus && (securityTelemetryStatus.ready === true
+          ? <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Telemetry সংযোগ সচল এবং Run27 Database RPC যাচাই হয়েছে। Version: {securityTelemetryStatus.version || '—'}। শূন্য Event মানে এই সময়সীমায় কোনো সংরক্ষিত Security Event নেই।</span></div>
+          : <div className="inline-error platform-alert"><Icon name="alert-triangle" size={17}/> Security Telemetry সংযোগ যাচাই ব্যর্থ। Edge Function Deploy, Origin Allowlist, Server Secret এবং Run27 RPC পরীক্ষা করুন। {securityTelemetryStatus.message || securityTelemetryStatus.code || 'Function অনুপলব্ধ বা পুরোনো সংস্করণে চলছে।'}</div>)}
         {securityOverview && <div className="platform-phase3-stat-grid"><Stat label="শেষ ২৪ ঘণ্টার Event" value={securityOverview.events_24h} icon="activity"/><Stat label="শেষ ৭ দিনের Event" value={securityOverview.events_7d} icon="calendar"/><Stat label="ব্যর্থ Login · ২৪ ঘণ্টা" value={securityOverview.failed_logins_24h} icon="lock"/><Stat label="ব্যর্থ Registration · ২৪ ঘণ্টা" value={securityOverview.failed_signups_24h} icon="user-x"/><Stat label="Registration অনুরোধ · ২৪ ঘণ্টা" value={securityOverview.signup_submitted_24h} icon="user-plus"/><Stat label="Password Reset ব্যর্থ · ২৪ ঘণ্টা" value={securityOverview.password_reset_failed_24h} icon="key-round"/><Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/><Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/></div>}
         <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="password_reset_failed">ব্যর্থ Password Reset</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button>{(securityIpSearch||securityEventFilter!=='all')&&<button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityEventFilter('all');setSecurityPage(0);}}>ফিল্টার মুছুন</button>}</form>
         {securityError && <div className="inline-error platform-alert">{securityError}</div>}
-        {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>কোনো Security Event নেই</strong><span>অ্যাপের Login ও Registration প্রচেষ্টা এখানে রেকর্ড হবে।</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
+        {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>{securityTelemetryStatus?.ready === false ? 'Security Telemetry এখনো যাচাই করা যায়নি' : 'কোনো Security Event নেই'}</strong><span>{securityTelemetryStatus?.ready === false ? 'সংযোগ সচল না হওয়া পর্যন্ত শূন্য সংখ্যাকে প্রকৃত নিরাপত্তা-তথ্য ধরে নেবেন না।' : 'এখানে ব্যর্থ Login/Registration ও Password Reset প্রচেষ্টা এবং Registration submission রেকর্ড হবে। সফল Login/Logout Activity Timeline-এ দেখা যায়।'}</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
         <div className="platform-history-pager"><span>{securityTotal.toLocaleString('bn-BD')}টি Event · পৃষ্ঠা {securityTotal?securityPage+1:0} / {Math.max(1,Math.ceil(securityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={securityLoading||securityPage===0} onClick={()=>setSecurityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={securityLoading||(securityPage+1)*pageSize>=securityTotal} onClick={()=>setSecurityPage(value=>value+1)}>পরের</button></div></div>
       </>}
     </section>}

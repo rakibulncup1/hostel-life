@@ -69,7 +69,10 @@ export function OnboardingPage() {
     if (switchingAccount || submitting) return;
     setSwitchingAccount(true);
     try {
-      await signOutLocal();
+      const result = await signOutLocal();
+      if (result?.remoteRevocationConfirmed === false) {
+        toast.info('এই ডিভাইস থেকে লগআউট সম্পন্ন হয়েছে। তবে সার্ভার সংযোগের কারণে সেশন বাতিলের নিশ্চিতকরণ পাওয়া যায়নি।');
+      }
       navigateTo('/auth/login', true);
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'এই ডিভাইস থেকে অ্যাকাউন্ট পরিবর্তন করা যায়নি। আবার চেষ্টা করুন।'));
