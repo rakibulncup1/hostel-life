@@ -1,31 +1,11 @@
-/* Hostel Life PWA install guide and first-entry prompt. Theme-token based. */
-.app-download-page { gap: 16px; }
-.app-download-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; padding: clamp(18px, 3vw, 28px); border-color: color-mix(in srgb, var(--primary) 24%, var(--line)); background: linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--primary-soft) 64%, var(--surface))); }
-.app-download-hero-icon { display: grid; width: 58px; height: 58px; place-items: center; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--line)); border-radius: 18px; background: var(--primary-soft); color: var(--primary-strong); }
-.app-download-hero .menu-page-title-copy { min-width: 0; }
-.app-download-hero h1 { margin: 2px 0 5px; color: var(--text); font-size: clamp(21px, 3vw, 29px); line-height: 1.32; overflow-wrap: anywhere; }
-.app-download-hero p { max-width: 65ch; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
-.app-download-install-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: clamp(17px, 2.5vw, 24px); }
-.app-download-install-copy { min-width: 0; }
-.app-download-status { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--primary-strong); font-size: 11px; font-weight: 850; }
-.app-download-status.is-installed { color: var(--success, #16834b); }
-.app-download-install-card h2 { margin: 12px 0 5px; color: var(--text); font-size: clamp(18px, 2.5vw, 23px); line-height: 1.4; }
-.app-download-install-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
-.app-download-install-card > .primary-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-.app-download-note { display: flex; align-items: flex-start; gap: 8px; max-width: 430px; }
-.app-download-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary-strong); }
-.app-download-steps { display: grid; gap: 12px; padding: clamp(16px, 2.5vw, 22px); }
-.app-download-steps .panel-header { margin-bottom: 2px; }
-.app-download-steps .panel-header h2 { margin: 3px 0; color: var(--text); font-size: clamp(17px, 2.4vw, 21px); }
-.app-download-steps .panel-header p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.app-download-step { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); }
-.app-download-step-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: var(--primary-soft); color: var(--primary-strong); }
-.app-download-step strong { display: block; color: var(--text); font-size: 13px; }
-.app-download-step p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
-.app-download-security-note { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line)); border-radius: 14px; background: var(--primary-soft); color: var(--muted); font-size: 11px; line-height: 1.7; }
-.app-download-security-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
-.app-download-security-note p { margin: 0; }
-.app-download-security-note strong { color: var(--text); }
+/* Minimal, one-action PWA install screen. */
+.app-download-page { display: grid; min-height: min(62vh, 620px); place-items: center; }
+.app-download-single-card { display: grid; justify-items: center; gap: 18px; width: min(520px, 100%); padding: clamp(26px, 5vw, 46px); text-align: center; border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line)); background: linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--primary-soft) 52%, var(--surface))); }
+.app-download-single-icon { display: grid; width: 76px; height: 76px; place-items: center; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--line)); border-radius: 24px; background: var(--primary-soft); color: var(--primary-strong); }
+.app-download-single-card h1 { max-width: 100%; margin: 0; color: var(--text); font-size: clamp(21px, 4vw, 29px); line-height: 1.4; }
+.app-download-single-button { display: inline-flex; min-width: min(280px, 100%); align-items: center; justify-content: center; gap: 9px; }
+.app-download-single-status { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: var(--success, #16834b); font-size: 13px; font-weight: 800; }
+.app-download-single-fallback { max-width: 360px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 
 .install-nudge-backdrop { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(5 12 9 / 58%); backdrop-filter: blur(6px); }
 .install-nudge-dialog { position: relative; display: grid; justify-items: center; gap: 11px; width: min(450px, 100%); padding: 30px clamp(20px, 5vw, 32px) 25px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); color: var(--text); text-align: center; box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
@@ -56,12 +36,8 @@
 .howto-page details > summary::-webkit-details-marker { display: none; }
 
 @media (max-width: 640px) {
-  .app-download-hero { grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 16px; }
-  .app-download-hero-icon { width: 47px; height: 47px; border-radius: 14px; }
-  .app-download-hero p { font-size: 11px; }
-  .app-download-install-card { align-items: stretch; flex-direction: column; }
-  .app-download-install-card > .primary-button { width: 100%; }
-  .app-download-step { gap: 10px; padding: 12px; }
-  .app-download-step-icon { flex-basis: 36px; width: 36px; height: 36px; }
+  .app-download-single-card { gap: 15px; padding: 28px 20px; border-radius: 20px; }
+  .app-download-single-icon { width: 64px; height: 64px; border-radius: 20px; }
+  .app-download-single-button { width: 100%; }
   .install-nudge-dialog { padding-top: 28px; border-radius: 20px; }
 }

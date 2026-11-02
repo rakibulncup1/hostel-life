@@ -6,7 +6,7 @@ import { DiningPage } from '../features/dining/DiningPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
 import { AllMembersPage, KhalaMoneyViewPage, TopDepositorsPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage } from '../features/menu/MenuPages';
-import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
+import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, JoinRequestReviewPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
 import { AuthPage } from '../features/auth/AuthPage';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange';
 import { OnboardingPage } from '../features/onboarding/OnboardingPage';
@@ -58,6 +58,8 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/hostel-settings') return <HostelSettingsPage />;
   if (pathname === '/app/menu/khala-money') return <KhalaMoneyPage />;
   if (pathname === '/app/menu/member-management') return <MemberManagementPage />;
+  if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
+  if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
   return <DashboardPage />;
 }
 
@@ -167,6 +169,8 @@ export function App() {
     else if (pathname.includes('/menu/hostel-settings')) title = 'Hostel Life — মেস সেটিংস';
     else if (pathname.includes('/menu/khala-money')) title = 'Hostel Life — খালার টাকা';
     else if (pathname.includes('/menu/member-management')) title = 'Hostel Life — সদস্য ব্যবস্থাপনা';
+    else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
+    else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
     else if (pathname.includes('/onboarding')) title = 'Hostel Life — মেস সেটআপ';
     else if (pathname === '/super-admin') title = 'Hostel Life — Super Admin';
     document.title = title;

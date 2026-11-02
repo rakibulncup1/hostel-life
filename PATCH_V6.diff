@@ -1,0 +1,579 @@
+diff --git a/src/app/App.jsx b/src/app/App.jsx
+index 5b30ffc..9b8cf26 100644
+--- a/src/app/App.jsx
++++ b/src/app/App.jsx
+@@ -6,7 +6,7 @@ import { DiningPage } from '../features/dining/DiningPage';
+ import { HistoryPage } from '../features/history/HistoryPage';
+ import { ProfilePage } from '../features/profile/ProfilePage';
+ import { AllMembersPage, KhalaMoneyViewPage, TopDepositorsPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage } from '../features/menu/MenuPages';
+-import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
++import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, JoinRequestReviewPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
+ import { AuthPage } from '../features/auth/AuthPage';
+ import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange';
+ import { OnboardingPage } from '../features/onboarding/OnboardingPage';
+@@ -58,6 +58,8 @@ function resolveAppPage(pathname, isManager) {
+   if (pathname === '/app/menu/hostel-settings') return <HostelSettingsPage />;
+   if (pathname === '/app/menu/khala-money') return <KhalaMoneyPage />;
+   if (pathname === '/app/menu/member-management') return <MemberManagementPage />;
++  if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
++  if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
+   return <DashboardPage />;
+ }
+ 
+@@ -167,6 +169,8 @@ export function App() {
+     else if (pathname.includes('/menu/hostel-settings')) title = 'Hostel Life — মেস সেটিংস';
+     else if (pathname.includes('/menu/khala-money')) title = 'Hostel Life — খালার টাকা';
+     else if (pathname.includes('/menu/member-management')) title = 'Hostel Life — সদস্য ব্যবস্থাপনা';
++    else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
++    else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
+     else if (pathname.includes('/onboarding')) title = 'Hostel Life — মেস সেটআপ';
+     else if (pathname === '/super-admin') title = 'Hostel Life — Super Admin';
+     document.title = title;
+diff --git a/src/app/AppShell.jsx b/src/app/AppShell.jsx
+index b5af026..8290b08 100644
+--- a/src/app/AppShell.jsx
++++ b/src/app/AppShell.jsx
+@@ -200,6 +200,8 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+       archive: '/app/menu/archive',
+       'khala-money': '/app/menu/khala-money',
+       'member-management': '/app/menu/member-management',
++      'join-requests': '/app/menu/join-requests',
++      'join-requests': '/app/menu/join-requests',
+     };
+     const path = routes[key];
+     if (path) navigateTo(path);
+@@ -327,7 +329,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+           <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
+           <h2 id="install-nudge-title">মোবাইলে Hostel Life ব্যবহার আরও সহজ করুন</h2>
+           <p>হোম স্ক্রিনে অ্যাপটি যোগ করলে এক ট্যাপেই খুলতে পারবেন। বারবার ব্রাউজারে খুঁজতে হবে না।</p>
+-          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleNudgeInstall}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'ইনস্টল করার নিয়ম দেখুন'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
++          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleNudgeInstall}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+         </section>
+       </div>}
+     </div>
+diff --git a/src/components/MenuDrawer.jsx b/src/components/MenuDrawer.jsx
+index 127eff9..e76b7b1 100644
+--- a/src/components/MenuDrawer.jsx
++++ b/src/components/MenuDrawer.jsx
+@@ -27,13 +27,14 @@ const primaryItems = [
+   { key: 'hostel-settings', label: 'মেস সেটিংস', icon: 'lock' },
+   { key: 'send-notification', label: 'মেস নোটিশ', icon: 'bell' },
+   { key: 'khala-money', label: 'খালার টাকা', icon: 'dining' },
++  { key: 'join-requests', label: 'জয়েন রিকোয়েস্ট পর্যালোচনা', icon: 'user-check' },
+   { key: 'member-management', label: 'সদস্য ব্যবস্থাপনা', icon: 'user' },
+ ];
+ 
+ const assistantItems = [
+   { key: 'dining-operations', label: 'ডাইনিং ব্যবস্থাপনা', icon: 'cooking-pot' },
+   { key: 'hostel-settings', label: 'মেস সেটিংস', icon: 'lock' },
+-  { key: 'member-management', label: 'সদস্য ব্যবস্থাপনা ও Join Request', icon: 'users' },
++  { key: 'join-requests', label: 'জয়েন রিকোয়েস্ট পর্যালোচনা', icon: 'user-check' },
+   { key: 'khala-money', label: 'খালার টাকা', icon: 'wallet' },
+ ];
+ 
+diff --git a/src/features/manager/ManagerPages.jsx b/src/features/manager/ManagerPages.jsx
+index 84d4849..8f33a37 100644
+--- a/src/features/manager/ManagerPages.jsx
++++ b/src/features/manager/ManagerPages.jsx
+@@ -37,6 +37,13 @@ import { formatCurrency, formatNumber } from '../../utils/number';
+ import { formatDateTime12 } from '../../utils/time';
+ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+ import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
++import {
++  managerCreateHostelInviteLink,
++  managerListHostelInviteLinks,
++  managerRevokeHostelInviteLink,
++  managerListHostelJoinRequests,
++  managerReviewHostelJoinRequest,
++} from '../../services/hostelInviteService';
+ import { deriveNextRequiredStartDate, dhakaDateInputValue } from '../../utils/monthStart';
+ import { canActivateNextPeriod, getDhakaDateTimeParts, getMemberDeactivationImpact, getNextPeriodActivationMessage } from '../../utils/monthLifecyclePolicy';
+ 
+@@ -597,7 +604,8 @@ export function HostelSettingsPage() {
+   const createInviteLink = async () => {
+     setInviteLinkBusy(true);
+     try {
+-      const result = await managerCreateHostelInviteLink(null, 'সদস্য আমন্ত্রণ');
++      const result = await managerCreateHostelInviteLink('সদস্য আমন্ত্রণ');
++      if (!result?.token || !/^[0-9a-f]{64}$/.test(result.token)) throw new Error('সার্ভার থেকে বৈধ Invitation Token পাওয়া যায়নি। Run29 Migration প্রয়োগ হয়েছে কি না যাচাই করুন।');
+       setCreatedInviteUrl(`${window.location.origin}/invite#${result.token}`);
+       await loadInviteLinks();
+       toast.success('নতুন Invitation Link তৈরি হয়েছে।');
+@@ -658,8 +666,8 @@ export function HostelSettingsPage() {
+           <button className="secondary-button" type="button" disabled={codeBusy} onClick={() => setConfirmCode(true)}><Icon name="refresh" size={15} /> নতুন যুক্ত হওয়ার কোড তৈরি করুন</button>
+         </section>
+         <section className="card manager-form-card manager-invite-card">
+-          <div className="panel-header"><div><span className="eyebrow">INVITATION LINK</span><h2>লিংক দিয়ে নতুন সদস্য আমন্ত্রণ</h2><p>লিংক খুলে নতুন অ্যাকাউন্ট তৈরি বা লগইন করলে Join Code দিতে হবে না। ব্যবহারকারী Join Request পাঠাবেন; ম্যানেজার বা সহকারী ম্যানেজার অনুমোদন করলে সদস্য হবেন।</p></div></div>
+-          <button className="primary-button" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}>{inviteLinkBusy ? 'তৈরি হচ্ছে...' : '৭ দিনের Invitation Link তৈরি করুন'}</button>
++          <div className="panel-header"><div><span className="eyebrow">INVITATION LINK</span><h2>লিংক দিয়ে নতুন সদস্য আমন্ত্রণ</h2><p>নতুন লিংক তৈরি করলে আগের সক্রিয় Invitation সঙ্গে সঙ্গে বাতিল হবে। নতুন সদস্য লগইন করে Join Request পাঠাবেন; আপনি বা অনুমোদিত সহকারী সেটি পর্যালোচনা করবেন।</p></div></div>
++          <button className="primary-button" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}><Icon name="link" size={16}/>{inviteLinkBusy ? 'তৈরি হচ্ছে...' : 'নতুন Invitation Link তৈরি করুন'}</button>
+           {createdInviteUrl && <div className="platform-generated-code"><strong>নতুন Invitation Link</strong><code className="platform-link-value">{createdInviteUrl}</code><button className="secondary-button" type="button" onClick={async () => { try { await copyText(createdInviteUrl); toast.success('Invitation Link কপি হয়েছে।'); } catch { toast.warning('কপি করা যায়নি—লিংকটি হাতে কপি করুন।'); } }}>লিংক কপি করুন</button><small>নিরাপত্তার জন্য লিংকটি শুধু নির্দিষ্ট ব্যক্তিকে পাঠান।</small></div>}
+           <div className="platform-panel-heading"><div><h3>আগের Invitation Link</h3><p>বাতিল বা মেয়াদ শেষ হলে লিংক আর নতুন Request নিতে পারবে না।</p></div><button type="button" className="secondary-button compact" disabled={inviteLinksLoading} onClick={loadInviteLinks}>রিফ্রেশ</button></div>
+           {inviteLinksLoading ? <LoadingSpinner label="Invitation Link লোড হচ্ছে..."/> : inviteLinks.length === 0 ? <p className="platform-empty">এখনো কোনো Invitation Link তৈরি হয়নি।</p> : <div className="platform-retention-list">{inviteLinks.map((row) => <div className="platform-retention-row" key={row.id}><div><strong>{row.label || 'সদস্য আমন্ত্রণ'}</strong><small>তৈরি: {formatDateTime12(row.created_at)} · মেয়াদ: {formatDateTime12(row.expires_at)}</small><small>অবস্থা: {row.revoked_at ? 'বাতিল' : new Date(row.expires_at) <= new Date() ? 'মেয়াদ শেষ' : 'চালু'}</small></div>{!row.revoked_at && new Date(row.expires_at) > new Date() && <button type="button" className="danger-button" disabled={inviteLinkBusy} onClick={() => revokeInviteLink(row)}>বাতিল</button>}</div>)}</div>}
+@@ -700,11 +708,20 @@ function JoinRequestQueue() {
+     } catch (error) { toast.error(getFriendlySupabaseError(error, 'Join Request পর্যালোচনা করা যায়নি।')); }
+     finally { setBusyId(''); }
+   };
+-  return <ManagerGuard><section className="card manager-join-request-panel">
++  return <section className="card manager-join-request-panel">
+     <div className="panel-header"><div><span className="eyebrow">MEMBERSHIP APPROVAL</span><h2>নতুন সদস্যের Join Request</h2><p>ব্যক্তিগত Invitation Link দিয়ে পাঠানো অনুরোধ এখানে দেখাবে। অনুমোদনের পরই সদস্যপদ সক্রিয় হবে।</p></div><button className="secondary-button compact" type="button" disabled={loading} onClick={load}>রিফ্রেশ</button></div>
+     <label className="field-label"><span>পর্যালোচনার নোট (ঐচ্ছিক)</span><input value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} maxLength={500} placeholder="অনুমোদন বা বাতিলের সংক্ষিপ্ত কারণ"/></label>
+     {loading ? <LoadingSpinner label="Join Request লোড হচ্ছে..."/> : rows.length === 0 ? <p className="platform-empty">এখনো কোনো অপেক্ষমাণ Join Request নেই।</p> : <div className="manager-join-request-list">{rows.map((row) => <article className="manager-join-request-row" key={row.id}><div className="manager-join-request-copy"><strong>{row.full_name || 'নতুন সদস্য'}</strong><small>{formatDateTime12(row.created_at)} · Invitation Link</small>{row.request_note && <p>{row.request_note}</p>}</div><div className="manager-join-request-actions"><button className="primary-button compact" type="button" disabled={Boolean(busyId)} onClick={() => review(row, true)}>{busyId === row.id ? 'প্রক্রিয়াধীন...' : 'অনুমোদন'}</button><button className="danger-button" type="button" disabled={Boolean(busyId)} onClick={() => review(row, false)}>বাতিল</button></div></article>)}</div>}
+-  </section></ManagerGuard>;
++  </section>;
++}
++
++export function JoinRequestReviewPage() {
++  const online = useOnlineStatus();
++  if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="Join Request পর্যালোচনার জন্য অনলাইন সংযোগ প্রয়োজন।" />;
++  return <ManagerGuard><div className="page-stack">
++    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের অনুরোধ যাচাই করে অনুমোদন বা বাতিল করুন।" eyebrow="ম্যানেজার ফিচার" />
++    <JoinRequestQueue />
++  </div></ManagerGuard>;
+ }
+ 
+ export function MemberManagementPage() {
+@@ -760,7 +777,6 @@ export function MemberManagementPage() {
+ 
+   return (
+     <>
+-      <JoinRequestQueue />
+       <PrimaryManagerGuard>
+       <div className="page-stack">
+         <PageHeader title="সদস্য ব্যবস্থাপনা" icon="users" description="মেস ছেড়ে যাওয়া সদস্যকে নিষ্ক্রিয় করুন; প্রয়োজন হলে পরে আবার সক্রিয় করুন।" />
+diff --git a/src/features/menu/AppDownloadPage.jsx b/src/features/menu/AppDownloadPage.jsx
+index ba0196a..e1c05ba 100644
+--- a/src/features/menu/AppDownloadPage.jsx
++++ b/src/features/menu/AppDownloadPage.jsx
+@@ -1,3 +1,4 @@
++import { useState } from 'react';
+ import { Icon } from '../../components/Icon';
+ import { useInstallPromptContext } from '../../contexts/InstallPromptContext';
+ import { useToast } from '../../components/Toast';
+@@ -5,47 +6,40 @@ import { useToast } from '../../components/Toast';
+ export function AppDownloadPage() {
+   const { canInstall, installed, install } = useInstallPromptContext();
+   const toast = useToast();
++  const [installing, setInstalling] = useState(false);
+ 
+   const installNow = async () => {
++    if (!canInstall || installing) return;
++    setInstalling(true);
+     try {
+       const accepted = await install();
+-      if (accepted) toast.success('Hostel Life ইনস্টল করার অনুরোধ গ্রহণ করা হয়েছে।');
+-      else toast.info('ইনস্টল অপশনটি এখন ব্রাউজারে পাওয়া যাচ্ছে না। নিচের নির্দেশনা অনুসরণ করুন।');
++      if (accepted) toast.success('Hostel Life ইনস্টল হয়েছে।');
++      else toast.info('ইনস্টল অনুরোধটি সম্পন্ন হয়নি। আবার চেষ্টা করুন।');
+     } catch (error) {
+       console.error('PWA install failed:', error);
+-      toast.error('ইনস্টল করা যায়নি। ব্রাউজারের নির্দেশনা অনুসরণ করুন।');
++      toast.error('এখন ইনস্টল করা যায়নি। পরে আবার চেষ্টা করুন।');
++    } finally {
++      setInstalling(false);
+     }
+   };
+ 
+   return (
+-    <div className="page-stack app-download-page">
+-      <section className="menu-page-intro-card card app-download-hero">
+-        <span className="app-download-hero-icon"><Icon name="smartphone" size={27} /></span>
+-        <div className="menu-page-title-copy">
+-          <span className="eyebrow">HOSTEL LIFE · MOBILE EXPERIENCE</span>
+-          <h1>Hostel Life অ্যাপ ইনস্টল করুন</h1>
+-          <p>হোম স্ক্রিন থেকে দ্রুত খুলুন, অ্যাপের মতো ব্যবহার করুন—বারবার ব্রাউজারে ঠিকানা লিখতে হবে না।</p>
+-        </div>
++    <main className="app-download-page">
++      <section className="card app-download-single-card" aria-labelledby="app-download-title">
++        <span className="app-download-single-icon" aria-hidden="true">
++          <Icon name={installed ? 'check-circle' : 'smartphone'} size={32} />
++        </span>
++        <h1 id="app-download-title">{installed ? 'Hostel Life ইনস্টল করা আছে' : 'Hostel Life অ্যাপ ইনস্টল করুন'}</h1>
++        {installed ? (
++          <p className="app-download-single-status"><Icon name="check-circle" size={16}/> আপনার ডিভাইসে অ্যাপটি প্রস্তুত।</p>
++        ) : canInstall ? (
++          <button className="primary-button large app-download-single-button" type="button" onClick={installNow} disabled={installing}>
++            <Icon name="download" size={19}/>{installing ? 'ইনস্টল হচ্ছে...' : 'এখনই ইনস্টল করুন'}
++          </button>
++        ) : (
++          <p className="app-download-single-fallback">এই ব্রাউজারে সরাসরি ইনস্টল সুবিধা নেই। Browser Menu থেকে “Add to Home Screen” নির্বাচন করুন।</p>
++        )}
+       </section>
+-
+-      <section className="card app-download-install-card">
+-        <div className="app-download-install-copy">
+-          <span className={`app-download-status ${installed ? 'is-installed' : ''}`}><Icon name={installed ? 'check-circle' : 'download'} size={15}/>{installed ? 'ইনস্টল করা আছে' : 'ওয়েব অ্যাপ ইনস্টল'}</span>
+-          <h2>{installed ? 'Hostel Life আপনার ডিভাইসে আছে' : 'এক ট্যাপে ইনস্টল করুন'}</h2>
+-          <p>{installed ? 'হোম স্ক্রিন বা অ্যাপ তালিকা থেকে Hostel Life খুলতে পারবেন।' : 'আপনার ব্রাউজার ইনস্টল সমর্থন করলে নিচের বোতামটি ব্যবহার করুন।'}</p>
+-        </div>
+-        {canInstall && <button className="primary-button large" type="button" onClick={installNow}><Icon name="download" size={18}/> অ্যাপ ইনস্টল করুন</button>}
+-        {!canInstall && !installed && <p className="app-download-note"><Icon name="info" size={17}/> এই ব্রাউজারে স্বয়ংক্রিয় Install Prompt পাওয়া যাচ্ছে না। নিচের পদ্ধতি অনুসরণ করে Home Screen-এ যোগ করতে পারবেন।</p>}
+-      </section>
+-
+-      <section className="card app-download-steps">
+-        <div className="panel-header"><div><span className="eyebrow">INSTALL GUIDE</span><h2>আপনার ডিভাইসে ইনস্টল করার নিয়ম</h2><p>ডিভাইস ও ব্রাউজার অনুযায়ী পদ্ধতি বেছে নিন।</p></div></div>
+-        <article className="app-download-step"><span className="app-download-step-icon"><Icon name="chrome" size={20}/></span><div><strong>Android · Chrome</strong><p>Chrome-এর উপরের তিন-ডট মেনু খুলুন। “Install app” বা “Add to Home screen” নির্বাচন করে নির্দেশনা অনুসরণ করুন।</p></div></article>
+-        <article className="app-download-step"><span className="app-download-step-icon"><Icon name="compass" size={20}/></span><div><strong>iPhone / iPad · Safari</strong><p>Safari-তে Hostel Life খুলুন। Share বোতাম চাপুন, “Add to Home Screen” নির্বাচন করুন এবং Add চাপুন।</p></div></article>
+-        <article className="app-download-step"><span className="app-download-step-icon"><Icon name="monitor" size={20}/></span><div><strong>Desktop · Chrome / Edge</strong><p>Address Bar-এর Install আইকন অথবা Browser Menu থেকে “Install Hostel Life” নির্বাচন করুন।</p></div></article>
+-      </section>
+-
+-      <section className="app-download-security-note"><Icon name="shield-check" size={18}/><p><strong>নিরাপত্তা ও তথ্য:</strong> এটি Hostel Life-এর Installable Web App (PWA)। অ্যাপ ইনস্টল করলেও আপনার বর্তমান অ্যাকাউন্ট, মেসের সদস্যপদ ও সার্ভারে থাকা তথ্য একই থাকবে।</p></section>
+-    </div>
++    </main>
+   );
+ }
+diff --git a/src/services/hostelInviteService.js b/src/services/hostelInviteService.js
+index aafea20..555dc42 100644
+--- a/src/services/hostelInviteService.js
++++ b/src/services/hostelInviteService.js
+@@ -32,10 +32,11 @@ export async function getMyHostelJoinRequestStatus(token) {
+   return firstRow(data) || {};
+ }
+ 
+-export async function managerCreateHostelInviteLink(expiresAt, label = '') {
++export async function managerCreateHostelInviteLink(label = '') {
+   assertSupabase();
+-  const { data, error } = await supabase.rpc('manager_create_hostel_invite_link', {
+-    p_expires_at: expiresAt || null,
++  // Expiry is calculated by PostgreSQL, not the device clock. This dedicated
++  // one-argument RPC avoids nullable timestamptz overload resolution in PostgREST.
++  const { data, error } = await supabase.rpc('manager_create_or_rotate_hostel_invite_link', {
+     p_label: label.trim(),
+   });
+   if (error) throw error;
+diff --git a/src/styles/app-download.css b/src/styles/app-download.css
+index 639d4ba..a0ca67d 100644
+--- a/src/styles/app-download.css
++++ b/src/styles/app-download.css
+@@ -1,31 +1,11 @@
+-/* Hostel Life PWA install guide and first-entry prompt. Theme-token based. */
+-.app-download-page { gap: 16px; }
+-.app-download-hero { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; padding: clamp(18px, 3vw, 28px); border-color: color-mix(in srgb, var(--primary) 24%, var(--line)); background: linear-gradient(135deg, var(--surface), color-mix(in srgb, var(--primary-soft) 64%, var(--surface))); }
+-.app-download-hero-icon { display: grid; width: 58px; height: 58px; place-items: center; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--line)); border-radius: 18px; background: var(--primary-soft); color: var(--primary-strong); }
+-.app-download-hero .menu-page-title-copy { min-width: 0; }
+-.app-download-hero h1 { margin: 2px 0 5px; color: var(--text); font-size: clamp(21px, 3vw, 29px); line-height: 1.32; overflow-wrap: anywhere; }
+-.app-download-hero p { max-width: 65ch; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
+-.app-download-install-card { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: clamp(17px, 2.5vw, 24px); }
+-.app-download-install-copy { min-width: 0; }
+-.app-download-status { display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--primary-strong); font-size: 11px; font-weight: 850; }
+-.app-download-status.is-installed { color: var(--success, #16834b); }
+-.app-download-install-card h2 { margin: 12px 0 5px; color: var(--text); font-size: clamp(18px, 2.5vw, 23px); line-height: 1.4; }
+-.app-download-install-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+-.app-download-install-card > .primary-button { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+-.app-download-note { display: flex; align-items: flex-start; gap: 8px; max-width: 430px; }
+-.app-download-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary-strong); }
+-.app-download-steps { display: grid; gap: 12px; padding: clamp(16px, 2.5vw, 22px); }
+-.app-download-steps .panel-header { margin-bottom: 2px; }
+-.app-download-steps .panel-header h2 { margin: 3px 0; color: var(--text); font-size: clamp(17px, 2.4vw, 21px); }
+-.app-download-steps .panel-header p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+-.app-download-step { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); }
+-.app-download-step-icon { display: grid; flex: 0 0 40px; width: 40px; height: 40px; place-items: center; border-radius: 12px; background: var(--primary-soft); color: var(--primary-strong); }
+-.app-download-step strong { display: block; color: var(--text); font-size: 13px; }
+-.app-download-step p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
+-.app-download-security-note { display: flex; align-items: flex-start; gap: 10px; padding: 13px 15px; border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line)); border-radius: 14px; background: var(--primary-soft); color: var(--muted); font-size: 11px; line-height: 1.7; }
+-.app-download-security-note svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
+-.app-download-security-note p { margin: 0; }
+-.app-download-security-note strong { color: var(--text); }
++/* Minimal, one-action PWA install screen. */
++.app-download-page { display: grid; min-height: min(62vh, 620px); place-items: center; }
++.app-download-single-card { display: grid; justify-items: center; gap: 18px; width: min(520px, 100%); padding: clamp(26px, 5vw, 46px); text-align: center; border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line)); background: linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--primary-soft) 52%, var(--surface))); }
++.app-download-single-icon { display: grid; width: 76px; height: 76px; place-items: center; border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--line)); border-radius: 24px; background: var(--primary-soft); color: var(--primary-strong); }
++.app-download-single-card h1 { max-width: 100%; margin: 0; color: var(--text); font-size: clamp(21px, 4vw, 29px); line-height: 1.4; }
++.app-download-single-button { display: inline-flex; min-width: min(280px, 100%); align-items: center; justify-content: center; gap: 9px; }
++.app-download-single-status { display: inline-flex; align-items: center; gap: 8px; margin: 0; color: var(--success, #16834b); font-size: 13px; font-weight: 800; }
++.app-download-single-fallback { max-width: 360px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+ 
+ .install-nudge-backdrop { position: fixed; z-index: 120; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(5 12 9 / 58%); backdrop-filter: blur(6px); }
+ .install-nudge-dialog { position: relative; display: grid; justify-items: center; gap: 11px; width: min(450px, 100%); padding: 30px clamp(20px, 5vw, 32px) 25px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); color: var(--text); text-align: center; box-shadow: 0 24px 80px rgb(0 0 0 / 28%); }
+@@ -56,12 +36,8 @@
+ .howto-page details > summary::-webkit-details-marker { display: none; }
+ 
+ @media (max-width: 640px) {
+-  .app-download-hero { grid-template-columns: auto minmax(0, 1fr); gap: 12px; padding: 16px; }
+-  .app-download-hero-icon { width: 47px; height: 47px; border-radius: 14px; }
+-  .app-download-hero p { font-size: 11px; }
+-  .app-download-install-card { align-items: stretch; flex-direction: column; }
+-  .app-download-install-card > .primary-button { width: 100%; }
+-  .app-download-step { gap: 10px; padding: 12px; }
+-  .app-download-step-icon { flex-basis: 36px; width: 36px; height: 36px; }
++  .app-download-single-card { gap: 15px; padding: 28px 20px; border-radius: 20px; }
++  .app-download-single-icon { width: 64px; height: 64px; border-radius: 20px; }
++  .app-download-single-button { width: 100%; }
+   .install-nudge-dialog { padding-top: 28px; border-radius: 20px; }
+ }
+diff --git a/src/styles/ui-refresh.css b/src/styles/ui-refresh.css
+index 004fc48..6e13b75 100644
+--- a/src/styles/ui-refresh.css
++++ b/src/styles/ui-refresh.css
+@@ -4650,3 +4650,21 @@ body {
+ .platform-login-session small{color:var(--muted);font-size:10px;line-height:1.55;overflow-wrap:anywhere}
+ .platform-login-session .platform-session-agent{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+ @media(max-width:480px){.platform-login-session{grid-template-columns:1fr}}
++
++/* Compact invitation creation and dedicated manager/assistant Join Request review. */
++.manager-invite-card { display:grid; gap:14px; border-color:color-mix(in srgb,var(--primary) 22%,var(--border)); }
++.manager-invite-card > .primary-button { width:fit-content; min-width:min(300px,100%); display:inline-flex; align-items:center; justify-content:center; gap:8px; }
++.manager-invite-card .platform-panel-heading { margin-top:8px; }
++.manager-join-request-panel { display:grid; gap:14px; }
++.manager-join-request-list { display:grid; gap:10px; }
++.manager-join-request-row { display:flex; align-items:center; justify-content:space-between; gap:16px; min-width:0; padding:15px; border:1px solid var(--border); border-radius:15px; background:var(--surface-2); }
++.manager-join-request-copy { display:grid; gap:5px; min-width:0; }
++.manager-join-request-copy > strong { color:var(--text); font-size:14px; overflow-wrap:anywhere; }
++.manager-join-request-copy > small { color:var(--muted); font-size:11px; line-height:1.6; }
++.manager-join-request-copy > p { margin:3px 0 0; color:var(--text); font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
++.manager-join-request-actions { display:flex; flex:0 0 auto; align-items:center; gap:8px; }
++@media(max-width:560px) {
++  .manager-invite-card > .primary-button { width:100%; }
++  .manager-join-request-row { align-items:stretch; flex-direction:column; gap:12px; padding:13px; }
++  .manager-join-request-actions { display:grid; grid-template-columns:1fr 1fr; }
++}
+diff --git a/supabase/migrations/Run29_invitation_link_rotation.sql b/supabase/migrations/Run29_invitation_link_rotation.sql
+new file mode 100644
+index 0000000..2c62f25
+--- /dev/null
++++ b/supabase/migrations/Run29_invitation_link_rotation.sql
+@@ -0,0 +1,112 @@
++-- Run29: Fix Invitation RPC release compatibility and keep one live invite per hostel.
++-- Additive/transactional: does not modify membership, meal, market or ledger rows.
++BEGIN;
++SET LOCAL lock_timeout = '8s';
++SET LOCAL statement_timeout = '60s';
++
++DO $run29_preflight$
++BEGIN
++  IF to_regclass('public.hostel_access_links') IS NULL
++     OR to_regprocedure('private.my_hostel_id()') IS NULL
++     OR to_regprocedure('private.assert_signed_in()') IS NULL
++     OR to_regprocedure('private.assert_hostel_manager(uuid,uuid,boolean,boolean)') IS NULL THEN
++    RAISE EXCEPTION 'Run29 stopped: Run28 invitation objects or manager permission helpers are missing.';
++  END IF;
++END;
++$run29_preflight$;
++
++CREATE OR REPLACE FUNCTION public.manager_create_hostel_invite_link(
++  p_expires_at timestamptz DEFAULT (now() + interval '7 days'),
++  p_label text DEFAULT ''
++)
++RETURNS jsonb
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = ''
++AS $$
++DECLARE
++  v_hostel uuid;
++  v_token text;
++  v_id uuid;
++  v_exp timestamptz := coalesce(p_expires_at, now() + interval '7 days');
++  v_revoked_count integer := 0;
++BEGIN
++  PERFORM private.assert_signed_in();
++  v_hostel := private.my_hostel_id();
++  IF v_hostel IS NULL THEN
++    RAISE EXCEPTION USING message='আপনার সক্রিয় মেস পাওয়া যায়নি।', errcode='42501';
++  END IF;
++
++  -- false/false deliberately preserves the existing permission helper semantics:
++  -- current primary manager OR assigned operational assistant manager.
++  PERFORM private.assert_hostel_manager(v_hostel, NULL, false, false);
++
++  IF v_exp <= now() OR v_exp > now() + interval '30 days' THEN
++    RAISE EXCEPTION USING
++      message='Invitation Link-এর মেয়াদ বর্তমান সময় থেকে সর্বোচ্চ ৩০ দিনের মধ্যে হতে হবে.',
++      errcode='22023';
++  END IF;
++
++  v_token := encode(extensions.gen_random_bytes(32), 'hex');
++
++  -- A new invite immediately invalidates every previous non-revoked invite.
++  -- The RPC runs in one database transaction: if inserting the new invite fails,
++  -- this UPDATE rolls back and the previous active invite remains valid.
++  UPDATE public.hostel_access_links
++  SET revoked_at = coalesce(revoked_at, now())
++  WHERE hostel_id = v_hostel
++    AND link_type = 'member_invite'
++    AND revoked_at IS NULL;
++  GET DIAGNOSTICS v_revoked_count = ROW_COUNT;
++
++  INSERT INTO public.hostel_access_links(
++    hostel_id, link_type, token_hash, label, starts_at, expires_at, created_by
++  ) VALUES (
++    v_hostel,
++    'member_invite',
++    encode(extensions.digest(v_token, 'sha256'), 'hex'),
++    left(coalesce(btrim(p_label), ''), 120),
++    now(),
++    v_exp,
++    auth.uid()
++  ) RETURNING id INTO v_id;
++
++  RETURN jsonb_build_object(
++    'id', v_id,
++    'token', v_token,
++    'link_type', 'member_invite',
++    'expires_at', v_exp,
++    'previous_links_revoked', v_revoked_count
++  );
++END;
++$$;
++
++REVOKE ALL ON FUNCTION public.manager_create_hostel_invite_link(timestamptz, text) FROM PUBLIC, anon;
++GRANT EXECUTE ON FUNCTION public.manager_create_hostel_invite_link(timestamptz, text) TO authenticated;
++COMMENT ON FUNCTION public.manager_create_hostel_invite_link(timestamptz, text)
++IS 'Create one authenticated hostel invitation; only the current manager or assigned assistant may create it. Creating a new link atomically revokes every previous link for that hostel.';
++
++-- Stable, minimal RPC used by the frontend. Expiry is decided by the database
++-- clock (seven days), so an inaccurate device clock cannot break link creation.
++CREATE OR REPLACE FUNCTION public.manager_create_or_rotate_hostel_invite_link(
++  p_label text DEFAULT ''
++)
++RETURNS jsonb
++LANGUAGE plpgsql
++SECURITY DEFINER
++SET search_path = ''
++AS $$
++BEGIN
++  PERFORM private.assert_signed_in();
++  RETURN public.manager_create_hostel_invite_link(now() + interval '7 days', p_label);
++END;
++$$;
++
++REVOKE ALL ON FUNCTION public.manager_create_or_rotate_hostel_invite_link(text) FROM PUBLIC, anon;
++GRANT EXECUTE ON FUNCTION public.manager_create_or_rotate_hostel_invite_link(text) TO authenticated;
++COMMENT ON FUNCTION public.manager_create_or_rotate_hostel_invite_link(text)
++IS 'Create a seven-day invitation with server time and atomically revoke prior active invitations for the hostel. Supports the current primary and assigned assistant manager.';
++
++-- Ask PostgREST to refresh the RPC schema cache after replacement.
++NOTIFY pgrst, 'reload schema';
++COMMIT;
+diff --git a/tests/authenticatedInviteAndDevicePolicy.test.js b/tests/authenticatedInviteAndDevicePolicy.test.js
+index a196caa..550fc56 100644
+--- a/tests/authenticatedInviteAndDevicePolicy.test.js
++++ b/tests/authenticatedInviteAndDevicePolicy.test.js
+@@ -185,8 +185,9 @@ test('PWA install page, first-entry prompt and theme-aware Help page are present
+   const assistantStart = menu.indexOf('const assistantItems = [');
+   const assistantEnd = menu.indexOf('];', assistantStart);
+   assert.ok(assistantStart >= 0 && assistantEnd > assistantStart, 'Assistant menu declaration must exist');
+-  assert.match(menu.slice(assistantStart, assistantEnd), /member-management/);
+-  assert.match(appDownload, /Installable Web App \(PWA\)/);
++  assert.match(menu.slice(assistantStart, assistantEnd), /join-requests/);
++  assert.match(appDownload, /এখনই ইনস্টল করুন/);
++  assert.doesNotMatch(appDownload, /INSTALL GUIDE|app-download-steps/);
+   assert.match(read('src/app/AppShell.jsx'), /hostel-life-install-nudge-v1/);
+   assert.match(read('src/app/AppShell.jsx'), /useInstallPrompt/);
+   assert.match(onboarding, /useInstallPrompt/);
+diff --git a/tests/invitationManagerAndInstallPolish.test.js b/tests/invitationManagerAndInstallPolish.test.js
+new file mode 100644
+index 0000000..0fb88e0
+--- /dev/null
++++ b/tests/invitationManagerAndInstallPolish.test.js
+@@ -0,0 +1,110 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++
++const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
++const migration = read('supabase/migrations/Run29_invitation_link_rotation.sql');
++const manager = read('src/features/manager/ManagerPages.jsx');
++const service = read('src/services/hostelInviteService.js');
++const menu = read('src/components/MenuDrawer.jsx');
++const app = read('src/app/App.jsx');
++const shell = read('src/app/AppShell.jsx');
++const appDownload = read('src/features/menu/AppDownloadPage.jsx');
++const appDownloadCss = read('src/styles/app-download.css');
++const uiCss = read('src/styles/ui-refresh.css');
++
++function getFunctionSql(name) {
++  const start = migration.indexOf(`CREATE OR REPLACE FUNCTION public.${name}`);
++  assert.notEqual(start, -1, `Missing Run29 function ${name}`);
++  const end = migration.indexOf('\n$$;', start);
++  assert.notEqual(end, -1, `Missing function terminator ${name}`);
++  return migration.slice(start, end + 4);
++}
++
++test('ManagerPages explicitly imports all Invitation RPC wrappers used by Settings and Join Request review', () => {
++  const importBlock = manager.match(/import \{[\s\S]*?managerCreateHostelInviteLink[\s\S]*?\} from '\.\.\/\.\.\/services\/hostelInviteService';/);
++  assert.ok(importBlock, 'Invitation service imports must exist at module scope');
++  for (const name of [
++    'managerCreateHostelInviteLink',
++    'managerListHostelInviteLinks',
++    'managerRevokeHostelInviteLink',
++    'managerListHostelJoinRequests',
++    'managerReviewHostelJoinRequest',
++  ]) assert.match(importBlock[0], new RegExp(`\\b${name}\\b`));
++});
++
++test('Invitation creation sends a concrete seven-day expiry and a named label', () => {
++  assert.match(service, /export async function managerCreateHostelInviteLink\(label = ''\)/);
++  assert.match(service, /manager_create_or_rotate_hostel_invite_link/);
++  assert.match(service, /p_label: label\.trim\(\)/);
++  assert.doesNotMatch(service, /Date\.now|p_expires_at/);
++  assert.match(manager, /managerCreateHostelInviteLink\('সদস্য আমন্ত্রণ'\)/);
++  assert.match(manager, /result\?\.token[\s\S]*?\/\^\[0-9a-f\]\{64\}\$\//);
++});
++
++test('Run29 atomically revokes old invitations when a new one is created', () => {
++  assert.match(migration, /^BEGIN;/m);
++  assert.match(migration, /SET LOCAL lock_timeout = '8s'/);
++  assert.match(migration, /SET LOCAL statement_timeout = '60s'/);
++  const create = getFunctionSql('manager_create_hostel_invite_link');
++  assert.match(create, /private\.assert_signed_in\(\)/);
++  assert.match(create, /private\.assert_hostel_manager\(v_hostel, NULL, false, false\)/);
++  assert.match(create, /UPDATE public\.hostel_access_links[\s\S]*?revoked_at = coalesce\(revoked_at, now\(\)\)[\s\S]*?revoked_at IS NULL/);
++  assert.match(create, /INSERT INTO public\.hostel_access_links/);
++  assert.ok(create.indexOf('UPDATE public.hostel_access_links') < create.indexOf('INSERT INTO public.hostel_access_links'));
++  assert.match(create, /extensions\.gen_random_bytes\(32\)/);
++  assert.match(create, /extensions\.digest\(v_token, 'sha256'\)/);
++  assert.match(create, /'previous_links_revoked', v_revoked_count/);
++  const stableCreate = getFunctionSql('manager_create_or_rotate_hostel_invite_link');
++  assert.match(stableCreate, /now\(\) \+ interval '7 days'/);
++  assert.match(stableCreate, /manager_create_hostel_invite_link/);
++  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.manager_create_hostel_invite_link\(timestamptz, text\) TO authenticated/);
++  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.manager_create_or_rotate_hostel_invite_link\(text\) TO authenticated/);
++  assert.match(migration, /NOTIFY pgrst, 'reload schema'/);
++  assert.match(migration, /COMMIT;\s*$/);
++  assert.doesNotMatch(migration, /DROP TABLE|TRUNCATE/i);
++});
++
++test('Primary and assistant managers can access one dedicated Join Request review page', () => {
++  const primary = menu.slice(menu.indexOf('const primaryItems'), menu.indexOf('const assistantItems'));
++  const assistant = menu.slice(menu.indexOf('const assistantItems'), menu.indexOf('export function MenuDrawer'));
++  assert.match(primary, /key: 'join-requests', label: 'জয়েন রিকোয়েস্ট পর্যালোচনা'/);
++  assert.match(assistant, /key: 'join-requests', label: 'জয়েন রিকোয়েস্ট পর্যালোচনা'/);
++  assert.match(app, /\/app\/menu\/join-requests'[\s\S]*?<JoinRequestReviewPage \/>/);
++  assert.match(shell, /'join-requests': '\/app\/menu\/join-requests'/);
++  assert.match(manager, /export function JoinRequestReviewPage\(\)/);
++  assert.match(manager, /<PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা"/);
++  assert.match(manager, /managerListHostelJoinRequests\(\)/);
++  assert.match(manager, /managerReviewHostelJoinRequest\(row\.id, approve, reviewNote\)/);
++  assert.match(manager, /function ManagerGuard\([\s\S]*?isOperationalManager/);
++  const memberManagement = manager.slice(manager.indexOf('export function MemberManagementPage()'));
++  assert.doesNotMatch(memberManagement, /<JoinRequestQueue\s*\/>/);
++});
++
++test('Assistant invitation controls stay inside ManagerGuard-protected Hostel Settings', () => {
++  const settings = manager.slice(manager.indexOf('export function HostelSettingsPage()'), manager.indexOf('function JoinRequestQueue()'));
++  assert.match(settings, /return \([\s\S]*?<ManagerGuard>/);
++  assert.match(settings, /managerCreateHostelInviteLink/);
++  assert.match(settings, /managerListHostelInviteLinks/);
++  assert.match(settings, /managerRevokeHostelInviteLink/);
++  assert.match(settings, /আগের সক্রিয় Invitation সঙ্গে সঙ্গে বাতিল হবে/);
++});
++
++test('App Install page is reduced to a single direct PWA action without download guides', () => {
++  assert.match(appDownload, /useInstallPromptContext/);
++  assert.match(appDownload, /canInstall \? \(/);
++  assert.match(appDownload, /installNow/);
++  assert.match(appDownload, /এখনই ইনস্টল করুন/);
++  assert.match(appDownload, /installed \? 'Hostel Life ইনস্টল করা আছে'/);
++  assert.doesNotMatch(appDownload, /INSTALL GUIDE|app-download-steps|Android · Chrome|iPhone \/ iPad|Desktop · Chrome/);
++  assert.match(appDownloadCss, /\.app-download-single-card/);
++  assert.doesNotMatch(appDownloadCss, /\.app-download-steps|\.app-download-step/);
++  assert.match(appDownloadCss, /max-width:560px|@media \(max-width: 640px\)/);
++});
++
++test('Invitation and Join Request presentation has responsive manager styling', () => {
++  assert.match(uiCss, /\.manager-invite-card/);
++  assert.match(uiCss, /\.manager-join-request-list/);
++  assert.match(uiCss, /\.manager-join-request-actions/);
++  assert.match(uiCss, /@media\(max-width:560px\)/);
++});

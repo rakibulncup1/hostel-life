@@ -200,6 +200,8 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       archive: '/app/menu/archive',
       'khala-money': '/app/menu/khala-money',
       'member-management': '/app/menu/member-management',
+      'join-requests': '/app/menu/join-requests',
+      'join-requests': '/app/menu/join-requests',
     };
     const path = routes[key];
     if (path) navigateTo(path);
@@ -327,7 +329,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
           <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
           <h2 id="install-nudge-title">মোবাইলে Hostel Life ব্যবহার আরও সহজ করুন</h2>
           <p>হোম স্ক্রিনে অ্যাপটি যোগ করলে এক ট্যাপেই খুলতে পারবেন। বারবার ব্রাউজারে খুঁজতে হবে না।</p>
-          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleNudgeInstall}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'ইনস্টল করার নিয়ম দেখুন'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleNudgeInstall}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
         </section>
       </div>}
     </div>

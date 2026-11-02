@@ -185,8 +185,9 @@ test('PWA install page, first-entry prompt and theme-aware Help page are present
   const assistantStart = menu.indexOf('const assistantItems = [');
   const assistantEnd = menu.indexOf('];', assistantStart);
   assert.ok(assistantStart >= 0 && assistantEnd > assistantStart, 'Assistant menu declaration must exist');
-  assert.match(menu.slice(assistantStart, assistantEnd), /member-management/);
-  assert.match(appDownload, /Installable Web App \(PWA\)/);
+  assert.match(menu.slice(assistantStart, assistantEnd), /join-requests/);
+  assert.match(appDownload, /এখনই ইনস্টল করুন/);
+  assert.doesNotMatch(appDownload, /INSTALL GUIDE|app-download-steps/);
   assert.match(read('src/app/AppShell.jsx'), /hostel-life-install-nudge-v1/);
   assert.match(read('src/app/AppShell.jsx'), /useInstallPrompt/);
   assert.match(onboarding, /useInstallPrompt/);

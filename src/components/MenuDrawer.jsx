@@ -27,13 +27,14 @@ const primaryItems = [
   { key: 'hostel-settings', label: 'মেস সেটিংস', icon: 'lock' },
   { key: 'send-notification', label: 'মেস নোটিশ', icon: 'bell' },
   { key: 'khala-money', label: 'খালার টাকা', icon: 'dining' },
+  { key: 'join-requests', label: 'জয়েন রিকোয়েস্ট পর্যালোচনা', icon: 'user-check' },
   { key: 'member-management', label: 'সদস্য ব্যবস্থাপনা', icon: 'user' },
 ];
 
 const assistantItems = [
   { key: 'dining-operations', label: 'ডাইনিং ব্যবস্থাপনা', icon: 'cooking-pot' },
   { key: 'hostel-settings', label: 'মেস সেটিংস', icon: 'lock' },
-  { key: 'member-management', label: 'সদস্য ব্যবস্থাপনা ও Join Request', icon: 'users' },
+  { key: 'join-requests', label: 'জয়েন রিকোয়েস্ট পর্যালোচনা', icon: 'user-check' },
   { key: 'khala-money', label: 'খালার টাকা', icon: 'wallet' },
 ];
 

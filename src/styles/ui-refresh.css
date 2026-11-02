@@ -4650,3 +4650,21 @@ body {
 .platform-login-session small{color:var(--muted);font-size:10px;line-height:1.55;overflow-wrap:anywhere}
 .platform-login-session .platform-session-agent{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 @media(max-width:480px){.platform-login-session{grid-template-columns:1fr}}
+
+/* Compact invitation creation and dedicated manager/assistant Join Request review. */
+.manager-invite-card { display:grid; gap:14px; border-color:color-mix(in srgb,var(--primary) 22%,var(--border)); }
+.manager-invite-card > .primary-button { width:fit-content; min-width:min(300px,100%); display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+.manager-invite-card .platform-panel-heading { margin-top:8px; }
+.manager-join-request-panel { display:grid; gap:14px; }
+.manager-join-request-list { display:grid; gap:10px; }
+.manager-join-request-row { display:flex; align-items:center; justify-content:space-between; gap:16px; min-width:0; padding:15px; border:1px solid var(--border); border-radius:15px; background:var(--surface-2); }
+.manager-join-request-copy { display:grid; gap:5px; min-width:0; }
+.manager-join-request-copy > strong { color:var(--text); font-size:14px; overflow-wrap:anywhere; }
+.manager-join-request-copy > small { color:var(--muted); font-size:11px; line-height:1.6; }
+.manager-join-request-copy > p { margin:3px 0 0; color:var(--text); font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
+.manager-join-request-actions { display:flex; flex:0 0 auto; align-items:center; gap:8px; }
+@media(max-width:560px) {
+  .manager-invite-card > .primary-button { width:100%; }
+  .manager-join-request-row { align-items:stretch; flex-direction:column; gap:12px; padding:13px; }
+  .manager-join-request-actions { display:grid; grid-template-columns:1fr 1fr; }
+}

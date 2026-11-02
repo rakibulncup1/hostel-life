@@ -32,10 +32,11 @@ export async function getMyHostelJoinRequestStatus(token) {
   return firstRow(data) || {};
 }
 
-export async function managerCreateHostelInviteLink(expiresAt, label = '') {
+export async function managerCreateHostelInviteLink(label = '') {
   assertSupabase();
-  const { data, error } = await supabase.rpc('manager_create_hostel_invite_link', {
-    p_expires_at: expiresAt || null,
+  // Expiry is calculated by PostgreSQL, not the device clock. This dedicated
+  // one-argument RPC avoids nullable timestamptz overload resolution in PostgREST.
+  const { data, error } = await supabase.rpc('manager_create_or_rotate_hostel_invite_link', {
     p_label: label.trim(),
   });
   if (error) throw error;
