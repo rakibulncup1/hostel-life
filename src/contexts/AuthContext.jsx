@@ -201,10 +201,24 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
-    await supabase.rpc('hl_record_my_global_logout').catch(() => undefined);
-    const { error } = await supabase.auth.signOut();
+
+    // A normal app logout ends only this browser's session. Other devices stay
+    // signed in; the database activity log is also session-scoped.
+    let activityRecorded = false;
+    try {
+      const { data, error } = await supabase.rpc('hl_record_my_logout');
+      activityRecorded = !error && data?.recorded === true;
+    } catch {
+      // Audit telemetry must never prevent the user from leaving the account.
+    }
+
+    // Local scope avoids a remote global-revocation request and reliably clears
+    // this device even when the Auth service is temporarily unavailable.
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
     if (error) throw error;
+    setSession(null);
     clearIdentity();
+    return { scope: 'local', activityRecorded };
   }, [clearIdentity]);
 
   const signOutLocal = useCallback(async () => {

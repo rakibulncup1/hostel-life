@@ -6,6 +6,7 @@ import { updateMyProfile, uploadProfileAvatar, changePassword } from '../../serv
 import { navigateTo } from '../../app/AppShell';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+import { verifyPassword } from '../../services/authService';
 
 const THEME_KEY = 'hostel-life-theme';
 
@@ -91,11 +92,9 @@ export function ProfilePage() {
     if (newPassword !== confirmPassword) return toast.warning('নতুন পাসওয়ার্ড দুটো একই নয়।');
     setSavingPassword(true);
     try {
-      const { supabase } = await import('../../lib/supabase');
-      if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
       const accountEmail = user?.email || profile?.email;
       if (!accountEmail) throw new Error('অ্যাকাউন্টের ইমেইল পাওয়া যায়নি।');
-      const { error: verifyError } = await supabase.auth.signInWithPassword({ email: accountEmail, password: currentPassword });
+      const { error: verifyError } = await verifyPassword({ email: accountEmail, password: currentPassword });
       if (verifyError) throw verifyError;
       await changePassword(newPassword);
       setCurrentPassword('');

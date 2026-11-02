@@ -139,8 +139,12 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const handleMenuAction = async (key) => {
     if (key === 'logout') {
       try {
-        await signOut();
-        toast.success('সফলভাবে লগআউট হয়েছে।');
+        const result = await signOut();
+        if (result?.activityRecorded === false) {
+          toast.info('এই ডিভাইস থেকে লগআউট হয়েছে, তবে Logout History সার্ভারে রেকর্ড করা যায়নি।');
+        } else {
+          toast.success('এই ডিভাইস থেকে সফলভাবে লগআউট হয়েছে। অন্য ডিভাইসের সেশন চালু থাকবে।');
+        }
       } catch (error) {
         toast.error('লগআউট করা যায়নি। আবার চেষ্টা করুন।');
       }

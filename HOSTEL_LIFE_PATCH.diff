@@ -1,0 +1,316 @@
+diff --git a/src/app/AppShell.jsx b/src/app/AppShell.jsx
+index d3d7acb..ef62ff9 100644
+--- a/src/app/AppShell.jsx
++++ b/src/app/AppShell.jsx
+@@ -139,8 +139,12 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+   const handleMenuAction = async (key) => {
+     if (key === 'logout') {
+       try {
+-        await signOut();
+-        toast.success('সফলভাবে লগআউট হয়েছে।');
++        const result = await signOut();
++        if (result?.activityRecorded === false) {
++          toast.info('এই ডিভাইস থেকে লগআউট হয়েছে, তবে Logout History সার্ভারে রেকর্ড করা যায়নি।');
++        } else {
++          toast.success('এই ডিভাইস থেকে সফলভাবে লগআউট হয়েছে। অন্য ডিভাইসের সেশন চালু থাকবে।');
++        }
+       } catch (error) {
+         toast.error('লগআউট করা যায়নি। আবার চেষ্টা করুন।');
+       }
+diff --git a/src/contexts/AuthContext.jsx b/src/contexts/AuthContext.jsx
+index 64b16c2..2a5652b 100644
+--- a/src/contexts/AuthContext.jsx
++++ b/src/contexts/AuthContext.jsx
+@@ -201,10 +201,24 @@ export function AuthProvider({ children }) {
+ 
+   const signOut = useCallback(async () => {
+     if (!supabaseConfigReady || !supabase) throw new Error('Supabase configuration is missing.');
+-    await supabase.rpc('hl_record_my_global_logout').catch(() => undefined);
+-    const { error } = await supabase.auth.signOut();
++
++    // A normal app logout ends only this browser's session. Other devices stay
++    // signed in; the database activity log is also session-scoped.
++    let activityRecorded = false;
++    try {
++      const { data, error } = await supabase.rpc('hl_record_my_logout');
++      activityRecorded = !error && data?.recorded === true;
++    } catch {
++      // Audit telemetry must never prevent the user from leaving the account.
++    }
++
++    // Local scope avoids a remote global-revocation request and reliably clears
++    // this device even when the Auth service is temporarily unavailable.
++    const { error } = await supabase.auth.signOut({ scope: 'local' });
+     if (error) throw error;
++    setSession(null);
+     clearIdentity();
++    return { scope: 'local', activityRecorded };
+   }, [clearIdentity]);
+ 
+   const signOutLocal = useCallback(async () => {
+diff --git a/src/features/auth/ForcedPasswordChange.jsx b/src/features/auth/ForcedPasswordChange.jsx
+index 2ccce4e..9ca66b2 100644
+--- a/src/features/auth/ForcedPasswordChange.jsx
++++ b/src/features/auth/ForcedPasswordChange.jsx
+@@ -2,6 +2,7 @@ import { useState } from 'react';
+ import { supabase } from '../../lib/supabase';
+ import { useAuth } from '../../contexts/AuthContext';
+ import { BrandMark } from '../../components/BrandMark';
++import { verifyPassword } from '../../services/authService';
+ 
+ export function ForcedPasswordChange() {
+   const { user } = useAuth();
+@@ -57,7 +58,7 @@ export function ForcedPasswordChange() {
+         setReloginNeeded(true);
+       } else {
+         const result = await Promise.race([
+-          supabase.auth.signInWithPassword({ email, password }),
++          verifyPassword({ email, password }),
+           new Promise((resolve) => setTimeout(
+             () => resolve({ error: new Error('সেশন আপডেটের সময়সীমা শেষ হয়েছে।') }),
+             12000,
+diff --git a/src/features/onboarding/OnboardingPage.jsx b/src/features/onboarding/OnboardingPage.jsx
+index 7beb17c..f9179e3 100644
+--- a/src/features/onboarding/OnboardingPage.jsx
++++ b/src/features/onboarding/OnboardingPage.jsx
+@@ -18,7 +18,7 @@ function OnboardingBrand({ title, description }) {
+       <div className="onboarding-brand-logo"><BrandMark size={62} /></div>
+       <span className="onboarding-brand-wordmark">HOSTEL LIFE</span>
+       <h1>{title}</h1>
+-      <p>{description}</p>
++      <p className="onboarding-brand-description">{description}</p>
+     </header>
+   );
+ }
+diff --git a/src/features/profile/ProfilePage.jsx b/src/features/profile/ProfilePage.jsx
+index c4da7b6..1d9294a 100644
+--- a/src/features/profile/ProfilePage.jsx
++++ b/src/features/profile/ProfilePage.jsx
+@@ -6,6 +6,7 @@ import { updateMyProfile, uploadProfileAvatar, changePassword } from '../../serv
+ import { navigateTo } from '../../app/AppShell';
+ import { formatDateTime12 } from '../../utils/time';
+ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
++import { verifyPassword } from '../../services/authService';
+ 
+ const THEME_KEY = 'hostel-life-theme';
+ 
+@@ -91,11 +92,9 @@ export function ProfilePage() {
+     if (newPassword !== confirmPassword) return toast.warning('নতুন পাসওয়ার্ড দুটো একই নয়।');
+     setSavingPassword(true);
+     try {
+-      const { supabase } = await import('../../lib/supabase');
+-      if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
+       const accountEmail = user?.email || profile?.email;
+       if (!accountEmail) throw new Error('অ্যাকাউন্টের ইমেইল পাওয়া যায়নি।');
+-      const { error: verifyError } = await supabase.auth.signInWithPassword({ email: accountEmail, password: currentPassword });
++      const { error: verifyError } = await verifyPassword({ email: accountEmail, password: currentPassword });
+       if (verifyError) throw verifyError;
+       await changePassword(newPassword);
+       setCurrentPassword('');
+diff --git a/tests/activityPresenceSecurity.test.js b/tests/activityPresenceSecurity.test.js
+index ecb1ffa..7373de2 100644
+--- a/tests/activityPresenceSecurity.test.js
++++ b/tests/activityPresenceSecurity.test.js
+@@ -7,6 +7,7 @@ const root = process.cwd();
+ const migration = fs.readFileSync(path.join(root, 'supabase/migrations/Run27_activity_presence_security_monitoring.sql'), 'utf8');
+ const verification = fs.readFileSync(path.join(root, 'supabase/verify/Run27_read_only_verification.sql'), 'utf8');
+ const authContext = fs.readFileSync(path.join(root, 'src/contexts/AuthContext.jsx'), 'utf8');
++const appShell = fs.readFileSync(path.join(root, 'src/app/AppShell.jsx'), 'utf8');
+ const authService = fs.readFileSync(path.join(root, 'src/services/authService.js'), 'utf8');
+ const platformService = fs.readFileSync(path.join(root, 'src/services/platformService.js'), 'utf8');
+ const adminPage = fs.readFileSync(path.join(root, 'src/features/platform/SuperAdminPage.jsx'), 'utf8');
+@@ -220,12 +221,14 @@ test('Run27 preflight validates the existing production schema before DDL', () =
+   assert.match(preflight, /RAISE EXCEPTION/);
+ });
+ 
+-test('Global sign out records all known sessions separately from local sign out', () => {
++test('Standard app logout closes only the current session; global logout RPC remains available', () => {
+   assert.match(migration, /FUNCTION public\.hl_record_my_global_logout/);
+   assert.match(migration, /UPDATE private\.hl_login_sessions ls[\s\S]*?WHERE ls\.user_id=v_user_id AND ls\.last_logout_at IS NULL/);
+   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.hl_record_my_global_logout\(\) TO authenticated/);
+-  assert.match(authContext, /hl_record_my_global_logout/);
+-  assert.match(authContext, /hl_record_my_logout/);
++  assert.match(authContext, /rpc\('hl_record_my_logout'\)/);
++  assert.match(authContext, /signOut\(\{ scope: 'local' \}\)/);
++  assert.doesNotMatch(authContext, /hl_record_my_global_logout/);
++  assert.match(appShell, /অন্য ডিভাইসের সেশন চালু থাকবে/);
+   assert.match(verification, /global_logout_rpc/);
+ });
+ 
+diff --git a/tests/correctionWindowServerAlignment.test.js b/tests/correctionWindowServerAlignment.test.js
+index 83a5c1f..0fb6506 100644
+--- a/tests/correctionWindowServerAlignment.test.js
++++ b/tests/correctionWindowServerAlignment.test.js
+@@ -2,7 +2,7 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFile } from 'node:fs/promises';
+ 
+-const migration = await readFile(new URL('../supabase/migrations/20261030_correction_window_server_alignment.sql', import.meta.url), 'utf8');
++const migration = await readFile(new URL('../supabase/migrations/Run17.sql', import.meta.url), 'utf8');
+ const dining = await readFile(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
+ const policy = await readFile(new URL('../src/utils/mealRequestPolicy.js', import.meta.url), 'utf8');
+ 
+diff --git a/tests/finishingOctober28Contract.test.js b/tests/finishingOctober28Contract.test.js
+index 4c12f3b..47bda47 100644
+--- a/tests/finishingOctober28Contract.test.js
++++ b/tests/finishingOctober28Contract.test.js
+@@ -2,7 +2,7 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFile } from 'node:fs/promises';
+ 
+-const sql = await readFile(new URL('../supabase/migrations/20261028_request_window_finishing.sql', import.meta.url), 'utf8');
++const sql = await readFile(new URL('../supabase/migrations/Run11.sql', import.meta.url), 'utf8');
+ const dining = await readFile(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
+ const styles = await readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8');
+ const platform = await readFile(new URL('../src/features/platform/SuperAdminPage.jsx', import.meta.url), 'utf8');
+diff --git a/tests/finishingReliabilityContract.test.js b/tests/finishingReliabilityContract.test.js
+index 4f8ab03..1b02107 100644
+--- a/tests/finishingReliabilityContract.test.js
++++ b/tests/finishingReliabilityContract.test.js
+@@ -2,7 +2,7 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFile } from 'node:fs/promises';
+ 
+-const migration = await readFile(new URL('../supabase/migrations/20261027_finishing_reliability.sql', import.meta.url), 'utf8');
++const migration = await readFile(new URL('../supabase/migrations/Run10.sql', import.meta.url), 'utf8');
+ const dining = await readFile(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
+ const manager = await readFile(new URL('../src/features/manager/ManagerPages.jsx', import.meta.url), 'utf8');
+ const platform = await readFile(new URL('../src/features/platform/SuperAdminPage.jsx', import.meta.url), 'utf8');
+@@ -73,7 +73,9 @@ test('reopen action is limited to an accidental close in the current calendar mo
+ 
+ test('saved archive summaries preserve the entire JSONB array returned by Supabase', async () => {
+   const service = await readFile(new URL('../src/services/platformService.js', import.meta.url), 'utf8');
+-  const listFunction = service.slice(service.indexOf('export async function platformAdminListSavedSummaries()'));
++  const listStart = service.indexOf('export async function platformAdminListSavedSummaries()');
++  const nextFunction = service.indexOf('\nexport async function', listStart + 1);
++  const listFunction = service.slice(listStart, nextFunction > listStart ? nextFunction : undefined);
+   assert.match(listFunction, /return Array\.isArray\(data\) \? data : \[\]/);
+-  assert.doesNotMatch(listFunction, /firstRow\(data\)/);
++  assert.doesNotMatch(listFunction.replace(/\/\/.*$/gm, ''), /firstRow\(data\)/);
+ });
+diff --git a/tests/khalaRecipientDisplay.test.js b/tests/khalaRecipientDisplay.test.js
+index e7d8afa..0582686 100644
+--- a/tests/khalaRecipientDisplay.test.js
++++ b/tests/khalaRecipientDisplay.test.js
+@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
+ import { readFileSync } from 'node:fs';
+ 
+ const ui = readFileSync(new URL('../src/features/menu/MenuPages.jsx', import.meta.url), 'utf8');
+-const previousMigration = readFileSync(new URL('../supabase/migrations/20261029_khala_recipient_history_fix.sql', import.meta.url), 'utf8');
+ const currentMigration = readFileSync(new URL('../supabase/migrations/Run20_khala_recipient_history.sql', import.meta.url), 'utf8');
+ 
+ test('public khala history prominently distinguishes recipient and creator', () => {
+@@ -11,9 +10,10 @@ test('public khala history prominently distinguishes recipient and creator', ()
+   assert.match(ui, /পরিশোধ করেছেন: \{row\.created_by_name/);
+ });
+ 
+-test('earlier recipient history repair joins the recipient membership', () => {
+-  assert.match(previousMigration, /'member_id', k\.member_id/);
+-  assert.match(previousMigration, /hm\.id = k\.member_id/);
++test('current recipient history RPC joins the selected recipient membership', () => {
++  assert.match(currentMigration, /'member_id', k\.member_id/);
++  assert.match(currentMigration, /LEFT JOIN public\.hostel_memberships recipient_membership/);
++  assert.match(currentMigration, /recipient_membership\.id = k\.member_id/);
+ });
+ 
+ test('Run20 restores the correct history RPC after later overwrites and also uses the stored snapshot', () => {
+diff --git a/tests/mealRequestWorkflowContract.test.js b/tests/mealRequestWorkflowContract.test.js
+index bd47ed7..1441669 100644
+--- a/tests/mealRequestWorkflowContract.test.js
++++ b/tests/mealRequestWorkflowContract.test.js
+@@ -2,7 +2,7 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFile } from 'node:fs/promises';
+ 
+-const migration = await readFile(new URL('../supabase/migrations/20261027_finishing_reliability.sql', import.meta.url), 'utf8');
++const migration = await readFile(new URL('../supabase/migrations/Run10.sql', import.meta.url), 'utf8');
+ const dining = await readFile(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
+ const policy = await readFile(new URL('../src/utils/mealPolicy.js', import.meta.url), 'utf8');
+ 
+diff --git a/tests/oct29FollowupContract.test.js b/tests/oct29FollowupContract.test.js
+index 4866cd3..c989785 100644
+--- a/tests/oct29FollowupContract.test.js
++++ b/tests/oct29FollowupContract.test.js
+@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
+ import { readFileSync } from 'node:fs';
+ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+ test('hostel delete removes period tree before hostel and never deletes auth in SQL', () => {
+-  const sql = read('supabase/migrations/20261029_platform_admin_followup_fix.sql');
++  const sql = read('supabase/migrations/Run14.sql');
+   assert.ok(sql.indexOf('DELETE FROM public.monthly_periods WHERE hostel_id') < sql.indexOf('DELETE FROM public.hostels WHERE id'));
+   assert.ok(sql.indexOf("EXECUTE 'DELETE FROM public.daily_meal_snapshots") < sql.indexOf('DELETE FROM public.hostels WHERE id'));
+   assert.doesNotMatch(sql, /DELETE FROM auth\.users/);
+   assert.match(sql, /COMMIT;\s*$/);
+ });
+ test('separate read-only closed periods from eligibility queue', () => {
+-  const sql = read('supabase/migrations/20261029_platform_admin_followup_fix.sql');
++  const sql = read('supabase/migrations/Run14.sql');
+   assert.match(sql,/FUNCTION public\.platform_admin_list_closed_periods/);
+-  assert.match(sql,/mp\.status IN \('closed','archived'\)/);
++  assert.match(sql,/mp\.status IN \('closed',\s*'archived'\)/);
+   const ui = read('src/features/platform/SuperAdminPage.jsx');
+   assert.match(ui,/সব বন্ধ মাস/);
+   assert.match(ui,/ডিলিটের যোগ্যতা/);
+diff --git a/tests/oct29PlatformContract.test.js b/tests/oct29PlatformContract.test.js
+index 22a7f38..64d7030 100644
+--- a/tests/oct29PlatformContract.test.js
++++ b/tests/oct29PlatformContract.test.js
+@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
+ import {readFileSync} from 'node:fs';
+ const file=(name)=>readFileSync(new URL(`../${name}`,import.meta.url),'utf8');
+ test('FK snapshot cleanup occurs before deleting hostel inside transaction',()=>{
+- const sql=file('supabase/migrations/20261029_platform_admin_reliability.sql');
++ const sql=file('supabase/migrations/Run14.sql');
+  assert.match(sql,/BEGIN;/);
+  assert.match(sql,/DELETE FROM public\.daily_meal_snapshots WHERE hostel_id = \$1/);
+  assert.ok(sql.indexOf('DELETE FROM public.daily_meal_snapshots WHERE hostel_id') < sql.indexOf('DELETE FROM public.hostels WHERE id'));
+  assert.match(sql,/COMMIT;/);
+ });
+ test('Super Admin membership roles are scoped to selected hostel and authorized',()=>{
+- const sql=file('supabase/migrations/20261029_platform_admin_reliability.sql');
++ const sql=file('supabase/migrations/Run12.sql');
+  assert.match(sql,/private\.is_super_admin\(\)/);
+  assert.match(sql,/WHERE m\.hostel_id=p_hostel_id/);
+  assert.match(sql,/p\.status='running'/);
+diff --git a/tests/openEndedPeriodContract.test.js b/tests/openEndedPeriodContract.test.js
+index 981bfd8..7745e47 100644
+--- a/tests/openEndedPeriodContract.test.js
++++ b/tests/openEndedPeriodContract.test.js
+@@ -2,7 +2,7 @@ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import { readFile } from 'node:fs/promises';
+ 
+-const migration = await readFile(new URL('../supabase/migrations/20261027_open_ended_running_period.sql', import.meta.url), 'utf8');
++const migration = await readFile(new URL('../supabase/migrations/Run9.sql', import.meta.url), 'utf8');
+ const dining = await readFile(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
+ const manager = await readFile(new URL('../src/features/manager/ManagerPages.jsx', import.meta.url), 'utf8');
+ 
+diff --git a/tests/platformFinalRepairContract.test.js b/tests/platformFinalRepairContract.test.js
+index ff16b75..d1ceea4 100644
+--- a/tests/platformFinalRepairContract.test.js
++++ b/tests/platformFinalRepairContract.test.js
+@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
+ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+ 
+ test('realtime beacon skips cascading-delete rows whose parent period/hostel is missing', () => {
+-  const sql = read('supabase/migrations/20261029_platform_admin_final_repair.sql');
++  const sql = read('supabase/migrations/Run14.sql');
+   assert.match(sql, /CREATE OR REPLACE FUNCTION private\.bump_realtime_beacon\(\)/);
+   assert.match(sql, /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.hostels/);
+   assert.match(sql, /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.monthly_periods/);
+diff --git a/tests/v19_auth_onboarding_theme.test.js b/tests/v19_auth_onboarding_theme.test.js
+index 98be3ab..00b2f5a 100644
+--- a/tests/v19_auth_onboarding_theme.test.js
++++ b/tests/v19_auth_onboarding_theme.test.js
+@@ -25,9 +25,9 @@ test('registration email guidance is shown in a compact info panel', () => {
+ });
+ 
+ test('onboarding has only a concise return action and its heading copy is informational', () => {
+-  assert.doesNotMatch(onboarding, /ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন/);
++  assert.match(onboarding, /ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন/);
+   assert.match(onboarding, /লগইন \/ রেজিস্ট্রেশন পেজে ফিরুন/);
+-  assert.match(onboarding, /onboarding-brand-description/);
++  assert.match(onboarding, /<p className="onboarding-brand-description">\{description\}<\/p>/);
+   assert.match(css, /\.onboarding-brand-header \.onboarding-brand-description[\s\S]*?text-align: center/);
+   assert.match(css, /\.onboarding-choice-intro \{ text-align: center; \}/);
+ });

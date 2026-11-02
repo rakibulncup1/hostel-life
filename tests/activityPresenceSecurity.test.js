@@ -7,6 +7,7 @@ const root = process.cwd();
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/Run27_activity_presence_security_monitoring.sql'), 'utf8');
 const verification = fs.readFileSync(path.join(root, 'supabase/verify/Run27_read_only_verification.sql'), 'utf8');
 const authContext = fs.readFileSync(path.join(root, 'src/contexts/AuthContext.jsx'), 'utf8');
+const appShell = fs.readFileSync(path.join(root, 'src/app/AppShell.jsx'), 'utf8');
 const authService = fs.readFileSync(path.join(root, 'src/services/authService.js'), 'utf8');
 const platformService = fs.readFileSync(path.join(root, 'src/services/platformService.js'), 'utf8');
 const adminPage = fs.readFileSync(path.join(root, 'src/features/platform/SuperAdminPage.jsx'), 'utf8');
@@ -220,12 +221,14 @@ test('Run27 preflight validates the existing production schema before DDL', () =
   assert.match(preflight, /RAISE EXCEPTION/);
 });
 
-test('Global sign out records all known sessions separately from local sign out', () => {
+test('Standard app logout closes only the current session; global logout RPC remains available', () => {
   assert.match(migration, /FUNCTION public\.hl_record_my_global_logout/);
   assert.match(migration, /UPDATE private\.hl_login_sessions ls[\s\S]*?WHERE ls\.user_id=v_user_id AND ls\.last_logout_at IS NULL/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.hl_record_my_global_logout\(\) TO authenticated/);
-  assert.match(authContext, /hl_record_my_global_logout/);
-  assert.match(authContext, /hl_record_my_logout/);
+  assert.match(authContext, /rpc\('hl_record_my_logout'\)/);
+  assert.match(authContext, /signOut\(\{ scope: 'local' \}\)/);
+  assert.doesNotMatch(authContext, /hl_record_my_global_logout/);
+  assert.match(appShell, /অন্য ডিভাইসের সেশন চালু থাকবে/);
   assert.match(verification, /global_logout_rpc/);
 });
 

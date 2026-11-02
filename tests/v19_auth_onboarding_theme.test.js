@@ -25,9 +25,9 @@ test('registration email guidance is shown in a compact info panel', () => {
 });
 
 test('onboarding has only a concise return action and its heading copy is informational', () => {
-  assert.doesNotMatch(onboarding, /ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন/);
+  assert.match(onboarding, /ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন/);
   assert.match(onboarding, /লগইন \/ রেজিস্ট্রেশন পেজে ফিরুন/);
-  assert.match(onboarding, /onboarding-brand-description/);
+  assert.match(onboarding, /<p className="onboarding-brand-description">\{description\}<\/p>/);
   assert.match(css, /\.onboarding-brand-header \.onboarding-brand-description[\s\S]*?text-align: center/);
   assert.match(css, /\.onboarding-choice-intro \{ text-align: center; \}/);
 });

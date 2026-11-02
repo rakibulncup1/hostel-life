@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const migration = await readFile(new URL('../supabase/migrations/20261027_finishing_reliability.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../supabase/migrations/Run10.sql', import.meta.url), 'utf8');
 const dining = await readFile(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
 const manager = await readFile(new URL('../src/features/manager/ManagerPages.jsx', import.meta.url), 'utf8');
 const platform = await readFile(new URL('../src/features/platform/SuperAdminPage.jsx', import.meta.url), 'utf8');
@@ -73,7 +73,9 @@ test('reopen action is limited to an accidental close in the current calendar mo
 
 test('saved archive summaries preserve the entire JSONB array returned by Supabase', async () => {
   const service = await readFile(new URL('../src/services/platformService.js', import.meta.url), 'utf8');
-  const listFunction = service.slice(service.indexOf('export async function platformAdminListSavedSummaries()'));
+  const listStart = service.indexOf('export async function platformAdminListSavedSummaries()');
+  const nextFunction = service.indexOf('\nexport async function', listStart + 1);
+  const listFunction = service.slice(listStart, nextFunction > listStart ? nextFunction : undefined);
   assert.match(listFunction, /return Array\.isArray\(data\) \? data : \[\]/);
-  assert.doesNotMatch(listFunction, /firstRow\(data\)/);
+  assert.doesNotMatch(listFunction.replace(/\/\/.*$/gm, ''), /firstRow\(data\)/);
 });

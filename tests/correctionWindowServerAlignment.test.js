@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const migration = await readFile(new URL('../supabase/migrations/20261030_correction_window_server_alignment.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../supabase/migrations/Run17.sql', import.meta.url), 'utf8');
 const dining = await readFile(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
 const policy = await readFile(new URL('../src/utils/mealRequestPolicy.js', import.meta.url), 'utf8');
 

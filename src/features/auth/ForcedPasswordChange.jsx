@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { BrandMark } from '../../components/BrandMark';
+import { verifyPassword } from '../../services/authService';
 
 export function ForcedPasswordChange() {
   const { user } = useAuth();
@@ -57,7 +58,7 @@ export function ForcedPasswordChange() {
         setReloginNeeded(true);
       } else {
         const result = await Promise.race([
-          supabase.auth.signInWithPassword({ email, password }),
+          verifyPassword({ email, password }),
           new Promise((resolve) => setTimeout(
             () => resolve({ error: new Error('সেশন আপডেটের সময়সীমা শেষ হয়েছে।') }),
             12000,

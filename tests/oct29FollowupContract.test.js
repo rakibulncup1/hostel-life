@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 test('hostel delete removes period tree before hostel and never deletes auth in SQL', () => {
-  const sql = read('supabase/migrations/20261029_platform_admin_followup_fix.sql');
+  const sql = read('supabase/migrations/Run14.sql');
   assert.ok(sql.indexOf('DELETE FROM public.monthly_periods WHERE hostel_id') < sql.indexOf('DELETE FROM public.hostels WHERE id'));
   assert.ok(sql.indexOf("EXECUTE 'DELETE FROM public.daily_meal_snapshots") < sql.indexOf('DELETE FROM public.hostels WHERE id'));
   assert.doesNotMatch(sql, /DELETE FROM auth\.users/);
   assert.match(sql, /COMMIT;\s*$/);
 });
 test('separate read-only closed periods from eligibility queue', () => {
-  const sql = read('supabase/migrations/20261029_platform_admin_followup_fix.sql');
+  const sql = read('supabase/migrations/Run14.sql');
   assert.match(sql,/FUNCTION public\.platform_admin_list_closed_periods/);
-  assert.match(sql,/mp\.status IN \('closed','archived'\)/);
+  assert.match(sql,/mp\.status IN \('closed',\s*'archived'\)/);
   const ui = read('src/features/platform/SuperAdminPage.jsx');
   assert.match(ui,/সব বন্ধ মাস/);
   assert.match(ui,/ডিলিটের যোগ্যতা/);

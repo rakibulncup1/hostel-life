@@ -18,7 +18,7 @@ function OnboardingBrand({ title, description }) {
       <div className="onboarding-brand-logo"><BrandMark size={62} /></div>
       <span className="onboarding-brand-wordmark">HOSTEL LIFE</span>
       <h1>{title}</h1>
-      <p>{description}</p>
+      <p className="onboarding-brand-description">{description}</p>
     </header>
   );
 }

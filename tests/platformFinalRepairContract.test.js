@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 test('realtime beacon skips cascading-delete rows whose parent period/hostel is missing', () => {
-  const sql = read('supabase/migrations/20261029_platform_admin_final_repair.sql');
+  const sql = read('supabase/migrations/Run14.sql');
   assert.match(sql, /CREATE OR REPLACE FUNCTION private\.bump_realtime_beacon\(\)/);
   assert.match(sql, /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.hostels/);
   assert.match(sql, /NOT EXISTS\s*\(\s*SELECT 1 FROM public\.monthly_periods/);
