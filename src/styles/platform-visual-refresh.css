@@ -1,0 +1,365 @@
+/*
+ * Hostel Life — Super Admin visual refinement
+ * Presentation and navigation clarity only. No data, permission or action logic.
+ */
+.platform-page {
+  --admin-focus: #2d8b6b;
+  --admin-accent: #17644f;
+  --admin-surface: #ffffff;
+  --admin-subtle: #f4f8f6;
+}
+
+.platform-page .platform-header {
+  min-height: 82px;
+  gap: 18px;
+  align-items: center;
+}
+
+.platform-page .platform-brand {
+  min-width: 0;
+  gap: 14px;
+}
+
+.platform-page .platform-brand h1 {
+  line-height: 1.15;
+}
+
+.platform-page .platform-brand small {
+  display: block;
+  line-height: 1.45;
+}
+
+.platform-page .platform-auth-user {
+  display: inline-block;
+  max-width: min(36vw, 420px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8px 11px;
+  border: 1px solid #e4eee8;
+  border-radius: 999px;
+  background: #f6faf7;
+  color: #45675a;
+  font-size: 12px;
+}
+
+.platform-page .platform-intro {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.platform-page .platform-intro::after {
+  position: absolute;
+  z-index: -1;
+  top: -58px;
+  right: -38px;
+  width: 190px;
+  height: 190px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 24px rgba(255,255,255,.035), 0 0 0 50px rgba(255,255,255,.025);
+  content: "";
+  pointer-events: none;
+}
+
+.platform-overview-heading {
+  width: min(1380px, 100%);
+  margin: 22px auto 13px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.platform-overview-heading h3 {
+  margin: 5px 0 4px;
+  color: #183f33;
+  font-size: clamp(20px, 2.4vw, 27px);
+  font-weight: 900;
+  letter-spacing: -.025em;
+  line-height: 1.3;
+}
+
+.platform-overview-heading p {
+  max-width: 68ch;
+  margin: 0;
+  color: #63796f;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.platform-overview-tag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid #dcece3;
+  border-radius: 999px;
+  background: #f2faf5;
+  color: #23674d;
+  font-size: 11px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.platform-page .platform-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: stretch;
+  overflow: visible;
+  padding: 9px;
+}
+
+.platform-page .platform-tabs button {
+  min-width: 0;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 10px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.platform-page .platform-tabs button:focus-visible,
+.platform-page .platform-header-actions button:focus-visible,
+.platform-page .platform-filter-pills button:focus-visible {
+  outline: 3px solid #75c9a4;
+  outline-offset: 3px;
+}
+
+.platform-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr));
+  align-items: stretch;
+  gap: 15px;
+}
+
+.platform-page .platform-stat {
+  min-height: 112px;
+  position: relative;
+  overflow: hidden;
+  gap: 15px;
+  padding: 20px;
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.platform-page .platform-stat::after {
+  position: absolute;
+  right: -22px;
+  bottom: -34px;
+  width: 94px;
+  height: 94px;
+  border-radius: 50%;
+  background: #eaf5ef;
+  content: "";
+  pointer-events: none;
+}
+
+.platform-page .platform-stat-icon {
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  border: 1px solid #dcefe3;
+  border-radius: 15px;
+  background: #eef8f1;
+}
+
+.platform-page .platform-stat > div {
+  z-index: 1;
+  gap: 7px;
+}
+
+.platform-page .platform-stat small {
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.platform-page .platform-stat strong {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.025em;
+}
+
+.platform-page .platform-privacy-note {
+  min-height: 88px;
+  align-items: center;
+  border: 1px solid #dcece3;
+  border-radius: 17px;
+  background: linear-gradient(115deg, #f1faf5, #fbfdfb);
+}
+
+.platform-page .platform-privacy-note > svg {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  padding: 10px;
+  border-radius: 13px;
+  background: #e1f3e8;
+}
+
+.platform-page .platform-panel {
+  box-shadow: 0 10px 28px rgba(24, 60, 42, .055);
+}
+
+.platform-page .platform-panel-heading {
+  padding-bottom: 15px;
+  border-bottom: 1px solid #edf2ee;
+}
+
+.platform-page .platform-panel-heading > div {
+  min-width: 0;
+}
+
+.platform-page .platform-panel-heading .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 5px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: #eff7f2;
+  color: #287052;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+
+.platform-page .platform-panel-heading h3 {
+  letter-spacing: -.02em;
+}
+
+.platform-page .platform-panel-heading p {
+  max-width: 82ch;
+}
+
+.platform-page .platform-filter-pills button {
+  transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.platform-page .platform-filter-pills button:not(.active):hover {
+  border-color: #9bcbb2;
+  background: #eff8f2;
+  color: #17644f;
+}
+
+.platform-page .platform-status {
+  font-variant-numeric: tabular-nums;
+}
+
+.platform-page .platform-empty-state {
+  border: 1px dashed #d6e5dc;
+  border-radius: 16px;
+  background: #fbfdfb;
+}
+
+.platform-page .platform-empty-state > svg {
+  width: 48px;
+  height: 48px;
+  padding: 12px;
+  border-radius: 15px;
+  background: #eff7f2;
+  color: #277052;
+}
+
+.platform-page .platform-report-table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: #b6d1c1 #f4f8f5;
+}
+
+.platform-page .platform-report-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.platform-page .platform-report-table tbody tr:hover td {
+  background: #f5faf6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .platform-page .platform-stat:hover {
+    transform: translateY(-2px);
+    border-color: #c1ddcc;
+    box-shadow: 0 12px 27px rgba(24, 60, 42, .09);
+  }
+}
+
+@media (max-width: 1100px) {
+  .platform-page .platform-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .platform-page .platform-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .platform-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .platform-overview-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .platform-page .platform-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    padding: 7px;
+  }
+  .platform-page .platform-tabs button {
+    min-height: 48px;
+    padding: 9px 7px;
+    font-size: 12px;
+  }
+  .platform-stats-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .platform-page .platform-stat {
+    min-height: 92px;
+    padding: 16px;
+  }
+  .platform-page .platform-stat strong {
+    font-size: 26px;
+  }
+  .platform-overview-heading {
+    margin-top: 16px;
+    gap: 9px;
+  }
+  .platform-overview-heading p {
+    font-size: 12px;
+  }
+  .platform-overview-tag {
+    font-size: 10px;
+  }
+  .platform-page .platform-header-actions {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .platform-page .platform-auth-user {
+    max-width: min(100%, calc(100% - 135px));
+  }
+  .platform-page .platform-panel-heading {
+    gap: 11px;
+    padding-bottom: 12px;
+  }
+  .platform-page .platform-panel-heading p {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .platform-page .platform-stat,
+  .platform-page .platform-filter-pills button {
+    transition: none !important;
+  }
+}

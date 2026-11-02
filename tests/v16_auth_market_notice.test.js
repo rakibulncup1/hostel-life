@@ -57,14 +57,16 @@ test('market input sanitation removes control characters but preserves text symb
   assert.equal(sanitizeMarketInput('চাল\u0000— ডাল ✓'), 'চাল— ডাল ✓');
 });
 
-test('auth and onboarding public screens select the dark palette without changing the BrandMark', () => {
+test('auth and onboarding public screens respect the saved theme without changing the BrandMark', () => {
   const auth = fs.readFileSync(path.join(root, 'src/features/auth/AuthPage.jsx'), 'utf8');
   const onboarding = fs.readFileSync(path.join(root, 'src/features/onboarding/OnboardingPage.jsx'), 'utf8');
-  assert.match(auth, /dataset\.theme\s*=\s*'dark'/);
-  assert.match(onboarding, /dataset\.theme\s*=\s*'dark'/);
+  assert.match(auth, /applyTheme\(getThemePreference\(\)\)/);
+  assert.match(onboarding, /applyTheme\(getThemePreference\(\)\)/);
+  assert.match(auth, /<EntryThemeSwitcher/);
+  assert.match(onboarding, /<EntryThemeSwitcher/);
   assert.match(auth, /<BrandMark size=\{64\}/);
   assert.match(onboarding, /<BrandMark size=\{62\}/);
-  assert.match(auth, /রেজিস্ট্রেশন ও পাসওয়ার্ড পুনরুদ্ধারের সময় আপনার পরিচয় যাচাই করা হতে পারে/);
+  assert.match(auth, /অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন/);
 });
 
 test('hostel notice migration scopes the banner to one hostel and limits it to managers', () => {

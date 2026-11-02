@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const auth = readFileSync(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
 const onboarding = readFileSync(new URL('../src/features/onboarding/OnboardingPage.jsx', import.meta.url), 'utf8');
 const css = readFileSync(new URL('../src/styles/ui-refresh.css', import.meta.url), 'utf8');
+const entryCss = readFileSync(new URL('../src/styles/public-entry.css', import.meta.url), 'utf8');
 
 test('mobile auth headings are centered without changing desktop alignment', () => {
   const mobileBlock = css.match(/@media\s*\(max-width:\s*849px\)\s*\{[\s\S]*?\.auth-page \.auth-form-panel \.auth-header[\s\S]*?\n\}/);
@@ -26,10 +27,11 @@ test('password reset policy is styled as a readable information card', () => {
   assert.match(css, /\.auth-form-panel \.password-reset-policy p\s*\{[\s\S]*?line-height:\s*1\.75/);
 });
 
-test('join and create descriptions are compact information chips', () => {
-  assert.match(onboarding, /className="setup-choice-description"/);
-  assert.match(onboarding, /<Icon name="info" size=\{13\}/);
-  assert.match(css, /\.onboarding-main-card \.setup-choice-copy \.setup-choice-description\s*\{/);
+test('join and create choices use compact selection buttons and one focused form panel', () => {
+  assert.match(onboarding, /onboarding-mode-option/);
+  assert.match(onboarding, /onboarding-action-panel/);
+  assert.match(entryCss, /\.onboarding-mode-picker/);
+  assert.match(entryCss, /\.onboarding-action-panel/);
 });
 
 test('system and manager notices retain near-full-width layout with soft rounded corners', () => {

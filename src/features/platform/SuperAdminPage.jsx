@@ -1000,8 +1000,13 @@ export function SuperAdminPage({ user }) {
     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
     <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
-    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
-    {tab === 'overview' && <section className="platform-stats-grid">
+    <nav className="platform-tabs" aria-label="Super Admin বিভাগ">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+    {tab === 'overview' && <>
+      <div className="platform-overview-heading">
+        <div><span className="eyebrow">PLATFORM SNAPSHOT</span><h3>এক নজরে প্ল্যাটফর্ম</h3><p>মেস, অ্যাকাউন্ট ও সদস্যপদের সামগ্রিক অবস্থা—ব্যক্তিগত লেনদেনের তথ্য ছাড়া।</p></div>
+        <span className="platform-overview-tag"><Icon name="shield-check" size={15}/> Privacy-aware overview</span>
+      </div>
+      <section className="platform-stats-grid">
       <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
       <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
       <Stat label="স্থগিত মেস" value={metrics.suspendedHostels} icon="lock"/>
@@ -1012,7 +1017,8 @@ export function SuperAdminPage({ user }) {
       <Stat label="ব্লক করা অ্যাকাউন্ট" value={metrics.blockedUsers} icon="shield"/>
       <Stat label="Super Admin" value={metrics.superAdmins} icon="shield-check"/>
       <div className="card platform-privacy-note"><Icon name="shield" size={22}/><div><strong>Privacy boundary</strong><p>এই Overview-তে শুধু সামগ্রিক সংখ্যা দেখানো হয়। ব্যক্তিগত সদস্যের আর্থিক বা মিলের বিস্তারিত এখানে দেখানো হয় না।</p></div></div>
-    </section>}
+      </section>
+    </>}
     {tab === 'insights' && <section className="card platform-panel platform-insights-panel">
       <div className="platform-panel-heading"><div><span className="eyebrow">HOSTEL INTELLIGENCE</span><h3>মেসভিত্তিক বিস্তারিত সারসংক্ষেপ</h3><p>নির্বাচিত মেসের মাসভিত্তিক মিল, বাজার ও আর্থিক Aggregate দেখা যাবে। ব্যক্তিগত সদস্যের লেনদেন এখানে প্রকাশ করা হয় না।</p></div><button type="button" className="secondary-button compact" disabled={insightsLoading || !insightsHostelId} onClick={()=>loadHostelInsights(insightsHostelId,insightsPeriodId||null)}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
       <div className="platform-insights-toolbar">

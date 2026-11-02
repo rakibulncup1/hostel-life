@@ -7,6 +7,8 @@ import { signIn, signUp, requestPasswordReset, updatePassword } from '../../serv
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
+import { applyTheme, getThemePreference } from '../../app/theme';
+import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
 
 function go(path, replace = false) {
   if (replace) window.history.replaceState({}, '', path);
@@ -41,7 +43,7 @@ function PasswordField({ value, onChange, placeholder = 'পাসওয়া�
 function AuthFrame({ title, subtitle, children, compact = false }) {
   return (
     <main className="auth-page">
-      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''}`}>
+      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''} ${title === 'একটি অ্যাকাউন্ট তৈরি করুন' ? 'auth-shell-register' : ''}`}>
         <div className="auth-brand-panel">
           <div className="auth-brand-mark"><BrandMark size={64} /></div>
           <span className="auth-eyebrow">HOSTEL LIFE</span>
@@ -49,7 +51,10 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
           <p>মিল থেকে মাসিক হিসাব—সবকিছু নিরাপদে, সুন্দরভাবে, এক জায়গায়।</p>
         </div>
         <div className="auth-form-panel">
-          <div className="auth-form-intro"><Icon name="shield-check" size={15} /><span>অ্যাকাউন্ট অ্যাক্সেস · নিরাপদ ও সহজ</span></div>
+          <div className="auth-form-toolbar">
+            <span className="auth-form-toolbar-label"><Icon name="shield-check" size={15} /> নিরাপদ অ্যাকাউন্ট অ্যাক্সেস</span>
+            <EntryThemeSwitcher />
+          </div>
           <div className="auth-header">
             <div>
               <span className="eyebrow">{title === "আপনার অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>
@@ -177,7 +182,7 @@ function RegisterForm() {
 
   return (
     <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle="কয়েকটি তথ্য দিন, তারপর শুরু করুন আপনার হোস্টেল লাইফ।">
-      <form className="form-stack" onSubmit={submit}>
+      <form className="form-stack auth-register-form" onSubmit={submit}>
         <div className="two-field-grid">
           <label className="field-label">
             <span>নাম</span>
@@ -190,8 +195,8 @@ function RegisterForm() {
         </div>
         <label className="field-label">
           <span>ইমেইল</span>
-          <small className="register-email-hint"><Icon name="info" size={14} /><span>রেজিস্ট্রেশন ও পাসওয়ার্ড পুনরুদ্ধারের সময় আপনার পরিচয় যাচাই করা হতে পারে। তাই সঠিক ইমেইল ব্যবহার করুন।</span></small>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
+          <small className="register-email-note">অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন।</small>
         </label>
         <label className="field-label">
           <span>পাসওয়ার্ড</span>
@@ -366,8 +371,7 @@ export function AuthPage({ pathname }) {
     // data-theme value can otherwise leak into the public auth screen until a
     // full refresh. Apply the public palette before paint; the saved preference
     // is preserved and AppShell reapplies it after the next successful login.
-    document.documentElement.dataset.theme = 'dark';
-    document.documentElement.dataset.themePreference = 'dark';
+    applyTheme(getThemePreference());
   }, [pathname]);
 
   useEffect(() => {

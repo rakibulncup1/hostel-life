@@ -1,0 +1,1486 @@
+diff --git a/src/app/theme.js b/src/app/theme.js
+index 97f06df..7febe73 100644
+--- a/src/app/theme.js
++++ b/src/app/theme.js
+@@ -1,10 +1,37 @@
+ export const THEME_KEY = 'hostel-life-theme';
+ 
+-export function applyTheme(theme = 'dark') {
++export const THEME_VALUES = Object.freeze(['system', 'light', 'dark', 'blue']);
++
++export function getThemePreference() {
++  try {
++    const saved = window.localStorage.getItem(THEME_KEY);
++    return THEME_VALUES.includes(saved) ? saved : 'dark';
++  } catch {
++    return 'dark';
++  }
++}
++
++export function applyTheme(theme = getThemePreference()) {
++  const preference = THEME_VALUES.includes(theme) ? theme : 'dark';
+   const root = document.documentElement;
+-  const effective = theme === 'system'
+-    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+-    : theme;
++  const media = window.matchMedia?.('(prefers-color-scheme: dark)');
++  const effective = preference === 'system'
++    ? (media?.matches ? 'dark' : 'light')
++    : preference;
++
+   root.dataset.theme = effective;
+-  root.dataset.themePreference = theme;
++  root.dataset.themePreference = preference;
++  return effective;
++}
++
++export function saveThemePreference(theme) {
++  const preference = THEME_VALUES.includes(theme) ? theme : 'dark';
++  try {
++    window.localStorage.setItem(THEME_KEY, preference);
++  } catch {
++    // The current page can still use the selected theme if storage is blocked.
++  }
++  applyTheme(preference);
++  window.dispatchEvent(new Event('hostel-life-theme-change'));
++  return preference;
+ }
+diff --git a/src/components/EntryThemeSwitcher.jsx b/src/components/EntryThemeSwitcher.jsx
+new file mode 100644
+index 0000000..7f90995
+--- /dev/null
++++ b/src/components/EntryThemeSwitcher.jsx
+@@ -0,0 +1,71 @@
++import { useEffect, useLayoutEffect, useRef, useState } from 'react';
++import { Icon } from './Icon';
++import { applyTheme, getThemePreference, saveThemePreference } from '../app/theme';
++
++const THEME_OPTIONS = [
++  { value: 'system', label: 'সিস্টেম', icon: 'monitor' },
++  { value: 'light', label: 'লাইট', icon: 'sun' },
++  { value: 'dark', label: 'ডার্ক', icon: 'moon' },
++  { value: 'blue', label: 'আকাশি নীল', icon: 'droplet' },
++];
++
++export function EntryThemeSwitcher() {
++  const [theme, setTheme] = useState(getThemePreference);
++  const detailsRef = useRef(null);
++  const activeTheme = THEME_OPTIONS.find((option) => option.value === theme) || THEME_OPTIONS[2];
++
++  useLayoutEffect(() => {
++    applyTheme(theme);
++  }, [theme]);
++
++  useEffect(() => {
++    const syncPreference = () => setTheme(getThemePreference());
++    window.addEventListener('hostel-life-theme-change', syncPreference);
++    window.addEventListener('storage', syncPreference);
++    return () => {
++      window.removeEventListener('hostel-life-theme-change', syncPreference);
++      window.removeEventListener('storage', syncPreference);
++    };
++  }, []);
++
++  useEffect(() => {
++    if (theme !== 'system') return undefined;
++    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
++    const updateSystemTheme = () => applyTheme('system');
++    media?.addEventListener?.('change', updateSystemTheme);
++    return () => media?.removeEventListener?.('change', updateSystemTheme);
++  }, [theme]);
++
++  const chooseTheme = (nextTheme) => {
++    setTheme(nextTheme);
++    saveThemePreference(nextTheme);
++    if (detailsRef.current) detailsRef.current.open = false;
++  };
++
++  return (
++    <details className="entry-theme-switcher" ref={detailsRef}>
++      <summary aria-label="রঙের থিম পরিবর্তন" title="থিম পরিবর্তন">
++        <Icon name={activeTheme.icon} size={16} />
++        <span>থিম</span>
++        <strong>{activeTheme.label}</strong>
++        <Icon name="chevron-down" size={14} className="entry-theme-chevron" />
++      </summary>
++      <div className="entry-theme-menu" role="group" aria-label="থিম নির্বাচন">
++        <span className="entry-theme-menu-title">আপনার পছন্দ</span>
++        {THEME_OPTIONS.map((option) => (
++          <button
++            key={option.value}
++            type="button"
++            className={`entry-theme-option ${theme === option.value ? 'selected' : ''}`}
++            onClick={() => chooseTheme(option.value)}
++            aria-pressed={theme === option.value}
++          >
++            <Icon name={option.icon} size={16} />
++            <span>{option.label}</span>
++            {theme === option.value && <Icon name="check" size={15} />}
++          </button>
++        ))}
++      </div>
++    </details>
++  );
++}
+diff --git a/src/features/auth/AuthPage.jsx b/src/features/auth/AuthPage.jsx
+index 2a1c72f..e9e5d05 100644
+--- a/src/features/auth/AuthPage.jsx
++++ b/src/features/auth/AuthPage.jsx
+@@ -7,6 +7,8 @@ import { signIn, signUp, requestPasswordReset, updatePassword } from '../../serv
+ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+ import { useAuth } from '../../contexts/AuthContext';
+ import { fetchPlatformPublicSettings } from '../../services/platformService';
++import { applyTheme, getThemePreference } from '../../app/theme';
++import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
+ 
+ function go(path, replace = false) {
+   if (replace) window.history.replaceState({}, '', path);
+@@ -41,7 +43,7 @@ function PasswordField({ value, onChange, placeholder = 'পাসওয়া
+ function AuthFrame({ title, subtitle, children, compact = false }) {
+   return (
+     <main className="auth-page">
+-      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''}`}>
++      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''} ${title === 'একটি অ্যাকাউন্ট তৈরি করুন' ? 'auth-shell-register' : ''}`}>
+         <div className="auth-brand-panel">
+           <div className="auth-brand-mark"><BrandMark size={64} /></div>
+           <span className="auth-eyebrow">HOSTEL LIFE</span>
+@@ -49,7 +51,10 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
+           <p>মিল থেকে মাসিক হিসাব—সবকিছু নিরাপদে, সুন্দরভাবে, এক জায়গায়।</p>
+         </div>
+         <div className="auth-form-panel">
+-          <div className="auth-form-intro"><Icon name="shield-check" size={15} /><span>অ্যাকাউন্ট অ্যাক্সেস · নিরাপদ ও সহজ</span></div>
++          <div className="auth-form-toolbar">
++            <span className="auth-form-toolbar-label"><Icon name="shield-check" size={15} /> নিরাপদ অ্যাকাউন্ট অ্যাক্সেস</span>
++            <EntryThemeSwitcher />
++          </div>
+           <div className="auth-header">
+             <div>
+               <span className="eyebrow">{title === "আপনার অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>
+@@ -177,7 +182,7 @@ function RegisterForm() {
+ 
+   return (
+     <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle="কয়েকটি তথ্য দিন, তারপর শুরু করুন আপনার হোস্টেল লাইফ।">
+-      <form className="form-stack" onSubmit={submit}>
++      <form className="form-stack auth-register-form" onSubmit={submit}>
+         <div className="two-field-grid">
+           <label className="field-label">
+             <span>নাম</span>
+@@ -190,8 +195,8 @@ function RegisterForm() {
+         </div>
+         <label className="field-label">
+           <span>ইমেইল</span>
+-          <small className="register-email-hint"><Icon name="info" size={14} /><span>রেজিস্ট্রেশন ও পাসওয়ার্ড পুনরুদ্ধারের সময় আপনার পরিচয় যাচাই করা হতে পারে। তাই সঠিক ইমেইল ব্যবহার করুন।</span></small>
+           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
++          <small className="register-email-note">অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন।</small>
+         </label>
+         <label className="field-label">
+           <span>পাসওয়ার্ড</span>
+@@ -366,8 +371,7 @@ export function AuthPage({ pathname }) {
+     // data-theme value can otherwise leak into the public auth screen until a
+     // full refresh. Apply the public palette before paint; the saved preference
+     // is preserved and AppShell reapplies it after the next successful login.
+-    document.documentElement.dataset.theme = 'dark';
+-    document.documentElement.dataset.themePreference = 'dark';
++    applyTheme(getThemePreference());
+   }, [pathname]);
+ 
+   useEffect(() => {
+diff --git a/src/features/onboarding/OnboardingPage.jsx b/src/features/onboarding/OnboardingPage.jsx
+index 6100268..0576a45 100644
+--- a/src/features/onboarding/OnboardingPage.jsx
++++ b/src/features/onboarding/OnboardingPage.jsx
+@@ -10,6 +10,8 @@ import { navigateTo } from '../../app/AppShell';
+ import { fetchPlatformPublicSettings } from '../../services/platformService';
+ import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
+ import { normalizeRunningPeriodPayload } from '../../utils/period';
++import { applyTheme, getThemePreference } from '../../app/theme';
++import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
+ 
+ 
+ function OnboardingBrand({ title, description }) {
+@@ -23,19 +25,12 @@ function OnboardingBrand({ title, description }) {
+   );
+ }
+ 
+-function SetupCard({ icon, title, description, active, onClick, children }) {
++function OnboardingTopbar() {
+   return (
+-    <article className={`setup-choice-card ${active ? 'active' : ''}`}>
+-      <button type="button" className="setup-choice-head" onClick={onClick} aria-expanded={active}>
+-        <span className="feature-icon"><Icon name={icon} size={22} /></span>
+-        <span className="setup-choice-copy">
+-          <strong>{title}</strong>
+-          <small className="setup-choice-description"><Icon name="info" size={13} /><span>{description}</span></small>
+-        </span>
+-        <Icon name={active ? 'chevron-up' : 'chevron'} size={18} />
+-      </button>
+-      {active && <div className="setup-choice-body">{children}</div>}
+-    </article>
++    <div className="onboarding-topbar">
++      <span><Icon name="shield-check" size={15} /> নিরাপদ প্রথম ধাপ</span>
++      <EntryThemeSwitcher />
++    </div>
+   );
+ }
+ 
+@@ -55,8 +50,7 @@ export function OnboardingPage() {
+   const [initialMonthError, setInitialMonthError] = useState('');
+ 
+   useLayoutEffect(() => {
+-    document.documentElement.dataset.theme = 'dark';
+-    document.documentElement.dataset.themePreference = 'dark';
++    applyTheme(getThemePreference());
+   }, []);
+ 
+   useEffect(() => {
+@@ -191,6 +185,7 @@ export function OnboardingPage() {
+       <main className="onboarding-page">
+         <section className="onboarding-shell onboarding-shell-success">
+           <div className="onboarding-main-card card">
++            <OnboardingTopbar />
+             <OnboardingBrand title="মেস তৈরি সম্পন্ন" description="আপনার নতুন মেস প্রস্তুত। এখন সদস্যদের সঙ্গে যুক্ত হয়ে পরিচালনা শুরু করুন।" />
+             <div className="creation-success-card">
+               <div className="success-panel-icon"><Icon name="check" size={24} /></div>
+@@ -225,6 +220,7 @@ export function OnboardingPage() {
+     <main className="onboarding-page">
+       <section className="onboarding-shell">
+         <div className="onboarding-main-card card">
++          <OnboardingTopbar />
+           <OnboardingBrand
+             title={`স্বাগতম, ${profile?.full_name?.split(' ')[0] || 'সদস্য'}!`}
+             description="আপনার অ্যাকাউন্ট প্রস্তুত। এখন একটি মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
+@@ -240,18 +236,30 @@ export function OnboardingPage() {
+           <div className="onboarding-choice-intro">
+             <span className="eyebrow">শুরু করার উপায়</span>
+             <h2>আপনি কীভাবে শুরু করতে চান?</h2>
+-            <p>আপনার জন্য প্রযোজ্য একটি অপশন বেছে নিন।</p>
++            <p>একটি অপশন বেছে নিন। পরের ধাপে প্রয়োজনীয় তথ্য দিন।</p>
+           </div>
+ 
+-          <div className="setup-choice-grid">
+-            <SetupCard
+-              icon="user-plus"
+-              title="মেসে যুক্ত হন"
+-              description="আপনার মেসের Join Code ব্যবহার করুন।"
+-              active={mode === 'join'}
+-              onClick={() => setMode('join')}
+-            >
+-              <form className="form-stack" onSubmit={join}>
++          <div className="onboarding-mode-picker" role="group" aria-label="মেসে যুক্ত হওয়া অথবা নতুন মেস তৈরি করা">
++            <button type="button" className={`onboarding-mode-option ${mode === 'join' ? 'active' : ''}`} onClick={() => setMode('join')} aria-pressed={mode === 'join'}>
++              <span className="onboarding-mode-icon"><Icon name="user-plus" size={20} /></span>
++              <span className="onboarding-mode-copy"><strong>মেসে যুক্ত হন</strong><small>Join Code ব্যবহার করে</small></span>
++              <span className="onboarding-mode-check">{mode === 'join' && <Icon name="check-circle" size={18} />}</span>
++            </button>
++            <button type="button" className={`onboarding-mode-option ${mode === 'create' ? 'active' : ''}`} onClick={() => setMode('create')} aria-pressed={mode === 'create'}>
++              <span className="onboarding-mode-icon"><Icon name="plus-circle" size={20} /></span>
++              <span className="onboarding-mode-copy"><strong>নতুন মেস তৈরি</strong><small>নিজের মেস পরিচালনা শুরু</small></span>
++              <span className="onboarding-mode-check">{mode === 'create' && <Icon name="check-circle" size={18} />}</span>
++            </button>
++          </div>
++
++          <section className="onboarding-action-panel" aria-live="polite">
++            <div className="onboarding-action-heading">
++              <span className="eyebrow">{mode === 'join' ? 'JOIN AN EXISTING HOSTEL' : 'CREATE A NEW HOSTEL'}</span>
++              <h3>{mode === 'join' ? 'Join Code দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'}</h3>
++              <p>{mode === 'join' ? 'মেসের ম্যানেজারের কাছ থেকে পাওয়া Join Code লিখুন।' : 'আপনার মেসের জন্য একটি নাম নির্বাচন করুন।'}</p>
++            </div>
++            {mode === 'join' ? (
++              <form className="form-stack onboarding-entry-form" onSubmit={join}>
+                 <label className="field-label">
+                   <span>Join Code</span>
+                   <input
+@@ -269,27 +277,25 @@ export function OnboardingPage() {
+                   {submitting ? 'যুক্ত হচ্ছে...' : 'মেসে যুক্ত হন'}
+                 </button>
+               </form>
+-            </SetupCard>
+-
+-            <SetupCard
+-              icon="plus-circle"
+-              title="মেস তৈরি করুন"
+-              description="আপনার নিজের মেসের জন্য নতুন workspace তৈরি করুন।"
+-              active={mode === 'create'}
+-              onClick={() => setMode('create')}
+-            >
+-              <form className="form-stack" onSubmit={create}>
++            ) : (
++              <form className="form-stack onboarding-entry-form onboarding-entry-form-create" onSubmit={create}>
+                 <label className="field-label">
+                   <span>মেসের নাম</span>
+                   <input type="text" value={hostelName} onChange={(e) => setHostelName(e.target.value)} placeholder="যেমন: আল-আমিন মেস" maxLength={120} required />
+                 </label>
+-                {hostelCodeRequired && <label className="field-label"><span>মেস তৈরির অনুমতি কোড</span><input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">কোডটি সার্ভারে যাচাই হবে এবং নির্দিষ্ট ব্যবহারের পর শেষ হবে।</small></label>}
++                {hostelCodeRequired && (
++                  <label className="field-label">
++                    <span>মেস তৈরির অনুমতি কোড</span>
++                    <input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="Super Admin-এর দেওয়া কোড" />
++                    <small className="platform-form-help">কোডটি সার্ভারে যাচাই হবে এবং নির্দিষ্ট ব্যবহারের পর শেষ হবে।</small>
++                  </label>
++                )}
+                 <button type="submit" className="primary-button large" disabled={submitting || !online}>
+                   {submitting ? 'তৈরি হচ্ছে...' : 'মেস তৈরি করুন'}
+                 </button>
+               </form>
+-            </SetupCard>
+-          </div>
++            )}
++          </section>
+ 
+           {!online && (
+             <div className="inline-error onboarding-offline"><Icon name="offline" size={17} /><span>মেসে যুক্ত হওয়া বা নতুন মেস তৈরি করতে ইন্টারনেট সংযোগ চালু করুন।</span></div>
+diff --git a/src/features/platform/SuperAdminPage.jsx b/src/features/platform/SuperAdminPage.jsx
+index 4604b34..baec3fa 100644
+--- a/src/features/platform/SuperAdminPage.jsx
++++ b/src/features/platform/SuperAdminPage.jsx
+@@ -1000,8 +1000,13 @@ export function SuperAdminPage({ user }) {
+     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
+     <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
+     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
+-    <nav className="platform-tabs">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} className={tab===key?'active':''} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+-    {tab === 'overview' && <section className="platform-stats-grid">
++    <nav className="platform-tabs" aria-label="Super Admin বিভাগ">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
++    {tab === 'overview' && <>
++      <div className="platform-overview-heading">
++        <div><span className="eyebrow">PLATFORM SNAPSHOT</span><h3>এক নজরে প্ল্যাটফর্ম</h3><p>মেস, অ্যাকাউন্ট ও সদস্যপদের সামগ্রিক অবস্থা—ব্যক্তিগত লেনদেনের তথ্য ছাড়া।</p></div>
++        <span className="platform-overview-tag"><Icon name="shield-check" size={15}/> Privacy-aware overview</span>
++      </div>
++      <section className="platform-stats-grid">
+       <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
+       <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
+       <Stat label="স্থগিত মেস" value={metrics.suspendedHostels} icon="lock"/>
+@@ -1012,7 +1017,8 @@ export function SuperAdminPage({ user }) {
+       <Stat label="ব্লক করা অ্যাকাউন্ট" value={metrics.blockedUsers} icon="shield"/>
+       <Stat label="Super Admin" value={metrics.superAdmins} icon="shield-check"/>
+       <div className="card platform-privacy-note"><Icon name="shield" size={22}/><div><strong>Privacy boundary</strong><p>এই Overview-তে শুধু সামগ্রিক সংখ্যা দেখানো হয়। ব্যক্তিগত সদস্যের আর্থিক বা মিলের বিস্তারিত এখানে দেখানো হয় না।</p></div></div>
+-    </section>}
++      </section>
++    </>}
+     {tab === 'insights' && <section className="card platform-panel platform-insights-panel">
+       <div className="platform-panel-heading"><div><span className="eyebrow">HOSTEL INTELLIGENCE</span><h3>মেসভিত্তিক বিস্তারিত সারসংক্ষেপ</h3><p>নির্বাচিত মেসের মাসভিত্তিক মিল, বাজার ও আর্থিক Aggregate দেখা যাবে। ব্যক্তিগত সদস্যের লেনদেন এখানে প্রকাশ করা হয় না।</p></div><button type="button" className="secondary-button compact" disabled={insightsLoading || !insightsHostelId} onClick={()=>loadHostelInsights(insightsHostelId,insightsPeriodId||null)}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
+       <div className="platform-insights-toolbar">
+diff --git a/src/main.jsx b/src/main.jsx
+index eba3245..bfc3c1e 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -5,6 +5,8 @@ import { ToastProvider } from './components/Toast';
+ import { AuthProvider } from './contexts/AuthContext';
+ import './styles/global.css';
+ import './styles/ui-refresh.css';
++import './styles/public-entry.css';
++import './styles/platform-visual-refresh.css';
+ 
+ if ('serviceWorker' in navigator && import.meta.env.PROD) {
+   window.addEventListener('load', () => {
+diff --git a/src/styles/platform-visual-refresh.css b/src/styles/platform-visual-refresh.css
+new file mode 100644
+index 0000000..2355a9b
+--- /dev/null
++++ b/src/styles/platform-visual-refresh.css
+@@ -0,0 +1,365 @@
++/*
++ * Hostel Life — Super Admin visual refinement
++ * Presentation and navigation clarity only. No data, permission or action logic.
++ */
++.platform-page {
++  --admin-focus: #2d8b6b;
++  --admin-accent: #17644f;
++  --admin-surface: #ffffff;
++  --admin-subtle: #f4f8f6;
++}
++
++.platform-page .platform-header {
++  min-height: 82px;
++  gap: 18px;
++  align-items: center;
++}
++
++.platform-page .platform-brand {
++  min-width: 0;
++  gap: 14px;
++}
++
++.platform-page .platform-brand h1 {
++  line-height: 1.15;
++}
++
++.platform-page .platform-brand small {
++  display: block;
++  line-height: 1.45;
++}
++
++.platform-page .platform-auth-user {
++  display: inline-block;
++  max-width: min(36vw, 420px);
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
++  padding: 8px 11px;
++  border: 1px solid #e4eee8;
++  border-radius: 999px;
++  background: #f6faf7;
++  color: #45675a;
++  font-size: 12px;
++}
++
++.platform-page .platform-intro {
++  position: relative;
++  overflow: hidden;
++  isolation: isolate;
++}
++
++.platform-page .platform-intro::after {
++  position: absolute;
++  z-index: -1;
++  top: -58px;
++  right: -38px;
++  width: 190px;
++  height: 190px;
++  border: 1px solid rgba(255,255,255,.12);
++  border-radius: 50%;
++  box-shadow: 0 0 0 24px rgba(255,255,255,.035), 0 0 0 50px rgba(255,255,255,.025);
++  content: "";
++  pointer-events: none;
++}
++
++.platform-overview-heading {
++  width: min(1380px, 100%);
++  margin: 22px auto 13px;
++  display: flex;
++  align-items: flex-end;
++  justify-content: space-between;
++  gap: 16px;
++}
++
++.platform-overview-heading h3 {
++  margin: 5px 0 4px;
++  color: #183f33;
++  font-size: clamp(20px, 2.4vw, 27px);
++  font-weight: 900;
++  letter-spacing: -.025em;
++  line-height: 1.3;
++}
++
++.platform-overview-heading p {
++  max-width: 68ch;
++  margin: 0;
++  color: #63796f;
++  font-size: 13px;
++  line-height: 1.65;
++}
++
++.platform-overview-tag {
++  flex: 0 0 auto;
++  display: inline-flex;
++  align-items: center;
++  gap: 7px;
++  padding: 8px 11px;
++  border: 1px solid #dcece3;
++  border-radius: 999px;
++  background: #f2faf5;
++  color: #23674d;
++  font-size: 11px;
++  font-weight: 850;
++  white-space: nowrap;
++}
++
++.platform-page .platform-tabs {
++  display: grid;
++  grid-template-columns: repeat(6, minmax(0, 1fr));
++  align-items: stretch;
++  overflow: visible;
++  padding: 9px;
++}
++
++.platform-page .platform-tabs button {
++  min-width: 0;
++  min-height: 48px;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  padding: 9px 10px;
++  line-height: 1.4;
++  text-align: center;
++  white-space: normal;
++  overflow-wrap: anywhere;
++}
++
++.platform-page .platform-tabs button:focus-visible,
++.platform-page .platform-header-actions button:focus-visible,
++.platform-page .platform-filter-pills button:focus-visible {
++  outline: 3px solid #75c9a4;
++  outline-offset: 3px;
++}
++
++.platform-stats-grid {
++  grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr));
++  align-items: stretch;
++  gap: 15px;
++}
++
++.platform-page .platform-stat {
++  min-height: 112px;
++  position: relative;
++  overflow: hidden;
++  gap: 15px;
++  padding: 20px;
++  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
++}
++
++.platform-page .platform-stat::after {
++  position: absolute;
++  right: -22px;
++  bottom: -34px;
++  width: 94px;
++  height: 94px;
++  border-radius: 50%;
++  background: #eaf5ef;
++  content: "";
++  pointer-events: none;
++}
++
++.platform-page .platform-stat-icon {
++  z-index: 1;
++  width: 48px;
++  height: 48px;
++  border: 1px solid #dcefe3;
++  border-radius: 15px;
++  background: #eef8f1;
++}
++
++.platform-page .platform-stat > div {
++  z-index: 1;
++  gap: 7px;
++}
++
++.platform-page .platform-stat small {
++  font-size: 12px;
++  font-weight: 750;
++  line-height: 1.45;
++}
++
++.platform-page .platform-stat strong {
++  font-variant-numeric: tabular-nums;
++  letter-spacing: -.025em;
++}
++
++.platform-page .platform-privacy-note {
++  min-height: 88px;
++  align-items: center;
++  border: 1px solid #dcece3;
++  border-radius: 17px;
++  background: linear-gradient(115deg, #f1faf5, #fbfdfb);
++}
++
++.platform-page .platform-privacy-note > svg {
++  flex: 0 0 auto;
++  width: 42px;
++  height: 42px;
++  padding: 10px;
++  border-radius: 13px;
++  background: #e1f3e8;
++}
++
++.platform-page .platform-panel {
++  box-shadow: 0 10px 28px rgba(24, 60, 42, .055);
++}
++
++.platform-page .platform-panel-heading {
++  padding-bottom: 15px;
++  border-bottom: 1px solid #edf2ee;
++}
++
++.platform-page .platform-panel-heading > div {
++  min-width: 0;
++}
++
++.platform-page .platform-panel-heading .eyebrow {
++  display: inline-flex;
++  align-items: center;
++  margin-bottom: 5px;
++  padding: 4px 8px;
++  border-radius: 7px;
++  background: #eff7f2;
++  color: #287052;
++  font-size: 10px;
++  font-weight: 900;
++  letter-spacing: .06em;
++}
++
++.platform-page .platform-panel-heading h3 {
++  letter-spacing: -.02em;
++}
++
++.platform-page .platform-panel-heading p {
++  max-width: 82ch;
++}
++
++.platform-page .platform-filter-pills button {
++  transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
++}
++
++.platform-page .platform-filter-pills button:not(.active):hover {
++  border-color: #9bcbb2;
++  background: #eff8f2;
++  color: #17644f;
++}
++
++.platform-page .platform-status {
++  font-variant-numeric: tabular-nums;
++}
++
++.platform-page .platform-empty-state {
++  border: 1px dashed #d6e5dc;
++  border-radius: 16px;
++  background: #fbfdfb;
++}
++
++.platform-page .platform-empty-state > svg {
++  width: 48px;
++  height: 48px;
++  padding: 12px;
++  border-radius: 15px;
++  background: #eff7f2;
++  color: #277052;
++}
++
++.platform-page .platform-report-table-wrap {
++  scrollbar-width: thin;
++  scrollbar-color: #b6d1c1 #f4f8f5;
++}
++
++.platform-page .platform-report-table th {
++  position: sticky;
++  top: 0;
++  z-index: 1;
++}
++
++.platform-page .platform-report-table tbody tr:hover td {
++  background: #f5faf6;
++}
++
++@media (hover: hover) and (pointer: fine) {
++  .platform-page .platform-stat:hover {
++    transform: translateY(-2px);
++    border-color: #c1ddcc;
++    box-shadow: 0 12px 27px rgba(24, 60, 42, .09);
++  }
++}
++
++@media (max-width: 1100px) {
++  .platform-page .platform-tabs {
++    grid-template-columns: repeat(4, minmax(0, 1fr));
++  }
++}
++
++@media (max-width: 760px) {
++  .platform-page .platform-tabs {
++    grid-template-columns: repeat(3, minmax(0, 1fr));
++  }
++  .platform-stats-grid {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++  .platform-overview-heading {
++    align-items: flex-start;
++    flex-direction: column;
++  }
++}
++
++@media (max-width: 520px) {
++  .platform-page .platform-tabs {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++    gap: 7px;
++    padding: 7px;
++  }
++  .platform-page .platform-tabs button {
++    min-height: 48px;
++    padding: 9px 7px;
++    font-size: 12px;
++  }
++  .platform-stats-grid {
++    grid-template-columns: minmax(0, 1fr);
++    gap: 10px;
++  }
++  .platform-page .platform-stat {
++    min-height: 92px;
++    padding: 16px;
++  }
++  .platform-page .platform-stat strong {
++    font-size: 26px;
++  }
++  .platform-overview-heading {
++    margin-top: 16px;
++    gap: 9px;
++  }
++  .platform-overview-heading p {
++    font-size: 12px;
++  }
++  .platform-overview-tag {
++    font-size: 10px;
++  }
++  .platform-page .platform-header-actions {
++    width: 100%;
++    flex-direction: row;
++    align-items: center;
++    justify-content: space-between;
++    flex-wrap: wrap;
++  }
++  .platform-page .platform-auth-user {
++    max-width: min(100%, calc(100% - 135px));
++  }
++  .platform-page .platform-panel-heading {
++    gap: 11px;
++    padding-bottom: 12px;
++  }
++  .platform-page .platform-panel-heading p {
++    font-size: 12px;
++  }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .platform-page .platform-stat,
++  .platform-page .platform-filter-pills button {
++    transition: none !important;
++  }
++}
+diff --git a/src/styles/public-entry.css b/src/styles/public-entry.css
+new file mode 100644
+index 0000000..23920fe
+--- /dev/null
++++ b/src/styles/public-entry.css
+@@ -0,0 +1,505 @@
++/*
++ * Hostel Life — Public Entry Experience
++ * Scoped to Login, Registration and first-time hostel setup.
++ * Presentation only: no auth, RPC, membership or billing behavior is changed.
++ */
++
++.auth-page,
++.onboarding-page {
++  min-height: 100svh;
++  overflow-x: clip;
++  padding-top: max(16px, env(safe-area-inset-top));
++  padding-bottom: max(22px, env(safe-area-inset-bottom));
++}
++
++.auth-shell:not(.auth-shell-compact) {
++  width: min(1040px, 100%);
++  border-radius: 28px;
++}
++
++.auth-form-toolbar {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  margin: 0 0 18px;
++}
++
++.auth-form-toolbar-label {
++  display: inline-flex;
++  align-items: center;
++  gap: 8px;
++  min-width: 0;
++  color: var(--muted);
++  font-size: 11px;
++  font-weight: 800;
++  letter-spacing: .01em;
++}
++
++.auth-form-toolbar-label svg { flex: 0 0 auto; color: var(--primary-strong); }
++.auth-form-panel .auth-form-intro { margin-bottom: 18px; }
++.auth-form-panel .auth-header { margin-bottom: 23px; }
++.auth-form-panel .field-label { min-width: 0; }
++.auth-form-panel .field-label input,
++.auth-form-panel .password-field input { min-width: 0; width: 100%; }
++.auth-form-panel .password-field { min-width: 0; }
++.auth-form-panel .primary-button.large { min-height: 52px; }
++.auth-form-panel .auth-switch { line-height: 1.6; }
++
++.auth-register-form { gap: 13px; }
++.auth-register-form .two-field-grid { gap: 12px; }
++.auth-register-form .field-label { gap: 6px; }
++.auth-register-form .register-email-note {
++  display: block;
++  margin: 0;
++  color: var(--muted);
++  font-size: 11px;
++  font-weight: 500;
++  line-height: 1.55;
++}
++.auth-shell-register .auth-form-panel { justify-content: flex-start; }
++.auth-shell-register .auth-brand-panel { justify-content: center; }
++
++.entry-theme-switcher {
++  position: relative;
++  z-index: 30;
++  flex: 0 0 auto;
++  color: var(--text);
++}
++.entry-theme-switcher > summary {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 7px;
++  min-height: 38px;
++  padding: 7px 10px;
++  border: 1px solid var(--line);
++  border-radius: 11px;
++  background: var(--surface);
++  color: var(--text);
++  cursor: pointer;
++  list-style: none;
++  font-size: 11px;
++  font-weight: 800;
++  white-space: nowrap;
++  user-select: none;
++  transition: border-color .18s, background .18s, box-shadow .18s;
++}
++.entry-theme-switcher > summary::-webkit-details-marker { display: none; }
++.entry-theme-switcher > summary:hover { border-color: var(--primary); }
++.entry-theme-switcher > summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 26%, transparent); outline-offset: 2px; }
++.entry-theme-switcher > summary > svg:first-child { color: var(--primary-strong); }
++.entry-theme-switcher > summary strong { font-size: 11px; font-weight: 850; }
++.entry-theme-chevron { color: var(--muted); transition: transform .18s; }
++.entry-theme-switcher[open] .entry-theme-chevron { transform: rotate(180deg); }
++.entry-theme-menu {
++  position: absolute;
++  top: calc(100% + 8px);
++  right: 0;
++  width: 205px;
++  padding: 9px;
++  border: 1px solid var(--line);
++  border-radius: 15px;
++  background: var(--surface);
++  box-shadow: 0 18px 42px rgba(10, 30, 20, .18);
++}
++.entry-theme-menu-title {
++  display: block;
++  padding: 5px 8px 8px;
++  color: var(--muted);
++  font-size: 10px;
++  font-weight: 850;
++  letter-spacing: .04em;
++}
++.entry-theme-option {
++  display: flex;
++  align-items: center;
++  gap: 9px;
++  width: 100%;
++  min-height: 39px;
++  padding: 8px 9px;
++  border: 1px solid transparent;
++  border-radius: 10px;
++  background: transparent;
++  color: var(--text);
++  cursor: pointer;
++  text-align: left;
++  font-size: 12px;
++  font-weight: 750;
++}
++.entry-theme-option > span { flex: 1; }
++.entry-theme-option > svg:first-child { color: var(--muted); }
++.entry-theme-option > svg:last-child:not(:first-child) { color: var(--primary-strong); }
++.entry-theme-option:hover { background: var(--surface-2); }
++.entry-theme-option.selected {
++  border-color: color-mix(in srgb, var(--primary) 25%, var(--line));
++  background: color-mix(in srgb, var(--primary-soft) 75%, var(--surface));
++  color: var(--primary-strong);
++}
++
++/* First-time setup: one concise choice row and one active form, not two tall cards. */
++.onboarding-page { place-items: start center; }
++.onboarding-shell { width: min(860px, 100%); }
++.onboarding-main-card {
++  padding: clamp(18px, 3.3vw, 34px);
++  border-radius: 26px;
++}
++.onboarding-topbar {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  margin: 0 0 9px;
++}
++.onboarding-topbar > span {
++  display: inline-flex;
++  align-items: center;
++  gap: 7px;
++  min-width: 0;
++  color: var(--muted);
++  font-size: 11px;
++  font-weight: 800;
++}
++.onboarding-topbar > span svg { flex: 0 0 auto; color: var(--primary-strong); }
++.onboarding-brand-header { padding: 3px 8px 20px; }
++.onboarding-brand-logo { width: 70px; height: 70px; border-radius: 21px; }
++.onboarding-brand-logo svg { width: 53px; height: 53px; }
++.onboarding-brand-header h1 { font-size: clamp(23px, 3.8vw, 32px); }
++.onboarding-brand-header p { max-width: 560px; font-size: 13px; }
++.onboarding-account-switch-row {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 12px;
++  margin: 16px 0 21px;
++  padding: 10px 12px;
++}
++.onboarding-account-switch-row > span { font-size: 11px; line-height: 1.55; }
++.onboarding-account-switch-row .onboarding-switch-account {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  gap: 7px;
++  flex: 0 0 auto;
++  min-height: 38px;
++  padding: 7px 11px;
++  cursor: pointer;
++}
++.onboarding-choice-intro { margin: 0 0 12px; }
++.onboarding-choice-intro .eyebrow { font-size: 10px; font-weight: 900; letter-spacing: .08em; }
++.onboarding-choice-intro h2 { margin-top: 5px; font-size: clamp(19px, 2.7vw, 23px); }
++.onboarding-choice-intro p { margin-top: 4px; font-size: 11px; }
++.onboarding-mode-picker {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 10px;
++}
++.onboarding-mode-option {
++  display: flex;
++  align-items: center;
++  gap: 11px;
++  min-width: 0;
++  min-height: 72px;
++  padding: 12px 13px;
++  border: 1px solid var(--line);
++  border-radius: 15px;
++  background: var(--surface);
++  color: var(--text);
++  cursor: pointer;
++  text-align: left;
++  transition: border-color .18s, background .18s, box-shadow .18s, transform .18s;
++}
++.onboarding-mode-option:hover { border-color: color-mix(in srgb, var(--primary) 42%, var(--line)); }
++.onboarding-mode-option.active {
++  border-color: color-mix(in srgb, var(--primary) 62%, var(--line));
++  background: color-mix(in srgb, var(--primary-soft) 62%, var(--surface));
++  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 9%, transparent);
++}
++.onboarding-mode-icon {
++  display: grid;
++  place-items: center;
++  flex: 0 0 39px;
++  width: 39px;
++  height: 39px;
++  border-radius: 12px;
++  background: var(--surface-2);
++  color: var(--primary-strong);
++}
++.onboarding-mode-option.active .onboarding-mode-icon { background: var(--primary-soft); }
++.onboarding-mode-copy { display: grid; min-width: 0; gap: 3px; }
++.onboarding-mode-copy strong { color: var(--text); font-size: 13px; font-weight: 900; line-height: 1.35; }
++.onboarding-mode-copy small { color: var(--muted); font-size: 10px; line-height: 1.45; }
++.onboarding-mode-check { display: grid; place-items: center; flex: 0 0 18px; color: var(--primary-strong); }
++.onboarding-action-panel {
++  margin-top: 12px;
++  padding: clamp(14px, 2.3vw, 20px);
++  border: 1px solid var(--line);
++  border-radius: 17px;
++  background: var(--surface);
++}
++.onboarding-action-heading { margin-bottom: 13px; }
++.onboarding-action-heading .eyebrow { color: var(--primary-strong); font-size: 9px; font-weight: 900; letter-spacing: .09em; }
++.onboarding-action-heading h3 { margin: 4px 0 0; color: var(--text); font-size: clamp(17px, 2.4vw, 20px); font-weight: 900; line-height: 1.4; }
++.onboarding-action-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
++.onboarding-entry-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, .48fr); align-items: end; gap: 11px; }
++.onboarding-entry-form-create { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++.onboarding-entry-form .field-label { min-width: 0; gap: 6px; }
++.onboarding-entry-form .field-label input {
++  width: 100%;
++  min-width: 0;
++  min-height: 49px;
++  padding: 10px 13px;
++  border: 1px solid var(--line);
++  border-radius: 11px;
++  background: var(--bg);
++  color: var(--text);
++  font-size: 16px;
++}
++.onboarding-entry-form .field-label input:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 17%, transparent); border-color: var(--primary); }
++.onboarding-entry-form .field-label input[placeholder^="যেমন:"] { letter-spacing: .07em; }
++.onboarding-entry-form .primary-button { width: 100%; min-height: 49px; white-space: normal; }
++.onboarding-entry-form-create .primary-button { grid-column: 1 / -1; }
++.onboarding-note { margin-top: 14px; padding: 9px 11px; font-size: 10px; }
++.onboarding-offline { margin-top: 12px; }
++
++/* Shared palette refinements for the three supported public themes. */
++:root[data-theme="light"] .auth-page,
++:root[data-theme="light"] .onboarding-page {
++  color-scheme: light;
++  background:
++    radial-gradient(ellipse at 7% 12%, rgba(31, 139, 95, .11), transparent 35%),
++    radial-gradient(ellipse at 94% 88%, rgba(59, 117, 174, .09), transparent 36%),
++    #f3f7f5;
++}
++:root[data-theme="light"] .auth-shell,
++:root[data-theme="light"] .auth-shell:not(.auth-shell-compact),
++:root[data-theme="light"] .onboarding-main-card {
++  border-color: #dfe9e3;
++  background: #fff;
++  color: #1c352b;
++  box-shadow: 0 26px 70px rgba(20, 58, 43, .12);
++}
++:root[data-theme="light"] .auth-brand-panel {
++  border-color: #e0ebe4;
++  background: linear-gradient(150deg, #e7f4ed 0%, #f6faf7 100%);
++  color: #173b30;
++}
++:root[data-theme="light"] .auth-brand-panel h1 { color: #163d31; }
++:root[data-theme="light"] .auth-brand-panel p { color: #5b7167; }
++:root[data-theme="light"] .auth-form-panel { background: #fff; }
++:root[data-theme="light"] .auth-form-toolbar-label { color: #60766b; }
++:root[data-theme="light"] .auth-form-panel .auth-header h2 { color: #173d31; }
++:root[data-theme="light"] .auth-form-panel .auth-header p { color: #687a71; }
++:root[data-theme="light"] .auth-form-panel .field-label,
++:root[data-theme="light"] .auth-form-panel .field-label > span { color: #28483a; }
++:root[data-theme="light"] .auth-form-panel .field-label input,
++:root[data-theme="light"] .auth-form-panel .password-field input {
++  border-color: #d6e3db;
++  background: #fbfdfb;
++  color: #183d30;
++  -webkit-text-fill-color: #183d30;
++  color-scheme: light;
++}
++:root[data-theme="light"] .auth-form-panel .field-label input::placeholder,
++:root[data-theme="light"] .auth-form-panel .password-field input::placeholder { color: #87978e; }
++:root[data-theme="light"] .auth-form-panel .text-button { color: #19704f; }
++:root[data-theme="light"] .auth-form-panel .auth-switch { border-color: #e7eee9; color: #687a71; }
++:root[data-theme="light"] .register-email-note { color: #6d7e75; }
++:root[data-theme="light"] .onboarding-main-card { color: #1c3b30; }
++:root[data-theme="light"] .onboarding-brand-header { border-color: #e6eee9; }
++:root[data-theme="light"] .onboarding-brand-header h1 { color: #173d31; }
++:root[data-theme="light"] .onboarding-brand-header p { color: #60756a; }
++:root[data-theme="light"] .onboarding-account-switch-row { border-color: #e2ebe5; background: #f8fbf9; }
++:root[data-theme="light"] .onboarding-account-switch-row > span { color: #66796e; }
++:root[data-theme="light"] .onboarding-switch-account { border-color: #d7e7dd; background: #fff; color: #216c50; }
++:root[data-theme="light"] .onboarding-choice-intro h2,
++:root[data-theme="light"] .onboarding-action-heading h3 { color: #1b4436; }
++:root[data-theme="light"] .onboarding-choice-intro p,
++:root[data-theme="light"] .onboarding-action-heading p { color: #718178; }
++:root[data-theme="light"] .onboarding-mode-option { border-color: #e0ebe4; background: #fff; }
++:root[data-theme="light"] .onboarding-mode-option.active { border-color: #8fc7ac; background: #f0f8f3; }
++:root[data-theme="light"] .onboarding-action-panel { border-color: #e1ebe5; background: #fff; }
++:root[data-theme="light"] .onboarding-entry-form .field-label { color: #28483b; }
++:root[data-theme="light"] .onboarding-entry-form .field-label input { border-color: #d6e4dc; background: #fbfdfc; color: #1b4033; }
++
++:root[data-theme="blue"] .auth-page,
++:root[data-theme="blue"] .onboarding-page {
++  color-scheme: light;
++  background:
++    radial-gradient(ellipse at 8% 12%, rgba(66, 139, 200, .15), transparent 36%),
++    radial-gradient(ellipse at 92% 90%, rgba(46, 111, 170, .10), transparent 38%),
++    #edf5fc;
++}
++:root[data-theme="blue"] .auth-shell,
++:root[data-theme="blue"] .auth-shell:not(.auth-shell-compact),
++:root[data-theme="blue"] .onboarding-main-card {
++  border-color: #cbddeb;
++  background: #fbfdff;
++  color: #183149;
++  box-shadow: 0 26px 70px rgba(39, 89, 130, .13);
++}
++:root[data-theme="blue"] .auth-brand-panel {
++  border-color: #d5e6f3;
++  background: linear-gradient(150deg, #e3f1fc 0%, #f6faff 100%);
++  color: #183b59;
++}
++:root[data-theme="blue"] .auth-brand-panel h1,
++:root[data-theme="blue"] .auth-form-panel .auth-header h2 { color: #173f61; }
++:root[data-theme="blue"] .auth-brand-panel p,
++:root[data-theme="blue"] .auth-form-panel .auth-header p { color: #617a90; }
++:root[data-theme="blue"] .auth-form-panel { background: #fbfdff; }
++:root[data-theme="blue"] .auth-form-toolbar-label { color: #5d7890; }
++:root[data-theme="blue"] .auth-form-panel .field-label,
++:root[data-theme="blue"] .auth-form-panel .field-label > span { color: #294a64; }
++:root[data-theme="blue"] .auth-form-panel .field-label input,
++:root[data-theme="blue"] .auth-form-panel .password-field input {
++  border-color: #ccdeec;
++  background: #f7fbff;
++  color: #173d5c;
++  -webkit-text-fill-color: #173d5c;
++  color-scheme: light;
++}
++:root[data-theme="blue"] .auth-form-panel .text-button { color: #286fae; }
++:root[data-theme="blue"] .auth-form-panel .auth-switch { border-color: #e0ebf4; color: #667f93; }
++:root[data-theme="blue"] .register-email-note { color: #607a91; }
++:root[data-theme="blue"] .auth-form-panel .primary-button.large { background: linear-gradient(110deg, #286fae, #428bc8); }
++:root[data-theme="blue"] .onboarding-brand-header { border-color: #dce8f1; }
++:root[data-theme="blue"] .onboarding-brand-header h1,
++:root[data-theme="blue"] .onboarding-choice-intro h2,
++:root[data-theme="blue"] .onboarding-action-heading h3 { color: #173f61; }
++:root[data-theme="blue"] .onboarding-brand-header p,
++:root[data-theme="blue"] .onboarding-choice-intro p,
++:root[data-theme="blue"] .onboarding-action-heading p { color: #607a90; }
++:root[data-theme="blue"] .onboarding-account-switch-row { border-color: #dce8f1; background: #f4f9fd; }
++:root[data-theme="blue"] .onboarding-account-switch-row > span { color: #607a90; }
++:root[data-theme="blue"] .onboarding-switch-account { border-color: #c9ddeb; background: #fff; color: #286fae; }
++:root[data-theme="blue"] .onboarding-mode-option { border-color: #d5e4ef; background: #fbfdff; }
++:root[data-theme="blue"] .onboarding-mode-option.active { border-color: #83b6dd; background: #eff7fe; }
++:root[data-theme="blue"] .onboarding-action-panel { border-color: #d5e4ef; background: #fbfdff; }
++:root[data-theme="blue"] .onboarding-entry-form .field-label { color: #294a64; }
++:root[data-theme="blue"] .onboarding-entry-form .field-label input { border-color: #ccdeec; background: #f7fbff; color: #173d5c; }
++:root[data-theme="blue"] .onboarding-main-card .primary-button.large { background: linear-gradient(110deg, #286fae, #428bc8); }
++
++:root[data-theme="dark"] .auth-page,
++:root[data-theme="dark"] .onboarding-page {
++  color-scheme: dark;
++  background:
++    radial-gradient(ellipse at 8% 12%, rgba(33, 164, 111, .16), transparent 36%),
++    radial-gradient(ellipse at 92% 90%, rgba(43, 114, 93, .12), transparent 38%),
++    linear-gradient(145deg, #07100d 0%, #0b1511 50%, #09120f 100%);
++}
++:root[data-theme="dark"] .auth-form-toolbar-label { color: #9eb4a7; }
++:root[data-theme="dark"] .auth-form-toolbar-label svg { color: #8bd7af; }
++:root[data-theme="dark"] .auth-form-panel .field-label input,
++:root[data-theme="dark"] .auth-form-panel .password-field input {
++  border-color: #2b4539;
++  background: #0a1510;
++  color: #edf6f0;
++  -webkit-text-fill-color: #edf6f0;
++  caret-color: #8bd7af;
++  color-scheme: dark;
++}
++:root[data-theme="dark"] .auth-form-panel .field-label input::placeholder,
++:root[data-theme="dark"] .auth-form-panel .password-field input::placeholder { color: #71877a; }
++:root[data-theme="dark"] .auth-form-panel .auth-header h2 { color: #f1f8f3; }
++:root[data-theme="dark"] .auth-form-panel .auth-header p { color: #a4b8ac; }
++:root[data-theme="dark"] .auth-form-panel .field-label,
++:root[data-theme="dark"] .auth-form-panel .field-label > span { color: #dcebe2; }
++:root[data-theme="dark"] .auth-form-panel .auth-switch { color: #9cb1a4; }
++:root[data-theme="dark"] .register-email-note { color: #91a99b; }
++:root[data-theme="dark"] .onboarding-topbar > span { color: #9eb4a7; }
++:root[data-theme="dark"] .onboarding-brand-header { border-color: rgba(92, 137, 108, .24); }
++:root[data-theme="dark"] .onboarding-mode-option { border-color: #2a4035; background: linear-gradient(150deg, #14231b, #101b15); color: #eaf6ee; }
++:root[data-theme="dark"] .onboarding-mode-option.active { border-color: #3f9568; background: #142d20; }
++:root[data-theme="dark"] .onboarding-mode-copy strong { color: #eaf6ee; }
++:root[data-theme="dark"] .onboarding-mode-copy small { color: #9eb2a4; }
++:root[data-theme="dark"] .onboarding-action-panel { border-color: #2a4035; background: linear-gradient(150deg, #14231b, #101b15); }
++:root[data-theme="dark"] .onboarding-action-heading h3 { color: #eff8f2; }
++:root[data-theme="dark"] .onboarding-action-heading p { color: #98aea0; }
++:root[data-theme="dark"] .onboarding-entry-form .field-label { color: #dcebe2; }
++:root[data-theme="dark"] .onboarding-entry-form .field-label input { border-color: #2b4539; background: #09150f; color: #edf6f0; color-scheme: dark; }
++:root[data-theme="dark"] .onboarding-entry-form .field-label input::placeholder { color: #71877a; }
++:root[data-theme="dark"] .onboarding-entry-form .field-label input:focus-visible { border-color: #39b982; }
++
++@media (min-width: 850px) {
++  .auth-shell-register:not(.auth-shell-compact) { grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); }
++  .auth-shell-register .auth-register-form .two-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++}
++
++@media (max-width: 849px) {
++  .auth-form-toolbar { margin-bottom: 13px; }
++  .auth-shell-register .auth-brand-panel p { display: block; max-width: 42ch; margin-top: 6px; font-size: 11px; line-height: 1.55; }
++  .onboarding-shell { width: min(640px, 100%); }
++}
++
++@media (max-width: 640px) {
++  .auth-page { min-height: 100svh; padding: max(10px, env(safe-area-inset-top)) 10px max(16px, env(safe-area-inset-bottom)); align-items: start; }
++  .auth-shell:not(.auth-shell-compact) { width: min(520px, 100%); margin: 4px 0 12px; border-radius: 22px; }
++  .auth-shell .auth-brand-panel { padding: 21px 17px 13px; }
++  .auth-shell .auth-brand-mark { width: 55px; height: 55px; border-radius: 16px; }
++  .auth-shell .auth-brand-mark svg { width: 52px; height: 52px; }
++  .auth-shell .auth-brand-panel h1 { max-width: 31ch; margin-top: 7px; font-size: clamp(18px, 5vw, 22px); line-height: 1.42; }
++  .auth-shell .auth-form-panel { padding: 18px clamp(15px, 5vw, 22px) 22px; }
++  .auth-form-toolbar { margin-bottom: 10px; }
++  .auth-form-toolbar-label { font-size: 10px; }
++  .entry-theme-switcher > summary { min-height: 36px; padding: 6px 8px; gap: 5px; }
++  .entry-theme-switcher > summary strong { max-width: 58px; overflow: hidden; text-overflow: ellipsis; }
++  .auth-form-panel .auth-form-intro { margin-bottom: 14px; }
++  .auth-form-panel .auth-header { margin-bottom: 17px; }
++  .auth-form-panel .auth-header h2 { font-size: clamp(21px, 6vw, 26px); }
++  .auth-form-panel .form-stack { gap: 12px; }
++  .auth-form-panel .field-label { gap: 6px; font-size: 13px; }
++  .auth-form-panel .field-label input,
++  .auth-form-panel .password-field input { min-height: 48px; font-size: 16px; }
++  .auth-register-form { gap: 11px; }
++  .auth-register-form .two-field-grid { grid-template-columns: minmax(0, 1fr); gap: 11px; }
++  .auth-register-form .register-email-note { font-size: 10px; }
++  .auth-form-panel .primary-button.large { min-height: 49px; }
++  .auth-form-panel .auth-switch { margin-top: 15px; padding-top: 13px; }
++
++  .onboarding-page { padding: max(10px, env(safe-area-inset-top)) 10px max(17px, env(safe-area-inset-bottom)); }
++  .onboarding-main-card { padding: 15px 13px 16px; border-radius: 21px; }
++  .onboarding-topbar { margin-bottom: 5px; }
++  .onboarding-topbar > span { font-size: 10px; }
++  .onboarding-brand-header { padding: 3px 4px 15px; }
++  .onboarding-brand-logo { width: 61px; height: 61px; border-radius: 18px; }
++  .onboarding-brand-logo svg { width: 48px; height: 48px; }
++  .onboarding-brand-wordmark { margin-top: 9px; font-size: 9px; }
++  .onboarding-brand-header h1 { margin-top: 7px; font-size: clamp(21px, 6vw, 26px); }
++  .onboarding-brand-header p { margin-top: 5px; font-size: 11px; line-height: 1.6; }
++  .onboarding-account-switch-row { align-items: stretch; flex-direction: column; gap: 8px; margin: 12px 0 16px; padding: 10px; }
++  .onboarding-account-switch-row > span { font-size: 10px; }
++  .onboarding-account-switch-row .onboarding-switch-account { width: 100%; min-height: 40px; }
++  .onboarding-choice-intro { margin-bottom: 10px; }
++  .onboarding-choice-intro h2 { font-size: 19px; }
++  .onboarding-mode-picker { gap: 7px; }
++  .onboarding-mode-option { min-height: 67px; gap: 8px; padding: 9px 8px; border-radius: 12px; }
++  .onboarding-mode-icon { flex-basis: 33px; width: 33px; height: 33px; border-radius: 10px; }
++  .onboarding-mode-copy strong { font-size: 11px; }
++  .onboarding-mode-copy small { font-size: 9px; }
++  .onboarding-mode-check { flex-basis: 15px; }
++  .onboarding-action-panel { margin-top: 9px; padding: 12px; border-radius: 14px; }
++  .onboarding-action-heading { margin-bottom: 10px; }
++  .onboarding-action-heading h3 { font-size: 17px; }
++  .onboarding-entry-form,
++  .onboarding-entry-form-create { grid-template-columns: minmax(0, 1fr); gap: 10px; }
++  .onboarding-entry-form .field-label input { min-height: 48px; }
++  .onboarding-entry-form-create .primary-button { grid-column: auto; }
++  .onboarding-main-card .onboarding-note { margin-top: 11px; padding: 8px 10px; font-size: 9px; }
++  .onboarding-shell-success { width: min(520px, 100%); }
++  .onboarding-main-card .join-code-box { margin: 15px auto; padding: 13px; }
++  .onboarding-main-card .join-code-box strong { font-size: clamp(24px, 8vw, 34px); }
++}
++
++@media (max-width: 360px) {
++  .auth-form-toolbar-label { max-width: 120px; line-height: 1.35; }
++  .entry-theme-switcher > summary > span { display: none; }
++  .onboarding-main-card { padding-inline: 10px; }
++  .onboarding-mode-option { gap: 6px; padding-inline: 7px; }
++  .onboarding-mode-copy small { font-size: 8px; }
++}
++
++@media (prefers-reduced-motion: reduce) {
++  .entry-theme-switcher *,
++  .onboarding-mode-option { transition: none !important; }
++}
+diff --git a/tests/nov1_followup_contract.test.js b/tests/nov1_followup_contract.test.js
+index 8e65452..a27fdec 100644
+--- a/tests/nov1_followup_contract.test.js
++++ b/tests/nov1_followup_contract.test.js
+@@ -19,6 +19,7 @@ const drawer = read('src/components/MenuDrawer.jsx');
+ const app = read('src/app/App.jsx');
+ const auth = read('src/features/auth/AuthPage.jsx');
+ const styles = read('src/styles/ui-refresh.css');
++const publicStyles = read('src/styles/public-entry.css');
+ 
+ 
+ test('future-start period notice uses Dhaka business dates and an explicit start date', () => {
+@@ -67,7 +68,8 @@ test('onboarding has its own centered app brand, distinct from the login screen'
+   assert.match(onboarding, /onboarding-brand-header/);
+   assert.match(onboarding, /onboarding-choice-intro/);
+   assert.match(styles, /\.onboarding-brand-header[\s\S]*?align-items: center/);
+-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*?\.onboarding-main-card \.setup-choice-grid[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
++  assert.match(onboarding, /onboarding-mode-picker/);
++  assert.match(publicStyles, /@media \(max-width: 640px\)[\s\S]*?\.onboarding-mode-picker/);
+ });
+ 
+ test('current history queries are explicitly scoped to the running period', () => {
+@@ -94,7 +96,9 @@ test('top depositors reuse the existing member-directory deposit balance without
+   assert.match(app, /menu\/top-depositor/);
+ });
+ 
+-test('login/register and onboarding public surfaces use the preferred dark theme before paint', () => {
+-  assert.match(auth, /useLayoutEffect\([\s\S]*?dataset\.theme = 'dark'/);
+-  assert.match(onboarding, /useLayoutEffect\([\s\S]*?dataset\.theme = 'dark'/);
++test('login/register and onboarding public surfaces apply the saved theme preference before paint', () => {
++  assert.match(auth, /useLayoutEffect\([\s\S]*?applyTheme\(getThemePreference\(\)\)/);
++  assert.match(onboarding, /useLayoutEffect\([\s\S]*?applyTheme\(getThemePreference\(\)\)/);
++  assert.match(auth, /EntryThemeSwitcher/);
++  assert.match(onboarding, /EntryThemeSwitcher/);
+ });
+diff --git a/tests/publicEntryVisualExperience.test.js b/tests/publicEntryVisualExperience.test.js
+new file mode 100644
+index 0000000..a7345bd
+--- /dev/null
++++ b/tests/publicEntryVisualExperience.test.js
+@@ -0,0 +1,48 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++
++const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
++const auth = read('src/features/auth/AuthPage.jsx');
++const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
++const superAdmin = read('src/features/platform/SuperAdminPage.jsx');
++const main = read('src/main.jsx');
++const publicCss = read('src/styles/public-entry.css');
++const adminCss = read('src/styles/platform-visual-refresh.css');
++
++ test('public entry pages load the scoped visual stylesheet and theme switcher', () => {
++  assert.match(main, /styles\/public-entry\.css/);
++  assert.match(main, /styles\/platform-visual-refresh\.css/);
++  assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
++  assert.match(onboarding, /<EntryThemeSwitcher\s*\/>/);
++});
++
++test('registration and onboarding preserve responsive presentation hooks', () => {
++  assert.match(auth, /auth-register-form/);
++  assert.match(auth, /register-email-note/);
++  assert.match(onboarding, /onboarding-mode-picker/);
++  assert.match(onboarding, /onboarding-action-panel/);
++  assert.match(publicCss, /@media \(max-width: 640px\)/);
++  assert.match(publicCss, /@media \(max-width: 360px\)/);
++});
++
++test('Super Admin navigation communicates the selected section accessibly', () => {
++  assert.match(superAdmin, /className="platform-tabs" aria-label="Super Admin বিভাগ"/);
++  assert.match(superAdmin, /aria-current=\{tab===key\?'page':undefined\}/);
++  assert.match(adminCss, /\.platform-page \.platform-tabs/);
++});
++
++test('Super Admin overview has a clear hierarchy and responsive metric layout', () => {
++  assert.match(superAdmin, /PLATFORM SNAPSHOT/);
++  assert.match(superAdmin, /এক নজরে প্ল্যাটফর্ম/);
++  assert.match(superAdmin, /Privacy-aware overview/);
++  assert.match(adminCss, /\.platform-overview-heading/);
++  assert.match(adminCss, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 245px\), 1fr\)\)/);
++  assert.match(adminCss, /@media \(max-width: 520px\)/);
++});
++
++test('Super Admin refinements are scoped to presentation and do not add data actions', () => {
++  assert.match(adminCss, /Presentation and navigation clarity only/);
++  assert.doesNotMatch(adminCss, /fetch\(|\.rpc\(|\.from\(/);
++  assert.match(adminCss, /prefers-reduced-motion: reduce/);
++});
+diff --git a/tests/v16_auth_market_notice.test.js b/tests/v16_auth_market_notice.test.js
+index efd3603..961e162 100644
+--- a/tests/v16_auth_market_notice.test.js
++++ b/tests/v16_auth_market_notice.test.js
+@@ -57,14 +57,16 @@ test('market input sanitation removes control characters but preserves text symb
+   assert.equal(sanitizeMarketInput('চাল\u0000— ডাল ✓'), 'চাল— ডাল ✓');
+ });
+ 
+-test('auth and onboarding public screens select the dark palette without changing the BrandMark', () => {
++test('auth and onboarding public screens respect the saved theme without changing the BrandMark', () => {
+   const auth = fs.readFileSync(path.join(root, 'src/features/auth/AuthPage.jsx'), 'utf8');
+   const onboarding = fs.readFileSync(path.join(root, 'src/features/onboarding/OnboardingPage.jsx'), 'utf8');
+-  assert.match(auth, /dataset\.theme\s*=\s*'dark'/);
+-  assert.match(onboarding, /dataset\.theme\s*=\s*'dark'/);
++  assert.match(auth, /applyTheme\(getThemePreference\(\)\)/);
++  assert.match(onboarding, /applyTheme\(getThemePreference\(\)\)/);
++  assert.match(auth, /<EntryThemeSwitcher/);
++  assert.match(onboarding, /<EntryThemeSwitcher/);
+   assert.match(auth, /<BrandMark size=\{64\}/);
+   assert.match(onboarding, /<BrandMark size=\{62\}/);
+-  assert.match(auth, /রেজিস্ট্রেশন ও পাসওয়ার্ড পুনরুদ্ধারের সময় আপনার পরিচয় যাচাই করা হতে পারে/);
++  assert.match(auth, /অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন/);
+ });
+ 
+ test('hostel notice migration scopes the banner to one hostel and limits it to managers', () => {
+diff --git a/tests/v18_auth_onboarding_polish.test.js b/tests/v18_auth_onboarding_polish.test.js
+index e3d19f7..fcb08a7 100644
+--- a/tests/v18_auth_onboarding_polish.test.js
++++ b/tests/v18_auth_onboarding_polish.test.js
+@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
+ const auth = readFileSync(new URL('../src/features/auth/AuthPage.jsx', import.meta.url), 'utf8');
+ const onboarding = readFileSync(new URL('../src/features/onboarding/OnboardingPage.jsx', import.meta.url), 'utf8');
+ const css = readFileSync(new URL('../src/styles/ui-refresh.css', import.meta.url), 'utf8');
++const entryCss = readFileSync(new URL('../src/styles/public-entry.css', import.meta.url), 'utf8');
+ 
+ test('mobile auth headings are centered without changing desktop alignment', () => {
+   const mobileBlock = css.match(/@media\s*\(max-width:\s*849px\)\s*\{[\s\S]*?\.auth-page \.auth-form-panel \.auth-header[\s\S]*?\n\}/);
+@@ -26,10 +27,11 @@ test('password reset policy is styled as a readable information card', () => {
+   assert.match(css, /\.auth-form-panel \.password-reset-policy p\s*\{[\s\S]*?line-height:\s*1\.75/);
+ });
+ 
+-test('join and create descriptions are compact information chips', () => {
+-  assert.match(onboarding, /className="setup-choice-description"/);
+-  assert.match(onboarding, /<Icon name="info" size=\{13\}/);
+-  assert.match(css, /\.onboarding-main-card \.setup-choice-copy \.setup-choice-description\s*\{/);
++test('join and create choices use compact selection buttons and one focused form panel', () => {
++  assert.match(onboarding, /onboarding-mode-option/);
++  assert.match(onboarding, /onboarding-action-panel/);
++  assert.match(entryCss, /\.onboarding-mode-picker/);
++  assert.match(entryCss, /\.onboarding-action-panel/);
+ });
+ 
+ test('system and manager notices retain near-full-width layout with soft rounded corners', () => {
+diff --git a/tests/v19_auth_onboarding_theme.test.js b/tests/v19_auth_onboarding_theme.test.js
+index 00b2f5a..5fe53e5 100644
+--- a/tests/v19_auth_onboarding_theme.test.js
++++ b/tests/v19_auth_onboarding_theme.test.js
+@@ -6,42 +6,54 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
+ const auth = read('src/features/auth/AuthPage.jsx');
+ const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
+ const profile = read('src/features/profile/ProfilePage.jsx');
+-const shell = read('src/app/AppShell.jsx');
+-const css = read('src/styles/ui-refresh.css');
++const theme = read('src/app/theme.js');
++const switcher = read('src/components/EntryThemeSwitcher.jsx');
++const css = read('src/styles/public-entry.css');
+ 
+-test('mobile auth title card centers every title and supporting line', () => {
+-  assert.match(css, /@media \(max-width: 700px\)[\s\S]*?\.auth-page \.auth-form-panel \.auth-header[\s\S]*?text-align: center !important/);
+-  assert.match(css, /\.auth-page \.auth-form-panel \.auth-header h2[\s\S]*?text-align: center/);
+-  assert.match(css, /\.auth-page \.auth-form-panel \.auth-header p[\s\S]*?text-align: center/);
+-  assert.match(auth, /আবারও স্বাগতম/);
+-  assert.match(auth, /নতুন যাত্রা শুরু হোক/);
+-  assert.match(css, /background: linear-gradient\(145deg, rgba\(28, 54, 40/);
++ test('auth pages offer the saved four-theme preference without forcing dark mode', () => {
++  assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
++  assert.match(onboarding, /<EntryThemeSwitcher\s*\/>/);
++  assert.match(theme, /THEME_KEY = 'hostel-life-theme'/);
++  assert.match(theme, /THEME_VALUES.*system.*light.*dark.*blue/s);
++  assert.match(switcher, /saveThemePreference\(nextTheme\)/);
++  assert.match(switcher, /aria-pressed=\{theme === option\.value\}/);
++  assert.doesNotMatch(auth, /dataset\.theme\s*=\s*'dark'/);
++  assert.doesNotMatch(onboarding, /dataset\.theme\s*=\s*'dark'/);
++  assert.match(profile, /hostel-life-theme/);
+ });
+ 
+-test('registration email guidance is shown in a compact info panel', () => {
+-  assert.match(auth, /className="register-email-hint"/);
+-  assert.match(auth, /<Icon name="info" size=\{14\}/);
+-  assert.match(css, /\.auth-page \.auth-form-panel \.register-email-hint[\s\S]*?border-left: 3px solid/);
++test('registration email guidance is plain helper text rather than a boxed info callout', () => {
++  assert.match(auth, /className="register-email-note"/);
++  assert.match(auth, /সচল ইমেইল ব্যবহার করুন/);
++  assert.doesNotMatch(auth, /className="register-email-hint"/);
++  assert.match(css, /\.register-email-note/);
++  assert.doesNotMatch(css, /\.register-email-note[^{]*\{[^}]*border-left/);
+ });
+ 
+-test('onboarding has only a concise return action and its heading copy is informational', () => {
+-  assert.match(onboarding, /ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন/);
+-  assert.match(onboarding, /লগইন \/ রেজিস্ট্রেশন পেজে ফিরুন/);
+-  assert.match(onboarding, /<p className="onboarding-brand-description">\{description\}<\/p>/);
+-  assert.match(css, /\.onboarding-brand-header \.onboarding-brand-description[\s\S]*?text-align: center/);
+-  assert.match(css, /\.onboarding-choice-intro \{ text-align: center; \}/);
++test('onboarding offers two compact choices and renders only the selected form', () => {
++  assert.match(onboarding, /onboarding-mode-picker/);
++  assert.match(onboarding, /aria-pressed=\{mode === 'join'\}/);
++  assert.match(onboarding, /aria-pressed=\{mode === 'create'\}/);
++  assert.match(onboarding, /mode === 'join' \? \(/);
++  assert.match(onboarding, /mode === 'join' \? 'Join Code দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'/);
++  assert.doesNotMatch(onboarding, /function SetupCard/);
++  assert.match(css, /\.onboarding-mode-picker/);
++  assert.match(css, /\.onboarding-action-panel/);
+ });
+ 
+-test('fourth sky-blue theme is selectable and uses the shared palette variables', () => {
+-  assert.match(profile, /blue: 'আকাশি নীল'/);
+-  assert.match(profile, /key === 'blue' \? 'droplet'/);
+-  assert.match(shell, /changeTheme\('blue'\)\}>আকাশি/);
+-  assert.match(css, /:root\[data-theme="blue"\][\s\S]*?--bg: #edf5fc;[\s\S]*?--primary: #428bc8/);
+-  assert.match(css, /\.theme-choice-grid \{ grid-template-columns: repeat\(4, minmax\(0, 1fr\)\); \}/);
++test('onboarding business actions and security-gated fields remain unchanged', () => {
++  assert.match(onboarding, /supabase\.rpc\('join_hostel'/);
++  assert.match(onboarding, /supabase\.rpc\('create_hostel_secure'/);
++  assert.match(onboarding, /hostelCodeRequired &&/);
++  assert.match(onboarding, /setMode\('join'\)/);
++  assert.match(onboarding, /setMode\('create'\)/);
+ });
+ 
+-test('public screens keep their existing dark palette while the new theme affects the signed-in app', () => {
+-  assert.match(auth, /document\.documentElement\.dataset\.theme = 'dark'/);
+-  assert.match(onboarding, /document\.documentElement\.dataset\.theme = 'dark'/);
+-  assert.match(profile, /localStorage\.setItem\(THEME_KEY, next\)/);
++test('theme switcher is usable on small screens and respects reduced-motion preferences', () => {
++  assert.match(css, /@media \(max-width: 640px\)/);
++  assert.match(css, /@media \(max-width: 360px\)/);
++  assert.match(css, /prefers-reduced-motion: reduce/);
++  assert.match(css, /:root\[data-theme="blue"\]/);
++  assert.match(css, /:root\[data-theme="dark"\]/);
++  assert.match(css, /:root\[data-theme="light"\]/);
+ });

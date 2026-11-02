@@ -6,42 +6,54 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const auth = read('src/features/auth/AuthPage.jsx');
 const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
 const profile = read('src/features/profile/ProfilePage.jsx');
-const shell = read('src/app/AppShell.jsx');
-const css = read('src/styles/ui-refresh.css');
+const theme = read('src/app/theme.js');
+const switcher = read('src/components/EntryThemeSwitcher.jsx');
+const css = read('src/styles/public-entry.css');
 
-test('mobile auth title card centers every title and supporting line', () => {
-  assert.match(css, /@media \(max-width: 700px\)[\s\S]*?\.auth-page \.auth-form-panel \.auth-header[\s\S]*?text-align: center !important/);
-  assert.match(css, /\.auth-page \.auth-form-panel \.auth-header h2[\s\S]*?text-align: center/);
-  assert.match(css, /\.auth-page \.auth-form-panel \.auth-header p[\s\S]*?text-align: center/);
-  assert.match(auth, /আবারও স্বাগতম/);
-  assert.match(auth, /নতুন যাত্রা শুরু হোক/);
-  assert.match(css, /background: linear-gradient\(145deg, rgba\(28, 54, 40/);
+ test('auth pages offer the saved four-theme preference without forcing dark mode', () => {
+  assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
+  assert.match(onboarding, /<EntryThemeSwitcher\s*\/>/);
+  assert.match(theme, /THEME_KEY = 'hostel-life-theme'/);
+  assert.match(theme, /THEME_VALUES.*system.*light.*dark.*blue/s);
+  assert.match(switcher, /saveThemePreference\(nextTheme\)/);
+  assert.match(switcher, /aria-pressed=\{theme === option\.value\}/);
+  assert.doesNotMatch(auth, /dataset\.theme\s*=\s*'dark'/);
+  assert.doesNotMatch(onboarding, /dataset\.theme\s*=\s*'dark'/);
+  assert.match(profile, /hostel-life-theme/);
 });
 
-test('registration email guidance is shown in a compact info panel', () => {
-  assert.match(auth, /className="register-email-hint"/);
-  assert.match(auth, /<Icon name="info" size=\{14\}/);
-  assert.match(css, /\.auth-page \.auth-form-panel \.register-email-hint[\s\S]*?border-left: 3px solid/);
+test('registration email guidance is plain helper text rather than a boxed info callout', () => {
+  assert.match(auth, /className="register-email-note"/);
+  assert.match(auth, /সচল ইমেইল ব্যবহার করুন/);
+  assert.doesNotMatch(auth, /className="register-email-hint"/);
+  assert.match(css, /\.register-email-note/);
+  assert.doesNotMatch(css, /\.register-email-note[^{]*\{[^}]*border-left/);
 });
 
-test('onboarding has only a concise return action and its heading copy is informational', () => {
-  assert.match(onboarding, /ভুল অ্যাকাউন্টে এসেছেন বা অন্য অ্যাকাউন্ট ব্যবহার করবেন/);
-  assert.match(onboarding, /লগইন \/ রেজিস্ট্রেশন পেজে ফিরুন/);
-  assert.match(onboarding, /<p className="onboarding-brand-description">\{description\}<\/p>/);
-  assert.match(css, /\.onboarding-brand-header \.onboarding-brand-description[\s\S]*?text-align: center/);
-  assert.match(css, /\.onboarding-choice-intro \{ text-align: center; \}/);
+test('onboarding offers two compact choices and renders only the selected form', () => {
+  assert.match(onboarding, /onboarding-mode-picker/);
+  assert.match(onboarding, /aria-pressed=\{mode === 'join'\}/);
+  assert.match(onboarding, /aria-pressed=\{mode === 'create'\}/);
+  assert.match(onboarding, /mode === 'join' \? \(/);
+  assert.match(onboarding, /mode === 'join' \? 'Join Code দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'/);
+  assert.doesNotMatch(onboarding, /function SetupCard/);
+  assert.match(css, /\.onboarding-mode-picker/);
+  assert.match(css, /\.onboarding-action-panel/);
 });
 
-test('fourth sky-blue theme is selectable and uses the shared palette variables', () => {
-  assert.match(profile, /blue: 'আকাশি নীল'/);
-  assert.match(profile, /key === 'blue' \? 'droplet'/);
-  assert.match(shell, /changeTheme\('blue'\)\}>আকাশি/);
-  assert.match(css, /:root\[data-theme="blue"\][\s\S]*?--bg: #edf5fc;[\s\S]*?--primary: #428bc8/);
-  assert.match(css, /\.theme-choice-grid \{ grid-template-columns: repeat\(4, minmax\(0, 1fr\)\); \}/);
+test('onboarding business actions and security-gated fields remain unchanged', () => {
+  assert.match(onboarding, /supabase\.rpc\('join_hostel'/);
+  assert.match(onboarding, /supabase\.rpc\('create_hostel_secure'/);
+  assert.match(onboarding, /hostelCodeRequired &&/);
+  assert.match(onboarding, /setMode\('join'\)/);
+  assert.match(onboarding, /setMode\('create'\)/);
 });
 
-test('public screens keep their existing dark palette while the new theme affects the signed-in app', () => {
-  assert.match(auth, /document\.documentElement\.dataset\.theme = 'dark'/);
-  assert.match(onboarding, /document\.documentElement\.dataset\.theme = 'dark'/);
-  assert.match(profile, /localStorage\.setItem\(THEME_KEY, next\)/);
+test('theme switcher is usable on small screens and respects reduced-motion preferences', () => {
+  assert.match(css, /@media \(max-width: 640px\)/);
+  assert.match(css, /@media \(max-width: 360px\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.match(css, /:root\[data-theme="blue"\]/);
+  assert.match(css, /:root\[data-theme="dark"\]/);
+  assert.match(css, /:root\[data-theme="light"\]/);
 });

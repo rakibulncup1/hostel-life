@@ -10,6 +10,8 @@ import { navigateTo } from '../../app/AppShell';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
 import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
 import { normalizeRunningPeriodPayload } from '../../utils/period';
+import { applyTheme, getThemePreference } from '../../app/theme';
+import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
 
 
 function OnboardingBrand({ title, description }) {
@@ -23,19 +25,12 @@ function OnboardingBrand({ title, description }) {
   );
 }
 
-function SetupCard({ icon, title, description, active, onClick, children }) {
+function OnboardingTopbar() {
   return (
-    <article className={`setup-choice-card ${active ? 'active' : ''}`}>
-      <button type="button" className="setup-choice-head" onClick={onClick} aria-expanded={active}>
-        <span className="feature-icon"><Icon name={icon} size={22} /></span>
-        <span className="setup-choice-copy">
-          <strong>{title}</strong>
-          <small className="setup-choice-description"><Icon name="info" size={13} /><span>{description}</span></small>
-        </span>
-        <Icon name={active ? 'chevron-up' : 'chevron'} size={18} />
-      </button>
-      {active && <div className="setup-choice-body">{children}</div>}
-    </article>
+    <div className="onboarding-topbar">
+      <span><Icon name="shield-check" size={15} /> নিরাপদ প্রথম ধাপ</span>
+      <EntryThemeSwitcher />
+    </div>
   );
 }
 
@@ -55,8 +50,7 @@ export function OnboardingPage() {
   const [initialMonthError, setInitialMonthError] = useState('');
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.theme = 'dark';
-    document.documentElement.dataset.themePreference = 'dark';
+    applyTheme(getThemePreference());
   }, []);
 
   useEffect(() => {
@@ -191,6 +185,7 @@ export function OnboardingPage() {
       <main className="onboarding-page">
         <section className="onboarding-shell onboarding-shell-success">
           <div className="onboarding-main-card card">
+            <OnboardingTopbar />
             <OnboardingBrand title="মেস তৈরি সম্পন্ন" description="আপনার নতুন মেস প্রস্তুত। এখন সদস্যদের সঙ্গে যুক্ত হয়ে পরিচালনা শুরু করুন।" />
             <div className="creation-success-card">
               <div className="success-panel-icon"><Icon name="check" size={24} /></div>
@@ -225,6 +220,7 @@ export function OnboardingPage() {
     <main className="onboarding-page">
       <section className="onboarding-shell">
         <div className="onboarding-main-card card">
+          <OnboardingTopbar />
           <OnboardingBrand
             title={`স্বাগতম, ${profile?.full_name?.split(' ')[0] || 'সদস্য'}!`}
             description="আপনার অ্যাকাউন্ট প্রস্তুত। এখন একটি মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
@@ -240,18 +236,30 @@ export function OnboardingPage() {
           <div className="onboarding-choice-intro">
             <span className="eyebrow">শুরু করার উপায়</span>
             <h2>আপনি কীভাবে শুরু করতে চান?</h2>
-            <p>আপনার জন্য প্রযোজ্য একটি অপশন বেছে নিন।</p>
+            <p>একটি অপশন বেছে নিন। পরের ধাপে প্রয়োজনীয় তথ্য দিন।</p>
           </div>
 
-          <div className="setup-choice-grid">
-            <SetupCard
-              icon="user-plus"
-              title="মেসে যুক্ত হন"
-              description="আপনার মেসের Join Code ব্যবহার করুন।"
-              active={mode === 'join'}
-              onClick={() => setMode('join')}
-            >
-              <form className="form-stack" onSubmit={join}>
+          <div className="onboarding-mode-picker" role="group" aria-label="মেসে যুক্ত হওয়া অথবা নতুন মেস তৈরি করা">
+            <button type="button" className={`onboarding-mode-option ${mode === 'join' ? 'active' : ''}`} onClick={() => setMode('join')} aria-pressed={mode === 'join'}>
+              <span className="onboarding-mode-icon"><Icon name="user-plus" size={20} /></span>
+              <span className="onboarding-mode-copy"><strong>মেসে যুক্ত হন</strong><small>Join Code ব্যবহার করে</small></span>
+              <span className="onboarding-mode-check">{mode === 'join' && <Icon name="check-circle" size={18} />}</span>
+            </button>
+            <button type="button" className={`onboarding-mode-option ${mode === 'create' ? 'active' : ''}`} onClick={() => setMode('create')} aria-pressed={mode === 'create'}>
+              <span className="onboarding-mode-icon"><Icon name="plus-circle" size={20} /></span>
+              <span className="onboarding-mode-copy"><strong>নতুন মেস তৈরি</strong><small>নিজের মেস পরিচালনা শুরু</small></span>
+              <span className="onboarding-mode-check">{mode === 'create' && <Icon name="check-circle" size={18} />}</span>
+            </button>
+          </div>
+
+          <section className="onboarding-action-panel" aria-live="polite">
+            <div className="onboarding-action-heading">
+              <span className="eyebrow">{mode === 'join' ? 'JOIN AN EXISTING HOSTEL' : 'CREATE A NEW HOSTEL'}</span>
+              <h3>{mode === 'join' ? 'Join Code দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'}</h3>
+              <p>{mode === 'join' ? 'মেসের ম্যানেজারের কাছ থেকে পাওয়া Join Code লিখুন।' : 'আপনার মেসের জন্য একটি নাম নির্বাচন করুন।'}</p>
+            </div>
+            {mode === 'join' ? (
+              <form className="form-stack onboarding-entry-form" onSubmit={join}>
                 <label className="field-label">
                   <span>Join Code</span>
                   <input
@@ -269,27 +277,25 @@ export function OnboardingPage() {
                   {submitting ? 'যুক্ত হচ্ছে...' : 'মেসে যুক্ত হন'}
                 </button>
               </form>
-            </SetupCard>
-
-            <SetupCard
-              icon="plus-circle"
-              title="মেস তৈরি করুন"
-              description="আপনার নিজের মেসের জন্য নতুন workspace তৈরি করুন।"
-              active={mode === 'create'}
-              onClick={() => setMode('create')}
-            >
-              <form className="form-stack" onSubmit={create}>
+            ) : (
+              <form className="form-stack onboarding-entry-form onboarding-entry-form-create" onSubmit={create}>
                 <label className="field-label">
                   <span>মেসের নাম</span>
                   <input type="text" value={hostelName} onChange={(e) => setHostelName(e.target.value)} placeholder="যেমন: আল-আমিন মেস" maxLength={120} required />
                 </label>
-                {hostelCodeRequired && <label className="field-label"><span>মেস তৈরির অনুমতি কোড</span><input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">কোডটি সার্ভারে যাচাই হবে এবং নির্দিষ্ট ব্যবহারের পর শেষ হবে।</small></label>}
+                {hostelCodeRequired && (
+                  <label className="field-label">
+                    <span>মেস তৈরির অনুমতি কোড</span>
+                    <input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="Super Admin-এর দেওয়া কোড" />
+                    <small className="platform-form-help">কোডটি সার্ভারে যাচাই হবে এবং নির্দিষ্ট ব্যবহারের পর শেষ হবে।</small>
+                  </label>
+                )}
                 <button type="submit" className="primary-button large" disabled={submitting || !online}>
                   {submitting ? 'তৈরি হচ্ছে...' : 'মেস তৈরি করুন'}
                 </button>
               </form>
-            </SetupCard>
-          </div>
+            )}
+          </section>
 
           {!online && (
             <div className="inline-error onboarding-offline"><Icon name="offline" size={17} /><span>মেসে যুক্ত হওয়া বা নতুন মেস তৈরি করতে ইন্টারনেট সংযোগ চালু করুন।</span></div>

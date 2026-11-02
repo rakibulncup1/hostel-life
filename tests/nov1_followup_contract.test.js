@@ -19,6 +19,7 @@ const drawer = read('src/components/MenuDrawer.jsx');
 const app = read('src/app/App.jsx');
 const auth = read('src/features/auth/AuthPage.jsx');
 const styles = read('src/styles/ui-refresh.css');
+const publicStyles = read('src/styles/public-entry.css');
 
 
 test('future-start period notice uses Dhaka business dates and an explicit start date', () => {
@@ -67,7 +68,8 @@ test('onboarding has its own centered app brand, distinct from the login screen'
   assert.match(onboarding, /onboarding-brand-header/);
   assert.match(onboarding, /onboarding-choice-intro/);
   assert.match(styles, /\.onboarding-brand-header[\s\S]*?align-items: center/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*?\.onboarding-main-card \.setup-choice-grid[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(onboarding, /onboarding-mode-picker/);
+  assert.match(publicStyles, /@media \(max-width: 640px\)[\s\S]*?\.onboarding-mode-picker/);
 });
 
 test('current history queries are explicitly scoped to the running period', () => {
@@ -94,7 +96,9 @@ test('top depositors reuse the existing member-directory deposit balance without
   assert.match(app, /menu\/top-depositor/);
 });
 
-test('login/register and onboarding public surfaces use the preferred dark theme before paint', () => {
-  assert.match(auth, /useLayoutEffect\([\s\S]*?dataset\.theme = 'dark'/);
-  assert.match(onboarding, /useLayoutEffect\([\s\S]*?dataset\.theme = 'dark'/);
+test('login/register and onboarding public surfaces apply the saved theme preference before paint', () => {
+  assert.match(auth, /useLayoutEffect\([\s\S]*?applyTheme\(getThemePreference\(\)\)/);
+  assert.match(onboarding, /useLayoutEffect\([\s\S]*?applyTheme\(getThemePreference\(\)\)/);
+  assert.match(auth, /EntryThemeSwitcher/);
+  assert.match(onboarding, /EntryThemeSwitcher/);
 });
