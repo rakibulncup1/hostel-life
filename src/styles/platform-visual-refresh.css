@@ -577,3 +577,18 @@
   .platform-communications-card { padding: 14px; }
   .platform-member-channels { gap: 6px; }
 }
+
+
+/* Safe failure state: never expose an empty communications form before its server data loads. */
+.platform-communications-load-error { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 18px; }
+.platform-communications-load-icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 14px; background: color-mix(in srgb, #d97706 13%, var(--surface)); color: #b96b0a; }
+.platform-communications-load-error strong { display: block; color: var(--text); font-size: 14px; }
+.platform-communications-load-error p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.platform-communications-load-error .secondary-button { grid-column: 2; justify-self: start; }
+.platform-communications-count.is-invalid { color: var(--danger, #dc2626); }
+.platform-communications-count strong { display: block; margin-top: 3px; font-size: 11px; }
+.platform-communications-validation { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 520px) {
+  .platform-communications-load-error { grid-template-columns: auto minmax(0, 1fr); padding: 14px; }
+  .platform-communications-load-error .secondary-button { grid-column: 1 / -1; width: 100%; justify-content: center; }
+}

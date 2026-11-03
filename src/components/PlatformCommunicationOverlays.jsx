@@ -52,6 +52,7 @@ function markShown(campaign) {
 export function PlatformCommunicationOverlays({ communications, blocked = false }) {
   const [clock, setClock] = useState(() => Date.now());
   const [activeCampaign, setActiveCampaign] = useState(null);
+  const closeButtonRef = useRef(null);
   const shownThisRender = useRef(new Set());
 
   const campaigns = useMemo(() => {
@@ -94,6 +95,29 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
     if (activeCampaign && !campaignIsActive(activeCampaign, clock)) setActiveCampaign(null);
   }, [activeCampaign, clock]);
 
+  // Keep the page from scrolling behind the notice and support keyboard dismissal.
+  useEffect(() => {
+    if (!activeCampaign || blocked) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setActiveCampaign(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus && typeof previousFocus.focus === 'function' && document.contains(previousFocus)) {
+        previousFocus.focus();
+      }
+    };
+  }, [activeCampaign, blocked]);
+
   if (!activeCampaign || blocked) return null;
   const close = () => setActiveCampaign(null);
   const isImage = activeCampaign.kind === 'site' && activeCampaign.mode === 'image' && activeCampaign.image_url;
@@ -101,7 +125,7 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
   return (
     <div className="platform-communication-backdrop" role="presentation">
       <section className="platform-communication-dialog" role="dialog" aria-modal="true" aria-labelledby="platform-communication-title">
-        <button type="button" className="platform-communication-close" onClick={close} aria-label="বন্ধ করুন">×</button>
+        <button ref={closeButtonRef} type="button" className="platform-communication-close" onClick={close} aria-label="বন্ধ করুন">×</button>
         <span className={`platform-communication-icon ${activeCampaign.kind === 'site' ? 'is-maintenance' : ''}`}>
           <Icon name={activeCampaign.kind === 'site' ? 'wrench' : 'bell'} size={22} />
         </span>

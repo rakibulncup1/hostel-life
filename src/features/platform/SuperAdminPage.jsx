@@ -327,6 +327,8 @@ export function SuperAdminPage({ user }) {
   const developerPhotoInputRef = useRef(null);
   const [communicationsDraft, setCommunicationsDraft] = useState(EMPTY_COMMUNICATION_DRAFT);
   const [communicationsLoading, setCommunicationsLoading] = useState(false);
+  // The blank draft is never considered safe to save until the server row loaded successfully.
+  const [communicationsLoaded, setCommunicationsLoaded] = useState(false);
   const [communicationsBusy, setCommunicationsBusy] = useState(false);
   const [communicationsError, setCommunicationsError] = useState('');
   const [communicationsImageBusy, setCommunicationsImageBusy] = useState(false);
@@ -892,6 +894,7 @@ export function SuperAdminPage({ user }) {
     try {
       const row = await platformAdminGetCommunications();
       setCommunicationsDraft(communicationRowToDraft(row));
+      setCommunicationsLoaded(true);
     } catch (cause) {
       setCommunicationsError(errorText(cause, 'প্রকাশনার তথ্য লোড করা যায়নি। Run33 Migration প্রয়োগ হয়েছে কি না যাচাই করুন।'));
     } finally {
@@ -905,6 +908,38 @@ export function SuperAdminPage({ user }) {
 
   const saveCommunications = async (event) => {
     event.preventDefault();
+    if (!communicationsLoaded) {
+      setCommunicationsError('সার্ভারের প্রকাশনা সেটিংস সফলভাবে লোড না হওয়া পর্যন্ত সংরক্ষণ বন্ধ থাকবে। আগে আবার লোড করুন।');
+      return;
+    }
+    const releaseNotesForValidation = communicationsDraft.release_notes_text
+      .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (releaseNotesForValidation.length > 30 || releaseNotesForValidation.some((line) => line.length > 240)) {
+      setCommunicationsError('সর্বোচ্চ ৩০টি আপডেট লিখুন; প্রতিটি আপডেট ২৪০ অক্ষরের মধ্যে রাখুন।');
+      return;
+    }
+    if (communicationsDraft.release_notes_published && releaseNotesForValidation.length === 0) {
+      setCommunicationsError('আপডেটের তালিকা প্রকাশ করতে অন্তত একটি আপডেট লিখুন।');
+      return;
+    }
+    const windowNoticeForValidation = communicationsDraft.window_notice;
+    const siteNoticeForValidation = communicationsDraft.site_notice;
+    if (windowNoticeForValidation.enabled && !windowNoticeForValidation.title.trim() && !windowNoticeForValidation.body.trim()) {
+      setCommunicationsError('উইন্ডো নোটিশ চালু করতে শিরোনাম অথবা বার্তা লিখুন।');
+      return;
+    }
+    if (siteNoticeForValidation.enabled && siteNoticeForValidation.mode === 'message' && !siteNoticeForValidation.title.trim() && !siteNoticeForValidation.body.trim()) {
+      setCommunicationsError('ওয়েবসাইট বিজ্ঞপ্তি চালু করতে শিরোনাম অথবা বার্তা লিখুন।');
+      return;
+    }
+    if (siteNoticeForValidation.enabled && siteNoticeForValidation.mode === 'image' && !siteNoticeForValidation.image_url) {
+      setCommunicationsError('ছবির ব্যানার চালু করার আগে একটি ছবি আপলোড করুন।');
+      return;
+    }
+    if ([windowNoticeForValidation, siteNoticeForValidation].some((notice) => notice.starts_at && notice.ends_at && notice.ends_at <= notice.starts_at)) {
+      setCommunicationsError('প্রতিটি বিজ্ঞপ্তির শেষ সময় শুরুর সময়ের পরে নির্বাচন করুন।');
+      return;
+    }
     setCommunicationsBusy(true);
     setCommunicationsError('');
     setNotice('');
@@ -1428,6 +1463,20 @@ export function SuperAdminPage({ user }) {
     (healthSeverityFilter === 'all' || row.severity === healthSeverityFilter)
     && (healthIssueFilter === 'all' || (row.issue_codes || []).includes(healthIssueFilter))
   );
+  const releaseNoteLines = communicationsDraft.release_notes_text
+    .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const releaseNotesInvalid = releaseNoteLines.length > 30 || releaseNoteLines.some((line) => line.length > 240)
+    || (communicationsDraft.release_notes_published && releaseNoteLines.length === 0);
+  const communicationsInvalidSchedule = [communicationsDraft.window_notice, communicationsDraft.site_notice]
+    .some((notice) => notice.starts_at && notice.ends_at && notice.ends_at <= notice.starts_at);
+  const communicationsInvalidNotice = (communicationsDraft.window_notice.enabled
+      && !communicationsDraft.window_notice.title.trim() && !communicationsDraft.window_notice.body.trim())
+    || (communicationsDraft.site_notice.enabled && communicationsDraft.site_notice.mode === 'message'
+      && !communicationsDraft.site_notice.title.trim() && !communicationsDraft.site_notice.body.trim())
+    || (communicationsDraft.site_notice.enabled && communicationsDraft.site_notice.mode === 'image'
+      && !communicationsDraft.site_notice.image_url);
+  const communicationsCanSave = communicationsLoaded && !releaseNotesInvalid
+    && !communicationsInvalidSchedule && !communicationsInvalidNotice;
 
   if (checking) return <main className="platform-page"><LoadingSpinner label="Super Admin role যাচাই হচ্ছে..."/></main>;
   if (!allowed) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="shield" size={30}/></span><h1>পৃষ্ঠাটি খোলা যাচ্ছে না</h1><p>অনুরোধটি সম্পন্ন করা যায়নি।</p><button className="primary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরে যান</button></section></main>;
@@ -1886,12 +1935,19 @@ export function SuperAdminPage({ user }) {
 
     {tab === 'communications' && <>
       <div className="platform-settings-intro"><span className="eyebrow">প্রকাশনা ও বার্তা</span><h2>আপডেট ও বিজ্ঞপ্তি</h2><p>পরিবর্তনগুলো একবার সংরক্ষণ করুন। সময় ও প্রদর্শনের নিয়ম অনুযায়ী ব্যবহারকারীদের দেখানো হবে।</p></div>
-      {communicationsError && <div className="inline-error platform-alert" role="alert"><Icon name="warning" size={16}/>{communicationsError}</div>}
-      {communicationsLoading ? <div className="card platform-panel"><LoadingSpinner label="প্রকাশনার তথ্য লোড হচ্ছে..."/></div> : <form className="platform-settings-grid platform-communications-grid" onSubmit={saveCommunications}>
+      {communicationsError && communicationsLoaded && <div className="inline-error platform-alert" role="alert"><Icon name="warning" size={16}/>{communicationsError}</div>}
+      {communicationsLoading ? <div className="card platform-panel"><LoadingSpinner label="প্রকাশনার তথ্য লোড হচ্ছে..."/></div> : !communicationsLoaded ? <section className="card platform-panel platform-communications-load-error" role="alert">
+        <span className="platform-communications-load-icon"><Icon name="shield-alert" size={23}/></span>
+        <div><strong>প্রকাশনার তথ্য লোড করা যায়নি</strong><p>{communicationsError || 'সার্ভারের সংরক্ষিত তথ্য পাওয়া যায়নি। নিরাপত্তার জন্য ফাঁকা ফর্ম দেখানো হচ্ছে না।'}</p></div>
+        <button type="button" className="secondary-button" onClick={loadCommunications} disabled={communicationsLoading}><Icon name="refresh-cw" size={15}/> আবার চেষ্টা করুন</button>
+      </section> : <form className="platform-settings-grid platform-communications-grid" onSubmit={saveCommunications}>
         <section className="card platform-panel platform-communications-card">
           <div className="platform-panel-heading"><div><span className="eyebrow">সর্বশেষ আপডেট</span><h3>নতুন সংস্করণের তথ্য</h3><p>প্রতি লাইনে একটি পরিবর্তন লিখুন। প্রকাশ করলে আপডেট উইন্ডোতে নতুন ফিচারের বোতাম দেখা যাবে।</p></div><span className="platform-status">সর্বোচ্চ ৩০টি</span></div>
           <label className="field-label"><span>আপডেটের তালিকা</span><textarea rows={8} maxLength={7200} value={communicationsDraft.release_notes_text} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_text:event.target.value}))} placeholder={'নতুন সুবিধা যুক্ত হয়েছে।\nব্যবহারকারীর অভিজ্ঞতা উন্নত করা হয়েছে।\nনিরাপত্তা ও স্থিতিশীলতা উন্নত হয়েছে।'} /></label>
-          <div className="platform-communications-count">{communicationsDraft.release_notes_text.split(/\r?\n/).filter((line)=>line.trim()).length.toLocaleString('bn-BD')}টি আপডেট লেখা হয়েছে</div>
+          <div className={`platform-communications-count${releaseNotesInvalid ? ' is-invalid' : ''}`} aria-live="polite">
+            {releaseNoteLines.length.toLocaleString('bn-BD')} / ৩০টি আপডেট · প্রতিটি সর্বোচ্চ ২৪০ অক্ষর
+            {releaseNotesInvalid && <strong>{releaseNoteLines.length > 30 ? 'সর্বোচ্চ ৩০টি আপডেট রাখা যাবে।' : releaseNoteLines.some((line) => line.length > 240) ? 'কোনো একটি আপডেট ২৪০ অক্ষর ছাড়িয়েছে।' : 'প্রকাশের আগে অন্তত একটি আপডেট লিখুন।'}</strong>}
+          </div>
           <label className="platform-toggle"><span><strong>আপডেটের তালিকা প্রকাশ করুন</strong><small>বন্ধ থাকলে ব্যবহারকারীরা নতুন ফিচারের তালিকা দেখতে পাবেন না।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.release_notes_published)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_published:event.target.checked}))}/></label>
         </section>
 
@@ -1925,7 +1981,8 @@ export function SuperAdminPage({ user }) {
           <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.site_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি অ্যাপ খোলায় একবার</option></select></label>
         </section>
 
-        <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={communicationsBusy||communicationsImageBusy}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'সব পরিবর্তন সংরক্ষণ ও প্রকাশ করুন'}</button></div>
+        {(communicationsInvalidSchedule || communicationsInvalidNotice) && <div className="inline-error platform-alert platform-communications-validation" role="alert">{communicationsInvalidSchedule ? 'প্রতিটি বিজ্ঞপ্তির শেষ সময় শুরুর সময়ের পরে হতে হবে।' : 'চালু করা বিজ্ঞপ্তির জন্য শিরোনাম/বার্তা অথবা ব্যানার ছবি প্রয়োজন।'}</div>}
+        <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={communicationsBusy||communicationsImageBusy||!communicationsCanSave}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'সব পরিবর্তন সংরক্ষণ ও প্রকাশ করুন'}</button></div>
       </form>}
     </>}
 

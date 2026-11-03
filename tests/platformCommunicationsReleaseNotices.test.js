@@ -126,3 +126,20 @@ test('entry theme overrides apply current theme tokens instead of hard-coded dar
   assert.match(entryCss, /\.onboarding-page \.onboarding-brand-header h1[\s\S]*?color: var\(--text\) !important/);
   assert.match(entryCss, /\.hostel-invite-page \.hostel-invite-lead[\s\S]*?color: var\(--muted\) !important/);
 });
+
+test('communications editor fails closed when the initial server read fails and validates publish bounds before saving', () => {
+  assert.match(platform, /communicationsLoaded/);
+  assert.match(platform, /if \(!communicationsLoaded\)[\s\S]{0,260}সংরক্ষণ বন্ধ থাকবে/);
+  assert.match(platform, /!communicationsLoaded \? <section className=\"card platform-panel platform-communications-load-error\"/);
+  assert.match(platform, /onClick=\{loadCommunications\} disabled=\{communicationsLoading\}/);
+  assert.match(platform, /releaseNotesForValidation\.length > 30/);
+  assert.match(platform, /releaseNotesForValidation\.some\(\(line\) => line\.length > 240\)/);
+  assert.match(platform, /communicationsCanSave/);
+});
+
+test('public communication dialog supports Escape and prevents background page scrolling while open', () => {
+  assert.match(overlay, /closeButtonRef/);
+  assert.match(overlay, /event\.key === 'Escape'/);
+  assert.match(overlay, /document\.body\.style\.overflow = 'hidden'/);
+  assert.match(overlay, /window\.removeEventListener\('keydown', handleKeyDown\)/);
+});
