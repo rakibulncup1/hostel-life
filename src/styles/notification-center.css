@@ -199,3 +199,28 @@
   .telegram-nudge-dialog { padding: 22px 19px; }
   .offline-recovery-state { width: 100%; margin: 12px 0; }
 }
+
+/* Telegram connection identity and state polish. */
+.telegram-brand-icon {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(34, 158, 217, .17);
+  border-radius: 17px;
+  background: rgba(34, 158, 217, .08);
+}
+.telegram-card-top { gap: 15px; }
+.telegram-card-top h2 { font-size: clamp(18px, 2.2vw, 21px); line-height: 1.4; }
+.telegram-connect-button { gap: 9px; min-height: 48px; font-weight: 800; }
+.telegram-link-result .primary-button,
+.telegram-actions .secondary-button { display: inline-flex; align-items: center; gap: 8px; }
+.telegram-link-result .text-button { justify-self: start; padding: 7px 0; color: var(--primary-strong); font-size: 12px; font-weight: 800; }
+.telegram-steps { padding: 15px; }
+.telegram-steps span { font-size: 13px; }
+.telegram-connected-summary > div:not(.telegram-actions) { align-items: center; }
+@media (max-width: 620px) {
+  .telegram-brand-icon { width: 48px; height: 48px; flex-basis: 48px; }
+  .telegram-brand-icon svg { width: 32px; height: 32px; }
+}

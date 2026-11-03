@@ -2,6 +2,7 @@ import { confirmAction, confirmTypedAction } from '../../utils/actionDialogs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
+import { TelegramLogo } from '../../components/TelegramLogo';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { supabase } from '../../lib/supabase';
 import { verifyPassword } from '../../services/authService';
@@ -22,6 +23,7 @@ import {
   platformAdminListActivity, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
   platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminCheckSecurityTelemetry,
   platformAdminGetNotificationSettings, platformAdminUpdateNotificationSettings, platformAdminSendTargetedMessage,
+  platformAdminGetTelegramDeliveryHealth, platformAdminListTelegramDeliveryBatches, platformAdminGetTelegramWebhookStatus, platformAdminConfigureTelegramWebhook,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -57,8 +59,11 @@ function Field({ label, value, onChange, type = 'text', maxLength, multiline = f
     ? <textarea rows={4} value={value ?? ''} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} />
     : <input type={type} value={value ?? ''} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} />}</label>;
 }
-function Stat({ label, value, icon }) {
-  return <div className="platform-stat"><span className="platform-stat-icon"><Icon name={icon} size={19}/></span><div><small>{label}</small><strong>{value === undefined || value === null || value === '' ? '—' : Number(value).toLocaleString('en-US')}</strong></div></div>;
+function Stat({ label, value, icon, onClick, active = false }) {
+  const content = <><span className="platform-stat-icon"><Icon name={icon} size={20}/></span><div><small>{label}</small><strong>{value === undefined || value === null || value === '' ? '—' : Number(value).toLocaleString('bn-BD')}</strong>{onClick && <span className="platform-stat-action-hint">বিস্তারিত <Icon name="chevron-right" size={13}/></span>}</div></>;
+  return onClick
+    ? <button type="button" className={`platform-stat platform-stat-action${active ? ' is-active' : ''}`} onClick={onClick}>{content}</button>
+    : <div className="platform-stat">{content}</div>;
 }
 function InsightStat({ label, value, icon, format = 'number', hint = '' }) {
   let display = '—';
@@ -372,6 +377,21 @@ export function SuperAdminPage({ user }) {
   const [telegramAdminLoading, setTelegramAdminLoading] = useState(false);
   const [telegramAdminBusy, setTelegramAdminBusy] = useState(false);
   const [telegramAdminError, setTelegramAdminError] = useState('');
+  const [telegramWebhookStatus, setTelegramWebhookStatus] = useState(null);
+  const [telegramWebhookError, setTelegramWebhookError] = useState('');
+  const [telegramWebhookBusy, setTelegramWebhookBusy] = useState(false);
+  const [telegramDeliveryHealth, setTelegramDeliveryHealth] = useState(null);
+  const [telegramDeliveryError, setTelegramDeliveryError] = useState('');
+  const [telegramBatchError, setTelegramBatchError] = useState('');
+  const [telegramDeliveryRows, setTelegramDeliveryRows] = useState([]);
+  const [telegramDeliveryTotal, setTelegramDeliveryTotal] = useState(0);
+  const [telegramDeliveryFilter, setTelegramDeliveryFilter] = useState('all');
+  const [telegramDeliveryPage, setTelegramDeliveryPage] = useState(0);
+  const [telegramDeliveryLoading, setTelegramDeliveryLoading] = useState(false);
+  const [refreshingWorkspace, setRefreshingWorkspace] = useState(false);
+  const [lastWorkspaceRefresh, setLastWorkspaceRefresh] = useState(null);
+  const [healthSeverityFilter, setHealthSeverityFilter] = useState('all');
+  const [healthIssueFilter, setHealthIssueFilter] = useState('all');
   const [messageHostelId, setMessageHostelId] = useState('');
   const [messageMembers, setMessageMembers] = useState([]);
   const [messageMembersLoading, setMessageMembersLoading] = useState(false);
@@ -675,6 +695,8 @@ export function SuperAdminPage({ user }) {
   const filteredHostels = useMemo(() => [...hostels]
     .filter((hostel) => !hostelQuery || `${hostel.name || ''} ${hostel.hostel_id || ''}`.toLowerCase().includes(hostelQuery.toLowerCase()))
     .filter((hostel) => hostelFilter === 'all'
+      || (hostelFilter === 'active' && hostel.platform_status === 'active')
+      || (hostelFilter === 'recent' && hostel.created_at && new Date(hostel.created_at).getTime() >= Date.now() - 30 * 86400000)
       || (hostelFilter === 'favorite' && hostel.is_favorite)
       || (hostelFilter === 'trusted' && hostel.is_trusted)
       || (hostelFilter === 'suspended' && hostel.platform_status === 'suspended')),
@@ -763,15 +785,82 @@ export function SuperAdminPage({ user }) {
   };
 
   const loadTelegramAdminSettings = useCallback(async () => {
-    setTelegramAdminLoading(true); setTelegramAdminError('');
-    try { setTelegramAdminSettings(await platformAdminGetNotificationSettings()); }
-    catch (cause) { setTelegramAdminError(errorText(cause, 'নোটিফিকেশন সেটিংস লোড করা যায়নি।')); }
-    finally { setTelegramAdminLoading(false); }
+    setTelegramAdminLoading(true);
+    setTelegramAdminError('');
+    setTelegramWebhookError('');
+    setTelegramDeliveryError('');
+    const [settingsResult, webhookResult, deliveryResult] = await Promise.allSettled([
+      platformAdminGetNotificationSettings(),
+      platformAdminGetTelegramWebhookStatus(),
+      platformAdminGetTelegramDeliveryHealth(),
+    ]);
+    if (settingsResult.status === 'fulfilled') setTelegramAdminSettings(settingsResult.value || {});
+    else setTelegramAdminError(errorText(settingsResult.reason, 'Telegram সেটিংস লোড করা যায়নি।'));
+    if (webhookResult.status === 'fulfilled') setTelegramWebhookStatus(webhookResult.value || null);
+    else { setTelegramWebhookStatus(null); setTelegramWebhookError(await edgeInvokeErrorText(webhookResult.reason)); }
+    if (deliveryResult.status === 'fulfilled') setTelegramDeliveryHealth(deliveryResult.value || null);
+    else { setTelegramDeliveryHealth(null); setTelegramDeliveryError(errorText(deliveryResult.reason, 'Run32 Telegram Health Migration প্রয়োগ করা আছে কি না যাচাই করুন।')); }
+    setTelegramAdminLoading(false);
   }, []);
+
+  const loadTelegramDeliveryBatches = useCallback(async () => {
+    setTelegramDeliveryLoading(true);
+    setTelegramBatchError('');
+    try {
+      const result = await platformAdminListTelegramDeliveryBatches({
+        status: telegramDeliveryFilter === 'all' ? null : telegramDeliveryFilter,
+        limit: 10,
+        offset: telegramDeliveryPage * 10,
+      });
+      setTelegramDeliveryRows(Array.isArray(result?.items) ? result.items : []);
+      setTelegramDeliveryTotal(Number(result?.total_count) || 0);
+    } catch (cause) {
+      setTelegramBatchError(errorText(cause, 'Telegram Delivery Queue লোড করা যায়নি।'));
+    } finally {
+      setTelegramDeliveryLoading(false);
+    }
+  }, [telegramDeliveryFilter, telegramDeliveryPage]);
+
+  const configureTelegramWebhook = async () => {
+    setTelegramWebhookBusy(true);
+    setTelegramWebhookError('');
+    setNotice('');
+    try {
+      const result = await platformAdminConfigureTelegramWebhook();
+      setTelegramWebhookStatus(result || null);
+      if (result?.bot?.username_matches && result?.webhook?.url_matches) {
+        setNotice('Telegram Bot যাচাই হয়েছে এবং Incoming Webhook সফলভাবে সেট করা হয়েছে।');
+      } else if (!result?.bot?.username_matches) {
+        setTelegramWebhookError(`Bot Username মেলেনি। Supabase-এ সংরক্ষিত নাম @${result?.bot?.configured_username || '—'}, কিন্তু Token-এর Bot হলো @${result?.bot?.username || '—'}। সঠিক Bot Token ও Username ব্যবহার করুন।`);
+      } else {
+        setTelegramWebhookError('Telegram Webhook সেট করার পরও নির্ধারিত URL নিশ্চিত করা যায়নি। আবার অবস্থা যাচাই করুন।');
+      }
+      // Refresh outgoing diagnostics independently so a username/webhook warning
+      // from this action is not cleared by the general settings loader.
+      const [deliveryResult, batchesResult] = await Promise.allSettled([
+        platformAdminGetTelegramDeliveryHealth(),
+        platformAdminListTelegramDeliveryBatches({ status: telegramDeliveryFilter === 'all' ? null : telegramDeliveryFilter, limit: 10, offset: telegramDeliveryPage * 10 }),
+      ]);
+      if (deliveryResult.status === 'fulfilled') setTelegramDeliveryHealth(deliveryResult.value || null);
+      else setTelegramDeliveryError(errorText(deliveryResult.reason, 'Run32 Telegram Health Migration যাচাই করুন।'));
+      if (batchesResult.status === 'fulfilled') {
+        setTelegramDeliveryRows(Array.isArray(batchesResult.value?.items) ? batchesResult.value.items : []);
+        setTelegramDeliveryTotal(Number(batchesResult.value?.total_count) || 0);
+      } else setTelegramBatchError(errorText(batchesResult.reason, 'Telegram Delivery Queue লোড করা যায়নি।'));
+    } catch (cause) {
+      setTelegramWebhookError(await edgeInvokeErrorText(cause));
+    } finally {
+      setTelegramWebhookBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (tab === 'telegram' && reauthenticated) loadTelegramAdminSettings();
   }, [tab, reauthenticated, loadTelegramAdminSettings]);
+
+  useEffect(() => {
+    if (tab === 'telegram' && reauthenticated) loadTelegramDeliveryBatches();
+  }, [tab, reauthenticated, loadTelegramDeliveryBatches]);
 
   useEffect(() => {
     if (tab !== 'messages' || !messageHostelId || !reauthenticated) return undefined;
@@ -1145,21 +1234,73 @@ export function SuperAdminPage({ user }) {
     finally { setBusy(false); }
   };
 
+  const refreshWorkspace = async () => {
+    if (refreshingWorkspace) return;
+    setRefreshingWorkspace(true);
+    try {
+      await refresh();
+      if (tab === 'insights' && insightsHostelId) await loadHostelInsights(insightsHostelId, insightsPeriodId || null);
+      else if (tab === 'health') await loadSystemHealth();
+      else if (tab === 'notices') await loadNoticeMonitoring();
+      else if (tab === 'reports') await generatePlatformReport();
+      else if (tab === 'audit') await loadAuditLog();
+      else if (tab === 'activity' && activityView === 'timeline') await loadActivity();
+      else if (tab === 'activity' && activityView === 'security') await loadSecurityMonitor();
+      else if (tab === 'security') await loadCodeHistory();
+      else if (tab === 'retention') await loadRetention();
+      else if (tab === 'telegram') await Promise.all([loadTelegramAdminSettings(), loadTelegramDeliveryBatches()]);
+      else if (tab === 'hostels' && selected) await openHostel(selected);
+      setLastWorkspaceRefresh(new Date().toISOString());
+    } catch (cause) {
+      setError(errorText(cause, 'Super Admin তথ্য রিফ্রেশ করা যায়নি। আগের সফল তথ্য অক্ষত রাখা হয়েছে।'));
+    } finally {
+      setRefreshingWorkspace(false);
+    }
+  };
+
+  const openHostelDirectory = (filter = 'all') => {
+    setHostelFilter(filter);
+    setHostelQuery('');
+    setSelected(null);
+    setTab('hostels');
+  };
+
+  const openSecurityEvents = (eventType = 'all') => {
+    setSecurityEventFilter(eventType);
+    setSecurityIpSearchDraft('');
+    setSecurityIpSearch('');
+    setSecurityPage(0);
+    setActivityView('security');
+    setTab('activity');
+  };
+
+  const openHealthHostel = (row) => {
+    const match = hostels.find((hostel) => String(hostel.hostel_id) === String(row.hostel_id));
+    const target = match || { hostel_id: row.hostel_id, name: row.hostel_name, platform_status: row.platform_status };
+    setTab('hostels');
+    openHostel(target);
+  };
+
+  const visibleHealthItems = (healthData?.items || []).filter((row) =>
+    (healthSeverityFilter === 'all' || row.severity === healthSeverityFilter)
+    && (healthIssueFilter === 'all' || (row.issue_codes || []).includes(healthIssueFilter))
+  );
+
   if (checking) return <main className="platform-page"><LoadingSpinner label="Super Admin role যাচাই হচ্ছে..."/></main>;
   if (!allowed) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="shield" size={30}/></span><h1>পৃষ্ঠাটি খোলা যাচ্ছে না</h1><p>অনুরোধটি সম্পন্ন করা যায়নি।</p><button className="primary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরে যান</button></section></main>;
   if (!reauthenticated) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="lock" size={28}/></span><span className="eyebrow">অতিরিক্ত নিরাপত্তা</span><h1>Super Admin যাচাইকরণ</h1><p>প্যানেল খোলার আগে আপনার মূল অ্যাকাউন্টের পাসওয়ার্ড পুনরায় যাচাই হবে।</p><form className="form-stack" onSubmit={reauthenticate}><label className="field-label"><span>অ্যাকাউন্ট ইমেইল</span><input type="email" value={user?.email || ''} readOnly /></label><label className="field-label"><span>বর্তমান পাসওয়ার্ড</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>{gateError && <div className="inline-error">{gateError}</div>}<button className="primary-button large" type="submit" disabled={reauthBusy}>{reauthBusy ? 'যাচাই হচ্ছে...' : 'যাচাই করে প্রবেশ করুন'}</button><button type="button" className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>বাতিল</button></form></section></main>;
 
   return <main className="platform-page">
     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
-    <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
+    <div className="platform-intro"><div><span className="eyebrow">PLATFORM CONTROL</span><h2>সিস্টেম কন্ট্রোল</h2></div><div className="platform-refresh-wrap">{lastWorkspaceRefresh && <span className="platform-refresh-time">সর্বশেষ {formatPlatformDate(lastWorkspaceRefresh)}</span>}<button type="button" className={`secondary-button platform-refresh-button${refreshingWorkspace ? ' is-refreshing' : ''}`} onClick={refreshWorkspace} disabled={refreshingWorkspace || busy}><Icon name="refresh-cw" size={17}/> {refreshingWorkspace ? 'রিফ্রেশ হচ্ছে...' : 'রিফ্রেশ'}</button></div></div>
     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
     <div className="platform-navigation">
       <section className="platform-navigation-group" aria-label="পর্যবেক্ষণ ও পরিচালনা">
-        <div className="platform-navigation-heading"><strong>পর্যবেক্ষণ ও পরিচালনা</strong><span>প্ল্যাটফর্মের অবস্থা, ব্যবহার ও কার্যক্রম</span></div>
+        <div className="platform-navigation-heading"><strong>পর্যবেক্ষণ ও পরিচালনা</strong></div>
         <nav className="platform-tabs platform-main-tabs" aria-label="পর্যবেক্ষণ বিভাগ">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       </section>
       <section className="platform-navigation-group platform-configuration-group" aria-label="সিস্টেম সেটিংস">
-        <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong><span>গ্লোবাল নোটিশ, পরিচিতি, থিম ও নিরাপত্তা নিয়ন্ত্রণ</span></div>
+        <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong></div>
         <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','Global Notice'],['messages','বার্তা পাঠান'],['telegram','Telegram সেটআপ'],['developer','Developer Info'],['appearance','App Theme'],['sessions','Session Security'],['security','Access Codes']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       </section>
     </div>
@@ -1169,13 +1310,13 @@ export function SuperAdminPage({ user }) {
         <span className="platform-overview-tag"><Icon name="shield-check" size={15}/> Privacy-aware overview</span>
       </div>
       <section className="platform-stats-grid">
-      <Stat label="মোট মেস" value={metrics.hostels} icon="home"/>
-      <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home"/>
-      <Stat label="স্থগিত মেস" value={metrics.suspendedHostels} icon="lock"/>
+      <Stat label="মোট মেস" value={metrics.hostels} icon="home" onClick={() => openHostelDirectory('all')}/>
+      <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home" onClick={() => openHostelDirectory('active')}/>
+      <Stat label="স্থগিত মেস" value={metrics.suspendedHostels} icon="lock" onClick={() => openHostelDirectory('suspended')}/>
       <Stat label="মোট অ্যাকাউন্ট" value={metrics.users} icon="users"/>
       <Stat label="সক্রিয় মেম্বারশিপ" value={metrics.activeMemberships} icon="user-plus"/>
       <Stat label="নিষ্ক্রিয় মেম্বারশিপ" value={metrics.inactiveMemberships} icon="user"/>
-      <Stat label="গত ৩০ দিনে তৈরি মেস" value={metrics.recentHostels} icon="calendar"/>
+      <Stat label="গত ৩০ দিনে তৈরি মেস" value={metrics.recentHostels} icon="calendar" onClick={() => openHostelDirectory('recent')}/>
       <Stat label="ব্লক করা অ্যাকাউন্ট" value={metrics.blockedUsers} icon="shield"/>
       <Stat label="Super Admin" value={metrics.superAdmins} icon="shield-check"/>
       <div className="card platform-privacy-note"><Icon name="shield" size={22}/><div><strong>Privacy boundary</strong><p>এই Overview-তে শুধু সামগ্রিক সংখ্যা দেখানো হয়। ব্যক্তিগত সদস্যের আর্থিক বা মিলের বিস্তারিত এখানে দেখানো হয় না।</p></div></div>
@@ -1253,7 +1394,16 @@ export function SuperAdminPage({ user }) {
         {securityTelemetryStatus && (securityTelemetryStatus.ready === true
           ? <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Telemetry সংযোগ সচল এবং Run27 Database RPC যাচাই হয়েছে। Version: {securityTelemetryStatus.version || '—'}। শূন্য Event মানে এই সময়সীমায় কোনো সংরক্ষিত Security Event নেই।</span></div>
           : <div className="inline-error platform-alert"><Icon name="alert-triangle" size={17}/> Security Telemetry সংযোগ যাচাই ব্যর্থ। Edge Function Deploy, Origin Allowlist, Server Secret এবং Run27 RPC পরীক্ষা করুন। {securityTelemetryStatus.message || securityTelemetryStatus.code || 'Function অনুপলব্ধ বা পুরোনো সংস্করণে চলছে।'}</div>)}
-        {securityOverview && <div className="platform-phase3-stat-grid"><Stat label="শেষ ২৪ ঘণ্টার Event" value={securityOverview.events_24h} icon="activity"/><Stat label="শেষ ৭ দিনের Event" value={securityOverview.events_7d} icon="calendar"/><Stat label="ব্যর্থ Login · ২৪ ঘণ্টা" value={securityOverview.failed_logins_24h} icon="lock"/><Stat label="ব্যর্থ Registration · ২৪ ঘণ্টা" value={securityOverview.failed_signups_24h} icon="user-x"/><Stat label="Registration অনুরোধ · ২৪ ঘণ্টা" value={securityOverview.signup_submitted_24h} icon="user-plus"/><Stat label="Password Reset ব্যর্থ · ২৪ ঘণ্টা" value={securityOverview.password_reset_failed_24h} icon="key-round"/><Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/><Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/></div>}
+        {securityOverview && <div className="platform-phase3-stat-grid">
+          <Stat label="শেষ ২৪ ঘণ্টার Event" value={securityOverview.events_24h} icon="activity"/>
+          <Stat label="শেষ ৭ দিনের Event" value={securityOverview.events_7d} icon="calendar"/>
+          <Stat label="ব্যর্থ Login · ২৪ ঘণ্টা" value={securityOverview.failed_logins_24h} icon="lock" onClick={() => openSecurityEvents('login_failed')}/>
+          <Stat label="ব্যর্থ Registration · ২৪ ঘণ্টা" value={securityOverview.failed_signups_24h} icon="user-x" onClick={() => openSecurityEvents('signup_failed')}/>
+          <Stat label="Registration অনুরোধ · ২৪ ঘণ্টা" value={securityOverview.signup_submitted_24h} icon="user-plus" onClick={() => openSecurityEvents('signup_submitted')}/>
+          <Stat label="Password Reset ব্যর্থ · ২৪ ঘণ্টা" value={securityOverview.password_reset_failed_24h} icon="key-round" onClick={() => openSecurityEvents('password_reset_failed')}/>
+          <Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/>
+          <Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/>
+        </div>}
         <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="password_reset_failed">ব্যর্থ Password Reset</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button>{(securityIpSearch||securityEventFilter!=='all')&&<button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityEventFilter('all');setSecurityPage(0);}}>ফিল্টার মুছুন</button>}</form>
         {securityError && <div className="inline-error platform-alert">{securityError}</div>}
         {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>{securityTelemetryStatus?.ready === false ? 'Security Telemetry এখনো যাচাই করা যায়নি' : 'কোনো Security Event নেই'}</strong><span>{securityTelemetryStatus?.ready === false ? 'সংযোগ সচল না হওয়া পর্যন্ত শূন্য সংখ্যাকে প্রকৃত নিরাপত্তা-তথ্য ধরে নেবেন না।' : 'এখানে ব্যর্থ Login/Registration ও Password Reset প্রচেষ্টা এবং Registration submission রেকর্ড হবে। সফল Login/Logout Activity Timeline-এ দেখা যায়।'}</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
@@ -1267,25 +1417,30 @@ export function SuperAdminPage({ user }) {
       {healthError && <div className="inline-error platform-alert">{healthError}</div>}
       {healthLoading ? <div className="platform-empty"><LoadingSpinner label="মেসের স্বাস্থ্য পরীক্ষা হচ্ছে..."/></div> : healthData ? <>
         <div className="platform-phase3-stat-grid">
-          <Stat label="মোট মেস" value={healthData.totals?.hostel_count} icon="home"/>
-          <Stat label="স্বাভাবিক" value={healthData.totals?.healthy_hostel_count} icon="check-circle"/>
-          <Stat label="জরুরি সমস্যা" value={healthData.totals?.critical_hostel_count} icon="warning"/>
-          <Stat label="পর্যালোচনা দরকার" value={healthData.totals?.warning_hostel_count} icon="alert-circle"/>
-          <Stat label="তথ্য" value={healthData.totals?.info_hostel_count} icon="info"/>
+          <Stat label="মোট মেস" value={healthData.totals?.hostel_count} icon="home" onClick={() => { setHealthSeverityFilter('all'); setHealthIssueFilter('all'); }} active={healthSeverityFilter === 'all' && healthIssueFilter === 'all'}/>
+          <Stat label="স্বাভাবিক" value={healthData.totals?.healthy_hostel_count} icon="check-circle" onClick={() => { setHealthSeverityFilter('healthy'); setHealthIssueFilter('all'); }} active={healthSeverityFilter === 'healthy'}/>
+          <Stat label="জরুরি সমস্যা" value={healthData.totals?.critical_hostel_count} icon="warning" onClick={() => { setHealthSeverityFilter('critical'); setHealthIssueFilter('all'); }} active={healthSeverityFilter === 'critical'}/>
+          <Stat label="পর্যালোচনা দরকার" value={healthData.totals?.warning_hostel_count} icon="alert-circle" onClick={() => { setHealthSeverityFilter('warning'); setHealthIssueFilter('all'); }} active={healthSeverityFilter === 'warning'}/>
+          <Stat label="তথ্য" value={healthData.totals?.info_hostel_count} icon="info" onClick={() => { setHealthSeverityFilter('info'); setHealthIssueFilter('all'); }} active={healthSeverityFilter === 'info'}/>
         </div>
-        <div className="platform-phase3-breakdown">
-          <span>চলমান মাস নেই: <b>{Number(healthData.totals?.missing_running_period_count||0).toLocaleString('bn-BD')}</b></span>
-          <span>সক্রিয় সদস্য নেই: <b>{Number(healthData.totals?.no_active_members_count||0).toLocaleString('bn-BD')}</b></span>
-          <span>প্রধান ম্যানেজার সমস্যা: <b>{Number(healthData.totals?.primary_manager_unavailable_count||0).toLocaleString('bn-BD')}</b></span>
-          <span>দীর্ঘদিন কার্যক্রম নেই: <b>{Number(healthData.totals?.stale_activity_count||0).toLocaleString('bn-BD')}</b></span>
-          <span>অপেক্ষমাণ অনুরোধ: <b>{Number(healthData.totals?.pending_request_backlog_count||0).toLocaleString('bn-BD')}</b></span>
+        <div className="platform-phase3-breakdown" aria-label="Health issue filters">
+          {[
+            ['missing_running_period', 'চলমান মাস নেই', 'missing_running_period_count'],
+            ['no_active_members', 'সক্রিয় সদস্য নেই', 'no_active_members_count'],
+            ['primary_manager_unavailable', 'প্রধান ম্যানেজার সমস্যা', 'primary_manager_unavailable_count'],
+            ['stale_activity', 'দীর্ঘদিন কার্যক্রম নেই', 'stale_activity_count'],
+            ['pending_request_backlog', 'অপেক্ষমাণ অনুরোধ', 'pending_request_backlog_count'],
+          ].map(([code, label, countKey]) => <button key={code} type="button" className={healthIssueFilter === code ? 'is-active' : ''} aria-pressed={healthIssueFilter === code} onClick={() => { setHealthIssueFilter((current) => current === code ? 'all' : code); setHealthSeverityFilter('all'); }}>
+            {label}: <b>{Number(healthData.totals?.[countKey] || 0).toLocaleString('bn-BD')}</b>
+          </button>)}
+          {(healthIssueFilter !== 'all' || healthSeverityFilter !== 'all') && <button type="button" className="platform-health-filter-reset" onClick={() => { setHealthIssueFilter('all'); setHealthSeverityFilter('all'); }}>সব দেখুন</button>}
         </div>
-        <div className="platform-phase3-list-heading"><h4>যেসব মেসে নজর দেওয়া দরকার</h4><small>{Number(healthData.items?.length||0).toLocaleString('bn-BD')}টি মেস · {healthData.stale_days} দিনের নিষ্ক্রিয়তা সীমা</small></div>
-        {!healthData.items?.length ? <div className="platform-empty-state"><Icon name="shield-check" size={28}/><strong>কোনো উল্লেখযোগ্য সমস্যা পাওয়া যায়নি</strong><span>এই মুহূর্তে মেসগুলোর জন্য কোনো Health Alert নেই।</span></div> : <div className="platform-health-list">{healthData.items.map((row)=><article className="platform-health-item" key={row.hostel_id}>
+        <div className="platform-phase3-list-heading"><h4>{healthIssueFilter !== 'all' ? 'নির্বাচিত সমস্যার মেস' : healthSeverityFilter === 'all' ? 'যেসব মেসে নজর দেওয়া দরকার' : 'নির্বাচিত Health অবস্থা'}</h4><small>{Number(visibleHealthItems.length||0).toLocaleString('bn-BD')}টি মেস · {healthData.stale_days} দিনের নিষ্ক্রিয়তা সীমা</small></div>
+        {!visibleHealthItems.length ? <div className="platform-empty-state"><Icon name="shield-check" size={28}/><strong>{healthSeverityFilter === 'all' && healthIssueFilter === 'all' ? 'কোনো উল্লেখযোগ্য সমস্যা পাওয়া যায়নি' : 'এই ফিল্টারে মেস নেই'}</strong><span>{healthSeverityFilter === 'all' && healthIssueFilter === 'all' ? 'এই মুহূর্তে মেসগুলোর জন্য কোনো Health Alert নেই।' : 'অন্য Health ফিল্টার নির্বাচন করুন।'}</span></div> : <div className="platform-health-list">{visibleHealthItems.map((row)=><button type="button" className="platform-health-item platform-health-item-action" key={row.hostel_id} onClick={() => openHealthHostel(row)}>
           <div className="platform-health-item-top"><div><strong>{row.hostel_name}</strong><small>{row.running_period_label || (row.running_period_id?'চলমান মাস':'চলমান মাস নেই')} · {row.platform_status==='suspended'?'স্থগিত মেস':'সক্রিয় মেস'}</small></div><span className={`platform-health-severity severity-${row.severity}`}>{systemSeverityLabel(row.severity)}</span></div>
           <div className="platform-health-issues">{(row.issue_codes||[]).map(code=><span key={code}>{systemIssueLabel(code)}</span>)}</div>
           <div className="platform-health-meta"><span>সক্রিয় সদস্য: <b>{Number(row.active_members||0).toLocaleString('bn-BD')}</b></span><span>অপেক্ষমাণ অনুরোধ: <b>{Number(row.pending_requests||0).toLocaleString('bn-BD')}</b></span><span>সর্বশেষ কার্যক্রম: <b>{(row.last_activity_at ? formatPlatformDate(row.last_activity_at) : 'কোনো এন্ট্রি রেকর্ড নেই')}</b></span></div>
-        </article>)}</div>}
+        </button>)}</div>}
         <div className="platform-insights-footer"><span><Icon name="shield-check" size={15}/> Health check শুধু পড়ে; কোনো ডেটা পরিবর্তন করে না</span><small>তথ্য তৈরি: {formatPlatformDate(healthData.generated_at)}</small></div>
       </> : <div className="platform-empty-state"><Icon name="activity" size={28}/><strong>Health তথ্য এখনো লোড হয়নি</strong><span>রিফ্রেশ করে আবার চেষ্টা করুন।</span></div>}
     </section>}
@@ -1391,7 +1546,7 @@ export function SuperAdminPage({ user }) {
         <div className="platform-panel-heading"><div><h3>মেস ডিরেক্টরি</h3><p>{filteredHostels.length} / {hostels.length}টি মেস · আর্থিক/মিলের তথ্য দেখানো হয় না</p></div></div>
         <Field label="মেস খুঁজুন (নাম বা ID)" value={hostelQuery} onChange={setHostelQuery} maxLength={120}/>
         <div className="platform-filter-pills" role="group" aria-label="মেস ফিল্টার">
-          {[['all','সব'],['manager','প্রধান ম্যানেজার'],['assistant','সহকারী'],['member','সাধারণ সদস্য'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['suspended','স্থগিত']].map(([key,label])=><button type="button" key={key} className={hostelFilter===key?'active':''} onClick={()=>setHostelFilter(key)}>{label}</button>)}
+          {[['all','সব মেস'],['active','সক্রিয়'],['suspended','স্থগিত'],['recent','নতুন'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত']].map(([key,label])=><button type="button" key={key} className={hostelFilter===key?'active':''} onClick={()=>setHostelFilter(key)}>{label}</button>)}
         </div>
         {filteredHostels.length===0?<p className="platform-empty">এই ফিল্টারে কোনো মেস পাওয়া যায়নি।</p>:<div className="platform-hostel-list">{visibleHostels.map((hostel)=><div className={`platform-hostel-entry ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} key={hostel.hostel_id}>
           <button className={`platform-hostel-row ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} type="button" disabled={busy} onClick={()=>openHostel(hostel)}>
@@ -1490,23 +1645,87 @@ export function SuperAdminPage({ user }) {
     </>}
 
     {tab === 'telegram' && <>
-      <div className="platform-settings-intro"><span className="eyebrow">NOTIFICATION DELIVERY</span><h2>Telegram Notification Provider</h2><p>ব্যবহারকারী নিজে সংযোগ করলে বিদ্যমান নোটিফিকেশন Telegram-এ পৌঁছাবে। Bot Token কখনো Database বা Browser-এ রাখা হবে না।</p></div>
-      <form className="platform-settings-grid" onSubmit={saveTelegramAdminSettings}>
-        <section className="card platform-panel">
-          <div className="platform-panel-heading"><div><h3>Telegram Bot</h3><p>Provider চালু করার আগে Edge Function Secrets ও Webhook সেটআপ সম্পন্ন করুন।</p></div><span className="platform-status">{telegramAdminSettings.telegram_enabled ? 'চালু' : 'বন্ধ'}</span></div>
-          {telegramAdminError && <div className="inline-error platform-alert">{telegramAdminError}</div>}
-          <label className="field-label"><span>Bot Username (@ ছাড়া)</span><input value={telegramAdminSettings.telegram_bot_username || ''} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_bot_username: event.target.value }))} maxLength={32} placeholder="HostelLifeBot" autoComplete="off"/></label>
-          <label className="platform-toggle"><span><strong>Telegram Delivery চালু</strong><small>বন্ধ করলে নতুন Telegram বার্তা পাঠানো হবে না; কারও সংযোগ মুছে যাবে না।</small></span><input type="checkbox" checked={Boolean(telegramAdminSettings.telegram_enabled)} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_enabled: event.target.checked }))}/></label>
-          <div className="platform-telegram-connection-stat"><Icon name="users" size={18}/><span><strong>{Number(telegramAdminSettings.connected_users || 0).toLocaleString('bn-BD')}</strong><small>সংযুক্ত ব্যবহারকারী</small></span></div>
-          <button type="submit" className="primary-button large" disabled={telegramAdminBusy || telegramAdminLoading}>{telegramAdminBusy ? 'সংরক্ষণ হচ্ছে...' : 'Telegram সেটিংস সংরক্ষণ করুন'}</button>
-          <button type="button" className="secondary-button compact" disabled={telegramAdminLoading} onClick={loadTelegramAdminSettings}><Icon name="refresh" size={15}/> অবস্থা রিফ্রেশ</button>
+      <div className="platform-settings-intro platform-settings-intro-compact">
+        <span className="eyebrow">NOTIFICATION CHANNEL</span>
+        <h2>Telegram সংযোগ ও Delivery</h2>
+      </div>
+      <div className="platform-telegram-admin-grid">
+        <section className="card platform-panel platform-telegram-admin-card">
+          <div className="platform-panel-heading">
+            <div className="platform-telegram-title"><TelegramLogo size={38}/><div><span className="eyebrow">BOT PROVIDER</span><h3>Telegram Bot</h3></div></div>
+            <span className={`platform-status ${telegramAdminSettings.telegram_enabled ? 'status-active' : 'status-inactive'}`}>{telegramAdminSettings.telegram_enabled ? 'চালু' : 'বন্ধ'}</span>
+          </div>
+          <form className="platform-telegram-settings-form" onSubmit={saveTelegramAdminSettings}>
+            {telegramAdminError && <div className="inline-error platform-alert">{telegramAdminError}</div>}
+            <label className="field-label"><span>Bot Username (@ ছাড়া)</span><input value={telegramAdminSettings.telegram_bot_username || ''} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_bot_username: event.target.value.replace(/^@/, '') }))} maxLength={32} placeholder="HostelLifeBot" autoComplete="off" spellCheck="false"/></label>
+            <label className="platform-toggle"><span><strong>Telegram Delivery চালু</strong><small>বন্ধ করলে নতুন Telegram বার্তা তৈরি হবে না। বিদ্যমান অ্যাকাউন্ট সংযোগ অক্ষত থাকবে।</small></span><input type="checkbox" checked={Boolean(telegramAdminSettings.telegram_enabled)} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_enabled: event.target.checked }))}/></label>
+            <div className="platform-telegram-connection-stat"><Icon name="users" size={18}/><span><strong>{Number(telegramAdminSettings.connected_users || 0).toLocaleString('bn-BD')}</strong><small>সংযুক্ত ব্যবহারকারী</small></span></div>
+            <button type="submit" className="primary-button large" disabled={telegramAdminBusy || telegramAdminLoading}>{telegramAdminBusy ? 'সংরক্ষণ হচ্ছে...' : 'সেটিংস সংরক্ষণ'}</button>
+          </form>
         </section>
-        <section className="card platform-panel platform-telegram-setup-guide">
-          <div className="platform-panel-heading"><div><h3>একবারের Server Setup</h3><p>নিরাপত্তার কারণে গোপন Token এখানে দেওয়া যাবে না।</p></div></div>
-          <ol><li>BotFather থেকে নিজের Telegram Bot তৈরি করে Bot Token নিন।</li><li>Supabase Edge Function Secrets-এ <code>TELEGRAM_BOT_TOKEN</code>, <code>TELEGRAM_WEBHOOK_SECRET</code> এবং <code>NOTIFICATION_DISPATCH_WEBHOOK_SECRET</code> দিন।</li><li><code>telegram-bot-webhook</code> ও <code>telegram-notification-dispatch</code> Edge Function Deploy করুন।</li><li>Telegram-এর <code>setWebhook</code> এবং Supabase Database Webhook একবার সেট করুন।</li></ol>
-          <p className="platform-retention-hint">এখানে কোনো প্রতি-মিনিট Polling নেই। ব্যবহারকারী সংযুক্ত থাকলে নতুন Inbox Notification তৈরি হওয়ার সময়ই শুধু Delivery Queue তৈরি হবে।</p>
+
+        <section className="card platform-panel platform-telegram-webhook-card">
+          <div className="platform-panel-heading"><div><span className="eyebrow">INCOMING · ACCOUNT LINK</span><h3>Bot Webhook</h3></div><span className={`platform-status ${telegramWebhookStatus?.webhook?.url_matches && telegramWebhookStatus?.bot?.username_matches ? 'status-active' : 'status-inactive'}`}>{telegramWebhookStatus?.webhook?.url_matches && telegramWebhookStatus?.bot?.username_matches ? 'সচল' : telegramWebhookStatus ? 'পরীক্ষা দরকার' : 'অজানা'}</span></div>
+          <div className="platform-telegram-check-list">
+            <div><span>Bot Token যাচাই</span><strong>{telegramWebhookStatus?.bot?.username ? `@${telegramWebhookStatus.bot.username}` : '—'}</strong></div>
+            <div><span>Saved Username</span><strong>{telegramWebhookStatus?.bot?.configured_username ? `@${telegramWebhookStatus.bot.configured_username}` : '—'}</strong></div>
+            <div><span>Username Match</span><b className={telegramWebhookStatus?.bot?.username_matches ? 'is-good' : 'is-bad'}>{telegramWebhookStatus ? (telegramWebhookStatus.bot?.username_matches ? 'মিলেছে' : 'মেলেনি') : '—'}</b></div>
+            <div><span>Webhook URL</span><b className={telegramWebhookStatus?.webhook?.url_matches ? 'is-good' : 'is-bad'}>{telegramWebhookStatus ? (telegramWebhookStatus.webhook?.url_matches ? 'সঠিক' : 'সঠিক নয়') : '—'}</b></div>
+            <div><span>অপেক্ষমাণ Update</span><strong>{telegramWebhookStatus?.webhook?.pending_update_count === undefined ? '—' : Number(telegramWebhookStatus.webhook.pending_update_count).toLocaleString('bn-BD')}</strong></div>
+          </div>
+          {telegramWebhookStatus?.webhook?.last_error_message && <div className="platform-telegram-last-error"><strong>Telegram-এর সর্বশেষ Webhook Error</strong><span>{telegramWebhookStatus.webhook.last_error_message}</span></div>}
+          {telegramWebhookError && <div className="inline-error platform-alert" role="alert">{telegramWebhookError}</div>}
+          <div className="platform-telegram-actions">
+            <button type="button" className="primary-button" disabled={telegramWebhookBusy || telegramAdminLoading} onClick={configureTelegramWebhook}><TelegramLogo size={18}/>{telegramWebhookBusy ? 'Webhook যাচাই হচ্ছে...' : 'Webhook সেট / মেরামত'}</button>
+            <button type="button" className="secondary-button" disabled={telegramAdminLoading} onClick={loadTelegramAdminSettings}><Icon name="refresh-cw" size={16}/> অবস্থা যাচাই</button>
+          </div>
+          <p className="platform-telegram-inline-note">এই কাজটি Bot Token-এর Bot শনাক্ত করে Supabase Incoming Webhook URL স্বয়ংক্রিয়ভাবে সেট করে। Username না মিললে সেট করবে না।</p>
         </section>
-      </form>
+
+        <section className="card platform-panel platform-telegram-delivery-card">
+          <div className="platform-panel-heading"><div><span className="eyebrow">OUTGOING · NOTIFICATION DELIVERY</span><h3>Delivery Health</h3></div><span className={`platform-status ${telegramDeliveryHealth?.database_webhook_ready ? 'status-active' : 'status-inactive'}`}>{telegramDeliveryHealth?.database_webhook_ready ? 'Database Trigger পাওয়া গেছে' : telegramDeliveryHealth ? 'Database Webhook নেই' : 'যাচাই হয়নি'}</span></div>
+          {telegramDeliveryError && <div className="inline-error platform-alert" role="alert">{telegramDeliveryError}</div>}
+          {telegramDeliveryHealth ? <>
+            <div className="platform-telegram-check-list">
+              <div><span>Provider</span><strong>{telegramDeliveryHealth.provider_enabled ? 'Telegram চালু' : 'বন্ধ'}</strong></div>
+              <div><span>Bot Username</span><strong>{telegramDeliveryHealth.bot_username ? `@${telegramDeliveryHealth.bot_username}` : '—'}</strong></div>
+              <div><span>সংযুক্ত ব্যবহারকারী</span><strong>{Number(telegramDeliveryHealth.connected_users || 0).toLocaleString('bn-BD')}</strong></div>
+              <div><span>Database Webhook Trigger</span><b className={telegramDeliveryHealth.database_webhook_ready ? 'is-good' : 'is-bad'}>{telegramDeliveryHealth.database_webhook_ready ? 'পাওয়া গেছে' : 'পাওয়া যায়নি'}</b></div>
+              <div><span>শেষ Batch</span><strong>{telegramDeliveryHealth.batches?.latest_status ? telegramDeliveryHealth.batches.latest_status.toUpperCase() : '—'}</strong></div>
+            </div>
+            <div className="platform-telegram-batch-stats">
+              <Stat label="Pending" value={telegramDeliveryHealth.batches?.pending} icon="clock" onClick={() => { setTelegramDeliveryFilter('pending'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'pending'}/>
+              <Stat label="Processing" value={telegramDeliveryHealth.batches?.processing} icon="refresh-cw" onClick={() => { setTelegramDeliveryFilter('processing'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'processing'}/>
+              <Stat label="Delivered" value={telegramDeliveryHealth.batches?.delivered} icon="check-circle" onClick={() => { setTelegramDeliveryFilter('delivered'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'delivered'}/>
+              <Stat label="Partial" value={telegramDeliveryHealth.batches?.partial} icon="alert-circle" onClick={() => { setTelegramDeliveryFilter('partial'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'partial'}/>
+              <Stat label="Failed" value={telegramDeliveryHealth.batches?.failed} icon="warning" onClick={() => { setTelegramDeliveryFilter('failed'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'failed'}/>
+              <Stat label="Skipped" value={telegramDeliveryHealth.batches?.skipped} icon="minus" onClick={() => { setTelegramDeliveryFilter('skipped'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'skipped'}/>
+            </div>
+            <div className="platform-telegram-outbox-summary"><span>Pending / Processing Outbox <b>{Number(telegramDeliveryHealth.outbox?.pending_or_processing || 0).toLocaleString('bn-BD')}</b></span><span>Failed Outbox <b>{Number(telegramDeliveryHealth.outbox?.failed || 0).toLocaleString('bn-BD')}</b></span><span>শেষ Batch: <b>{formatPlatformDate(telegramDeliveryHealth.batches?.latest_created_at)}</b></span></div>
+          </> : !telegramDeliveryError && <div className="platform-empty"><LoadingSpinner label="Delivery Health লোড হচ্ছে..."/></div>}
+          {telegramDeliveryHealth && !telegramDeliveryHealth.database_webhook_ready && <div className="platform-telegram-db-setup">
+            <strong>Database Webhook সেটআপ প্রয়োজন</strong>
+            <p>Supabase Dashboard → Database → Webhooks-এ একটি <b>INSERT</b> Webhook তৈরি করুন।</p>
+            <code>public.notification_delivery_batches</code>
+            <code>{'https://<PROJECT_REF>.supabase.co/functions/v1/telegram-notification-dispatch'}</code>
+            <span>Header: <code>x-hostel-delivery-secret</code> · Value: Edge Function Secret <code>NOTIFICATION_DISPATCH_WEBHOOK_SECRET</code>-এর একই মান।</span>
+          </div>}
+          {telegramDeliveryHealth?.database_webhook_ready && <p className="platform-telegram-inline-note">Trigger শনাক্ত হয়েছে। Dashboard-এর URL ও Header Secret আলাদাভাবে যাচাই করুন—সেগুলোর গোপন মান এখানে পড়া বা প্রকাশ করা হয় না।</p>}
+        </section>
+
+        <section className="card platform-panel platform-telegram-queue-card">
+          <div className="platform-panel-heading"><div><span className="eyebrow">LAST 7 DAYS</span><h3>সাম্প্রতিক Delivery Batch</h3></div><span className="platform-panel-count">{telegramDeliveryTotal.toLocaleString('bn-BD')}টি</span></div>
+          <div className="platform-filter-pills platform-telegram-filter-pills">
+            {[['all','সব'],['pending','Pending'],['processing','Processing'],['delivered','Delivered'],['partial','Partial'],['failed','Failed'],['skipped','Skipped']].map(([value,label]) => <button key={value} type="button" className={telegramDeliveryFilter === value ? 'active' : ''} aria-pressed={telegramDeliveryFilter === value} onClick={() => { setTelegramDeliveryFilter(value); setTelegramDeliveryPage(0); }}>{label}</button>)}
+          </div>
+          {telegramBatchError && <div className="inline-error platform-alert" role="alert">{telegramBatchError}</div>}
+          {telegramDeliveryLoading ? <div className="platform-empty"><LoadingSpinner label="Delivery Batch লোড হচ্ছে..."/></div> : telegramDeliveryRows.length ? <div className="platform-telegram-batch-list">{telegramDeliveryRows.map((batch) => <article className="platform-telegram-batch-row" key={batch.id}>
+            <div><strong>Batch · {String(batch.id).slice(0, 8).toUpperCase()}</strong><small>{formatPlatformDate(batch.created_at)} · {Number(batch.recipient_count || 0).toLocaleString('bn-BD')} জন প্রাপক</small></div>
+            <div className="platform-telegram-batch-result"><span className={`platform-status platform-telegram-status-${batch.status}`}>{({ pending: 'Pending', processing: 'Processing', delivered: 'Delivered', partial: 'Partial', failed: 'Failed', skipped: 'Skipped' })[batch.status] || batch.status}</span>{batch.last_error_code && <small>{batch.last_error_code}</small>}</div>
+          </article>)}</div> : <div className="platform-empty-state"><Icon name="archive" size={27}/><strong>কোনো Delivery Batch নেই</strong><span>নির্বাচিত সময়ে এই Status-এর কোনো Batch তৈরি হয়নি।</span></div>}
+          {telegramDeliveryTotal > 10 && <div className="platform-history-pager"><span>পৃষ্ঠা {telegramDeliveryPage + 1} / {Math.ceil(telegramDeliveryTotal / 10)}</span><div><button type="button" className="secondary-button compact" disabled={telegramDeliveryLoading || telegramDeliveryPage === 0} onClick={() => setTelegramDeliveryPage((page) => Math.max(0, page - 1))}>আগের</button><button type="button" className="secondary-button compact" disabled={telegramDeliveryLoading || (telegramDeliveryPage + 1) * 10 >= telegramDeliveryTotal} onClick={() => setTelegramDeliveryPage((page) => page + 1)}>পরের</button></div></div>}
+        </section>
+      </div>
     </>}
 
     {tab === 'settings' && <>

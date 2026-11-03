@@ -363,3 +363,163 @@
     transition: none !important;
   }
 }
+
+/* Super Admin workspace: stronger hierarchy, readable controls and live filters. */
+.platform-page {
+  width: min(100% - 32px, 1480px);
+  margin-inline: auto;
+  padding-bottom: 48px;
+  color: var(--text);
+}
+.platform-page .platform-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 18px 0 16px;
+  padding: 20px 22px;
+  border-radius: 20px;
+}
+.platform-page .platform-intro h2 { margin: 0; font-size: clamp(22px, 2.5vw, 29px); line-height: 1.3; }
+.platform-refresh-wrap { z-index: 1; display: flex; align-items: center; gap: 12px; }
+.platform-refresh-time { color: rgba(255,255,255,.76); font-size: 12px; white-space: nowrap; }
+.platform-page .platform-refresh-button { min-height: 44px; padding-inline: 16px; font-size: 13px; font-weight: 800; }
+.platform-page .platform-refresh-button svg { transition: transform .25s ease; }
+.platform-page .platform-refresh-button.is-refreshing svg { animation: platform-refresh-spin .8s linear infinite; }
+@keyframes platform-refresh-spin { to { transform: rotate(360deg); } }
+.platform-navigation { display: grid; gap: 12px; margin-bottom: 22px; }
+.platform-navigation-group { min-width: 0; padding: 13px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 7px 22px rgba(20, 52, 39, .045); }
+.platform-navigation-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 4px 9px; color: var(--muted); }
+.platform-navigation-heading strong { font-size: 12px; font-weight: 850; letter-spacing: .025em; }
+.platform-page .platform-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 7px; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.platform-page .platform-tabs button { min-height: 45px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 750; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
+.platform-page .platform-tabs button.active { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-strong); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 14%, transparent); }
+.platform-page .platform-tabs button:hover { border-color: var(--primary); transform: translateY(-1px); }
+.platform-page .platform-tabs button:focus-visible,
+.platform-page button:focus-visible,
+.platform-page a:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 50%, transparent); outline-offset: 2px; }
+.platform-overview-heading { margin-top: 14px; }
+.platform-page .platform-stat { min-height: 118px; padding: 19px 20px; border-radius: 17px; background: var(--surface); color: var(--text); text-align: left; }
+.platform-page button.platform-stat { width: 100%; border: 1px solid var(--line); cursor: pointer; font: inherit; }
+.platform-page .platform-stat small { color: var(--muted); font-size: 13px; }
+.platform-page .platform-stat strong { font-size: clamp(25px, 2.3vw, 31px); line-height: 1.15; }
+.platform-page .platform-stat-action-hint { display: inline-flex; align-items: center; gap: 2px; margin-top: 2px; color: var(--primary-strong); font-size: 11px; font-weight: 800; }
+.platform-page .platform-stat.is-active { border-color: var(--primary); background: var(--primary-soft); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 12%, transparent); }
+.platform-page .platform-stat::after { background: color-mix(in srgb, var(--primary-soft) 78%, transparent); }
+.platform-page .platform-panel { padding: clamp(17px, 2.2vw, 25px); border: 1px solid var(--line); border-radius: 19px; background: var(--surface); }
+.platform-page .platform-panel-heading { gap: 15px; align-items: center; }
+.platform-page .platform-panel-heading h3 { margin: 2px 0; color: var(--text); font-size: clamp(17px, 1.8vw, 20px); line-height: 1.4; }
+.platform-page .platform-panel-heading p { max-width: 78ch; margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.platform-page .platform-settings-intro { margin: 7px 0 15px; }
+.platform-page .platform-settings-intro h2 { font-size: clamp(22px, 2.5vw, 28px); }
+.platform-page .platform-settings-intro p { display: none; }
+.platform-settings-intro-compact { margin-bottom: 14px !important; }
+.platform-page .field-label > span { margin-bottom: 7px; font-size: 13px; font-weight: 800; }
+.platform-page .field-label input,
+.platform-page .field-label textarea,
+.platform-page .field-label select { min-height: 45px; font-size: 14px; }
+.platform-page .platform-toggle { gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); }
+.platform-page .platform-toggle strong { font-size: 14px; }
+.platform-page .platform-toggle small { font-size: 12px; line-height: 1.55; }
+.platform-page .primary-button,
+.platform-page .secondary-button,
+.platform-page .danger-button { min-height: 42px; font-size: 13px; font-weight: 800; }
+.platform-page .secondary-button.compact { min-height: 36px; }
+.platform-page .platform-phase3-list-heading h4 { font-size: 15px; }
+.platform-page .platform-phase3-list-heading small { color: var(--muted); font-size: 12px; }
+.platform-page .platform-health-item-action { width: 100%; border: 1px solid var(--line); background: var(--surface); color: var(--text); text-align: left; font: inherit; cursor: pointer; transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
+.platform-page .platform-health-item-action:hover { transform: translateY(-1px); border-color: var(--primary); box-shadow: 0 8px 22px rgba(20, 52, 39, .06); }
+.platform-page .platform-phase3-breakdown button { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.platform-page .platform-phase3-breakdown button b { color: var(--text); font-size: 13px; }
+.platform-page .platform-phase3-breakdown button.is-active { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-strong); }
+.platform-page .platform-phase3-breakdown .platform-health-filter-reset { color: var(--primary-strong); font-weight: 850; }
+.platform-page .platform-history-pager { align-items: center; gap: 12px; font-size: 12px; }
+.platform-page .platform-alert { font-size: 13px; line-height: 1.6; }
+.platform-page .platform-empty-state strong { font-size: 15px; }
+.platform-page .platform-empty-state span { font-size: 13px; }
+.platform-page .platform-message-preview p { font-size: 13px; }
+.platform-page .platform-privacy-note p { font-size: 12px; }
+
+.platform-telegram-admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; align-items: start; }
+.platform-telegram-admin-card,
+.platform-telegram-webhook-card,
+.platform-telegram-delivery-card,
+.platform-telegram-queue-card { min-width: 0; }
+.platform-telegram-title { display: flex; align-items: center; gap: 11px; }
+.platform-telegram-title h3 { margin: 0; }
+.platform-telegram-title .eyebrow { display: block; margin-bottom: 2px; color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .09em; }
+.platform-telegram-settings-form { display: grid; gap: 13px; }
+.platform-telegram-settings-form .platform-telegram-connection-stat { margin: 0; }
+.platform-telegram-check-list { display: grid; gap: 0; margin: 5px 0 14px; }
+.platform-telegram-check-list > div { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+.platform-telegram-check-list > div:last-child { border-bottom: 0; }
+.platform-telegram-check-list span { color: var(--muted); font-size: 12px; }
+.platform-telegram-check-list strong,
+.platform-telegram-check-list b { max-width: 62%; color: var(--text); font-size: 13px; text-align: right; overflow-wrap: anywhere; }
+.platform-telegram-check-list b.is-good { color: #168052; }
+.platform-telegram-check-list b.is-bad { color: #c44747; }
+.platform-telegram-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+.platform-telegram-actions .primary-button { display: inline-flex; align-items: center; gap: 8px; }
+.platform-telegram-inline-note { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.platform-telegram-last-error { display: grid; gap: 5px; padding: 11px 12px; border: 1px solid #f0d7d7; border-radius: 12px; background: #fff7f7; color: #a33737; }
+.platform-telegram-last-error strong { font-size: 12px; }
+.platform-telegram-last-error span { font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.platform-telegram-batch-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.platform-page .platform-telegram-batch-stats .platform-stat { min-height: 82px; gap: 8px; padding: 11px; border-radius: 12px; }
+.platform-page .platform-telegram-batch-stats .platform-stat-icon { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; }
+.platform-page .platform-telegram-batch-stats .platform-stat-icon svg { width: 16px; height: 16px; }
+.platform-page .platform-telegram-batch-stats .platform-stat small { font-size: 10px; }
+.platform-page .platform-telegram-batch-stats .platform-stat strong { font-size: 19px; }
+.platform-page .platform-telegram-batch-stats .platform-stat-action-hint { font-size: 9px; }
+.platform-telegram-outbox-summary { display: flex; flex-wrap: wrap; gap: 8px 15px; padding-top: 13px; margin-top: 13px; border-top: 1px solid var(--line); }
+.platform-telegram-outbox-summary span { color: var(--muted); font-size: 11px; }
+.platform-telegram-outbox-summary b { margin-left: 4px; color: var(--text); font-size: 12px; }
+.platform-telegram-db-setup { display: grid; gap: 7px; padding: 13px; margin-top: 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); }
+.platform-telegram-db-setup strong { color: var(--text); font-size: 13px; }
+.platform-telegram-db-setup p,
+.platform-telegram-db-setup span { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.platform-telegram-db-setup code { display: block; padding: 7px 9px; border-radius: 8px; background: var(--surface); color: var(--text); font-size: 11px; overflow-wrap: anywhere; }
+.platform-telegram-queue-card { grid-column: 1 / -1; }
+.platform-telegram-filter-pills { display: flex; flex-wrap: wrap; gap: 7px; margin: 13px 0; }
+.platform-page .platform-telegram-filter-pills button { min-height: 34px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 800; cursor: pointer; }
+.platform-page .platform-telegram-filter-pills button.active { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-strong); }
+.platform-telegram-batch-list { display: grid; gap: 8px; }
+.platform-telegram-batch-row { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 13px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.platform-telegram-batch-row > div:first-child { min-width: 0; display: grid; gap: 4px; }
+.platform-telegram-batch-row strong { color: var(--text); font-size: 12px; }
+.platform-telegram-batch-row small { color: var(--muted); font-size: 11px; }
+.platform-telegram-batch-result { flex: 0 0 auto; display: grid; justify-items: end; gap: 4px; }
+.platform-telegram-batch-result small { max-width: 220px; color: #b34b4b; font-size: 10px; text-align: right; overflow-wrap: anywhere; }
+.platform-telegram-status-pending,
+.platform-telegram-status-processing { background: #fff6df; color: #93641a; }
+.platform-telegram-status-delivered { background: #e8f7ef; color: #167a4d; }
+.platform-telegram-status-partial { background: #fff0df; color: #a25a19; }
+.platform-telegram-status-failed { background: #ffeded; color: #b63c3c; }
+.platform-telegram-status-skipped { background: var(--surface); color: var(--muted); }
+.platform-panel-count { color: var(--muted); font-size: 12px; font-weight: 800; }
+
+@media (max-width: 900px) {
+  .platform-telegram-admin-grid { grid-template-columns: minmax(0, 1fr); }
+  .platform-telegram-queue-card { grid-column: auto; }
+}
+@media (max-width: 620px) {
+  .platform-page { width: min(100% - 20px, 1480px); }
+  .platform-page .platform-intro { align-items: flex-start; flex-direction: column; padding: 17px; }
+  .platform-refresh-wrap { width: 100%; justify-content: space-between; }
+  .platform-refresh-time { font-size: 10px; }
+  .platform-page .platform-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .platform-navigation-group { padding: 10px; }
+  .platform-page .platform-tabs button { min-height: 44px; padding: 8px 7px; font-size: 12px; }
+  .platform-page .platform-panel { padding: 16px; }
+  .platform-telegram-batch-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .platform-telegram-batch-row { align-items: flex-start; }
+  .platform-telegram-check-list > div { align-items: flex-start; }
+  .platform-telegram-actions > button { flex: 1 1 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .platform-page .platform-refresh-button svg { animation: none !important; transition: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .platform-page .platform-refresh-button.is-refreshing svg { animation: none; }
+}

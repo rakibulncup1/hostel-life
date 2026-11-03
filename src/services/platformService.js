@@ -467,6 +467,41 @@ export async function platformAdminUpdateNotificationSettings(telegramEnabled, b
   return firstRow(data) || data;
 }
 
+// Telegram diagnostics: the database RPC reads only aggregate delivery metadata.
+export async function platformAdminGetTelegramDeliveryHealth() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_telegram_delivery_health');
+  if (error) throw error;
+  return firstRow(data) || data || {};
+}
+
+export async function platformAdminListTelegramDeliveryBatches({ status = null, limit = 20, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_telegram_delivery_batches', {
+    p_status: status || null,
+    p_limit: Number(limit) || 20,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || { items: [], total_count: 0 };
+}
+
+async function invokeTelegramAdminAction(action) {
+  assertSupabase();
+  const { data, error } = await supabase.functions.invoke('telegram-bot-webhook', { body: { action } });
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.message || data?.code || 'Telegram Bot API অনুরোধ ব্যর্থ হয়েছে।');
+  return data;
+}
+
+export function platformAdminGetTelegramWebhookStatus() {
+  return invokeTelegramAdminAction('webhook_status');
+}
+
+export function platformAdminConfigureTelegramWebhook() {
+  return invokeTelegramAdminAction('configure_webhook');
+}
+
 export async function platformAdminSendTargetedMessage(hostelId, title, body, recipientUserIds = null) {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_send_targeted_message', {

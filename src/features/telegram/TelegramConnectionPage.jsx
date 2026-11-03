@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { TelegramLogo } from '../../components/TelegramLogo';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -10,6 +11,12 @@ import {
 } from '../../services/telegramService';
 import { confirmAction } from '../../utils/actionDialogs';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+
+function rememberConnectionStatus(next, userId) {
+  if (!userId) return;
+  const key = `hostel-life-telegram-connected-v1:${userId}`;
+  try { if (next?.connected) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch { /* Optional local reminder only. */ }
+}
 
 function formatDate(value) {
   if (!value) return '—';
@@ -31,16 +38,40 @@ export function TelegramConnectionPage() {
     try {
       const next = await getMyTelegramNotificationStatus();
       setStatus(next);
-      if (user?.id) {
-        const key = `hostel-life-telegram-connected-v1:${user.id}`;
-        try { if (next.connected) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch { /* Optional local reminder only. */ }
-      }
+      rememberConnectionStatus(next, user?.id);
     }
     catch (cause) { setError(getFriendlySupabaseError(cause, 'Telegram সংযোগের তথ্য আনা যায়নি।')); }
     finally { setLoading(false); }
   }, [user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // When the user returns from Telegram after pressing Start, silently refresh
+  // the authoritative connection state instead of requiring a manual reload.
+  useEffect(() => {
+    if (!link) return undefined;
+    let checking = false;
+    const refreshAfterTelegram = async () => {
+      if (document.visibilityState !== 'visible' || checking) return;
+      checking = true;
+      try {
+        const next = await getMyTelegramNotificationStatus();
+        setStatus(next);
+        rememberConnectionStatus(next, user?.id);
+        if (next.connected) {
+          setLink(null);
+          toast.success('আপনার Telegram অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে।');
+        }
+      } catch { /* Manual verification remains available when the network is unavailable. */ }
+      finally { checking = false; }
+    };
+    window.addEventListener('focus', refreshAfterTelegram);
+    document.addEventListener('visibilitychange', refreshAfterTelegram);
+    return () => {
+      window.removeEventListener('focus', refreshAfterTelegram);
+      document.removeEventListener('visibilitychange', refreshAfterTelegram);
+    };
+  }, [link?.token, user?.id, toast]);
 
   const connect = async () => {
     setBusy(true); setError(''); setLink(null);
@@ -54,10 +85,7 @@ export function TelegramConnectionPage() {
     try {
       const next = await getMyTelegramNotificationStatus();
       setStatus(next);
-      if (user?.id) {
-        const key = `hostel-life-telegram-connected-v1:${user.id}`;
-        try { if (next.connected) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch { /* Optional local reminder only. */ }
-      }
+      rememberConnectionStatus(next, user?.id);
       if (next.connected) { setLink(null); toast.success('আপনার Telegram অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে।'); }
       else toast.info('Telegram-এ Bot-এর Start বোতাম চাপার পর আবার যাচাই করুন।');
     } catch (cause) { setError(getFriendlySupabaseError(cause, 'সংযোগ যাচাই করা যায়নি।')); }
@@ -89,7 +117,7 @@ export function TelegramConnectionPage() {
 
       <section className="card telegram-connection-card">
         <div className="telegram-card-top">
-          <span className="telegram-brand-icon"><Icon name="send" size={25}/></span>
+          <span className="telegram-brand-icon"><TelegramLogo size={34}/></span>
           <div><span className="eyebrow">TELEGRAM</span><h2>{status?.connected ? 'আপনার Telegram যুক্ত আছে' : 'Telegram-এ নোটিফিকেশন নিন'}</h2></div>
           <span className={`telegram-state ${status?.connected ? 'is-connected' : 'is-offline'}`}>{status?.connected ? 'সংযুক্ত' : 'সংযুক্ত নয়'}</span>
         </div>
@@ -106,14 +134,14 @@ export function TelegramConnectionPage() {
             {status?.telegram_enabled ? <>
               <p>Telegram Bot-এর সঙ্গে যুক্ত হলে মেসের নোটিশ, ম্যানেজারের বার্তা এবং আপনার অ্যাকাউন্টের জন্য তৈরি অ্যাপ নোটিফিকেশন একই জায়গায় পাবেন। এটি ঐচ্ছিক; না চাইলে Hostel Life আগের মতোই ব্যবহার করতে পারবেন।</p>
               <div className="telegram-steps"><span><b>১</b> সংযোগ লিংক তৈরি করুন</span><span><b>২</b> Telegram-এ Bot খুলে <strong>Start</strong> চাপুন</span><span><b>৩</b> এখানে ফিরে সংযোগ যাচাই করুন</span></div>
-              <button type="button" className="primary-button telegram-connect-button" disabled={busy} onClick={connect}><Icon name="send" size={17}/> {busy ? 'তৈরি হচ্ছে...' : 'Telegram সংযোগ করুন'}</button>
+              <button type="button" className="primary-button telegram-connect-button" disabled={busy} onClick={connect}><TelegramLogo size={20}/> {busy ? 'তৈরি হচ্ছে...' : 'Telegram সংযোগ করুন'}</button>
             </> : <div className="telegram-unavailable"><Icon name="info" size={19}/><span>Telegram সংযোগ এখনো চালু করা হয়নি। Super Admin সেটআপ সম্পন্ন করলে এখানে সংযোগ করা যাবে।</span></div>}
           </div>
         )}
 
         {link && <div className="telegram-link-result">
           <div><strong>আপনার সংযোগ লিংক তৈরি হয়েছে</strong><small>লিংকটি ১০ মিনিটের মধ্যে ব্যবহার করুন। এটি একবারই কার্যকর।</small></div>
-          <a className="primary-button" href={link.url} target="_blank" rel="noopener noreferrer"><Icon name="external-link" size={16}/> Telegram খুলুন</a>
+          <a className="primary-button" href={link.url} target="_blank" rel="noopener noreferrer"><TelegramLogo size={19}/> Telegram খুলুন</a>
           <button type="button" className="secondary-button" onClick={copyLink}>লিংক কপি</button>
           <button type="button" className="text-button" disabled={busy} onClick={verify}>Start চাপার পর যাচাই করুন</button>
         </div>}

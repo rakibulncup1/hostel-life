@@ -2,18 +2,19 @@
 // 100 opted-in recipients from an existing inbox INSERT; there is no polling.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = 'hostel-life-telegram-dispatch-2';
+const VERSION = 'hostel-life-telegram-dispatch-3';
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type DeliveryStatus = 'delivered' | 'failed' | 'skipped';
 type DeliveryResult = { id: string; status: DeliveryStatus; attempts: number; code: string | null; disableUser?: string };
 
 function serverKey(): string {
-  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
-  if (legacy) return legacy;
   try {
     const parsed = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
-    return typeof parsed?.default === 'string' ? parsed.default.trim() : '';
-  } catch { return ''; }
+    if (typeof parsed?.default === 'string' && parsed.default.trim()) return parsed.default.trim();
+  } catch { /* Use the legacy key below when present. */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim()
+    || Deno.env.get('SUPABASE_SECRET_KEY')?.trim()
+    || '';
 }
 function json(body: Record<string, unknown>, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
