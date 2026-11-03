@@ -224,3 +224,94 @@
   .telegram-brand-icon { width: 48px; height: 48px; flex-basis: 48px; }
   .telegram-brand-icon svg { width: 32px; height: 32px; }
 }
+
+/* Published release notes: compact, branded changelog with verified markers. */
+.release-notice-actions { align-items: center; }
+.release-notice-actions .release-features-trigger { flex: 1 1 150px; justify-content: center; }
+.release-notice-actions .release-dismiss { flex: 0 0 auto; min-height: 42px; padding-inline: 10px; }
+.release-features-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 153;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(5, 15, 10, .58);
+  backdrop-filter: blur(6px);
+}
+.release-features-dialog {
+  position: relative;
+  width: min(100%, 510px);
+  max-height: min(84vh, 700px);
+  overflow: auto;
+  padding: clamp(22px, 4vw, 30px);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .3);
+}
+.release-features-dialog h2 { margin: 0 38px 18px 0; color: var(--text); font-size: clamp(20px, 4vw, 25px); font-weight: 900; line-height: 1.35; }
+.release-features-list { display: grid; gap: 9px; }
+.release-feature-row { display: grid; grid-template-columns: 26px minmax(0, 1fr); align-items: start; gap: 10px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.release-feature-row > span { display: grid; width: 23px; height: 23px; place-items: center; margin-top: 1px; border-radius: 50%; background: color-mix(in srgb, #16a34a 13%, var(--surface)); color: #16a34a; }
+.release-feature-row p { margin: 0; color: var(--text); font-size: 13px; font-weight: 650; line-height: 1.75; overflow-wrap: anywhere; white-space: pre-wrap; }
+.release-features-dialog .release-notice-actions { justify-content: flex-end; margin-top: 18px; }
+.release-features-dialog .release-notice-actions .primary-button { min-width: 135px; }
+
+/* Super Admin-published window/site notices use the same theme tokens as the app. */
+.platform-communication-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: grid;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom));
+  background: rgba(4, 12, 9, .55);
+  backdrop-filter: blur(6px);
+}
+.platform-communication-dialog {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  width: min(100%, 500px);
+  max-height: min(86svh, 760px);
+  overflow: auto;
+  padding: clamp(22px, 4.5vw, 30px);
+  border: 1px solid var(--line);
+  border-radius: 23px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, .3);
+}
+.platform-communication-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 23px;
+  cursor: pointer;
+}
+.platform-communication-icon { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 15px; background: var(--primary-soft); color: var(--primary-strong); }
+.platform-communication-icon.is-maintenance { background: color-mix(in srgb, #d97706 13%, var(--surface)); color: #b96b0a; }
+.platform-communication-dialog .eyebrow { color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .09em; }
+.platform-communication-dialog h2 { margin: -5px 38px 0 0; color: var(--text); font-size: clamp(19px, 4.5vw, 24px); font-weight: 900; line-height: 1.38; overflow-wrap: anywhere; }
+.platform-communication-dialog p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+.platform-communication-image { display: block; width: 100%; max-height: min(52svh, 430px); object-fit: contain; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); }
+.platform-communication-actions { display: flex; justify-content: flex-end; margin-top: 3px; }
+.platform-communication-actions .primary-button { min-width: 120px; justify-content: center; }
+@media (max-width: 520px) {
+  .release-features-backdrop { padding: 12px; }
+  .release-features-dialog { border-radius: 20px; padding: 21px 17px; }
+  .release-feature-row { padding: 11px; }
+  .release-feature-row p { font-size: 12px; }
+  .platform-communication-backdrop { padding-inline: 12px; }
+  .platform-communication-dialog { gap: 10px; padding: 21px 17px; border-radius: 20px; }
+}

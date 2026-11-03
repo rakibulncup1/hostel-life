@@ -14,8 +14,10 @@ import { useManagementContext } from '../hooks/useManagementContext';
 import { fetchNotifications, fetchPinnedManagerAnnouncement, markNotificationSeen } from '../services/notificationService';
 import { APP_RELEASE } from './release';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
-import { fetchPlatformPublicSettings } from '../services/platformService';
+import { fetchPlatformPublicSettings, PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT } from '../services/platformService';
 import { getMyTelegramNotificationStatus } from '../services/telegramService';
+import { TelegramLogo } from '../components/TelegramLogo';
+import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 
 export function keyToPath(key) {
   return `/app/${key}`;
@@ -63,6 +65,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [theme, setTheme] = useState(() => getThemePreference());
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
   const [releaseNoticeOpen, setReleaseNoticeOpen] = useState(false);
+  const [releaseFeaturesOpen, setReleaseFeaturesOpen] = useState(false);
   const [telegramNudgeOpen, setTelegramNudgeOpen] = useState(false);
   const [priorityMessages, setPriorityMessages] = useState([]);
   const priorityMessageIdsRef = useRef(new Set());
@@ -73,10 +76,13 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
 
   useEffect(() => {
     let active = true;
-    fetchPlatformPublicSettings().then((settings) => {
+    const loadSettings = (force = false) => fetchPlatformPublicSettings({ force }).then((settings) => {
       if (active) setPlatformSettings(settings || null);
     }).catch(() => { /* Older database deployments have no platform settings endpoint yet. */ });
-    return () => { active = false; };
+    loadSettings();
+    const refresh = () => { loadSettings(true); };
+    window.addEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refresh);
+    return () => { active = false; window.removeEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refresh); };
   }, [user?.id]);
 
   useEffect(() => {
@@ -99,31 +105,42 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
 
   useEffect(() => {
     if (!user?.id || !APP_RELEASE?.id) return;
-    const key = `hostel-life-last-seen-release-v1:${user.id}`;
-    let lastSeen = '';
-    let sessionSeen = '';
-    try { lastSeen = localStorage.getItem(key) || ''; } catch { /* session fallback below */ }
-    try { sessionSeen = sessionStorage.getItem(key) || ''; } catch { /* storage may be restricted */ }
-    if (lastSeen !== APP_RELEASE.id && sessionSeen === APP_RELEASE.id) lastSeen = sessionSeen;
-    if (!lastSeen) {
-      // First rollout of release notifications: show once to existing and new app users.
-      setReleaseNoticeOpen(true);
+    const deviceKey = 'hostel-life-device-last-seen-release-v2';
+    const legacyUserKey = `hostel-life-last-seen-release-v1:${user.id}`;
+    let lastDeviceRelease = '';
+    let legacyRelease = '';
+    try {
+      lastDeviceRelease = localStorage.getItem(deviceKey) || '';
+      legacyRelease = localStorage.getItem(legacyUserKey) || '';
+    } catch {
+      try { lastDeviceRelease = sessionStorage.getItem(deviceKey) || ''; legacyRelease = sessionStorage.getItem(legacyUserKey) || ''; }
+      catch { /* Without storage, avoid repeatedly interrupting a new device. */ }
+    }
+
+    // Migrate the old account-scoped marker when present. If neither marker exists,
+    // this is a first visit on this browser/device: record the current build silently.
+    if (!lastDeviceRelease && legacyRelease) lastDeviceRelease = legacyRelease;
+    if (!lastDeviceRelease) {
+      try { localStorage.setItem(deviceKey, APP_RELEASE.id); }
+      catch { try { sessionStorage.setItem(deviceKey, APP_RELEASE.id); } catch { /* best effort */ } }
       return;
     }
-    if (lastSeen !== APP_RELEASE.id) setReleaseNoticeOpen(true);
+    if (lastDeviceRelease !== APP_RELEASE.id) setReleaseNoticeOpen(true);
   }, [user?.id]);
 
-  const dismissReleaseNotice = () => {
-    const key = `hostel-life-last-seen-release-v1:${user?.id || 'session'}`;
+  const markReleaseSeen = () => {
+    const key = 'hostel-life-device-last-seen-release-v2';
     try { localStorage.setItem(key, APP_RELEASE.id); }
     catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* no persistent storage available */ } }
     setReleaseNoticeOpen(false);
+    setReleaseFeaturesOpen(false);
   };
 
+  const dismissReleaseNotice = markReleaseSeen;
+
   const refreshForRelease = () => {
-    const key = `hostel-life-last-seen-release-v1:${user?.id || 'session'}`;
-    try { localStorage.setItem(key, APP_RELEASE.id); }
-    catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* ignore */ } }
+    try { localStorage.setItem('hostel-life-device-last-seen-release-v2', APP_RELEASE.id); }
+    catch { try { sessionStorage.setItem('hostel-life-device-last-seen-release-v2', APP_RELEASE.id); } catch { /* ignore */ } }
     window.location.reload();
   };
 
@@ -147,37 +164,25 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     }
     if (telegramNudgeCheckedUserRef.current === user.id) return undefined;
     const dismissedKey = `hostel-life-telegram-nudge-v1:${user.id}`;
-    const connectedKey = `hostel-life-telegram-connected-v1:${user.id}`;
     let dismissed = false;
-    let locallyConnected = false;
-    try { dismissed = localStorage.getItem(dismissedKey) === '1'; locallyConnected = localStorage.getItem(connectedKey) === '1'; }
-    catch {
-      try { dismissed = sessionStorage.getItem(dismissedKey) === '1'; locallyConnected = sessionStorage.getItem(connectedKey) === '1'; }
-      catch { /* Session storage may also be restricted. */ }
-    }
-    if (dismissed || locallyConnected) {
+    try { dismissed = localStorage.getItem(dismissedKey) === '1'; }
+    catch { try { dismissed = sessionStorage.getItem(dismissedKey) === '1'; } catch { /* best effort */ } }
+    if (dismissed) {
       telegramNudgeCheckedUserRef.current = user.id;
       return undefined;
     }
 
-    // One private status check prevents prompting an account that was already
-    // linked from another device. It runs once per eligible app session, never polls.
+    // Server status is authoritative. On a status/RPC failure, fail closed and do
+    // not interrupt a user who may already be linked on another device.
     telegramNudgeCheckedUserRef.current = user.id;
     let cancelled = false;
     let timer = null;
-    const schedulePrompt = () => {
-      if (!cancelled) timer = window.setTimeout(() => setTelegramNudgeOpen(true), 900);
-    };
     getMyTelegramNotificationStatus()
       .then((status) => {
-        if (cancelled) return;
-        if (status?.connected) {
-          try { localStorage.setItem(connectedKey, '1'); } catch { /* Status remains authoritative for this session. */ }
-          return;
-        }
-        schedulePrompt();
+        if (cancelled || status?.telegram_enabled !== true || status?.connected !== false) return;
+        timer = window.setTimeout(() => { if (!cancelled) setTelegramNudgeOpen(true); }, 900);
       })
-      .catch(() => schedulePrompt());
+      .catch(() => { /* Keep the app quiet when the account connection state is unknown. */ });
     return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
   }, [user?.id, membership?.hostel_id, platformSettings?.telegram_enabled, releaseNoticeOpen, installNudgeOpen, priorityMessages.length]);
 
@@ -452,11 +457,11 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       {telegramNudgeOpen && <div className="telegram-nudge-backdrop" role="presentation">
         <section className="telegram-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="telegram-nudge-title">
           <button type="button" className="release-notice-close" onClick={dismissTelegramNudge} aria-label="বন্ধ করুন">×</button>
-          <span className="telegram-nudge-icon"><Icon name="send" size={21}/></span>
-          <span className="eyebrow">OPTIONAL · TELEGRAM NOTIFICATION</span>
-          <h2 id="telegram-nudge-title">গুরুত্বপূর্ণ নোটিশ Telegram-এ পান</h2>
-          <p>মেসের নোটিশ, ম্যানেজারের বার্তা এবং আপনার জন্য পাঠানো গুরুত্বপূর্ণ অ্যাপ নোটিফিকেশন সরাসরি Telegram-এ পেতে Hostel Life Bot-এর সঙ্গে সংযোগ করুন। এটি ঐচ্ছিক; পরে যেকোনো সময় বিচ্ছিন্ন করতে পারবেন।</p>
-          <div className="telegram-nudge-actions"><button type="button" className="primary-button" onClick={openTelegramSettings}>Telegram সংযোগ করুন</button><button type="button" className="secondary-button" onClick={dismissTelegramNudge}>পরে করব</button></div>
+          <span className="telegram-nudge-icon"><TelegramLogo size={30} /></span>
+          <span className="eyebrow">HOSTEL LIFE · বিজ্ঞপ্তি</span>
+          <h2 id="telegram-nudge-title">টেলিগ্রামে নোটিশ পান</h2>
+          <p>মেসের গুরুত্বপূর্ণ নোটিশ সরাসরি টেলিগ্রামে পেতে সংযোগ করুন। এটি ঐচ্ছিক।</p>
+          <div className="telegram-nudge-actions"><button type="button" className="primary-button" onClick={openTelegramSettings}>টেলিগ্রাম সংযোগ করুন</button><button type="button" className="secondary-button" onClick={dismissTelegramNudge}>পরে করব</button></div>
         </section>
       </div>}
 
@@ -464,11 +469,11 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         <section className="release-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notice-title">
           <button type="button" className="release-notice-close" onClick={dismissReleaseNotice} aria-label="বন্ধ করুন">×</button>
           <span className="release-notice-icon"><Icon name="refresh-cw" size={20}/></span>
-          <span className="eyebrow">HOSTEL LIFE · SYSTEM UPDATE</span>
+          <span className="eyebrow">HOSTEL LIFE · নতুন সংস্করণ</span>
           <h2 id="release-notice-title">সিস্টেম আপডেট হয়েছে</h2>
-          <p>Hostel Life-এর নতুন সংস্করণ প্রকাশ করা হয়েছে। সর্বশেষ সুবিধা পেতে একবার রিফ্রেশ করুন।</p>
+          <p>নতুন সংস্করণ ব্যবহার করতে একবার রিফ্রেশ করুন।</p>
           <small>আপডেটের সময়: {new Date(APP_RELEASE.builtAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small>
-          <div className="release-notice-actions"><button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button><button type="button" className="secondary-button" onClick={dismissReleaseNotice}>পরে</button></div>
+          <div className="release-notice-actions"><button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button>{platformSettings?.communications?.release_notes_published && (platformSettings?.communications?.release_notes || []).length > 0 && <button type="button" className="secondary-button release-features-trigger" onClick={() => setReleaseFeaturesOpen(true)}>নতুন ফিচারসমূহ</button>}<button type="button" className="text-button release-dismiss" onClick={dismissReleaseNotice}>পরে করব</button></div>
         </section>
       </div>}
 
@@ -482,6 +487,22 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
           <div className="priority-message-actions"><button type="button" className="primary-button" onClick={dismissPriorityMessage}>বুঝেছি</button></div>
         </section>
       </div>}
+
+      {releaseFeaturesOpen && <div className="release-features-backdrop" role="presentation">
+        <section className="release-features-dialog" role="dialog" aria-modal="true" aria-labelledby="release-features-title">
+          <button type="button" className="release-notice-close" onClick={() => setReleaseFeaturesOpen(false)} aria-label="বন্ধ করুন">×</button>
+          <span className="release-notice-icon"><Icon name="sparkles" size={21}/></span>
+          <span className="eyebrow">HOSTEL LIFE · আপডেট</span>
+          <h2 id="release-features-title">নতুন ফিচারসমূহ</h2>
+          <div className="release-features-list">{(platformSettings?.communications?.release_notes || []).map((feature, index) => <article className="release-feature-row" key={`${index}-${feature}`}><span><Icon name="check-circle" size={17}/></span><p>{feature}</p></article>)}</div>
+          <div className="release-notice-actions"><button type="button" className="primary-button" onClick={() => setReleaseFeaturesOpen(false)}>ফিরে যান</button></div>
+        </section>
+      </div>}
+
+      <PlatformCommunicationOverlays
+        communications={platformSettings?.communications}
+        blocked={releaseNoticeOpen || releaseFeaturesOpen || installNudgeOpen || telegramNudgeOpen || priorityMessages.length > 0}
+      />
     </div>
   );
 }

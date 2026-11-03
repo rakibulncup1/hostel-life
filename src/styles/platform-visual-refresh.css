@@ -523,3 +523,57 @@
 @media (prefers-reduced-motion: reduce) {
   .platform-page .platform-refresh-button.is-refreshing svg { animation: none; }
 }
+
+/* Communications center: one compact form for release notes and timed notices. */
+.platform-communications-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; }
+.platform-communications-card { min-width: 0; display: grid; align-content: start; gap: 14px; }
+.platform-communications-card:first-child { grid-column: 1 / -1; }
+.platform-communications-card .platform-panel-heading { align-items: flex-start; gap: 12px; }
+.platform-communications-card .platform-panel-heading p { max-width: 62ch; }
+.platform-communications-card .field-label { display: grid; gap: 7px; min-width: 0; }
+.platform-communications-card textarea,
+.platform-communications-card input:not([type="checkbox"]),
+.platform-communications-card select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.platform-communications-card textarea { min-height: 170px; padding: 12px; resize: vertical; line-height: 1.75; }
+.platform-communications-card input:not([type="checkbox"]),
+.platform-communications-card select { min-height: 43px; padding: 9px 10px; }
+.platform-communications-card textarea:focus-visible,
+.platform-communications-card input:focus-visible,
+.platform-communications-card select:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 18%, transparent); border-color: var(--primary); }
+.platform-communications-count { justify-self: end; color: var(--muted); font-size: 11px; }
+.platform-communications-date-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.platform-communications-date-grid .platform-field { min-width: 0; }
+.platform-communications-image-editor { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.platform-communications-image-editor > img { width: 100%; max-height: 230px; object-fit: contain; border-radius: 10px; background: var(--surface); }
+.platform-communications-image-editor > small { color: var(--muted); font-size: 11px; line-height: 1.65; }
+.platform-communications-image-placeholder { display: grid; min-height: 130px; place-items: center; align-content: center; gap: 8px; border: 1px dashed var(--line); border-radius: 11px; color: var(--muted); font-size: 11px; }
+.platform-communications-image-editor .secondary-button { justify-content: center; }
+.platform-communications-grid .platform-settings-footer { grid-column: 1 / -1; }
+.platform-member-channels { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 2px; }
+.platform-member-channel-link,
+.platform-member-channel-state,
+.platform-member-channel-muted { display: inline-flex; min-height: 25px; align-items: center; gap: 5px; width: fit-content; padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 10px; font-weight: 750; line-height: 1.3; text-decoration: none; }
+.platform-member-channel-link:hover { border-color: var(--primary); color: var(--primary-strong); }
+.platform-member-channel-link.whatsapp { border-color: color-mix(in srgb, #16a34a 25%, var(--line)); color: #168044; }
+.platform-member-channel-link.telegram { color: var(--primary-strong); }
+.platform-member-channel-state.connected { border-color: color-mix(in srgb, #16a34a 25%, var(--line)); background: color-mix(in srgb, #16a34a 8%, var(--surface)); color: #168044; }
+.platform-member-channel-state svg { flex: 0 0 auto; }
+@media (max-width: 760px) {
+  .platform-communications-grid { grid-template-columns: minmax(0, 1fr); }
+  .platform-communications-card:first-child,
+  .platform-communications-grid .platform-settings-footer { grid-column: auto; }
+}
+@media (max-width: 520px) {
+  .platform-communications-date-grid { grid-template-columns: minmax(0, 1fr); }
+  .platform-communications-card { padding: 14px; }
+  .platform-member-channels { gap: 6px; }
+}

@@ -77,11 +77,11 @@ test('Telegram linking is optional, authenticated, one-time and stores only a to
   assert.match(migration, /REVOKE ALL ON public\.notification_link_tokens FROM PUBLIC, anon, authenticated/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.complete_telegram_notification_link\(text,text,text,text\) FROM PUBLIC, anon, authenticated/);
   assert.match(migration, /IF auth\.role\(\) <> 'service_role'/);
-  assert.match(telegramPage, /Telegram সংযোগ করুন/);
+  assert.match(telegramPage, /টেলিগ্রাম সংযোগ করুন/);
   assert.match(telegramPage, /সংযোগ বিচ্ছিন্ন/);
   assert.match(telegramService, /create_my_telegram_link/);
   assert.doesNotMatch(telegramPage, /SUPABASE_SERVICE_ROLE_KEY|user_notification_channels|password/i);
-  assert.match(shell, /Telegram সংযোগ করুন/);
+  assert.match(shell, /টেলিগ্রাম সংযোগ করুন/);
   assert.match(shell, /hostel-life-telegram-nudge-v1/);
 });
 
@@ -92,8 +92,8 @@ test('Telegram first-time prompt waits behind release, install and priority dial
   assert.match(shell, /getMyTelegramNotificationStatus\(\)/);
   assert.match(shell, /status\?\.connected/);
   assert.match(shell, /releaseNoticeOpen \|\| installNudgeOpen \|\| priorityMessages\.length > 0/);
-  assert.match(shell, /hostel-life-telegram-connected-v1/);
-  assert.match(telegramPage, /hostel-life-telegram-connected-v1/);
+  assert.match(shell, /status\?\.connected !== false/);
+  assert.match(telegramPage, /status\?\.connected/);
   assert.match(shell, /পরে করব/);
   assert.match(css, /\.telegram-nudge-dialog/);
 });
@@ -162,8 +162,8 @@ test('manager pinned notice behavior is preserved and tagged for the shared noti
 });
 
 test('privacy policy explains Telegram identity data and how to disconnect', () => {
-  assert.match(privacy, /ঐচ্ছিক Telegram সংযোগ/);
-  assert.match(privacy, /Telegram Chat ID/);
-  assert.match(privacy, /নোটিফিকেশনের শিরোনাম ও বার্তার লেখা সংযুক্ত Telegram অ্যাকাউন্টে পাঠানো হয়/);
+  assert.match(privacy, /ঐচ্ছিক টেলিগ্রাম সংযোগ/);
+  assert.match(privacy, /টেলিগ্রাম চ্যাট আইডি/);
+  assert.match(privacy, /বিজ্ঞপ্তির শিরোনাম ও বার্তার লেখা সংযুক্ত টেলিগ্রাম অ্যাকাউন্টে পাঠানো হয়/);
   assert.match(privacy, /যেকোনো সময় বিচ্ছিন্ন/);
 });

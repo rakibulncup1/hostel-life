@@ -15,7 +15,7 @@ export async function createMyTelegramLink() {
   assertSupabase();
   const { data, error } = await supabase.rpc('create_my_telegram_link');
   if (error) throw error;
-  if (!data?.token || !data?.bot_username) throw new Error('Telegram সংযোগ লিংক তৈরি করা যায়নি।');
+  if (!data?.token || !data?.bot_username) throw new Error('টেলিগ্রাম সংযোগ লিংক তৈরি করা যায়নি।');
   return { ...data, url: `https://t.me/${data.bot_username}?start=${data.token}` };
 }
 

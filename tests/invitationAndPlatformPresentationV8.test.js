@@ -102,7 +102,7 @@ test('Super Admin separates system configuration from monitoring navigation', ()
   assert.match(superAdmin, /platform-navigation-group/);
   assert.match(superAdmin, /platform-main-tabs/);
   assert.match(superAdmin, /platform-config-tabs/);
-  for (const key of ["\['settings','Global Notice'\]", "\['developer','Developer Info'\]", "\['appearance','App Theme'\]", "\['sessions','Session Security'\]"]) {
+  for (const key of ["['settings','গ্লোবাল নোটিশ']", "['developer','ডেভেলপার তথ্য']", "['appearance','অ্যাপের থিম']", "['sessions','সেশন নিরাপত্তা']", "['communications','আপডেট ও বিজ্ঞপ্তি']"]) {
     assert.ok(superAdmin.includes(key), `Missing independent setting tab ${key}`);
   }
   for (const marker of ['platform-settings-intro', 'গ্লোবাল নোটিশ', 'ডেভেলপার ও সহায়তা তথ্য', 'অ্যাপের ডিফল্ট থিম', 'Session নিরাপত্তা']) {

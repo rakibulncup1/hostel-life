@@ -17,9 +17,10 @@ import { HostelInvitePage } from '../features/invites/HostelInvitePage';
 import { getPendingHostelLinkToken } from '../utils/pendingHostelLink';
 import { AppDownloadPage } from '../features/menu/AppDownloadPage';
 import { TelegramConnectionPage } from '../features/telegram/TelegramConnectionPage';
-import { fetchPlatformPublicSettings } from '../services/platformService';
+import { fetchPlatformPublicSettings, PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT } from '../services/platformService';
 import { THEME_KEY, THEME_VALUES, applyPlatformDefaultTheme } from './theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { useAuth } from '../contexts/AuthContext';
 
 function getPath() {
@@ -66,6 +67,7 @@ function resolveAppPage(pathname, isManager) {
 
 export function App() {
   const [pathname, setPathname] = useState(getPath);
+  const [publicSettings, setPublicSettings] = useState(null);
   const auth = useAuth();
 
   useEffect(() => {
@@ -76,16 +78,23 @@ export function App() {
 
   useEffect(() => {
     let active = true;
-    try {
-      const savedTheme = window.localStorage.getItem(THEME_KEY);
-      if (THEME_VALUES.includes(savedTheme)) return () => { active = false; };
-    } catch { /* Continue to server default when storage access is restricted. */ }
-    fetchPlatformPublicSettings().then((settings) => {
+    let hasExplicitTheme = false;
+    try { hasExplicitTheme = THEME_VALUES.includes(window.localStorage.getItem(THEME_KEY)); }
+    catch { /* Browser storage may be restricted; use the platform default if available. */ }
+    const loadSettings = (force = false) => fetchPlatformPublicSettings({ force }).then((settings) => {
       if (!active) return;
-      if (THEME_VALUES.includes(settings?.default_theme)) applyPlatformDefaultTheme(settings.default_theme);
-    }).catch(() => { /* Keep the safe dark fallback on older or unavailable deployments. */ });
-    return () => { active = false; };
+      setPublicSettings(settings || null);
+      if (!hasExplicitTheme && THEME_VALUES.includes(settings?.default_theme)) {
+        applyPlatformDefaultTheme(settings.default_theme);
+      }
+    }).catch(() => { /* Keep the safe local theme and continue without platform notices. */ });
+    loadSettings();
+    const refresh = () => { loadSettings(true); };
+    window.addEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refresh);
+    return () => { active = false; window.removeEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refresh); };
   }, []);
+
+  const withPublicCommunications = (content) => <>{content}<PlatformCommunicationOverlays communications={publicSettings?.communications} /></>;
 
   useEffect(() => {
     if (auth.authLoading || auth.user?.app_metadata?.must_change_password) return;
@@ -158,7 +167,7 @@ export function App() {
     else if (pathname.includes('/menu/terms')) title = 'Hostel Life — ব্যবহারের শর্তাবলী';
     else if (pathname.includes('/menu/how-to-use')) title = 'Hostel Life — কীভাবে ব্যবহার করব';
     else if (pathname.includes('/menu/app-download')) title = 'Hostel Life — অ্যাপ ডাউনলোড';
-    else if (pathname.includes('/menu/telegram')) title = 'Hostel Life — Telegram সংযোগ';
+    else if (pathname.includes('/menu/telegram')) title = 'Hostel Life — টেলিগ্রাম সংযোগ';
     else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
     else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
@@ -178,36 +187,36 @@ export function App() {
     document.title = title;
   }, [pathname]);
 
-  if (!auth.authLoading && auth.isAuthenticated && auth.user?.app_metadata?.must_change_password) return <ForcedPasswordChange />;
+  if (!auth.authLoading && auth.isAuthenticated && auth.user?.app_metadata?.must_change_password) return withPublicCommunications(<ForcedPasswordChange />);
 
   if (pathname.startsWith('/auth/') || pathname === '/auth') {
     if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.authLoading) {
-      if (auth.identityLoading) return <LoadingSpinner label="অ্যাকাউন্ট যাচাই হচ্ছে..." />;
+      if (auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="অ্যাকাউন্ট যাচাই হচ্ছে..." />);
     }
-    return <AuthPage pathname={pathname === '/auth' ? '/auth/login' : pathname} />;
+    return withPublicCommunications(<AuthPage pathname={pathname === '/auth' ? '/auth/login' : pathname} />);
   }
 
-  if (auth.authLoading) return <LoadingSpinner label="সেশন যাচাই হচ্ছে..." />;
+  if (auth.authLoading) return withPublicCommunications(<LoadingSpinner label="সেশন যাচাই হচ্ছে..." />);
 
   if (pathname.startsWith('/invite/')) {
-    return <HostelInvitePage pathname={pathname} />;
+    return withPublicCommunications(<HostelInvitePage pathname={pathname} />);
   }
 
-  if (!auth.isAuthenticated) return <AuthPage pathname="/auth/login" />;
+  if (!auth.isAuthenticated) return withPublicCommunications(<AuthPage pathname="/auth/login" />);
 
-  if (pathname === '/super-admin') return <SuperAdminPage user={auth.user} />;
+  if (pathname === '/super-admin') return withPublicCommunications(<SuperAdminPage user={auth.user} />);
 
-  if (auth.identityLoading) return <LoadingSpinner label="আপনার মেসের তথ্য লোড হচ্ছে..." />;
+  if (auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="আপনার মেসের তথ্য লোড হচ্ছে..." />);
 
-  if (auth.identityError) return <IdentityErrorPage />;
+  if (auth.identityError) return withPublicCommunications(<IdentityErrorPage />);
 
   if (pathname.startsWith('/account/inactive') || auth.membership?.status === 'inactive') {
-    return <InactiveMembershipPage />;
+    return withPublicCommunications(<InactiveMembershipPage />);
   }
 
-  if (!auth.membership) return <OnboardingPage />;
+  if (!auth.membership) return withPublicCommunications(<OnboardingPage />);
 
-  if (pathname.startsWith('/onboarding')) return <OnboardingPage />;
+  if (pathname.startsWith('/onboarding')) return withPublicCommunications(<OnboardingPage />);
 
   return (
     <AppShell

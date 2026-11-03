@@ -1,4 +1,5 @@
 import { Icon } from './Icon';
+import { TelegramLogo } from './TelegramLogo';
 
 const commonItems = [
   { key: 'meal-sheet', label: 'মিল শিট', icon: 'history' },
@@ -16,7 +17,7 @@ const systemItems = [
   { key: 'terms', label: 'ব্যবহারের শর্তাবলী', icon: 'file' },
   { key: 'how-to-use', label: 'কীভাবে ব্যবহার করব', icon: 'book' },
   { key: 'app-download', label: 'অ্যাপ ডাউনলোড', icon: 'smartphone' },
-  { key: 'telegram', label: 'Telegram সংযোগ', icon: 'send' },
+  { key: 'telegram', label: 'টেলিগ্রাম সংযোগ', icon: 'send' },
   { key: 'developer', label: 'হেল্প', icon: 'user' },
 ];
 
@@ -75,7 +76,7 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
           <div className="menu-group-title">সাধারণ</div>
           {commonItems.filter((item) => !(effectiveOperationalManager && item.key === 'khala-money-view')).map((item) => (
             <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
-              <span className="menu-row-icon"><Icon name={item.icon} size={18} /></span>
+              <span className="menu-row-icon">{item.key === 'telegram' ? <TelegramLogo size={18} monochrome /> : <Icon name={item.icon} size={18} />}</span>
               <span>{item.label}</span>
               <Icon name="chevron" size={16} className="menu-chevron" />
             </button>
@@ -86,7 +87,7 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
           <div className="menu-group-title">সিস্টেম তথ্য</div>
           {systemItems.map((item) => (
             <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
-              <span className="menu-row-icon"><Icon name={item.icon} size={18} /></span>
+              <span className="menu-row-icon">{item.key === 'telegram' ? <TelegramLogo size={18} monochrome /> : <Icon name={item.icon} size={18} />}</span>
               <span>{item.label}</span>
               <Icon name="chevron" size={16} className="menu-chevron" />
             </button>

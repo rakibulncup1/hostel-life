@@ -293,3 +293,47 @@
   .manager-join-request-panel *,
   .hostel-invite-card * { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Minimal share panel after creating a hostel. */
+.onboarding-shell-success { width: min(760px, 100%); }
+.onboarding-shell-success .onboarding-brand-header { padding-bottom: 13px; }
+.onboarding-shell-success .onboarding-brand-header p { max-width: 46ch; }
+.creation-success-card { display: grid; gap: 13px; }
+.creation-success-card > h2 { margin: -5px 0 0; color: var(--text); font-size: clamp(19px, 3vw, 24px); line-height: 1.4; overflow-wrap: anywhere; }
+.onboarding-share-card { display: grid; gap: 11px; min-width: 0; padding: 15px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); color: var(--text); }
+.onboarding-share-card > div:first-child { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.onboarding-share-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 12px; background: var(--primary-soft); color: var(--primary-strong); }
+.onboarding-share-card > div:first-child > div { display: grid; gap: 2px; min-width: 0; }
+.onboarding-share-card strong { color: var(--text); font-size: 13px; font-weight: 850; }
+.onboarding-share-card small { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.onboarding-share-card > code { display: block; width: fit-content; max-width: 100%; padding: 8px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--text); font-size: 15px; font-weight: 850; letter-spacing: .08em; overflow-wrap: anywhere; }
+.onboarding-invite-url { max-width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.onboarding-share-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.onboarding-share-actions > button { flex: 1 1 120px; min-height: 40px; justify-content: center; }
+.onboarding-shell-success .onboarding-switch-account { justify-self: center; }
+.onboarding-main-card .onboarding-switch-account { color: var(--muted); }
+/* Force all entry copy and fields to use the currently selected theme tokens. */
+.auth-page .auth-brand-panel,
+.auth-page .auth-form-panel,
+.onboarding-page .onboarding-main-card,
+.hostel-invite-page .hostel-invite-card { color: var(--text); }
+.auth-page .auth-form-panel .auth-header h2,
+.auth-page .auth-brand-panel h1,
+.onboarding-page .onboarding-brand-header h1,
+.onboarding-page .onboarding-choice-intro h2,
+.onboarding-page .onboarding-action-heading h3,
+.hostel-invite-page .hostel-invite-card h1 { color: var(--text) !important; }
+.auth-page .auth-form-panel .auth-header p,
+.auth-page .auth-brand-panel p,
+.onboarding-page .onboarding-brand-header p,
+.onboarding-page .onboarding-choice-intro p,
+.onboarding-page .onboarding-action-heading p,
+.hostel-invite-page .hostel-invite-lead { color: var(--muted) !important; }
+.auth-page .auth-form-panel .field-label,
+.auth-page .auth-form-panel .field-label > span,
+.onboarding-page .onboarding-entry-form .field-label { color: var(--text) !important; }
+@media (max-width: 560px) {
+  .onboarding-share-card { padding: 12px; }
+  .onboarding-share-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .onboarding-share-actions > button { min-width: 0; padding-inline: 8px; font-size: 11px; }
+}

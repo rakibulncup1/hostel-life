@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
 
+export const PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT = 'hostel-life-platform-settings-updated';
+
 let publicSettingsCache = null;
 let publicSettingsCachedAt = 0;
 let publicSettingsInFlight = null;
@@ -23,6 +25,18 @@ export async function fetchPlatformPublicSettings({ force = false } = {}) {
     const { data, error } = await supabase.rpc('get_platform_public_settings');
     if (error) throw error;
     publicSettingsCache = firstRow(data) || {};
+    const imagePath = publicSettingsCache?.communications?.site_notice?.image_path;
+    if (imagePath && supabase?.storage) {
+      const { data: imageData } = supabase.storage.from('developer-assets').getPublicUrl(imagePath);
+      const imageVersion = publicSettingsCache?.communications?.site_notice?.image_updated_at || publicSettingsCache?.communications?.site_notice?.revision || 'current';
+      publicSettingsCache = {
+        ...publicSettingsCache,
+        communications: {
+          ...publicSettingsCache.communications,
+          site_notice: { ...publicSettingsCache.communications.site_notice, image_url: imageData?.publicUrl ? `${imageData.publicUrl}?v=${encodeURIComponent(imageVersion)}` : '' },
+        },
+      };
+    }
     publicSettingsCachedAt = Date.now();
     return publicSettingsCache;
   })();
@@ -200,6 +214,74 @@ export async function uploadDeveloperPhoto(userId, file) {
   if (error) throw error;
   const { data } = supabase.storage.from('developer-assets').getPublicUrl(path);
   if (!data?.publicUrl) throw new Error('ছবির URL তৈরি করা যায়নি।');
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
+
+export async function platformAdminGetCommunications() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_communications');
+  if (error) throw error;
+  const row = firstRow(data) || {};
+  if (row.site_notice_image_path) {
+    const { data: imageData } = supabase.storage.from('developer-assets').getPublicUrl(row.site_notice_image_path);
+    const imageVersion = row.site_notice_image_updated_at || row.site_notice_revision || 'current';
+    row.site_notice_image_url = imageData?.publicUrl ? `${imageData.publicUrl}?v=${encodeURIComponent(imageVersion)}` : '';
+  }
+  return row;
+}
+
+export async function platformAdminSaveCommunications(payload) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_save_communications', { p_payload: payload });
+  if (error) throw error;
+  invalidatePlatformPublicSettingsCache();
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT));
+  return firstRow(data) || data;
+}
+
+export async function uploadPlatformNoticeImage(userId, file) {
+  assertSupabase();
+  if (!userId) throw new Error('অ্যাডমিন পরিচয় পাওয়া যায়নি।');
+  if (typeof File === 'undefined' || !(file instanceof File) || !/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+    throw new Error('শুধু JPG, PNG বা WEBP ছবি ব্যবহার করুন।');
+  }
+  if (file.size > 5 * 1024 * 1024) throw new Error('ছবির আকার ৫ MB-এর কম হতে হবে।');
+
+  const objectUrl = URL.createObjectURL(file);
+  let blob;
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('ছবিটি পড়া যায়নি।'));
+      element.src = objectUrl;
+    });
+    const scale = Math.min(1, 1800 / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    const context = canvas.getContext('2d', { alpha: false });
+    if (!context) throw new Error('ছবি প্রস্তুত করা যায়নি।');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    blob = await new Promise((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('ছবি সংকুচিত করা যায়নি।')), 'image/jpeg', 0.84));
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+  if (blob.size > 3 * 1024 * 1024) throw new Error('ছবিটি সংকুচিত করার পরও বড়। ছোট ছবি ব্যবহার করুন।');
+
+  const path = 'platform-communications/maintenance-banner.jpg';
+  const { error } = await supabase.storage.from('developer-assets').upload(path, blob, {
+    upsert: true,
+    contentType: 'image/jpeg',
+    cacheControl: '60',
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from('developer-assets').getPublicUrl(path);
+  if (!data?.publicUrl) throw new Error('ব্যানার ছবির ঠিকানা তৈরি করা যায়নি।');
+  invalidatePlatformPublicSettingsCache();
   return `${data.publicUrl}?v=${Date.now()}`;
 }
 

@@ -35,7 +35,7 @@ test('onboarding offers two compact choices and renders only the selected form',
   assert.match(onboarding, /aria-pressed=\{mode === 'join'\}/);
   assert.match(onboarding, /aria-pressed=\{mode === 'create'\}/);
   assert.match(onboarding, /mode === 'join' \? \(/);
-  assert.match(onboarding, /mode === 'join' \? 'Join Code দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'/);
+  assert.match(onboarding, /mode === 'join' \? 'আগে থেকে থাকা মেসে যোগ দিন' : 'নতুন মেস তৈরি'/);
   assert.doesNotMatch(onboarding, /function SetupCard/);
   assert.match(css, /\.onboarding-mode-picker/);
   assert.match(css, /\.onboarding-action-panel/);

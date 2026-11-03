@@ -24,6 +24,7 @@ import {
   platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminCheckSecurityTelemetry,
   platformAdminGetNotificationSettings, platformAdminUpdateNotificationSettings, platformAdminSendTargetedMessage,
   platformAdminGetTelegramDeliveryHealth, platformAdminListTelegramDeliveryBatches, platformAdminGetTelegramWebhookStatus, platformAdminConfigureTelegramWebhook,
+  platformAdminGetCommunications, platformAdminSaveCommunications, uploadPlatformNoticeImage,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -31,6 +32,13 @@ const EMPTY_SETTINGS = {
   registration_code_required: false, hostel_creation_code_required: false,
   developer_name: '', developer_title: '', developer_photo_url: '', developer_email: '',
   developer_phone: '', developer_portfolio_url: '', default_theme: 'dark', max_devices_per_user: 10, session_timeout_minutes: 0,
+};
+
+const EMPTY_COMMUNICATION_DRAFT = {
+  release_notes_text: '',
+  release_notes_published: false,
+  window_notice: { enabled: false, title: '', body: '', starts_at: '', ends_at: '', frequency: 'once_per_device' },
+  site_notice: { enabled: false, mode: 'message', title: '', body: '', starts_at: '', ends_at: '', frequency: 'once_per_device' },
 };
 const errorText = (error, fallback) => /platform_admin_|get_platform_public_settings|function .* does not exist|schema cache/i.test(String(error?.message || ''))
   ? 'Super Admin SQL এখনো প্রয়োগ করা হয়নি। প্রথমে প্রয়োজনীয় Super Admin SQL Migration চালিয়ে schema reload হওয়া পর্যন্ত অপেক্ষা করুন।'
@@ -53,8 +61,8 @@ async function edgeInvokeErrorText(error) {
   const base = detail || error?.message || raw || 'Edge Function অনুরোধ ব্যর্থ হয়েছে।';
   const diagnostics = [];
   if (payload?.stage) diagnostics.push(`ধাপ: ${payload.stage}`);
-  if (payload?.upstream_http_status) diagnostics.push(`Telegram HTTP: ${payload.upstream_http_status}`);
-  if (payload?.telegram_error_code) diagnostics.push(`Telegram Error Code: ${payload.telegram_error_code}`);
+  if (payload?.upstream_http_status) diagnostics.push(`টেলিগ্রাম HTTP:  ${payload.upstream_http_status}`);
+  if (payload?.telegram_error_code) diagnostics.push(`টেলিগ্রাম ত্রুটি কোড: ${payload.telegram_error_code}`);
   if (payload?.kind === 'telegram_network') diagnostics.push('ধরন: Network/Timeout');
   if (payload?.hint) diagnostics.push(payload.hint);
   if (Array.isArray(payload?.missing) && payload.missing.length) diagnostics.push(`অনুপস্থিত Configuration: ${payload.missing.join(', ')}`);
@@ -153,7 +161,7 @@ function fromDhakaDateTimeInput(value) {
   return new Date(timestamp);
 }
 function presenceLabel(member) {
-  if (!member?.last_seen_at) return 'এখনো Last Seen রেকর্ড হয়নি';
+  if (!member?.last_seen_at) return 'সক্রিয়তার তথ্য নেই';
   return member.is_online ? 'সাম্প্রতিক সক্রিয়' : 'এখন সক্রিয় নয়';
 }
 const ACTIVITY_EVENT_LABELS = {
@@ -243,6 +251,50 @@ function formatReportCurrency(value) {
   return Number.isFinite(numeric) ? `৳${numeric.toLocaleString('bn-BD', { maximumFractionDigits: 2 })}` : '—';
 }
 
+function toWhatsAppUrl(phone) {
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 11 && digits.startsWith('0')) digits = `88${digits}`;
+  if (digits.length < 10 || digits.length > 15) return '';
+  return `https://wa.me/${digits}`;
+}
+
+function toTelegramUrl(username) {
+  const value = String(username || '').replace(/^@/, '').trim();
+  return /^[A-Za-z0-9_]{5,32}$/.test(value) ? `https://t.me/${value}` : '';
+}
+
+function communicationRowToDraft(row) {
+  const dateInput = (value) => {
+    const date = value ? new Date(value) : null;
+    return date && Number.isFinite(date.getTime()) ? toDhakaDateTimeInput(date) : '';
+  };
+  return {
+    release_notes_text: Array.isArray(row?.release_notes) ? row.release_notes.join('\n') : '',
+    release_notes_published: Boolean(row?.release_notes_published),
+    window_notice: {
+      enabled: Boolean(row?.window_notice_enabled),
+      title: row?.window_notice_title || '',
+      body: row?.window_notice_body || '',
+      starts_at: dateInput(row?.window_notice_starts_at),
+      ends_at: dateInput(row?.window_notice_ends_at),
+      frequency: row?.window_notice_frequency || 'once_per_device',
+    },
+    site_notice: {
+      enabled: Boolean(row?.site_notice_enabled),
+      mode: row?.site_notice_mode || 'message',
+      title: row?.site_notice_title || '',
+      body: row?.site_notice_body || '',
+      starts_at: dateInput(row?.site_notice_starts_at),
+      ends_at: dateInput(row?.site_notice_ends_at),
+      frequency: row?.site_notice_frequency || 'once_per_device',
+      image_url: row?.site_notice_image_url || '',
+      image_path: row?.site_notice_image_path || '',
+      image_updated_at: row?.site_notice_image_updated_at || '',
+    },
+  };
+}
+
 export function SuperAdminPage({ user }) {
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
@@ -273,6 +325,12 @@ export function SuperAdminPage({ user }) {
   const [memberRoles, setMemberRoles] = useState({});
   const [developerPhotoBusy, setDeveloperPhotoBusy] = useState(false);
   const developerPhotoInputRef = useRef(null);
+  const [communicationsDraft, setCommunicationsDraft] = useState(EMPTY_COMMUNICATION_DRAFT);
+  const [communicationsLoading, setCommunicationsLoading] = useState(false);
+  const [communicationsBusy, setCommunicationsBusy] = useState(false);
+  const [communicationsError, setCommunicationsError] = useState('');
+  const [communicationsImageBusy, setCommunicationsImageBusy] = useState(false);
+  const communicationsImageInputRef = useRef(null);
   const [retention, setRetention] = useState(null);
   const [retentionDraft, setRetentionDraft] = useState({ detail: '2', summary: '6' });
   const [expiredArchives, setExpiredArchives] = useState([]);
@@ -802,11 +860,11 @@ export function SuperAdminPage({ user }) {
       platformAdminGetTelegramDeliveryHealth(),
     ]);
     if (settingsResult.status === 'fulfilled') setTelegramAdminSettings(settingsResult.value || {});
-    else setTelegramAdminError(errorText(settingsResult.reason, 'Telegram সেটিংস লোড করা যায়নি।'));
+    else setTelegramAdminError(errorText(settingsResult.reason, 'টেলিগ্রাম সেটিংস লোড করা যায়নি।'));
     if (webhookResult.status === 'fulfilled') setTelegramWebhookStatus(webhookResult.value || null);
     else { setTelegramWebhookStatus(null); setTelegramWebhookError(await edgeInvokeErrorText(webhookResult.reason)); }
     if (deliveryResult.status === 'fulfilled') setTelegramDeliveryHealth(deliveryResult.value || null);
-    else { setTelegramDeliveryHealth(null); setTelegramDeliveryError(errorText(deliveryResult.reason, 'Run32 Telegram Health Migration প্রয়োগ করা আছে কি না যাচাই করুন।')); }
+    else { setTelegramDeliveryHealth(null); setTelegramDeliveryError(errorText(deliveryResult.reason, 'Run32 টেলিগ্রাম স্বাস্থ্য যাচাই মাইগ্রেশন প্রয়োগ করা আছে কি না যাচাই করুন।')); }
     setTelegramAdminLoading(false);
   }, []);
 
@@ -822,11 +880,88 @@ export function SuperAdminPage({ user }) {
       setTelegramDeliveryRows(Array.isArray(result?.items) ? result.items : []);
       setTelegramDeliveryTotal(Number(result?.total_count) || 0);
     } catch (cause) {
-      setTelegramBatchError(errorText(cause, 'Telegram Delivery Queue লোড করা যায়নি।'));
+      setTelegramBatchError(errorText(cause, 'টেলিগ্রাম বার্তা প্রেরণের তালিকা লোড করা যায়নি।'));
     } finally {
       setTelegramDeliveryLoading(false);
     }
   }, [telegramDeliveryFilter, telegramDeliveryPage]);
+
+  const loadCommunications = useCallback(async () => {
+    setCommunicationsLoading(true);
+    setCommunicationsError('');
+    try {
+      const row = await platformAdminGetCommunications();
+      setCommunicationsDraft(communicationRowToDraft(row));
+    } catch (cause) {
+      setCommunicationsError(errorText(cause, 'প্রকাশনার তথ্য লোড করা যায়নি। Run33 Migration প্রয়োগ হয়েছে কি না যাচাই করুন।'));
+    } finally {
+      setCommunicationsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'communications' && reauthenticated) loadCommunications();
+  }, [tab, reauthenticated, loadCommunications]);
+
+  const saveCommunications = async (event) => {
+    event.preventDefault();
+    setCommunicationsBusy(true);
+    setCommunicationsError('');
+    setNotice('');
+    const toIsoOrNull = (value) => {
+      if (!value) return null;
+      const date = fromDhakaDateTimeInput(value);
+      if (!Number.isFinite(date.getTime())) throw new Error('তারিখ ও সময় সঠিকভাবে নির্বাচন করুন।');
+      return date.toISOString();
+    };
+    try {
+      const releaseNotes = communicationsDraft.release_notes_text
+        .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const windowNotice = communicationsDraft.window_notice;
+      const siteNotice = communicationsDraft.site_notice;
+      await platformAdminSaveCommunications({
+        release_notes: releaseNotes,
+        release_notes_published: Boolean(communicationsDraft.release_notes_published),
+        window_notice: {
+          enabled: Boolean(windowNotice.enabled), title: windowNotice.title.trim(), body: windowNotice.body.trim(),
+          starts_at: toIsoOrNull(windowNotice.starts_at), ends_at: toIsoOrNull(windowNotice.ends_at),
+          frequency: windowNotice.frequency,
+        },
+        site_notice: {
+          enabled: Boolean(siteNotice.enabled), mode: siteNotice.mode, title: siteNotice.title.trim(),
+          starts_at: toIsoOrNull(siteNotice.starts_at), ends_at: toIsoOrNull(siteNotice.ends_at),
+          body: siteNotice.mode === 'image' ? '' : siteNotice.body.trim(),
+          frequency: siteNotice.frequency,
+        },
+      });
+      await loadCommunications();
+      setNotice('প্রকাশনার তথ্য সংরক্ষণ হয়েছে। নির্ধারিত সময়ে ব্যবহারকারীদের দেখানো হবে।');
+    } catch (cause) {
+      setCommunicationsError(errorText(cause, 'প্রকাশনার তথ্য সংরক্ষণ করা যায়নি।'));
+    } finally {
+      setCommunicationsBusy(false);
+    }
+  };
+
+  const handleCommunicationsImage = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setCommunicationsImageBusy(true);
+    setCommunicationsError('');
+    try {
+      const imageUrl = await uploadPlatformNoticeImage(user?.id, file);
+      setCommunicationsDraft((current) => ({
+        ...current,
+        site_notice: { ...current.site_notice, mode: 'image', image_url: imageUrl, image_path: 'platform-communications/maintenance-banner.jpg' },
+      }));
+      setNotice('ব্যানার ছবি আপলোড হয়েছে। প্রকাশ করতে নিচের সংরক্ষণ বোতাম চাপুন।');
+    } catch (cause) {
+      setCommunicationsError(errorText(cause, 'ব্যানার ছবি আপলোড করা যায়নি।'));
+    } finally {
+      setCommunicationsImageBusy(false);
+    }
+  };
 
   const configureTelegramWebhook = async () => {
     setTelegramWebhookBusy(true);
@@ -836,11 +971,11 @@ export function SuperAdminPage({ user }) {
       const result = await platformAdminConfigureTelegramWebhook();
       setTelegramWebhookStatus(result || null);
       if (result?.bot?.username_matches && result?.webhook?.url_matches) {
-        setNotice('Telegram Bot যাচাই হয়েছে এবং Incoming Webhook সফলভাবে সেট করা হয়েছে।');
+        setNotice('টেলিগ্রাম বট যাচাই হয়েছে এবং Incoming Webhook সফলভাবে সেট করা হয়েছে।');
       } else if (!result?.bot?.username_matches) {
-        setTelegramWebhookError(`Bot Username মেলেনি। Supabase-এ সংরক্ষিত নাম @${result?.bot?.configured_username || '—'}, কিন্তু Token-এর Bot হলো @${result?.bot?.username || '—'}। সঠিক Bot Token ও Username ব্যবহার করুন।`);
+        setTelegramWebhookError(`বটের ইউজারনেম মেলেনি। Supabase-এ সংরক্ষিত নাম @${result?.bot?.configured_username || '—'}, কিন্তু টোকেনের বট হলো @${result?.bot?.username || '—'}। সঠিক Bot Token ও Username ব্যবহার করুন।`);
       } else {
-        setTelegramWebhookError('Telegram Webhook সেট করার পরও নির্ধারিত URL নিশ্চিত করা যায়নি। আবার অবস্থা যাচাই করুন।');
+        setTelegramWebhookError('টেলিগ্রাম ওয়েবহুক সেট করার পরও নির্ধারিত URL নিশ্চিত করা যায়নি। আবার অবস্থা যাচাই করুন।');
       }
       // Refresh outgoing diagnostics independently so a username/webhook warning
       // from this action is not cleared by the general settings loader.
@@ -849,11 +984,11 @@ export function SuperAdminPage({ user }) {
         platformAdminListTelegramDeliveryBatches({ status: telegramDeliveryFilter === 'all' ? null : telegramDeliveryFilter, limit: 10, offset: telegramDeliveryPage * 10 }),
       ]);
       if (deliveryResult.status === 'fulfilled') setTelegramDeliveryHealth(deliveryResult.value || null);
-      else setTelegramDeliveryError(errorText(deliveryResult.reason, 'Run32 Telegram Health Migration যাচাই করুন।'));
+      else setTelegramDeliveryError(errorText(deliveryResult.reason, 'Run32 টেলিগ্রাম স্বাস্থ্য যাচাই মাইগ্রেশন যাচাই করুন।'));
       if (batchesResult.status === 'fulfilled') {
         setTelegramDeliveryRows(Array.isArray(batchesResult.value?.items) ? batchesResult.value.items : []);
         setTelegramDeliveryTotal(Number(batchesResult.value?.total_count) || 0);
-      } else setTelegramBatchError(errorText(batchesResult.reason, 'Telegram Delivery Queue লোড করা যায়নি।'));
+      } else setTelegramBatchError(errorText(batchesResult.reason, 'টেলিগ্রাম বার্তা প্রেরণের তালিকা লোড করা যায়নি।'));
     } catch (cause) {
       setTelegramWebhookError(await edgeInvokeErrorText(cause));
     } finally {
@@ -891,9 +1026,9 @@ export function SuperAdminPage({ user }) {
       const result = await platformAdminUpdateNotificationSettings(telegramAdminSettings.telegram_enabled, telegramAdminSettings.telegram_bot_username);
       setTelegramAdminSettings(result || telegramAdminSettings);
       setNotice(telegramAdminSettings.telegram_enabled
-        ? 'Telegram Provider সেটিংস সংরক্ষিত হয়েছে। Edge Function ও Webhook সেটআপ সম্পন্ন না হলে সংযোগ এখনো কাজ করবে না।'
-        : 'Telegram Delivery বন্ধ করা হয়েছে। বিদ্যমান সংযোগগুলো মুছে ফেলা হয়নি।');
-    } catch (cause) { setTelegramAdminError(errorText(cause, 'Telegram সেটিংস সংরক্ষণ করা যায়নি।')); }
+        ? 'টেলিগ্রাম সেবা সেটিংস সংরক্ষিত হয়েছে। Edge Function ও Webhook সেটআপ সম্পন্ন না হলে সংযোগ এখনো কাজ করবে না।'
+        : 'টেলিগ্রাম বার্তা প্রেরণ বন্ধ করা হয়েছে। বিদ্যমান সংযোগগুলো মুছে ফেলা হয়নি।');
+    } catch (cause) { setTelegramAdminError(errorText(cause, 'টেলিগ্রাম সেটিংস সংরক্ষণ করা যায়নি।')); }
     finally { setTelegramAdminBusy(false); }
   };
 
@@ -908,7 +1043,7 @@ export function SuperAdminPage({ user }) {
 
 শিরোনাম: ${messageTitle.trim()}
 
-বার্তা পাঠানোর পর তা প্রাপকদের ইনবক্সে সংরক্ষিত হবে এবং Telegram-এ যুক্ত ব্যবহারকারীদের কাছেও যেতে পারে।`)) return;
+বার্তা পাঠানোর পর তা প্রাপকদের ইনবক্সে সংরক্ষিত হবে এবং টেলিগ্রামে যুক্ত ব্যবহারকারীদের কাছেও যেতে পারে।`)) return;
     setMessageSending(true); setError(''); setNotice('');
     try {
       const result = await platformAdminSendTargetedMessage(
@@ -916,7 +1051,7 @@ export function SuperAdminPage({ user }) {
         messageRecipientMode === 'all' ? null : messageSelectedUsers,
       );
       const count = Number(result?.sent_count || 0);
-      setNotice(`${count.toLocaleString('bn-BD')} জন সক্রিয় সদস্যের ইনবক্সে বার্তা পাঠানো হয়েছে। Telegram-এ যাঁরা সংযুক্ত, তাঁরাও বার্তাটি পাবেন।`);
+      setNotice(`${count.toLocaleString('bn-BD')} জন সক্রিয় সদস্যের ইনবক্সে বার্তা পাঠানো হয়েছে। টেলিগ্রামে যাঁরা সংযুক্ত, তাঁরাও বার্তাটি পাবেন।`);
       setMessageTitle(''); setMessageBody(''); setMessageSelectedUsers([]); setMessageRecipientMode('all');
     } catch (cause) { setError(errorText(cause, 'বার্তা পাঠানো যায়নি।')); }
     finally { setMessageSending(false); }
@@ -1255,6 +1390,7 @@ export function SuperAdminPage({ user }) {
       else if (tab === 'activity' && activityView === 'security') await loadSecurityMonitor();
       else if (tab === 'security') await loadCodeHistory();
       else if (tab === 'retention') await loadRetention();
+      else if (tab === 'communications') await loadCommunications();
       else if (tab === 'telegram') await Promise.all([loadTelegramAdminSettings(), loadTelegramDeliveryBatches()]);
       else if (tab === 'hostels' && selected) await openHostel(selected);
       setLastWorkspaceRefresh(new Date().toISOString());
@@ -1308,7 +1444,7 @@ export function SuperAdminPage({ user }) {
       </section>
       <section className="platform-navigation-group platform-configuration-group" aria-label="সিস্টেম সেটিংস">
         <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong></div>
-        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','Global Notice'],['messages','বার্তা পাঠান'],['telegram','Telegram সেটআপ'],['developer','Developer Info'],['appearance','App Theme'],['sessions','Session Security'],['security','Access Codes']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','গ্লোবাল নোটিশ'],['communications','আপডেট ও বিজ্ঞপ্তি'],['messages','বার্তা পাঠান'],['telegram','টেলিগ্রাম সেটআপ'],['developer','ডেভেলপার তথ্য'],['appearance','অ্যাপের থিম'],['sessions','সেশন নিরাপত্তা'],['security','প্রবেশ কোড']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       </section>
     </div>
     {tab === 'overview' && <>
@@ -1574,7 +1710,7 @@ export function SuperAdminPage({ user }) {
           <Field label="সদস্য খুঁজুন (নাম, ফোন বা ID)" value={memberQuery} onChange={setMemberQuery} maxLength={120}/>
           <div className="platform-filter-pills" role="group" aria-label="সদস্য ফিল্টার">{[['all','সব'],['manager','প্রধান ম্যানেজার'],['assistant','সহকারী'],['member','সাধারণ সদস্য'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত'],['blocked','ব্লক']].map(([key,label])=><button type="button" key={key} className={memberFilter===key?'active':''} onClick={()=>setMemberFilter(key)}>{label}</button>)}</div>
           {busy?<LoadingSpinner label="তথ্য আপডেট হচ্ছে..."/>:sortedMembers.length===0?<p className="platform-empty">এই ফিল্টারে কোনো সদস্য নেই।</p>:<div className="platform-members-list">{visibleMembers.map((member)=><div className="platform-member-row" key={member.membership_id}>
-            <div className="platform-avatar">{member.avatar_url ? <img src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : String(member.full_name||'স').slice(0,1)}</div><div className="platform-member-copy"><strong>{member.full_name||'নাম নেই'}</strong><div className="platform-role-badges">{memberRoles[member.membership_id]?.primary && <span className="primary">প্রধান ম্যানেজার</span>}{memberRoles[member.membership_id]?.assistant && <span className="assistant">সহকারী ম্যানেজার</span>}{memberRoles[member.membership_id] && !memberRoles[member.membership_id].primary && !memberRoles[member.membership_id].assistant && <span>সাধারণ সদস্য</span>}</div><small>{member.phone||'ফোন নেই'} · যোগদান {member.joined_at?new Date(member.joined_at).toLocaleDateString():'—'}</small>{member.email && <small className="platform-member-email">{member.email}</small>}<small className="platform-hostel-id">{member.user_id}</small><small className="platform-member-presence">Last Seen: {member.last_seen_at ? `${presenceLabel(member)} · ${formatPlatformDate(member.last_seen_at)}` : 'এখনো রেকর্ড হয়নি'} · Last Login: {member.last_login_at ? formatPlatformDate(member.last_login_at) : 'তথ্য নেই'}</small><div className="platform-member-flags">{member.is_favorite&&<span>⭐ পছন্দের</span>}{member.is_trusted&&<span>✓ বিশ্বস্ত</span>}{member.is_blocked&&<span className="blocked-flag">ব্লক করা</span>}</div></div>
+            <div className="platform-avatar">{member.avatar_url ? <img src={member.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} /> : String(member.full_name||'স').slice(0,1)}</div><div className="platform-member-copy"><strong>{member.full_name||'নাম নেই'}</strong><div className="platform-role-badges">{memberRoles[member.membership_id]?.primary && <span className="primary">প্রধান ম্যানেজার</span>}{memberRoles[member.membership_id]?.assistant && <span className="assistant">সহকারী ম্যানেজার</span>}{memberRoles[member.membership_id] && !memberRoles[member.membership_id].primary && !memberRoles[member.membership_id].assistant && <span>সাধারণ সদস্য</span>}</div><small>{member.phone||'ফোন নেই'} · যোগদান {member.joined_at?new Date(member.joined_at).toLocaleDateString():'—'}</small>{member.email && <small className="platform-member-email">{member.email}</small>}<small className="platform-hostel-id">{member.user_id}</small><small className="platform-member-presence">সর্বশেষ সক্রিয়: {member.last_seen_at ? `${presenceLabel(member)} · ${formatPlatformDate(member.last_seen_at)}` : 'রেকর্ড নেই'} · সর্বশেষ প্রবেশ: {member.last_login_at ? formatPlatformDate(member.last_login_at) : 'তথ্য নেই'}</small><div className="platform-member-channels">{member.phone && toWhatsAppUrl(member.phone) ? <a className="platform-member-channel-link whatsapp" href={toWhatsAppUrl(member.phone)} target="_blank" rel="noopener noreferrer"><Icon name="message-circle" size={13}/> হোয়াটসঅ্যাপে খুলুন</a> : member.phone ? <span className="platform-member-channel-muted">ফোন: {member.phone}</span> : null}{member.telegram_connected ? <span className="platform-member-channel-state connected"><TelegramLogo size={13} monochrome/> টেলিগ্রাম সংযুক্ত</span> : <span className="platform-member-channel-state"><TelegramLogo size={13} monochrome/> টেলিগ্রাম সংযুক্ত নয়</span>}{member.telegram_connected && member.telegram_username && toTelegramUrl(member.telegram_username) && <a className="platform-member-channel-link telegram" href={toTelegramUrl(member.telegram_username)} target="_blank" rel="noopener noreferrer">@{String(member.telegram_username).replace(/^@/, '')}</a>}</div><div className="platform-member-flags">{member.is_favorite&&<span>⭐ পছন্দের</span>}{member.is_trusted&&<span>✓ বিশ্বস্ত</span>}{member.is_blocked&&<span className="blocked-flag">ব্লক করা</span>}</div></div>
             <div className="platform-member-actions"><span className={`platform-status ${member.status==='active'?'status-active':'status-inactive'}`}>{member.status==='active'?'সক্রিয়':'নিষ্ক্রিয়'}</span><div className="platform-member-action-buttons"><button className={member.is_favorite?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="পছন্দের চিহ্ন" onClick={()=>toggleMemberFlag(member,'favorite')}>⭐</button><button className={member.is_trusted?'platform-mini-action active':'platform-mini-action'} disabled={busy} type="button" title="বিশ্বস্ত চিহ্ন" onClick={()=>toggleMemberFlag(member,'trusted')}>✓</button><button className={member.is_blocked?'secondary-button':'danger-button'} disabled={busy||member.user_id===user?.id} type="button" onClick={()=>toggleBlock(member)}>{member.is_blocked?'আনব্লক':'ব্লক'}</button><button className="secondary-button compact" type="button" onClick={()=>openMemberActivity(member)}>Activity</button><button className="secondary-button compact" disabled={busy||recoveryBusy||member.user_id===user?.id} type="button" onClick={()=>{setRecoveryTarget(member);setRecoveryResult('');setRecoveryNote('');setRecoveryVerified(false);}}>পাসওয়ার্ড সহায়তা</button><button className="danger-button" disabled={busy||member.user_id===user?.id} type="button" onClick={() => { setDeleteDialog({kind:'member', member}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>স্থায়ী ডিলিট</button></div></div>
           </div>)}</div>}
           {memberActivityTarget && <section className="platform-member-activity" aria-label="সদস্যের Activity Log">
@@ -1582,8 +1718,8 @@ export function SuperAdminPage({ user }) {
             {memberActivityError && <div className="inline-error platform-alert">{memberActivityError}</div>}
             {memberActivityOverview && <div className="platform-presence-grid">
               <div><small>বর্তমান অবস্থা</small><strong>{memberActivityOverview.is_online?'সাম্প্রতিক সক্রিয়':'এখন সক্রিয় নয়'}</strong></div>
-              <div><small>Last Seen</small><strong>{formatPlatformDate(memberActivityOverview.last_seen_at)}</strong></div>
-              <div><small>Last Login</small><strong>{formatPlatformDate(memberActivityOverview.last_login_at)}</strong></div>
+              <div><small>সর্বশেষ সক্রিয়</small><strong>{formatPlatformDate(memberActivityOverview.last_seen_at)}</strong></div>
+              <div><small>সর্বশেষ প্রবেশ</small><strong>{formatPlatformDate(memberActivityOverview.last_login_at)}</strong></div>
               <div><small>Last Logout</small><strong>{formatPlatformDate(memberActivityOverview.last_logout_at)}</strong></div>
               <div><small>সফল Login Session</small><strong>{Number(memberActivityOverview.login_count||0).toLocaleString('bn-BD')}</strong></div>
               <div><small>সর্বশেষ Login IP</small><strong>{memberActivityOverview.last_login_ip || 'রেকর্ড নেই'}</strong></div>
@@ -1591,7 +1727,7 @@ export function SuperAdminPage({ user }) {
             <div className="platform-login-session-history">
               <div className="platform-session-heading"><strong>Login History</strong><span>{memberSessionTotal.toLocaleString('bn-BD')}টি Session</span></div>
               {memberSessionError && <div className="inline-error platform-alert">{memberSessionError}</div>}{memberSessionLoading ? <div className="platform-empty"><LoadingSpinner label="Login History লোড হচ্ছে..."/></div> : memberSessionRows.length===0 ? <p className="platform-activity-history-note">এই মেসে এখনো কোনো Session History রেকর্ড হয়নি।</p> : memberSessionRows.map((session,index)=><article className="platform-login-session" key={`${session.logged_in_at}-${index}`}>
-                <div><strong>{session.session_status==='signed_out'?'লগআউট সম্পন্ন':session.session_status==='recently_active'?'সাম্প্রতিক সক্রিয়':'শেষ Seen পুরোনো'}</strong><small>Login: {formatPlatformDate(session.logged_in_at)} · Last Seen: {formatPlatformDate(session.last_seen_at)}</small>{session.last_logout_at&&<small>Logout: {formatPlatformDate(session.last_logout_at)}</small>}</div>
+                <div><strong>{session.session_status==='signed_out'?'লগআউট সম্পন্ন':session.session_status==='recently_active'?'সাম্প্রতিক সক্রিয়':'সর্বশেষ সক্রিয়তা পুরোনো'}</strong><small>প্রবেশ: {formatPlatformDate(session.logged_in_at)} · সর্বশেষ সক্রিয়: {formatPlatformDate(session.last_seen_at)}</small>{session.last_logout_at&&<small>বের হয়েছেন: {formatPlatformDate(session.last_logout_at)}</small>}</div>
                 <div><small>IP: {session.ip_address||'রেকর্ড নেই'}</small>{session.user_agent&&<small className="platform-session-agent">{session.user_agent}</small>}</div>
               </article>)}
               {memberSessionTotal>20 && <div className="platform-history-pager"><span>Login History · পৃষ্ঠা {memberSessionPage+1} / {Math.ceil(memberSessionTotal/20)}</span><div><button className="secondary-button compact" type="button" disabled={memberSessionLoading||memberSessionPage===0} onClick={()=>loadMemberSessions(memberActivityTarget,Math.max(0,memberSessionPage-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={memberSessionLoading||(memberSessionPage+1)*20>=memberSessionTotal} onClick={()=>loadMemberSessions(memberActivityTarget,memberSessionPage+1)}>পরের</button></div></div>}
@@ -1642,7 +1778,7 @@ export function SuperAdminPage({ user }) {
           </div>}
         </section>
         <section className="card platform-panel">
-          <div className="platform-panel-heading"><div><h3>বার্তার বিষয়বস্তু</h3><p>এটি অ্যাপের Notification Inbox এবং Popup-এ দেখানো হবে। সংযুক্ত ব্যবহারকারীর Telegram-এও যাবে।</p></div></div>
+          <div className="platform-panel-heading"><div><h3>বার্তার বিষয়বস্তু</h3><p>এটি অ্যাপের Notification Inbox এবং Popup-এ দেখানো হবে। সংযুক্ত ব্যবহারকারীর টেলিগ্রামেও যাবে।</p></div></div>
           <Field label="শিরোনাম" value={messageTitle} onChange={setMessageTitle} maxLength={160}/>
           <Field label="বার্তা" value={messageBody} onChange={setMessageBody} maxLength={3000} multiline/>
           <div className="platform-message-preview"><span className="eyebrow">PREVIEW</span><strong>{messageTitle || 'বার্তার শিরোনাম'}</strong><p>{messageBody || 'বার্তার বিবরণ এখানে দেখা যাবে।'}</p></div>
@@ -1653,83 +1789,83 @@ export function SuperAdminPage({ user }) {
 
     {tab === 'telegram' && <>
       <div className="platform-settings-intro platform-settings-intro-compact">
-        <span className="eyebrow">NOTIFICATION CHANNEL</span>
-        <h2>Telegram সংযোগ ও Delivery</h2>
+        <span className="eyebrow">বিজ্ঞপ্তির মাধ্যম</span>
+        <h2>টেলিগ্রাম সংযোগ ও বার্তা প্রেরণ</h2>
       </div>
       <div className="platform-telegram-admin-grid">
         <section className="card platform-panel platform-telegram-admin-card">
           <div className="platform-panel-heading">
-            <div className="platform-telegram-title"><TelegramLogo size={38}/><div><span className="eyebrow">BOT PROVIDER</span><h3>Telegram Bot</h3></div></div>
+            <div className="platform-telegram-title"><TelegramLogo size={38}/><div><span className="eyebrow">টেলিগ্রাম বট ব্যবস্থা</span><h3>টেলিগ্রাম বট</h3></div></div>
             <span className={`platform-status ${telegramAdminSettings.telegram_enabled ? 'status-active' : 'status-inactive'}`}>{telegramAdminSettings.telegram_enabled ? 'চালু' : 'বন্ধ'}</span>
           </div>
           <form className="platform-telegram-settings-form" onSubmit={saveTelegramAdminSettings}>
             {telegramAdminError && <div className="inline-error platform-alert">{telegramAdminError}</div>}
-            <label className="field-label"><span>Bot Username (@ ছাড়া)</span><input value={telegramAdminSettings.telegram_bot_username || ''} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_bot_username: event.target.value.replace(/^@/, '') }))} maxLength={32} placeholder="HostelLifeBot" autoComplete="off" spellCheck="false"/></label>
-            <label className="platform-toggle"><span><strong>Telegram Delivery চালু</strong><small>বন্ধ করলে নতুন Telegram বার্তা তৈরি হবে না। বিদ্যমান অ্যাকাউন্ট সংযোগ অক্ষত থাকবে।</small></span><input type="checkbox" checked={Boolean(telegramAdminSettings.telegram_enabled)} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_enabled: event.target.checked }))}/></label>
+            <label className="field-label"><span>বটের ইউজারনেম (@ ছাড়া)</span><input value={telegramAdminSettings.telegram_bot_username || ''} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_bot_username: event.target.value.replace(/^@/, '') }))} maxLength={32} placeholder="HostelLifeBot" autoComplete="off" spellCheck="false"/></label>
+            <label className="platform-toggle"><span><strong>টেলিগ্রাম বার্তা প্রেরণ চালু</strong><small>বন্ধ করলে নতুন টেলিগ্রাম বার্তা তৈরি হবে না। বিদ্যমান অ্যাকাউন্ট সংযোগ অক্ষত থাকবে।</small></span><input type="checkbox" checked={Boolean(telegramAdminSettings.telegram_enabled)} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_enabled: event.target.checked }))}/></label>
             <div className="platform-telegram-connection-stat"><Icon name="users" size={18}/><span><strong>{Number(telegramAdminSettings.connected_users || 0).toLocaleString('bn-BD')}</strong><small>সংযুক্ত ব্যবহারকারী</small></span></div>
             <button type="submit" className="primary-button large" disabled={telegramAdminBusy || telegramAdminLoading}>{telegramAdminBusy ? 'সংরক্ষণ হচ্ছে...' : 'সেটিংস সংরক্ষণ'}</button>
           </form>
         </section>
 
         <section className="card platform-panel platform-telegram-webhook-card">
-          <div className="platform-panel-heading"><div><span className="eyebrow">INCOMING · ACCOUNT LINK</span><h3>Bot Webhook</h3></div><span className={`platform-status ${telegramWebhookStatus?.webhook?.url_matches && telegramWebhookStatus?.bot?.username_matches ? 'status-active' : 'status-inactive'}`}>{telegramWebhookStatus?.webhook?.url_matches && telegramWebhookStatus?.bot?.username_matches ? 'সচল' : telegramWebhookStatus ? 'পরীক্ষা দরকার' : 'অজানা'}</span></div>
+          <div className="platform-panel-heading"><div><span className="eyebrow">আগত · অ্যাকাউন্ট সংযোগ</span><h3>বট ওয়েবহুক</h3></div><span className={`platform-status ${telegramWebhookStatus?.webhook?.url_matches && telegramWebhookStatus?.bot?.username_matches ? 'status-active' : 'status-inactive'}`}>{telegramWebhookStatus?.webhook?.url_matches && telegramWebhookStatus?.bot?.username_matches ? 'সচল' : telegramWebhookStatus ? 'পরীক্ষা দরকার' : 'অজানা'}</span></div>
           <div className="platform-telegram-check-list">
-            <div><span>Bot Token যাচাই</span><strong>{telegramWebhookStatus?.bot?.username ? `@${telegramWebhookStatus.bot.username}` : '—'}</strong></div>
-            <div><span>Saved Username</span><strong>{telegramWebhookStatus?.bot?.configured_username ? `@${telegramWebhookStatus.bot.configured_username}` : '—'}</strong></div>
-            <div><span>Username Match</span><b className={telegramWebhookStatus?.bot?.username_matches ? 'is-good' : 'is-bad'}>{telegramWebhookStatus ? (telegramWebhookStatus.bot?.username_matches ? 'মিলেছে' : 'মেলেনি') : '—'}</b></div>
-            <div><span>Webhook URL</span><b className={telegramWebhookStatus?.webhook?.url_matches ? 'is-good' : 'is-bad'}>{telegramWebhookStatus ? (telegramWebhookStatus.webhook?.url_matches ? 'সঠিক' : 'সঠিক নয়') : '—'}</b></div>
-            <div><span>অপেক্ষমাণ Update</span><strong>{telegramWebhookStatus?.webhook?.pending_update_count === undefined ? '—' : Number(telegramWebhookStatus.webhook.pending_update_count).toLocaleString('bn-BD')}</strong></div>
+            <div><span>বট টোকেন যাচাই</span><strong>{telegramWebhookStatus?.bot?.username ? `@${telegramWebhookStatus.bot.username}` : '—'}</strong></div>
+            <div><span>সংরক্ষিত ইউজারনেম</span><strong>{telegramWebhookStatus?.bot?.configured_username ? `@${telegramWebhookStatus.bot.configured_username}` : '—'}</strong></div>
+            <div><span>ইউজারনেম মিল</span><b className={telegramWebhookStatus?.bot?.username_matches ? 'is-good' : 'is-bad'}>{telegramWebhookStatus ? (telegramWebhookStatus.bot?.username_matches ? 'মিলেছে' : 'মেলেনি') : '—'}</b></div>
+            <div><span>ওয়েবহুক ঠিকানা</span><b className={telegramWebhookStatus?.webhook?.url_matches ? 'is-good' : 'is-bad'}>{telegramWebhookStatus ? (telegramWebhookStatus.webhook?.url_matches ? 'সঠিক' : 'সঠিক নয়') : '—'}</b></div>
+            <div><span>অপেক্ষমাণ আপডেট</span><strong>{telegramWebhookStatus?.webhook?.pending_update_count === undefined ? '—' : Number(telegramWebhookStatus.webhook.pending_update_count).toLocaleString('bn-BD')}</strong></div>
           </div>
-          {telegramWebhookStatus?.webhook?.last_error_message && <div className="platform-telegram-last-error"><strong>Telegram-এর সর্বশেষ Webhook Error</strong><span>{telegramWebhookStatus.webhook.last_error_message}</span></div>}
+          {telegramWebhookStatus?.webhook?.last_error_message && <div className="platform-telegram-last-error"><strong>টেলিগ্রামের সর্বশেষ ওয়েবহুক ত্রুটি</strong><span>{telegramWebhookStatus.webhook.last_error_message}</span></div>}
           {telegramWebhookError && <div className="inline-error platform-alert" role="alert">{telegramWebhookError}</div>}
           <div className="platform-telegram-actions">
-            <button type="button" className="primary-button" disabled={telegramWebhookBusy || telegramAdminLoading} onClick={configureTelegramWebhook}><TelegramLogo size={18}/>{telegramWebhookBusy ? 'Webhook যাচাই হচ্ছে...' : 'Webhook সেট / মেরামত'}</button>
+            <button type="button" className="primary-button" disabled={telegramWebhookBusy || telegramAdminLoading} onClick={configureTelegramWebhook}><TelegramLogo size={18}/>{telegramWebhookBusy ? 'ওয়েবহুক যাচাই হচ্ছে...' : 'ওয়েবহুক সেট / মেরামত'}</button>
             <button type="button" className="secondary-button" disabled={telegramAdminLoading} onClick={loadTelegramAdminSettings}><Icon name="refresh-cw" size={16}/> অবস্থা যাচাই</button>
           </div>
-          <p className="platform-telegram-inline-note">এই কাজটি Bot Token-এর Bot শনাক্ত করে Supabase Incoming Webhook URL স্বয়ংক্রিয়ভাবে সেট করে। Username না মিললে সেট করবে না।</p>
+          <p className="platform-telegram-inline-note">এই কাজটি Bot টোকেনের বট শনাক্ত করে Supabase Incoming ওয়েবহুক ঠিকানা স্বয়ংক্রিয়ভাবে সেট করে। Username না মিললে সেট করবে না।</p>
         </section>
 
         <section className="card platform-panel platform-telegram-delivery-card">
-          <div className="platform-panel-heading"><div><span className="eyebrow">OUTGOING · NOTIFICATION DELIVERY</span><h3>Delivery Health</h3></div><span className={`platform-status ${telegramDeliveryHealth?.database_webhook_ready ? 'status-active' : 'status-inactive'}`}>{telegramDeliveryHealth?.database_webhook_ready ? 'Database Trigger পাওয়া গেছে' : telegramDeliveryHealth ? 'Database Webhook নেই' : 'যাচাই হয়নি'}</span></div>
+          <div className="platform-panel-heading"><div><span className="eyebrow">বহির্গামী · বার্তা প্রেরণ</span><h3>প্রেরণের অবস্থা</h3></div><span className={`platform-status ${telegramDeliveryHealth?.database_webhook_ready ? 'status-active' : 'status-inactive'}`}>{telegramDeliveryHealth?.database_webhook_ready ? 'ডাটাবেজ ট্রিগার পাওয়া গেছে' : telegramDeliveryHealth ? 'ডাটাবেজ ওয়েবহুক নেই' : 'যাচাই হয়নি'}</span></div>
           {telegramDeliveryError && <div className="inline-error platform-alert" role="alert">{telegramDeliveryError}</div>}
           {telegramDeliveryHealth ? <>
             <div className="platform-telegram-check-list">
-              <div><span>Provider</span><strong>{telegramDeliveryHealth.provider_enabled ? 'Telegram চালু' : 'বন্ধ'}</strong></div>
-              <div><span>Bot Username</span><strong>{telegramDeliveryHealth.bot_username ? `@${telegramDeliveryHealth.bot_username}` : '—'}</strong></div>
+              <div><span>সেবা</span><strong>{telegramDeliveryHealth.provider_enabled ? 'টেলিগ্রাম চালু' : 'বন্ধ'}</strong></div>
+              <div><span>বটের ইউজারনেম</span><strong>{telegramDeliveryHealth.bot_username ? `@${telegramDeliveryHealth.bot_username}` : '—'}</strong></div>
               <div><span>সংযুক্ত ব্যবহারকারী</span><strong>{Number(telegramDeliveryHealth.connected_users || 0).toLocaleString('bn-BD')}</strong></div>
-              <div><span>Database Webhook Trigger</span><b className={telegramDeliveryHealth.database_webhook_ready ? 'is-good' : 'is-bad'}>{telegramDeliveryHealth.database_webhook_ready ? 'পাওয়া গেছে' : 'পাওয়া যায়নি'}</b></div>
-              <div><span>শেষ Batch</span><strong>{telegramDeliveryHealth.batches?.latest_status ? telegramDeliveryHealth.batches.latest_status.toUpperCase() : '—'}</strong></div>
+              <div><span>ডাটাবেজ ওয়েবহুক ট্রিগার</span><b className={telegramDeliveryHealth.database_webhook_ready ? 'is-good' : 'is-bad'}>{telegramDeliveryHealth.database_webhook_ready ? 'পাওয়া গেছে' : 'পাওয়া যায়নি'}</b></div>
+              <div><span>শেষ ব্যাচ</span><strong>{telegramDeliveryHealth.batches?.latest_status ? telegramDeliveryHealth.batches.latest_status.toUpperCase() : '—'}</strong></div>
             </div>
             <div className="platform-telegram-batch-stats">
-              <Stat label="Pending" value={telegramDeliveryHealth.batches?.pending} icon="clock" onClick={() => { setTelegramDeliveryFilter('pending'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'pending'}/>
-              <Stat label="Processing" value={telegramDeliveryHealth.batches?.processing} icon="refresh-cw" onClick={() => { setTelegramDeliveryFilter('processing'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'processing'}/>
-              <Stat label="Delivered" value={telegramDeliveryHealth.batches?.delivered} icon="check-circle" onClick={() => { setTelegramDeliveryFilter('delivered'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'delivered'}/>
-              <Stat label="Partial" value={telegramDeliveryHealth.batches?.partial} icon="alert-circle" onClick={() => { setTelegramDeliveryFilter('partial'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'partial'}/>
-              <Stat label="Failed" value={telegramDeliveryHealth.batches?.failed} icon="warning" onClick={() => { setTelegramDeliveryFilter('failed'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'failed'}/>
-              <Stat label="Skipped" value={telegramDeliveryHealth.batches?.skipped} icon="minus" onClick={() => { setTelegramDeliveryFilter('skipped'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'skipped'}/>
+              <Stat label="অপেক্ষমাণ" value={telegramDeliveryHealth.batches?.pending} icon="clock" onClick={() => { setTelegramDeliveryFilter('pending'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'pending'}/>
+              <Stat label="প্রক্রিয়াধীন" value={telegramDeliveryHealth.batches?.processing} icon="refresh-cw" onClick={() => { setTelegramDeliveryFilter('processing'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'processing'}/>
+              <Stat label="পাঠানো হয়েছে" value={telegramDeliveryHealth.batches?.delivered} icon="check-circle" onClick={() => { setTelegramDeliveryFilter('delivered'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'delivered'}/>
+              <Stat label="আংশিক" value={telegramDeliveryHealth.batches?.partial} icon="alert-circle" onClick={() => { setTelegramDeliveryFilter('partial'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'partial'}/>
+              <Stat label="ব্যর্থ" value={telegramDeliveryHealth.batches?.failed} icon="warning" onClick={() => { setTelegramDeliveryFilter('failed'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'failed'}/>
+              <Stat label="বাদ পড়েছে" value={telegramDeliveryHealth.batches?.skipped} icon="minus" onClick={() => { setTelegramDeliveryFilter('skipped'); setTelegramDeliveryPage(0); }} active={telegramDeliveryFilter === 'skipped'}/>
             </div>
-            <div className="platform-telegram-outbox-summary"><span>Pending / Processing Outbox <b>{Number(telegramDeliveryHealth.outbox?.pending_or_processing || 0).toLocaleString('bn-BD')}</b></span><span>Failed Outbox <b>{Number(telegramDeliveryHealth.outbox?.failed || 0).toLocaleString('bn-BD')}</b></span><span>শেষ Batch: <b>{formatPlatformDate(telegramDeliveryHealth.batches?.latest_created_at)}</b></span></div>
-          </> : !telegramDeliveryError && <div className="platform-empty"><LoadingSpinner label="Delivery Health লোড হচ্ছে..."/></div>}
+            <div className="platform-telegram-outbox-summary"><span>অপেক্ষমাণ / প্রক্রিয়াধীন বার্তা <b>{Number(telegramDeliveryHealth.outbox?.pending_or_processing || 0).toLocaleString('bn-BD')}</b></span><span>ব্যর্থ বার্তা <b>{Number(telegramDeliveryHealth.outbox?.failed || 0).toLocaleString('bn-BD')}</b></span><span>শেষ ব্যাচ: <b>{formatPlatformDate(telegramDeliveryHealth.batches?.latest_created_at)}</b></span></div>
+          </> : !telegramDeliveryError && <div className="platform-empty"><LoadingSpinner label="প্রেরণের অবস্থা লোড হচ্ছে..."/></div>}
           {telegramDeliveryHealth && !telegramDeliveryHealth.database_webhook_ready && <div className="platform-telegram-db-setup">
-            <strong>Database Webhook সেটআপ প্রয়োজন</strong>
-            <p>Supabase Dashboard → Database → Webhooks-এ একটি <b>INSERT</b> Webhook তৈরি করুন।</p>
+            <strong>ডাটাবেজ ওয়েবহুক সেটআপ প্রয়োজন</strong>
+            <p>Supabase Dashboard → Database → Webhooks-এ একটি <b>INSERT</b> ওয়েবহুক তৈরি করুন।</p>
             <code>public.notification_delivery_batches</code>
             <code>{'https://<PROJECT_REF>.supabase.co/functions/v1/telegram-notification-dispatch'}</code>
-            <span>Header: <code>x-hostel-delivery-secret</code> · Value: Edge Function Secret <code>NOTIFICATION_DISPATCH_WEBHOOK_SECRET</code>-এর একই মান।</span>
+            <span>Header: <code>x-hostel-delivery-secret</code> · Value: এজ ফাংশনের গোপন মান <code>NOTIFICATION_DISPATCH_WEBHOOK_SECRET</code>-এর একই মান।</span>
           </div>}
           {telegramDeliveryHealth?.database_webhook_ready && <p className="platform-telegram-inline-note">Trigger শনাক্ত হয়েছে। Dashboard-এর URL ও Header Secret আলাদাভাবে যাচাই করুন—সেগুলোর গোপন মান এখানে পড়া বা প্রকাশ করা হয় না।</p>}
         </section>
 
         <section className="card platform-panel platform-telegram-queue-card">
-          <div className="platform-panel-heading"><div><span className="eyebrow">LAST 7 DAYS</span><h3>সাম্প্রতিক Delivery Batch</h3></div><span className="platform-panel-count">{telegramDeliveryTotal.toLocaleString('bn-BD')}টি</span></div>
+          <div className="platform-panel-heading"><div><span className="eyebrow">শেষ ৭ দিন</span><h3>সাম্প্রতিক বার্তা ব্যাচ</h3></div><span className="platform-panel-count">{telegramDeliveryTotal.toLocaleString('bn-BD')}টি</span></div>
           <div className="platform-filter-pills platform-telegram-filter-pills">
-            {[['all','সব'],['pending','Pending'],['processing','Processing'],['delivered','Delivered'],['partial','Partial'],['failed','Failed'],['skipped','Skipped']].map(([value,label]) => <button key={value} type="button" className={telegramDeliveryFilter === value ? 'active' : ''} aria-pressed={telegramDeliveryFilter === value} onClick={() => { setTelegramDeliveryFilter(value); setTelegramDeliveryPage(0); }}>{label}</button>)}
+            {[['all','সব'],['pending','অপেক্ষমাণ'],['processing','প্রক্রিয়াধীন'],['delivered','পাঠানো হয়েছে'],['partial','আংশিক'],['failed','ব্যর্থ'],['skipped','বাদ পড়েছে']].map(([value,label]) => <button key={value} type="button" className={telegramDeliveryFilter === value ? 'active' : ''} aria-pressed={telegramDeliveryFilter === value} onClick={() => { setTelegramDeliveryFilter(value); setTelegramDeliveryPage(0); }}>{label}</button>)}
           </div>
           {telegramBatchError && <div className="inline-error platform-alert" role="alert">{telegramBatchError}</div>}
-          {telegramDeliveryLoading ? <div className="platform-empty"><LoadingSpinner label="Delivery Batch লোড হচ্ছে..."/></div> : telegramDeliveryRows.length ? <div className="platform-telegram-batch-list">{telegramDeliveryRows.map((batch) => <article className="platform-telegram-batch-row" key={batch.id}>
-            <div><strong>Batch · {String(batch.id).slice(0, 8).toUpperCase()}</strong><small>{formatPlatformDate(batch.created_at)} · {Number(batch.recipient_count || 0).toLocaleString('bn-BD')} জন প্রাপক</small></div>
-            <div className="platform-telegram-batch-result"><span className={`platform-status platform-telegram-status-${batch.status}`}>{({ pending: 'Pending', processing: 'Processing', delivered: 'Delivered', partial: 'Partial', failed: 'Failed', skipped: 'Skipped' })[batch.status] || batch.status}</span>{batch.last_error_code && <small>{batch.last_error_code}</small>}</div>
-          </article>)}</div> : <div className="platform-empty-state"><Icon name="archive" size={27}/><strong>কোনো Delivery Batch নেই</strong><span>নির্বাচিত সময়ে এই Status-এর কোনো Batch তৈরি হয়নি।</span></div>}
+          {telegramDeliveryLoading ? <div className="platform-empty"><LoadingSpinner label="বার্তা ব্যাচ লোড হচ্ছে..."/></div> : telegramDeliveryRows.length ? <div className="platform-telegram-batch-list">{telegramDeliveryRows.map((batch) => <article className="platform-telegram-batch-row" key={batch.id}>
+            <div><strong>ব্যাচ · {String(batch.id).slice(0, 8).toUpperCase()}</strong><small>{formatPlatformDate(batch.created_at)} · {Number(batch.recipient_count || 0).toLocaleString('bn-BD')} জন প্রাপক</small></div>
+            <div className="platform-telegram-batch-result"><span className={`platform-status platform-telegram-status-${batch.status}`}>{({ pending: 'অপেক্ষমাণ', processing: 'প্রক্রিয়াধীন', delivered: 'পাঠানো হয়েছে', partial: 'আংশিক', failed: 'ব্যর্থ', skipped: 'বাদ পড়েছে' })[batch.status] || batch.status}</span>{batch.last_error_code && <small>{batch.last_error_code}</small>}</div>
+          </article>)}</div> : <div className="platform-empty-state"><Icon name="archive" size={27}/><strong>কোনো বার্তা ব্যাচ নেই</strong><span>নির্বাচিত সময়ে এই Status-এর কোনো Batch তৈরি হয়নি।</span></div>}
           {telegramDeliveryTotal > 10 && <div className="platform-history-pager"><span>পৃষ্ঠা {telegramDeliveryPage + 1} / {Math.ceil(telegramDeliveryTotal / 10)}</span><div><button type="button" className="secondary-button compact" disabled={telegramDeliveryLoading || telegramDeliveryPage === 0} onClick={() => setTelegramDeliveryPage((page) => Math.max(0, page - 1))}>আগের</button><button type="button" className="secondary-button compact" disabled={telegramDeliveryLoading || (telegramDeliveryPage + 1) * 10 >= telegramDeliveryTotal} onClick={() => setTelegramDeliveryPage((page) => page + 1)}>পরের</button></div></div>}
         </section>
       </div>
@@ -1746,6 +1882,51 @@ export function SuperAdminPage({ user }) {
       </section>
       <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy}>{busy?'সংরক্ষণ হচ্ছে...':'নোটিশ সংরক্ষণ করুন'}</button></div>
       </form>
+    </>}
+
+    {tab === 'communications' && <>
+      <div className="platform-settings-intro"><span className="eyebrow">প্রকাশনা ও বার্তা</span><h2>আপডেট ও বিজ্ঞপ্তি</h2><p>পরিবর্তনগুলো একবার সংরক্ষণ করুন। সময় ও প্রদর্শনের নিয়ম অনুযায়ী ব্যবহারকারীদের দেখানো হবে।</p></div>
+      {communicationsError && <div className="inline-error platform-alert" role="alert"><Icon name="warning" size={16}/>{communicationsError}</div>}
+      {communicationsLoading ? <div className="card platform-panel"><LoadingSpinner label="প্রকাশনার তথ্য লোড হচ্ছে..."/></div> : <form className="platform-settings-grid platform-communications-grid" onSubmit={saveCommunications}>
+        <section className="card platform-panel platform-communications-card">
+          <div className="platform-panel-heading"><div><span className="eyebrow">সর্বশেষ আপডেট</span><h3>নতুন সংস্করণের তথ্য</h3><p>প্রতি লাইনে একটি পরিবর্তন লিখুন। প্রকাশ করলে আপডেট উইন্ডোতে নতুন ফিচারের বোতাম দেখা যাবে।</p></div><span className="platform-status">সর্বোচ্চ ৩০টি</span></div>
+          <label className="field-label"><span>আপডেটের তালিকা</span><textarea rows={8} maxLength={7200} value={communicationsDraft.release_notes_text} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_text:event.target.value}))} placeholder={'নতুন সুবিধা যুক্ত হয়েছে।\nব্যবহারকারীর অভিজ্ঞতা উন্নত করা হয়েছে।\nনিরাপত্তা ও স্থিতিশীলতা উন্নত হয়েছে।'} /></label>
+          <div className="platform-communications-count">{communicationsDraft.release_notes_text.split(/\r?\n/).filter((line)=>line.trim()).length.toLocaleString('bn-BD')}টি আপডেট লেখা হয়েছে</div>
+          <label className="platform-toggle"><span><strong>আপডেটের তালিকা প্রকাশ করুন</strong><small>বন্ধ থাকলে ব্যবহারকারীরা নতুন ফিচারের তালিকা দেখতে পাবেন না।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.release_notes_published)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_published:event.target.checked}))}/></label>
+        </section>
+
+        <section className="card platform-panel platform-communications-card">
+          <div className="platform-panel-heading"><div><span className="eyebrow">উইন্ডো নোটিশ</span><h3>সবার জন্য নির্দিষ্ট বার্তা</h3><p>নির্ধারিত সময়ে অ্যাপ বা ওয়েবসাইটে একবার উইন্ডো হিসেবে দেখাবে।</p></div></div>
+          <label className="platform-toggle"><span><strong>উইন্ডো নোটিশ চালু</strong><small>বন্ধ করলে সঙ্গে সঙ্গে প্রদর্শন বন্ধ হবে।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.window_notice.enabled)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,enabled:event.target.checked}}))}/></label>
+          <Field label="শিরোনাম" value={communicationsDraft.window_notice.title} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,title:value}}))} maxLength={160}/>
+          <Field label="বার্তা" value={communicationsDraft.window_notice.body} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,body:value}}))} maxLength={1200} multiline/>
+          <div className="platform-communications-date-grid">
+            <Field label="শুরুর সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.window_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,starts_at:value}}))}/>
+            <Field label="শেষের সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.window_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,ends_at:value}}))}/>
+          </div>
+          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.window_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি অ্যাপ খোলায় একবার</option></select></label>
+        </section>
+
+        <section className="card platform-panel platform-communications-card">
+          <div className="platform-panel-heading"><div><span className="eyebrow">ওয়েবসাইট বিজ্ঞপ্তি</span><h3>রক্ষণাবেক্ষণ বার্তা বা ব্যানার</h3><p>সাইটে প্রবেশের সময় বার্তা অথবা ছবি দেখান।</p></div></div>
+          <label className="platform-toggle"><span><strong>বিজ্ঞপ্তি চালু</strong><small>বন্ধ করলে নির্ধারিত ছবি বা বার্তা আর দেখাবে না।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.site_notice.enabled)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,enabled:event.target.checked}}))}/></label>
+          <label className="field-label"><span>বিজ্ঞপ্তির ধরন</span><select value={communicationsDraft.site_notice.mode} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,mode:event.target.value}}))}><option value="message">লিখিত বার্তা</option><option value="image">ছবির ব্যানার</option></select></label>
+          <Field label="শিরোনাম" value={communicationsDraft.site_notice.title} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,title:value}}))} maxLength={160}/>
+          {communicationsDraft.site_notice.mode === 'message' ? <Field label="বার্তা" value={communicationsDraft.site_notice.body} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,body:value}}))} maxLength={1200} multiline/> : <div className="platform-communications-image-editor">
+            {communicationsDraft.site_notice.image_url ? <img src={communicationsDraft.site_notice.image_url} alt="ব্যানার প্রিভিউ"/> : <div className="platform-communications-image-placeholder"><Icon name="image" size={24}/><span>এখনো কোনো ব্যানার আপলোড করা হয়নি</span></div>}
+            <input ref={communicationsImageInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleCommunicationsImage}/>
+            <button type="button" className="secondary-button" disabled={communicationsImageBusy} onClick={()=>communicationsImageInputRef.current?.click()}><Icon name="upload" size={15}/>{communicationsImageBusy?'আপলোড হচ্ছে...':'ব্যানার ছবি আপলোড / পরিবর্তন'}</button>
+            <small>ছবি ৫ MB-এর কম হতে হবে। নতুন ছবি আগের ছবির একই ফাইলে প্রতিস্থাপিত হবে; অতিরিক্ত Storage Object তৈরি হবে না।</small>
+          </div>}
+          <div className="platform-communications-date-grid">
+            <Field label="শুরুর সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.site_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,starts_at:value}}))}/>
+            <Field label="শেষের সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.site_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,ends_at:value}}))}/>
+          </div>
+          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.site_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি অ্যাপ খোলায় একবার</option></select></label>
+        </section>
+
+        <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={communicationsBusy||communicationsImageBusy}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'সব পরিবর্তন সংরক্ষণ ও প্রকাশ করুন'}</button></div>
+      </form>}
     </>}
 
     {tab === 'developer' && <>

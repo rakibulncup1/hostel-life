@@ -49,8 +49,8 @@ test('Member-scoped Activity Log is bound to the selected hostel and user', () =
   assert.match(migration, /e\.hostel_id=p_hostel_id AND \(e\.actor_user_id=p_user_id OR e\.subject_user_id=p_user_id\)/);
   assert.match(adminPage, /openMemberActivity\(member\)/);
   assert.match(adminPage, /memberActivityTarget/);
-  assert.match(adminPage, /Last Seen:/);
-  assert.match(adminPage, /Last Login:/);
+  assert.match(adminPage, /সর্বশেষ সক্রিয়/);
+  assert.match(adminPage, /সর্বশেষ প্রবেশ/);
   assert.match(platformService, /platformAdminListMemberActivity/);
 });
 

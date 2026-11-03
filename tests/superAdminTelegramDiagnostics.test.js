@@ -52,8 +52,8 @@ test('Super Admin Telegram page exposes actionable incoming webhook and outgoing
   assert.match(service, /platform_admin_get_telegram_delivery_health/);
   assert.match(service, /platform_admin_list_telegram_delivery_batches/);
   assert.match(service, /functions\.invoke\('telegram-bot-webhook'/);
-  assert.match(platform, /Webhook সেট \/ মেরামত/);
-  assert.match(platform, /Database Webhook সেটআপ প্রয়োজন/);
+  assert.match(platform, /ওয়েবহুক সেট \/ মেরামত/);
+  assert.match(platform, /ডাটাবেজ ওয়েবহুক সেটআপ প্রয়োজন/);
   assert.match(platform, /telegramDeliveryFilter/);
   assert.match(platform, /platform-health-item-action/);
   assert.match(platform, /healthIssueFilter/);

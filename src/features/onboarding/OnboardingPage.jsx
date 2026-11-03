@@ -13,7 +13,7 @@ import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
 import { normalizeRunningPeriodPayload } from '../../utils/period';
 import { applyTheme, getThemePreference } from '../../app/theme';
 import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
-import { createHostelJoinRequestFromInvite as createHostelJoinRequestFromLink, getHostelInviteLinkInfo as getHostelAccessLinkInfo, getMyHostelJoinRequestStatus } from '../../services/hostelInviteService';
+import { createHostelJoinRequestFromInvite as createHostelJoinRequestFromLink, getHostelInviteLinkInfo as getHostelAccessLinkInfo, getMyHostelJoinRequestStatus, managerCreateHostelInviteLink } from '../../services/hostelInviteService';
 import { clearPendingHostelLinkToken, getPendingHostelLinkToken } from '../../utils/pendingHostelLink';
 
 
@@ -31,7 +31,7 @@ function OnboardingBrand({ title, description }) {
 function OnboardingTopbar() {
   return (
     <div className="onboarding-topbar">
-      <span><Icon name="shield-check" size={15} /> নিরাপদ প্রথম ধাপ</span>
+      <span><Icon name="shield-check" size={15} /> অ্যাকাউন্ট সেটআপ</span>
       <EntryThemeSwitcher />
     </div>
   );
@@ -51,6 +51,9 @@ export function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [switchingAccount, setSwitchingAccount] = useState(false);
   const [createdHostel, setCreatedHostel] = useState(null);
+  const [createdInviteUrl, setCreatedInviteUrl] = useState('');
+  const [inviteLinkBusy, setInviteLinkBusy] = useState(false);
+  const [inviteLinkError, setInviteLinkError] = useState('');
   const [initialMonthStatus, setInitialMonthStatus] = useState('not-started');
   const [initialMonthError, setInitialMonthError] = useState('');
   const [pendingLinkToken, setPendingLinkToken] = useState(() => getPendingHostelLinkToken());
@@ -112,7 +115,7 @@ export function OnboardingPage() {
       if (infoResult.status === 'fulfilled') setPendingLinkInfo(infoResult.value);
       else setPendingLinkError(statusResult.status === 'fulfilled' && statusResult.value?.status === 'pending'
         ? 'লিংকটি আর নতুন অনুরোধ নিচ্ছে না, তবে আপনার আগের অনুরোধ এখনো অপেক্ষমাণ। ম্যানেজারের সিদ্ধান্তের জন্য অপেক্ষা করুন।'
-        : getFriendlySupabaseError(infoResult.reason, 'Invitation Link-এর তথ্য পাওয়া যায়নি।'));
+        : getFriendlySupabaseError(infoResult.reason, 'আমন্ত্রণ লিংক-এর তথ্য পাওয়া যায়নি।'));
       if (statusResult.status === 'fulfilled') {
         setJoinRequestStatus(statusResult.value);
         if (statusResult.value?.status === 'approved') {
@@ -120,7 +123,7 @@ export function OnboardingPage() {
           await refreshIdentity();
           navigateTo('/app/dashboard', true);
         }
-      } else if (statusResult.reason?.code !== 'PGRST202') setPendingLinkError((old) => old || getFriendlySupabaseError(statusResult.reason, 'Join Request-এর অবস্থা যাচাই করা যায়নি।'));
+      } else if (statusResult.reason?.code !== 'PGRST202') setPendingLinkError((old) => old || getFriendlySupabaseError(statusResult.reason, 'যোগদানের অনুরোধ-এর অবস্থা যাচাই করা যায়নি।'));
     });
     return () => { active = false; };
   }, [pendingLinkToken, online, refreshIdentity]);
@@ -135,10 +138,10 @@ export function OnboardingPage() {
         await refreshIdentity();
         navigateTo('/app/dashboard', true);
       } else if (result.status === 'pending') {
-        toast.success('Join Request ম্যানেজারের কাছে পাঠানো হয়েছে। অনুমোদন না পাওয়া পর্যন্ত আপনি শুধু অনুরোধের অবস্থা দেখতে পারবেন।');
+        toast.success('যোগদানের অনুরোধ ম্যানেজারের কাছে পাঠানো হয়েছে। অনুমোদন না পাওয়া পর্যন্ত আপনি শুধু অনুরোধের অবস্থা দেখতে পারবেন।');
       }
     } catch (error) {
-      setPendingLinkError(getFriendlySupabaseError(error, 'Join Request পাঠানো যায়নি।'));
+      setPendingLinkError(getFriendlySupabaseError(error, 'যোগদানের অনুরোধ পাঠানো যায়নি।'));
     } finally { setJoinRequestBusy(false); }
   };
 
@@ -152,7 +155,7 @@ export function OnboardingPage() {
         await refreshIdentity();
         navigateTo('/app/dashboard', true);
       }
-      if (status.status === 'rejected') toast.info('আপনার Join Request অনুমোদিত হয়নি। চাইলে অন্য মেসে সাধারণ Join Code ব্যবহার করতে পারেন।');
+      if (status.status === 'rejected') toast.info('আপনার যোগদানের অনুরোধ অনুমোদিত হয়নি। চাইলে অন্য মেসে সাধারণ যুক্ত হওয়ার কোড ব্যবহার করতে পারেন।');
     } catch (error) { setPendingLinkError(getFriendlySupabaseError(error, 'অনুরোধের অবস্থা পাওয়া যায়নি।')); }
     finally { setJoinRequestBusy(false); }
   };
@@ -186,7 +189,7 @@ export function OnboardingPage() {
     }
     const code = joinCode.trim().toUpperCase();
     if (!/^[0-9A-F]{12}$/.test(code)) {
-      toast.error('১২ অক্ষরের সঠিক Join Code দিন।');
+      toast.error('১২ অক্ষরের সঠিক যুক্ত হওয়ার কোড দিন।');
       return;
     }
     setSubmitting(true);
@@ -197,9 +200,48 @@ export function OnboardingPage() {
       clearPendingHostelLinkToken(); setPendingLinkToken(''); setPendingLinkInfo(null); setJoinRequestStatus(null);
       await refreshIdentity();
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'মেসে যুক্ত হওয়া যায়নি। Join Code যাচাই করুন।'));
+      toast.error(getFriendlySupabaseError(error, 'মেসে যুক্ত হওয়া যায়নি। যুক্ত হওয়ার কোড যাচাই করুন।'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const createInviteLink = async () => {
+    if (inviteLinkBusy) return;
+    setInviteLinkBusy(true);
+    setInviteLinkError('');
+    try {
+      const result = await managerCreateHostelInviteLink('সদস্য আমন্ত্রণ');
+      if (!result?.token || !/^[0-9a-f]{64}$/.test(result.token)) {
+        throw new Error('সার্ভার থেকে বৈধ আমন্ত্রণ লিংক পাওয়া যায়নি।');
+      }
+      setCreatedInviteUrl(`${window.location.origin}/invite#${result.token}`);
+      toast.success('আমন্ত্রণ লিংক তৈরি হয়েছে।');
+    } catch (error) {
+      const message = getFriendlySupabaseError(error, 'আমন্ত্রণ লিংক তৈরি করা যায়নি।');
+      setInviteLinkError(message);
+      toast.warning(message);
+    } finally {
+      setInviteLinkBusy(false);
+    }
+  };
+
+  const shareOrCopy = async ({ title, text, url, successMessage }) => {
+    const payload = url ? { title, text, url } : { title, text };
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share(payload);
+        toast.success(successMessage);
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url ? `${text}\n${url}` : text);
+      toast.success(successMessage);
+    } catch {
+      toast.info('কপি করা যায়নি। তথ্যটি নির্বাচন করে কপি করুন।');
     }
   };
 
@@ -235,7 +277,18 @@ export function OnboardingPage() {
       } catch (periodError) {
         setInitialMonthStatus('failed');
         setInitialMonthError(getFriendlySupabaseError(periodError, 'প্রথম মাস স্বয়ংক্রিয়ভাবে শুরু করা যায়নি।'));
-        toast.warning('মেস তৈরি হয়েছে, কিন্তু প্রথম মাস শুরু হয়নি। নিচের “প্রথম মাস আবার শুরু করুন” বোতাম ব্যবহার করুন।');
+        toast.warning('মেস তৈরি হয়েছে, কিন্তু প্রথম মাস শুরু হয়নি। নিচের বোতাম থেকে আবার চেষ্টা করুন।');
+      }
+      // Reuse the existing manager invitation RPC; no new invitation/token system.
+      try {
+        const invite = await managerCreateHostelInviteLink('নতুন মেসের সদস্য আমন্ত্রণ');
+        if (invite?.token && /^[0-9a-f]{64}$/.test(invite.token)) {
+          setCreatedInviteUrl(`${window.location.origin}/invite#${invite.token}`);
+        } else {
+          setInviteLinkError('আমন্ত্রণ লিংক তৈরি করা যায়নি। আবার চেষ্টা করুন।');
+        }
+      } catch (inviteError) {
+        setInviteLinkError(getFriendlySupabaseError(inviteError, 'আমন্ত্রণ লিংক তৈরি করা যায়নি।'));
       }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'মেস তৈরি করা যায়নি। আবার চেষ্টা করুন।'));
@@ -294,26 +347,37 @@ export function OnboardingPage() {
             <OnboardingBrand title="মেস তৈরি সম্পন্ন" description="আপনার নতুন মেস প্রস্তুত। এখন সদস্যদের সঙ্গে যুক্ত হয়ে পরিচালনা শুরু করুন।" />
             <div className="creation-success-card">
               <div className="success-panel-icon"><Icon name="check" size={24} /></div>
-              <span className="eyebrow">সেটআপ সম্পন্ন</span>
-              <h2>“{createdHostel.name}” প্রস্তুত!</h2>
-              <p>আপনি ম্যানেজার হিসেবে যুক্ত হয়েছেন। অন্য সদস্যদের এই Join Code দিন।</p>
-              {initialMonthStatus === 'started' && <div className="inline-success"><Icon name="check-circle" size={17} /><span>চলতি মাসের ১ তারিখ থেকে প্রথম মাস চালু হয়েছে।</span></div>}
-              {initialMonthStatus === 'failed' && <div className="inline-error"><Icon name="warning" size={17} /><span>মেস তৈরি হয়েছে, তবে প্রথম মাস চালু করা যায়নি। {initialMonthError || 'ইন্টারনেট ও Backend RPC যাচাই করে আবার চেষ্টা করুন।'}</span></div>}
-              {initialMonthStatus === 'failed' && <button type="button" className="secondary-button" disabled={submitting || !online} onClick={retryInitialMonth}>{submitting ? 'চেষ্টা হচ্ছে...' : 'প্রথম মাস আবার শুরু করুন'}</button>}
-              <div className="join-code-box">
-                <span>Join Code</span>
-                <strong>{createdHostel.join_code}</strong>
-                <button type="button" className="secondary-button" onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(createdHostel.join_code);
-                    toast.success('Join Code কপি হয়েছে।');
-                  } catch {
-                    toast.info('Join Code কপি করা যায়নি। কোডটি হাতে কপি করুন।');
-                  }
-                }}>কপি করুন</button>
+              <span className="eyebrow">মেস তৈরি সম্পন্ন</span>
+              <h2>“{createdHostel.name}” প্রস্তুত</h2>
+              {initialMonthStatus === 'started' && <div className="inline-success"><Icon name="check-circle" size={17} /><span>প্রথম মাস চালু হয়েছে।</span></div>}
+              {initialMonthStatus === 'failed' && <div className="inline-error"><Icon name="warning" size={17} /><span>মেস তৈরি হয়েছে, তবে প্রথম মাস চালু হয়নি। {initialMonthError}</span></div>}
+              {initialMonthStatus === 'failed' && <button type="button" className="secondary-button" disabled={submitting || !online} onClick={retryInitialMonth}>{submitting ? 'চেষ্টা হচ্ছে...' : 'প্রথম মাস চালু করুন'}</button>}
+
+              <div className="onboarding-share-card">
+                <div><span className="onboarding-share-icon"><Icon name="key-round" size={18}/></span><div><strong>যুক্ত হওয়ার কোড</strong><small>কোড কপি বা শেয়ার করুন</small></div></div>
+                <code>{createdHostel.join_code || '—'}</code>
+                <div className="onboarding-share-actions">
+                  <button type="button" className="secondary-button" disabled={!createdHostel.join_code} onClick={() => shareOrCopy({ title: `${createdHostel.name} · যুক্ত হওয়ার কোড`, text: `${createdHostel.name}-এ যুক্ত হওয়ার কোড: ${createdHostel.join_code}`, successMessage: 'কোড শেয়ারের জন্য প্রস্তুত।' })}><Icon name="share-2" size={15}/> শেয়ার</button>
+                  <button type="button" className="secondary-button" disabled={!createdHostel.join_code} onClick={async () => { try { await navigator.clipboard.writeText(createdHostel.join_code); toast.success('কোড কপি হয়েছে।'); } catch { toast.info('কোড কপি করা যায়নি। হাতে কপি করুন।'); } }}><Icon name="copy" size={15}/> কপি</button>
+                </div>
               </div>
+
+              <div className="onboarding-share-card">
+                <div><span className="onboarding-share-icon"><Icon name="link" size={18}/></span><div><strong>আমন্ত্রণ লিংক</strong><small>লিংক খুলে সরাসরি যোগদানের অনুরোধ পাঠানো যাবে</small></div></div>
+                {createdInviteUrl ? <>
+                  <div className="onboarding-invite-url">{createdInviteUrl}</div>
+                  <div className="onboarding-share-actions">
+                    <button type="button" className="primary-button" onClick={() => shareOrCopy({ title: `${createdHostel.name} · আমন্ত্রণ`, text: `${createdHostel.name}-এ যোগ দিতে এই লিংকটি খুলুন।`, url: createdInviteUrl, successMessage: 'আমন্ত্রণ লিংক শেয়ার করা হয়েছে।' })}><Icon name="share-2" size={15}/> শেয়ার</button>
+                    <button type="button" className="secondary-button" onClick={async () => { try { await navigator.clipboard.writeText(createdInviteUrl); toast.success('আমন্ত্রণ লিংক কপি হয়েছে।'); } catch { toast.info('লিংক কপি করা যায়নি।'); } }}><Icon name="copy" size={15}/> কপি</button>
+                  </div>
+                </> : <>
+                  {inviteLinkError && <div className="inline-error">{inviteLinkError}</div>}
+                  <button type="button" className="secondary-button" onClick={createInviteLink} disabled={inviteLinkBusy || !online}>{inviteLinkBusy ? 'তৈরি হচ্ছে...' : 'আমন্ত্রণ লিংক তৈরি করুন'}</button>
+                </>}
+              </div>
+
               <button type="button" className="primary-button large" onClick={() => refreshIdentity()}>মেসে প্রবেশ করুন</button>
-              <button type="button" className="onboarding-switch-account" onClick={switchAccount} disabled={switchingAccount || submitting}>{switchingAccount ? 'অ্যাকাউন্ট পরিবর্তন হচ্ছে...' : 'অন্য অ্যাকাউন্ট দিয়ে লগইন / রেজিস্ট্রেশন'}</button>
+              <button type="button" className="onboarding-switch-account" onClick={switchAccount} disabled={switchingAccount || submitting}>{switchingAccount ? 'অ্যাকাউন্ট পরিবর্তন হচ্ছে...' : 'অন্য অ্যাকাউন্ট ব্যবহার করুন'}</button>
             </div>
           </div>
         </section>
@@ -338,17 +402,17 @@ export function OnboardingPage() {
           <OnboardingTopbar />
           <OnboardingBrand
             title={`স্বাগতম, ${profile?.full_name?.split(' ')[0] || 'সদস্য'}!`}
-            description="আপনার অ্যাকাউন্ট প্রস্তুত। এখন একটি মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
+            description="একটি মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
           />
 
-          {pendingLinkToken && <section className="onboarding-linked-request card" aria-label="Invitation Link দিয়ে মেসে যোগদান">
+          {pendingLinkToken && <section className="onboarding-linked-request card" aria-label="আমন্ত্রণ লিংক দিয়ে মেসে যোগদান">
             <div className="onboarding-linked-request-icon"><Icon name="mail-plus" size={22}/></div>
             <div className="onboarding-linked-request-copy">
               <span className="eyebrow">সদস্য আমন্ত্রণ</span>
               <h2>{pendingLinkInfo?.hostel_name || 'আমন্ত্রিত মেসে যোগদান'}</h2>
-              <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে কোড লাগবে না। Request পাঠান; ম্যানেজার অনুমোদন করলে সদস্যপদ চালু হবে।' : 'Invitation Link যাচাই করা হচ্ছে...')}</p>
+              <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে অনুরোধ পাঠান। অনুমোদনের পর সদস্যপদ চালু হবে।' : 'আমন্ত্রণ যাচাই করা হচ্ছে...')}</p>
               {joinRequestStatus?.status === 'pending' && <div className="inline-success"><Icon name="clock" size={16}/> আপনার অনুরোধ অপেক্ষমাণ। অনুমোদনের পর মেসে প্রবেশ করতে পারবেন।</div>}
-              {joinRequestStatus?.status === 'rejected' && <div className="inline-error"><Icon name="info" size={16}/> এই অনুরোধটি অনুমোদিত হয়নি। চাইলে নিচে সাধারণ Join Code বা নতুন মেস তৈরির পদ্ধতি ব্যবহার করুন। {joinRequestStatus.review_note || ''}</div>}
+              {joinRequestStatus?.status === 'rejected' && <div className="inline-error"><Icon name="info" size={16}/> এই অনুরোধটি অনুমোদিত হয়নি। চাইলে নিচে সাধারণ যুক্ত হওয়ার কোড বা নতুন মেস তৈরির পদ্ধতি ব্যবহার করুন। {joinRequestStatus.review_note || ''}</div>}
               {joinRequestStatus?.status === 'approved' && <div className="inline-success"><Icon name="check-circle" size={16}/> অনুরোধ অনুমোদিত হয়েছে। অ্যাকাউন্ট যাচাই করা হচ্ছে...</div>}
               {(!joinRequestStatus || joinRequestStatus.status === 'not_submitted' || joinRequestStatus.status === 'rejected') && <>
                 <label className="field-label"><span>ম্যানেজারের জন্য বার্তা (ঐচ্ছিক)</span><textarea rows={2} maxLength={500} value={joinRequestNote} onChange={(e) => setJoinRequestNote(e.target.value)} placeholder="নিজের পরিচয় বা যোগদানের কারণ লিখুন"/></label>
@@ -365,17 +429,17 @@ export function OnboardingPage() {
             </button>
           </div>
 
-          {joinRequestStatus?.status === 'pending' ? <div className="onboarding-linked-request-waiting" role="status"><Icon name="clock" size={20}/><strong>আপনার Join Request পর্যালোচনাধীন</strong><p>অনুমোদন বা প্রত্যাখ্যানের সিদ্ধান্ত না আসা পর্যন্ত অন্য মেসে যুক্ত হওয়া বা নতুন মেস তৈরি করা যাবে না। অনুরোধের অবস্থা যাচাই করুন।</p><button type="button" className="secondary-button" disabled={joinRequestBusy || !online} onClick={refreshLinkedRequestStatus}>{joinRequestBusy ? 'যাচাই হচ্ছে...' : 'অনুরোধের অবস্থা যাচাই করুন'}</button></div> : <>
+          {joinRequestStatus?.status === 'pending' ? <div className="onboarding-linked-request-waiting" role="status"><Icon name="clock" size={20}/><strong>যোগদানের অনুরোধ পর্যালোচনাধীন</strong><p>অনুমোদন বা প্রত্যাখ্যানের সিদ্ধান্ত না আসা পর্যন্ত অন্য মেসে যুক্ত হওয়া বা নতুন মেস তৈরি করা যাবে না। অনুরোধের অবস্থা যাচাই করুন।</p><button type="button" className="secondary-button" disabled={joinRequestBusy || !online} onClick={refreshLinkedRequestStatus}>{joinRequestBusy ? 'যাচাই হচ্ছে...' : 'অনুরোধের অবস্থা যাচাই করুন'}</button></div> : <>
           <div className="onboarding-choice-intro">
             <span className="eyebrow">শুরু করার উপায়</span>
             <h2>আপনি কীভাবে শুরু করতে চান?</h2>
-            <p>একটি অপশন বেছে নিন। পরের ধাপে প্রয়োজনীয় তথ্য দিন।</p>
+            <p>শুরু করার পদ্ধতি বেছে নিন।</p>
           </div>
 
           <div className="onboarding-mode-picker" role="group" aria-label="মেসে যুক্ত হওয়া অথবা নতুন মেস তৈরি করা">
             <button type="button" className={`onboarding-mode-option ${mode === 'join' ? 'active' : ''}`} onClick={() => setMode('join')} aria-pressed={mode === 'join'}>
               <span className="onboarding-mode-icon"><Icon name="user-plus" size={20} /></span>
-              <span className="onboarding-mode-copy"><strong>মেসে যুক্ত হন</strong><small>Join Code ব্যবহার করে</small></span>
+              <span className="onboarding-mode-copy"><strong>মেসে যুক্ত হন</strong><small>কোড দিয়ে</small></span>
               <span className="onboarding-mode-check">{mode === 'join' && <Icon name="check-circle" size={18} />}</span>
             </button>
             <button type="button" className={`onboarding-mode-option ${mode === 'create' ? 'active' : ''}`} onClick={() => setMode('create')} aria-pressed={mode === 'create'}>
@@ -387,14 +451,14 @@ export function OnboardingPage() {
 
           <section className="onboarding-action-panel" aria-live="polite">
             <div className="onboarding-action-heading">
-              <span className="eyebrow">{mode === 'join' ? 'JOIN AN EXISTING HOSTEL' : 'CREATE A NEW HOSTEL'}</span>
-              <h3>{mode === 'join' ? 'Join Code দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'}</h3>
-              <p>{mode === 'join' ? 'মেসের ম্যানেজারের কাছ থেকে পাওয়া Join Code লিখুন।' : 'আপনার মেসের জন্য একটি নাম নির্বাচন করুন।'}</p>
+              <span className="eyebrow">{mode === 'join' ? 'আগে থেকে থাকা মেসে যোগ দিন' : 'নতুন মেস তৈরি'}</span>
+              <h3>{mode === 'join' ? 'কোড দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'}</h3>
+              <p>{mode === 'join' ? 'মেসের ম্যানেজারের কাছ থেকে পাওয়া যুক্ত হওয়ার কোড লিখুন।' : 'আপনার মেসের জন্য একটি নাম নির্বাচন করুন।'}</p>
             </div>
             {mode === 'join' ? (
               <form className="form-stack onboarding-entry-form" onSubmit={join}>
                 <label className="field-label">
-                  <span>Join Code</span>
+                  <span>যুক্ত হওয়ার কোড</span>
                   <input
                     type="text"
                     value={joinCode}
@@ -420,7 +484,7 @@ export function OnboardingPage() {
                 {hostelCodeRequired && (
                   <label className="field-label">
                     <span>মেস তৈরির অনুমতি কোড</span>
-                    <input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="Super Admin-এর দেওয়া কোড" />
+                    <input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="অ্যাডমিনের দেওয়া কোড" />
                     <small className="platform-form-help">কোডটি সার্ভারে যাচাই হবে এবং নির্দিষ্ট ব্যবহারের পর শেষ হবে।</small>
                   </label>
                 )}

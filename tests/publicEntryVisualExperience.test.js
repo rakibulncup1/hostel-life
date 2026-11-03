@@ -30,7 +30,7 @@ test('Super Admin navigation communicates the selected section accessibly', () =
   assert.match(superAdmin, /className="platform-tabs platform-main-tabs" aria-label="পর্যবেক্ষণ বিভাগ"/);
   assert.match(superAdmin, /className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ"/);
   assert.match(superAdmin, /সিস্টেম সেটিংস/);
-  assert.match(superAdmin, /Session Security/);
+  assert.match(superAdmin, /সেশন নিরাপত্তা/);
   assert.match(superAdmin, /aria-current=\{tab===key\?'page':undefined\}/);
   assert.match(adminCss, /\.platform-page \.platform-tabs/);
 });

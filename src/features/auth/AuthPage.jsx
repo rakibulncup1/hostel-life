@@ -47,12 +47,12 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
         <div className="auth-brand-panel">
           <div className="auth-brand-mark"><BrandMark size={64} /></div>
           <span className="auth-eyebrow">HOSTEL LIFE</span>
-          <h1>আপনার হোস্টেল, আরও গোছানো প্রতিদিন।</h1>
-          <p>মিল থেকে মাসিক হিসাব—সবকিছু নিরাপদে, সুন্দরভাবে, এক জায়গায়।</p>
+          <h1>হোস্টেল ব্যবস্থাপনা, সহজ ও গোছানো।</h1>
+          <p>দৈনন্দিন হিসাব ও ব্যবস্থাপনা—এক জায়গায়।</p>
         </div>
         <div className="auth-form-panel">
           <div className="auth-form-toolbar">
-            <span className="auth-form-toolbar-label"><Icon name="shield-check" size={15} /> নিরাপদ অ্যাকাউন্ট অ্যাক্সেস</span>
+            <span className="auth-form-toolbar-label"><Icon name="shield-check" size={15} /> নিরাপদ অ্যাকাউন্ট</span>
             <EntryThemeSwitcher />
           </div>
           <div className="auth-header">
@@ -127,7 +127,7 @@ function LoginForm() {
   };
 
   return (
-    <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার তথ্য দিয়ে নিরাপদে Hostel Life-এ লগইন করুন।">
+    <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="চালিয়ে যেতে আপনার তথ্য দিন।">
       {sessionPolicyNotice && <div className="auth-session-dialog-backdrop" role="presentation"><section className="auth-session-dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-session-dialog-title" aria-describedby="auth-session-dialog-description"><span className="auth-session-dialog-icon"><Icon name="shield-alert" size={25}/></span><h3 id="auth-session-dialog-title">নিরাপত্তার কারণে লগআউট</h3><p id="auth-session-dialog-description">{sessionPolicyNotice}</p><button type="button" className="primary-button large" onClick={() => setSessionPolicyNotice('')}>বুঝেছি, আবার লগইন করব</button></section></div>}
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
@@ -212,7 +212,7 @@ function RegisterForm() {
   };
 
   return (
-    <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle="কয়েকটি তথ্য দিন, তারপর শুরু করুন আপনার হোস্টেল লাইফ।">
+    <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle="কয়েকটি তথ্য দিয়ে অ্যাকাউন্ট তৈরি করুন।">
       <form className="form-stack auth-register-form" onSubmit={submit}>
         <div className="two-field-grid">
           <label className="field-label">
@@ -300,7 +300,7 @@ function ForgotPasswordForm() {
   };
 
   return (
-    <AuthFrame compact title="পাসওয়ার্ড পুনরুদ্ধার" subtitle="আপনার ইমেইলে পাসওয়ার্ড বদলের লিংক পাঠানো হবে।">
+    <AuthFrame compact title="পাসওয়ার্ড পুনরুদ্ধার" subtitle="ইমেইলে পাসওয়ার্ড পরিবর্তনের লিংক পাঠানো হবে।">
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
           <span>ইমেইল</span>
@@ -316,7 +316,7 @@ function ForgotPasswordForm() {
         <button className="primary-button large" type="submit" disabled={submitting || !online}>
           {submitting ? 'পাঠানো হচ্ছে...' : 'রিসেট লিংক পাঠান'}
         </button>
-        <button type="button" className="secondary-button" onClick={() => go('/auth/login')}><Icon name="chevron" size={16} className="rotate-180" /> লগইনে ফিরে যান</button>
+        <button type="button" className="secondary-button" onClick={() => go('/auth/login')}><Icon name="chevron" size={16} className="rotate-180" /> আগের পৃষ্ঠায় যান</button>
       </form>
     </AuthFrame>
   );
@@ -361,11 +361,11 @@ function ResetPasswordForm() {
   };
 
   if (authLoading) {
-    return <AuthFrame compact title="পাসওয়ার্ড পুনরুদ্ধার" subtitle="নিরাপদ session যাচাই করা হচ্ছে..."><div className="loading-wrap auth-loading"><span className="spinner" /><span>যাচাই হচ্ছে...</span></div></AuthFrame>;
+    return <AuthFrame compact title="পাসওয়ার্ড পুনরুদ্ধার" subtitle="নিরাপদভাবে যাচাই করা হচ্ছে..."><div className="loading-wrap auth-loading"><span className="spinner" /><span>যাচাই হচ্ছে...</span></div></AuthFrame>;
   }
 
   return (
-    <AuthFrame compact title="নতুন পাসওয়ার্ড" subtitle="নতুন পাসওয়ার্ড সেট করে আপনার অ্যাকাউন্ট সুরক্ষিত করুন।">
+    <AuthFrame compact title="নতুন পাসওয়ার্ড" subtitle="নতুন পাসওয়ার্ড নির্ধারণ করুন।">
       {!session && !done && (
         <div className="inline-error"><Icon name="warning" size={17} /><span>এই পৃষ্ঠায় পাসওয়ার্ড পরিবর্তনের বৈধ সেশন পাওয়া যায়নি।</span></div>
       )}
@@ -389,7 +389,7 @@ function ResetPasswordForm() {
           <button className="primary-button large" type="submit" disabled={submitting || !session}>
             {submitting ? 'পরিবর্তন হচ্ছে...' : 'পাসওয়ার্ড পরিবর্তন করুন'}
           </button>
-          <button type="button" className="secondary-button" onClick={() => go('/auth/login')}><Icon name="chevron" size={16} className="rotate-180" /> লগইনে ফিরে যান</button>
+          <button type="button" className="secondary-button" onClick={() => go('/auth/login')}><Icon name="chevron" size={16} className="rotate-180" /> আগের পৃষ্ঠায় যান</button>
         </form>
       )}
     </AuthFrame>
