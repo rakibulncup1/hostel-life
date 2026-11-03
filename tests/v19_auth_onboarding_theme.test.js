@@ -45,8 +45,9 @@ test('onboarding business actions and security-gated fields remain unchanged', (
   assert.match(onboarding, /supabase\.rpc\('join_hostel'/);
   assert.match(onboarding, /supabase\.rpc\('create_hostel_secure'/);
   assert.match(onboarding, /hostelCodeRequired &&/);
-  assert.match(onboarding, /setMode\('join'\)/);
-  assert.match(onboarding, /setMode\('create'\)/);
+  assert.match(onboarding, /setMode\(\(current\) => current === 'join' \? '' : 'join'\)/);
+  assert.match(onboarding, /setMode\(\(current\) => current === 'create' \? '' : 'create'\)/);
+  assert.match(onboarding, /setMode\(''\)/);
 });
 
 test('theme switcher is usable on small screens and respects reduced-motion preferences', () => {

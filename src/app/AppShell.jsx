@@ -61,6 +61,10 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [unreadCount, setUnreadCount] = useState(0);
   const [pinnedManagerNotice, setPinnedManagerNotice] = useState(null);
   const [platformSettings, setPlatformSettings] = useState(null);
+  const [dismissedSystemNoticeSignature, setDismissedSystemNoticeSignature] = useState(() => {
+    try { return window.localStorage.getItem('hostel-life-global-system-notice-dismissed-v1') || ''; }
+    catch { return ''; }
+  });
   const unreadFetchInFlightRef = useRef(null);
   const [theme, setTheme] = useState(() => getThemePreference());
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
@@ -72,6 +76,15 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const telegramNudgeCheckedUserRef = useRef('');
 
   const active = pathToKey(pathname);
+  const systemNoticeSignature = `${String(platformSettings?.announcement_title || '').trim()}\u241f${String(platformSettings?.announcement_body || '').trim()}`;
+  const systemAnnouncementVisible = Boolean(platformSettings?.announcement_enabled
+    && (platformSettings.announcement_title || platformSettings.announcement_body)
+    && dismissedSystemNoticeSignature !== systemNoticeSignature);
+  const dismissSystemAnnouncement = () => {
+    try { window.localStorage.setItem('hostel-life-global-system-notice-dismissed-v1', systemNoticeSignature); }
+    catch { /* The notice remains dismissible for this app session. */ }
+    setDismissedSystemNoticeSignature(systemNoticeSignature);
+  };
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
 
   useEffect(() => {
@@ -384,7 +397,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
           <span>ইন্টারনেট সংযোগ নেই — সর্বশেষ সংরক্ষিত ড্যাশবোর্ড, মিল ও লেট রিকোয়েস্ট দেখা যাবে।</span>
         </div>
       )}
-      {platformSettings?.announcement_enabled && (platformSettings.announcement_title || platformSettings.announcement_body) && (
+      {systemAnnouncementVisible && (
         <section className="global-announcement global-system-announcement" role="status" aria-live="polite">
           <div className="global-announcement-inner">
             <span className="global-announcement-icon"><Icon name="shield-check" size={19} /></span>
@@ -393,6 +406,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
               <strong>{platformSettings.announcement_title || 'Hostel Life ঘোষণা'}</strong>
               {platformSettings.announcement_body && <p>{platformSettings.announcement_body}</p>}
             </div>
+            <button type="button" className="global-announcement-dismiss" onClick={dismissSystemAnnouncement} aria-label="সিস্টেম নোটিশ বন্ধ করুন" title="বন্ধ করুন"><Icon name="x" size={18}/></button>
           </div>
         </section>
       )}
@@ -479,6 +493,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
 
       {priorityMessages.length > 0 && !releaseNoticeOpen && !installNudgeOpen && <div className="priority-message-backdrop" role="presentation">
         <section className="priority-message-dialog" role="dialog" aria-modal="true" aria-labelledby="priority-message-title">
+          <button type="button" className="release-notice-close" onClick={dismissPriorityMessage} aria-label="বার্তা বন্ধ করুন" title="বন্ধ করুন"><Icon name="x" size={18}/></button>
           <span className="priority-message-icon"><Icon name="bell" size={21}/></span>
           <span className="eyebrow">HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা</span>
           <h2 id="priority-message-title">{priorityMessages[0].title || 'আপনার জন্য একটি বার্তা'}</h2>

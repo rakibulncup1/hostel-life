@@ -43,7 +43,7 @@ export function OnboardingPage() {
   const { canInstall, installed, install } = useInstallPromptContext();
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
   const { profile, refreshIdentity, signOutLocal } = useAuth();
-  const [mode, setMode] = useState('join');
+  const [mode, setMode] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [hostelName, setHostelName] = useState('');
   const [hostelPermissionCode, setHostelPermissionCode] = useState('');
@@ -402,7 +402,7 @@ export function OnboardingPage() {
           <OnboardingTopbar />
           <OnboardingBrand
             title={`স্বাগতম, ${profile?.full_name?.split(' ')[0] || 'সদস্য'}!`}
-            description="একটি মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
+            description="মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
           />
 
           {pendingLinkToken && <section className="onboarding-linked-request card" aria-label="আমন্ত্রণ লিংক দিয়ে মেসে যোগদান">
@@ -431,29 +431,28 @@ export function OnboardingPage() {
 
           {joinRequestStatus?.status === 'pending' ? <div className="onboarding-linked-request-waiting" role="status"><Icon name="clock" size={20}/><strong>যোগদানের অনুরোধ পর্যালোচনাধীন</strong><p>অনুমোদন বা প্রত্যাখ্যানের সিদ্ধান্ত না আসা পর্যন্ত অন্য মেসে যুক্ত হওয়া বা নতুন মেস তৈরি করা যাবে না। অনুরোধের অবস্থা যাচাই করুন।</p><button type="button" className="secondary-button" disabled={joinRequestBusy || !online} onClick={refreshLinkedRequestStatus}>{joinRequestBusy ? 'যাচাই হচ্ছে...' : 'অনুরোধের অবস্থা যাচাই করুন'}</button></div> : <>
           <div className="onboarding-choice-intro">
-            <span className="eyebrow">শুরু করার উপায়</span>
-            <h2>আপনি কীভাবে শুরু করতে চান?</h2>
-            <p>শুরু করার পদ্ধতি বেছে নিন।</p>
+            <span className="eyebrow">শুরু করুন</span>
+            <h2>কীভাবে শুরু করবেন?</h2>
           </div>
 
           <div className="onboarding-mode-picker" role="group" aria-label="মেসে যুক্ত হওয়া অথবা নতুন মেস তৈরি করা">
-            <button type="button" className={`onboarding-mode-option ${mode === 'join' ? 'active' : ''}`} onClick={() => setMode('join')} aria-pressed={mode === 'join'}>
+            <button type="button" className={`onboarding-mode-option ${mode === 'join' ? 'active' : ''}`} onClick={() => setMode((current) => current === 'join' ? '' : 'join')} aria-pressed={mode === 'join'} aria-expanded={mode === 'join'} aria-controls="onboarding-action-panel">
               <span className="onboarding-mode-icon"><Icon name="user-plus" size={20} /></span>
               <span className="onboarding-mode-copy"><strong>মেসে যুক্ত হন</strong><small>কোড দিয়ে</small></span>
               <span className="onboarding-mode-check">{mode === 'join' && <Icon name="check-circle" size={18} />}</span>
             </button>
-            <button type="button" className={`onboarding-mode-option ${mode === 'create' ? 'active' : ''}`} onClick={() => setMode('create')} aria-pressed={mode === 'create'}>
+            <button type="button" className={`onboarding-mode-option ${mode === 'create' ? 'active' : ''}`} onClick={() => setMode((current) => current === 'create' ? '' : 'create')} aria-pressed={mode === 'create'} aria-expanded={mode === 'create'} aria-controls="onboarding-action-panel">
               <span className="onboarding-mode-icon"><Icon name="plus-circle" size={20} /></span>
               <span className="onboarding-mode-copy"><strong>নতুন মেস তৈরি</strong><small>নিজের মেস পরিচালনা শুরু</small></span>
               <span className="onboarding-mode-check">{mode === 'create' && <Icon name="check-circle" size={18} />}</span>
             </button>
           </div>
 
-          <section className="onboarding-action-panel" aria-live="polite">
+          {mode && <section id="onboarding-action-panel" className="onboarding-action-panel" aria-live="polite">
             <div className="onboarding-action-heading">
               <span className="eyebrow">{mode === 'join' ? 'আগে থেকে থাকা মেসে যোগ দিন' : 'নতুন মেস তৈরি'}</span>
               <h3>{mode === 'join' ? 'কোড দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'}</h3>
-              <p>{mode === 'join' ? 'মেসের ম্যানেজারের কাছ থেকে পাওয়া যুক্ত হওয়ার কোড লিখুন।' : 'আপনার মেসের জন্য একটি নাম নির্বাচন করুন।'}</p>
+              <p>{mode === 'join' ? 'ম্যানেজারের দেওয়া কোড লিখুন।' : 'মেসের একটি নাম দিন।'}</p>
             </div>
             {mode === 'join' ? (
               <form className="form-stack onboarding-entry-form" onSubmit={join}>
@@ -493,7 +492,8 @@ export function OnboardingPage() {
                 </button>
               </form>
             )}
-          </section>
+            <button type="button" className="onboarding-action-back" onClick={() => setMode('')}>অন্য পদ্ধতি বেছে নিন</button>
+          </section>}
           </>}
 
           {!online && (

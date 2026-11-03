@@ -312,6 +312,9 @@ export function SuperAdminPage({ user }) {
   const [members, setMembers] = useState([]);
   const [memberListLoadedHostelId, setMemberListLoadedHostelId] = useState('');
   const [settings, setSettings] = useState(EMPTY_SETTINGS);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const settingsSavedRef = useRef(null);
+  const [sessionPolicyLoaded, setSessionPolicyLoaded] = useState(false);
   const [defaultThemeBusy, setDefaultThemeBusy] = useState(false);
   const [deviceLimitBusy, setDeviceLimitBusy] = useState(false);
   const [reason, setReason] = useState('');
@@ -326,6 +329,7 @@ export function SuperAdminPage({ user }) {
   const [developerPhotoBusy, setDeveloperPhotoBusy] = useState(false);
   const developerPhotoInputRef = useRef(null);
   const [communicationsDraft, setCommunicationsDraft] = useState(EMPTY_COMMUNICATION_DRAFT);
+  const communicationsSavedDraftRef = useRef(null);
   const [communicationsLoading, setCommunicationsLoading] = useState(false);
   // The blank draft is never considered safe to save until the server row loaded successfully.
   const [communicationsLoaded, setCommunicationsLoaded] = useState(false);
@@ -475,6 +479,7 @@ export function SuperAdminPage({ user }) {
   const refresh = useCallback(async () => {
     const requestId = ++refreshRequestRef.current;
     setBusy(true); setError('');
+    setSettingsLoaded(false); settingsSavedRef.current = null; setSessionPolicyLoaded(false);
     const results = await Promise.allSettled([
       platformAdminGetOverview(), platformAdminListHostels(), fetchPlatformPublicSettings({ force: true }), platformAdminGetSessionPolicy(),
     ]);
@@ -486,16 +491,24 @@ export function SuperAdminPage({ user }) {
     if (allHostels.status === 'fulfilled') setHostels(Array.isArray(allHostels.value) ? allHostels.value : []);
     else failures.push(`মেস তালিকা: ${errorText(allHostels.reason, 'তথ্য লোড হয়নি')}`);
     if (publicSettings.status === 'fulfilled') {
-      const settingsValue = publicSettings.value;
-      const sessionPolicyValue = sessionPolicy.status === 'fulfilled' ? sessionPolicy.value : {};
-      setSettings({
+      const settingsValue = Array.isArray(publicSettings.value) ? publicSettings.value[0] : publicSettings.value || {};
+      const nextSettings = {
         ...EMPTY_SETTINGS,
-        ...(Array.isArray(settingsValue) ? settingsValue[0] : settingsValue || {}),
-        max_devices_per_user: Number(sessionPolicyValue?.max_devices_per_user) || 10,
-        session_timeout_minutes: Number(sessionPolicyValue?.session_timeout_minutes) || 0,
-      });
+        ...settingsValue,
+        max_devices_per_user: sessionPolicy.status === 'fulfilled'
+          ? Number(sessionPolicy.value?.max_devices_per_user) || 10
+          : EMPTY_SETTINGS.max_devices_per_user,
+        session_timeout_minutes: sessionPolicy.status === 'fulfilled'
+          ? Number(sessionPolicy.value?.session_timeout_minutes) || 0
+          : EMPTY_SETTINGS.session_timeout_minutes,
+      };
+      setSettings(nextSettings);
+      // Keep the last server-confirmed values so each Settings tab saves only its own fields.
+      settingsSavedRef.current = { ...settingsValue };
+      setSettingsLoaded(true);
     } else failures.push(`প্ল্যাটফর্ম সেটিংস: ${errorText(publicSettings.reason, 'তথ্য লোড হয়নি')}`);
-    if (sessionPolicy.status === 'rejected') failures.push(`Device Policy: ${errorText(sessionPolicy.reason, 'তথ্য লোড হয়নি')}`);
+    if (sessionPolicy.status === 'fulfilled') setSessionPolicyLoaded(true);
+    else failures.push(`Device Policy: ${errorText(sessionPolicy.reason, 'তথ্য লোড হয়নি')}`);
     setError(failures.length ? `কিছু Super Admin তথ্য লোড হয়নি; সফল তথ্যগুলো ব্যবহার করা যাবে। ${failures.join(' · ')}` : '');
     setBusy(false);
   }, []);
@@ -890,10 +903,14 @@ export function SuperAdminPage({ user }) {
 
   const loadCommunications = useCallback(async () => {
     setCommunicationsLoading(true);
+    setCommunicationsLoaded(false);
+    communicationsSavedDraftRef.current = null;
     setCommunicationsError('');
     try {
       const row = await platformAdminGetCommunications();
-      setCommunicationsDraft(communicationRowToDraft(row));
+      const loadedDraft = communicationRowToDraft(row);
+      setCommunicationsDraft(loadedDraft);
+      communicationsSavedDraftRef.current = JSON.parse(JSON.stringify(loadedDraft));
       setCommunicationsLoaded(true);
     } catch (cause) {
       setCommunicationsError(errorText(cause, 'প্রকাশনার তথ্য লোড করা যায়নি। Run33 Migration প্রয়োগ হয়েছে কি না যাচাই করুন।'));
@@ -906,73 +923,83 @@ export function SuperAdminPage({ user }) {
     if (tab === 'communications' && reauthenticated) loadCommunications();
   }, [tab, reauthenticated, loadCommunications]);
 
-  const saveCommunications = async (event) => {
-    event.preventDefault();
-    if (!communicationsLoaded) {
-      setCommunicationsError('সার্ভারের প্রকাশনা সেটিংস সফলভাবে লোড না হওয়া পর্যন্ত সংরক্ষণ বন্ধ থাকবে। আগে আবার লোড করুন।');
+  const saveCommunicationSection = async (section) => {
+    if (!communicationsLoaded || !communicationsSavedDraftRef.current || communicationsBusy) {
+      setCommunicationsError('সার্ভারের সংরক্ষিত তথ্য লোড না হওয়া পর্যন্ত পরিবর্তন সংরক্ষণ করা যাবে না। আগে আবার লোড করুন।');
       return;
     }
-    const releaseNotesForValidation = communicationsDraft.release_notes_text
-      .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-    if (releaseNotesForValidation.length > 30 || releaseNotesForValidation.some((line) => line.length > 240)) {
-      setCommunicationsError('সর্বোচ্চ ৩০টি আপডেট লিখুন; প্রতিটি আপডেট ২৪০ অক্ষরের মধ্যে রাখুন।');
-      return;
+
+    const current = communicationsDraft;
+    const saved = communicationsSavedDraftRef.current;
+    const selected = section === 'release_notes' ? current : section === 'window_notice' ? current.window_notice : current.site_notice;
+    const lines = current.release_notes_text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (section === 'release_notes') {
+      if (lines.length > 30 || lines.some((line) => line.length > 240)) {
+        setCommunicationsError('সর্বোচ্চ ৩০টি আপডেট লিখুন; প্রতিটি ২৪০ অক্ষরের মধ্যে রাখুন।');
+        return;
+      }
+      if (current.release_notes_published && lines.length === 0) {
+        setCommunicationsError('আপডেটের তালিকা প্রকাশ করতে অন্তত একটি আপডেট লিখুন।');
+        return;
+      }
     }
-    if (communicationsDraft.release_notes_published && releaseNotesForValidation.length === 0) {
-      setCommunicationsError('আপডেটের তালিকা প্রকাশ করতে অন্তত একটি আপডেট লিখুন।');
-      return;
-    }
-    const windowNoticeForValidation = communicationsDraft.window_notice;
-    const siteNoticeForValidation = communicationsDraft.site_notice;
-    if (windowNoticeForValidation.enabled && !windowNoticeForValidation.title.trim() && !windowNoticeForValidation.body.trim()) {
+    if (section === 'window_notice' && selected.enabled && !selected.title.trim() && !selected.body.trim()) {
       setCommunicationsError('উইন্ডো নোটিশ চালু করতে শিরোনাম অথবা বার্তা লিখুন।');
       return;
     }
-    if (siteNoticeForValidation.enabled && siteNoticeForValidation.mode === 'message' && !siteNoticeForValidation.title.trim() && !siteNoticeForValidation.body.trim()) {
+    if (section === 'site_notice' && selected.enabled && selected.mode === 'message' && !selected.title.trim() && !selected.body.trim()) {
       setCommunicationsError('ওয়েবসাইট বিজ্ঞপ্তি চালু করতে শিরোনাম অথবা বার্তা লিখুন।');
       return;
     }
-    if (siteNoticeForValidation.enabled && siteNoticeForValidation.mode === 'image' && !siteNoticeForValidation.image_url) {
+    if (section === 'site_notice' && selected.enabled && selected.mode === 'image' && !selected.image_url) {
       setCommunicationsError('ছবির ব্যানার চালু করার আগে একটি ছবি আপলোড করুন।');
       return;
     }
-    if ([windowNoticeForValidation, siteNoticeForValidation].some((notice) => notice.starts_at && notice.ends_at && notice.ends_at <= notice.starts_at)) {
-      setCommunicationsError('প্রতিটি বিজ্ঞপ্তির শেষ সময় শুরুর সময়ের পরে নির্বাচন করুন।');
+    if (section !== 'release_notes' && selected.starts_at && selected.ends_at && selected.ends_at <= selected.starts_at) {
+      setCommunicationsError('বিজ্ঞপ্তির শেষ সময় শুরুর সময়ের পরে নির্বাচন করুন।');
       return;
     }
-    setCommunicationsBusy(true);
-    setCommunicationsError('');
-    setNotice('');
+
     const toIsoOrNull = (value) => {
       if (!value) return null;
       const date = fromDhakaDateTimeInput(value);
       if (!Number.isFinite(date.getTime())) throw new Error('তারিখ ও সময় সঠিকভাবে নির্বাচন করুন।');
       return date.toISOString();
     };
+    const releaseSource = section === 'release_notes' ? current : saved;
+    const windowSource = section === 'window_notice' ? current.window_notice : saved.window_notice;
+    const siteSource = section === 'site_notice' ? current.site_notice : saved.site_notice;
+
+    setCommunicationsBusy(true);
+    setCommunicationsError('');
+    setNotice('');
     try {
-      const releaseNotes = communicationsDraft.release_notes_text
-        .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      const windowNotice = communicationsDraft.window_notice;
-      const siteNotice = communicationsDraft.site_notice;
       await platformAdminSaveCommunications({
-        release_notes: releaseNotes,
-        release_notes_published: Boolean(communicationsDraft.release_notes_published),
+        release_notes: releaseSource.release_notes_text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+        release_notes_published: Boolean(releaseSource.release_notes_published),
         window_notice: {
-          enabled: Boolean(windowNotice.enabled), title: windowNotice.title.trim(), body: windowNotice.body.trim(),
-          starts_at: toIsoOrNull(windowNotice.starts_at), ends_at: toIsoOrNull(windowNotice.ends_at),
-          frequency: windowNotice.frequency,
+          enabled: Boolean(windowSource.enabled), title: windowSource.title.trim(), body: windowSource.body.trim(),
+          starts_at: toIsoOrNull(windowSource.starts_at), ends_at: toIsoOrNull(windowSource.ends_at), frequency: windowSource.frequency,
         },
         site_notice: {
-          enabled: Boolean(siteNotice.enabled), mode: siteNotice.mode, title: siteNotice.title.trim(),
-          starts_at: toIsoOrNull(siteNotice.starts_at), ends_at: toIsoOrNull(siteNotice.ends_at),
-          body: siteNotice.mode === 'image' ? '' : siteNotice.body.trim(),
-          frequency: siteNotice.frequency,
+          enabled: Boolean(siteSource.enabled), mode: siteSource.mode, title: siteSource.title.trim(),
+          starts_at: toIsoOrNull(siteSource.starts_at), ends_at: toIsoOrNull(siteSource.ends_at),
+          body: siteSource.mode === 'image' ? '' : siteSource.body.trim(), frequency: siteSource.frequency,
         },
       });
-      await loadCommunications();
-      setNotice('প্রকাশনার তথ্য সংরক্ষণ হয়েছে। নির্ধারিত সময়ে ব্যবহারকারীদের দেখানো হবে।');
+      // Update only the saved baseline for this section. Keep edits in the other
+      // cards on screen so a section save never silently discards another draft.
+      const savedNext = { ...saved };
+      if (section === 'release_notes') {
+        savedNext.release_notes_text = current.release_notes_text;
+        savedNext.release_notes_published = current.release_notes_published;
+      } else if (section === 'window_notice') savedNext.window_notice = { ...current.window_notice };
+      else savedNext.site_notice = { ...current.site_notice };
+      communicationsSavedDraftRef.current = JSON.parse(JSON.stringify(savedNext));
+      const label = section === 'release_notes' ? 'আপডেটের তথ্য' : section === 'window_notice' ? 'সবার জন্য নির্দিষ্ট বার্তা' : 'রক্ষণাবেক্ষণ বিজ্ঞপ্তি';
+      setNotice(`${label} আলাদাভাবে সংরক্ষিত হয়েছে।`);
     } catch (cause) {
-      setCommunicationsError(errorText(cause, 'প্রকাশনার তথ্য সংরক্ষণ করা যায়নি।'));
+      setCommunicationsError(errorText(cause, 'পরিবর্তন সংরক্ষণ করা যায়নি।'));
     } finally {
       setCommunicationsBusy(false);
     }
@@ -1336,6 +1363,7 @@ export function SuperAdminPage({ user }) {
   };
 
   const handleDeveloperPhoto = async (event) => {
+    if (!settingsLoaded) { setError('সেটিংসের সংরক্ষিত তথ্য আগে সফলভাবে লোড করুন।'); return; }
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -1343,12 +1371,13 @@ export function SuperAdminPage({ user }) {
     try {
       const url = await uploadDeveloperPhoto(user?.id, file);
       setSettings((old) => ({ ...old, developer_photo_url: url }));
-      setNotice('ছবি Supabase Storage-এ আপলোড হয়েছে। Developer Info-তে স্থায়ী করতে “সব সেটিংস সংরক্ষণ করুন” চাপুন।');
+      setNotice('ছবি Supabase Storage-এ আপলোড হয়েছে। Developer Info-তে স্থায়ী করতে “সহায়তা তথ্য সংরক্ষণ করুন” চাপুন।');
     } catch (cause) { setError(cause?.message || 'Developer-এর ছবি আপলোড করা যায়নি।'); }
     finally { setDeveloperPhotoBusy(false); }
   };
 
   const saveDeviceLimit = async () => {
+    if (!settingsLoaded || !sessionPolicyLoaded) { setError('Session Policy-এর সংরক্ষিত তথ্য আগে সফলভাবে লোড করুন।'); return; }
     const limit = Number(settings.max_devices_per_user);
     const timeoutMinutes = Number(settings.session_timeout_minutes || 0);
     if (!Number.isInteger(limit) || limit < 1 || limit > 30) {
@@ -1373,6 +1402,7 @@ export function SuperAdminPage({ user }) {
   };
 
   const saveDefaultTheme = async () => {
+    if (!settingsLoaded) { setError('সেটিংসের সংরক্ষিত তথ্য আগে সফলভাবে লোড করুন।'); return; }
     setDefaultThemeBusy(true); setError(''); setNotice('');
     try {
       await platformAdminSetDefaultTheme(settings.default_theme || 'dark');
@@ -1383,10 +1413,21 @@ export function SuperAdminPage({ user }) {
   };
 
   const saveSettings = async (event) => {
-    event.preventDefault(); setBusy(true); setError(''); setNotice('');
+    event.preventDefault();
+    const saved = settingsSavedRef.current;
+    if (!settingsLoaded || !saved) { setError('সেটিংসের সংরক্ষিত তথ্য আগে সফলভাবে লোড করুন।'); return; }
+    if (tab === 'settings' && settings.announcement_enabled && !String(settings.announcement_title || '').trim()) { setError('Global Notice চালু করতে একটি শিরোনাম লিখুন।'); return; }
+    const announcementFields = ['announcement_enabled', 'announcement_title', 'announcement_body'];
+    const developerFields = ['developer_name', 'developer_title', 'developer_photo_url', 'developer_email', 'developer_phone', 'developer_portfolio_url'];
+    const fieldsToSave = tab === 'settings' ? announcementFields : developerFields;
+    const payload = { ...saved };
+    fieldsToSave.forEach((key) => { payload[key] = settings[key]; });
+    setBusy(true); setError(''); setNotice('');
     try {
-      await platformAdminUpdatePublicSettings(settings);
-      setNotice('সেটিংস সংরক্ষিত হয়েছে। অন্য ব্যবহারকারীদের public settings cache সর্বোচ্চ ৫ মিনিটের মধ্যে আপডেট হবে।');
+      await platformAdminUpdatePublicSettings(payload);
+      setNotice(tab === 'settings'
+        ? 'Global Notice-এর পরিবর্তন সংরক্ষিত হয়েছে। Developer/Support তথ্য অপরিবর্তিত রাখা হয়েছে।'
+        : 'Developer/Support তথ্য সংরক্ষিত হয়েছে। Global Notice-এর পরিবর্তন অপরিবর্তিত রাখা হয়েছে।');
       await refresh();
     } catch (cause) { setError(errorText(cause, 'সেটিংস সংরক্ষণ করা যায়নি।')); }
     finally { setBusy(false); }
@@ -1467,16 +1508,16 @@ export function SuperAdminPage({ user }) {
     .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const releaseNotesInvalid = releaseNoteLines.length > 30 || releaseNoteLines.some((line) => line.length > 240)
     || (communicationsDraft.release_notes_published && releaseNoteLines.length === 0);
-  const communicationsInvalidSchedule = [communicationsDraft.window_notice, communicationsDraft.site_notice]
-    .some((notice) => notice.starts_at && notice.ends_at && notice.ends_at <= notice.starts_at);
-  const communicationsInvalidNotice = (communicationsDraft.window_notice.enabled
+  const windowNoticeInvalid = (communicationsDraft.window_notice.enabled
       && !communicationsDraft.window_notice.title.trim() && !communicationsDraft.window_notice.body.trim())
-    || (communicationsDraft.site_notice.enabled && communicationsDraft.site_notice.mode === 'message'
+    || (communicationsDraft.window_notice.starts_at && communicationsDraft.window_notice.ends_at
+      && communicationsDraft.window_notice.ends_at <= communicationsDraft.window_notice.starts_at);
+  const siteNoticeInvalid = (communicationsDraft.site_notice.enabled && communicationsDraft.site_notice.mode === 'message'
       && !communicationsDraft.site_notice.title.trim() && !communicationsDraft.site_notice.body.trim())
     || (communicationsDraft.site_notice.enabled && communicationsDraft.site_notice.mode === 'image'
-      && !communicationsDraft.site_notice.image_url);
-  const communicationsCanSave = communicationsLoaded && !releaseNotesInvalid
-    && !communicationsInvalidSchedule && !communicationsInvalidNotice;
+      && !communicationsDraft.site_notice.image_url)
+    || (communicationsDraft.site_notice.starts_at && communicationsDraft.site_notice.ends_at
+      && communicationsDraft.site_notice.ends_at <= communicationsDraft.site_notice.starts_at);
 
   if (checking) return <main className="platform-page"><LoadingSpinner label="Super Admin role যাচাই হচ্ছে..."/></main>;
   if (!allowed) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="shield" size={30}/></span><h1>পৃষ্ঠাটি খোলা যাচ্ছে না</h1><p>অনুরোধটি সম্পন্ন করা যায়নি।</p><button className="primary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরে যান</button></section></main>;
@@ -1921,38 +1962,50 @@ export function SuperAdminPage({ user }) {
     </>}
 
     {tab === 'settings' && <>
-      <div className="platform-settings-intro"><span className="eyebrow">GLOBAL NOTICE</span><h2>গ্লোবাল নোটিশ</h2><p>সব ব্যবহারকারীর জন্য প্রয়োজনীয় ঘোষণা প্রকাশ করুন।</p></div>
-      <form className="platform-settings-grid" onSubmit={saveSettings}>
+      <div className="platform-settings-intro"><span className="eyebrow">GLOBAL NOTICE</span><h2>গ্লোবাল নোটিশ</h2><p>অ্যাপের উপরে স্থায়ী Global Banner দেখান। সময় ধরে চালাতে “আপডেট ও বিজ্ঞপ্তি” বিভাগ ব্যবহার করুন।</p></div>
+      {!settingsLoaded ? <section className="card platform-panel platform-settings-load-state" role="status">
+        {busy ? <LoadingSpinner label="সিস্টেম সেটিংস লোড হচ্ছে..."/> : <><strong>গ্লোবাল নোটিশের তথ্য লোড হয়নি</strong><p>নিরাপত্তার জন্য ফাঁকা ফর্ম সংরক্ষণ বন্ধ রাখা হয়েছে। রিফ্রেশ করে আবার চেষ্টা করুন।</p><button type="button" className="secondary-button" onClick={refresh} disabled={busy}>আবার লোড করুন</button></>}
+      </section> : <form className="platform-settings-grid" onSubmit={saveSettings}>
       <section className="card platform-panel">
-        <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM NOTICE</span><h3>সবার জন্য Global Notice</h3><p>ড্যাশবোর্ডের ওপরে প্রকাশিত ঘোষণা এখানে পরিচালনা করুন।</p></div></div>
+        <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM NOTICE</span><h3>সবার জন্য Global Notice</h3><p>এটি চালু থাকলে ব্যবহারকারীরা X দিয়ে বন্ধ করতে পারবেন। একই বার্তার লেখা বদলালে নতুন করে দেখাবে; নির্দিষ্ট সময় বা Popup দরকার হলে পাশের “আপডেট ও বিজ্ঞপ্তি” ব্যবহার করুন।</p></div></div>
         <label className="platform-toggle"><span><strong>নোটিশ চালু</strong><small>চালু থাকলে অ্যাপের ব্যবহারকারীরা ব্যানার দেখবেন</small></span><input type="checkbox" checked={Boolean(settings.announcement_enabled)} onChange={(e)=>setSettings((old)=>({...old,announcement_enabled:e.target.checked}))}/></label>
         <Field label="নোটিশ শিরোনাম" value={settings.announcement_title} onChange={(v)=>setSettings((old)=>({...old,announcement_title:v}))} maxLength={160}/>
         <Field label="নোটিশের বিবরণ" value={settings.announcement_body} onChange={(v)=>setSettings((old)=>({...old,announcement_body:v}))} maxLength={3000} multiline/>
       </section>
-      <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy}>{busy?'সংরক্ষণ হচ্ছে...':'নোটিশ সংরক্ষণ করুন'}</button></div>
-      </form>
+      <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||!settingsLoaded}>{busy?'সংরক্ষণ হচ্ছে...':'নোটিশ সংরক্ষণ করুন'}</button></div>
+      </form>}
     </>}
 
     {tab === 'communications' && <>
-      <div className="platform-settings-intro"><span className="eyebrow">প্রকাশনা ও বার্তা</span><h2>আপডেট ও বিজ্ঞপ্তি</h2><p>পরিবর্তনগুলো একবার সংরক্ষণ করুন। সময় ও প্রদর্শনের নিয়ম অনুযায়ী ব্যবহারকারীদের দেখানো হবে।</p></div>
+      <div className="platform-settings-intro"><span className="eyebrow">প্রকাশনা ও বার্তা</span><h2>আপডেট ও বিজ্ঞপ্তি</h2><p>তিন ধরনের প্রকাশনা আলাদাভাবে সাজান। সময়, প্রদর্শনের নিয়ম এবং চালু/বন্ধ অবস্থা প্রতিটির জন্য আলাদা।</p></div>
+      <section className="platform-communications-guide" aria-label="বিজ্ঞপ্তি কীভাবে কাজ করে">
+        <div className="platform-communications-guide-title"><Icon name="info" size={18}/><strong>কীভাবে কাজ করবে</strong></div>
+        <div className="platform-communications-guide-steps">
+          <span><b>১</b> প্রয়োজনীয় নোটিশ চালু করে লেখা বা ছবি দিন।</span>
+          <span><b>২</b> শুরুর ও শেষের সময় বাংলাদেশ সময় অনুযায়ী দিন। সময় ফাঁকা রাখলে সীমা থাকবে না।</span>
+          <span><b>৩</b> প্রতিটি কার্ডের নিচে আলাদা সংরক্ষণ বোতাম আছে; একটির Save অন্য দুটি অংশ পরিবর্তন করবে না।</span>
+        </div>
+      </section>
       {communicationsError && communicationsLoaded && <div className="inline-error platform-alert" role="alert"><Icon name="warning" size={16}/>{communicationsError}</div>}
       {communicationsLoading ? <div className="card platform-panel"><LoadingSpinner label="প্রকাশনার তথ্য লোড হচ্ছে..."/></div> : !communicationsLoaded ? <section className="card platform-panel platform-communications-load-error" role="alert">
         <span className="platform-communications-load-icon"><Icon name="shield-alert" size={23}/></span>
         <div><strong>প্রকাশনার তথ্য লোড করা যায়নি</strong><p>{communicationsError || 'সার্ভারের সংরক্ষিত তথ্য পাওয়া যায়নি। নিরাপত্তার জন্য ফাঁকা ফর্ম দেখানো হচ্ছে না।'}</p></div>
         <button type="button" className="secondary-button" onClick={loadCommunications} disabled={communicationsLoading}><Icon name="refresh-cw" size={15}/> আবার চেষ্টা করুন</button>
-      </section> : <form className="platform-settings-grid platform-communications-grid" onSubmit={saveCommunications}>
+      </section> : <div className="platform-settings-grid platform-communications-grid">
         <section className="card platform-panel platform-communications-card">
-          <div className="platform-panel-heading"><div><span className="eyebrow">সর্বশেষ আপডেট</span><h3>নতুন সংস্করণের তথ্য</h3><p>প্রতি লাইনে একটি পরিবর্তন লিখুন। প্রকাশ করলে আপডেট উইন্ডোতে নতুন ফিচারের বোতাম দেখা যাবে।</p></div><span className="platform-status">সর্বোচ্চ ৩০টি</span></div>
-          <label className="field-label"><span>আপডেটের তালিকা</span><textarea rows={8} maxLength={7200} value={communicationsDraft.release_notes_text} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_text:event.target.value}))} placeholder={'নতুন সুবিধা যুক্ত হয়েছে।\nব্যবহারকারীর অভিজ্ঞতা উন্নত করা হয়েছে।\nনিরাপত্তা ও স্থিতিশীলতা উন্নত হয়েছে।'} /></label>
+          <div className="platform-panel-heading platform-communications-release-heading"><div><span className="eyebrow">সর্বশেষ আপডেট</span><h3>নতুন সংস্করণের তথ্য</h3><p>এখানে লেখা প্রতিটি লাইন ব্যবহারকারীরা “নতুন ফিচারসমূহ” তালিকায় দেখতে পাবেন।</p></div><span className={`platform-status ${communicationsDraft.release_notes_published ? 'status-active' : 'status-inactive'}`}>{communicationsDraft.release_notes_published ? 'প্রকাশিত' : 'ড্রাফট'}</span></div>
+          <label className="field-label"><span>পরিবর্তনের তালিকা <small>প্রতি লাইনে একটি পরিবর্তন</small></span><textarea rows={6} maxLength={7200} value={communicationsDraft.release_notes_text} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_text:event.target.value}))} placeholder={'নতুন সুবিধা যুক্ত হয়েছে।\nব্যবহার সহজ করা হয়েছে।\nনিরাপত্তা আরও উন্নত করা হয়েছে।'} /></label>
           <div className={`platform-communications-count${releaseNotesInvalid ? ' is-invalid' : ''}`} aria-live="polite">
             {releaseNoteLines.length.toLocaleString('bn-BD')} / ৩০টি আপডেট · প্রতিটি সর্বোচ্চ ২৪০ অক্ষর
             {releaseNotesInvalid && <strong>{releaseNoteLines.length > 30 ? 'সর্বোচ্চ ৩০টি আপডেট রাখা যাবে।' : releaseNoteLines.some((line) => line.length > 240) ? 'কোনো একটি আপডেট ২৪০ অক্ষর ছাড়িয়েছে।' : 'প্রকাশের আগে অন্তত একটি আপডেট লিখুন।'}</strong>}
           </div>
-          <label className="platform-toggle"><span><strong>আপডেটের তালিকা প্রকাশ করুন</strong><small>বন্ধ থাকলে ব্যবহারকারীরা নতুন ফিচারের তালিকা দেখতে পাবেন না।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.release_notes_published)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_published:event.target.checked}))}/></label>
+          <div className="platform-release-preview"><div className="platform-release-preview-heading"><strong>ব্যবহারকারীর স্ক্রিনে এমন দেখাবে</strong><span>{communicationsDraft.release_notes_published ? 'প্রকাশের জন্য প্রস্তুত' : 'এখনো প্রকাশিত নয়'}</span></div>{releaseNoteLines.length ? <ul>{releaseNoteLines.slice(0, 6).map((line, index)=><li key={`${index}-${line}`}><Icon name="check-circle" size={16}/><span>{line}</span></li>)}</ul> : <p>আপডেটের তথ্য লিখলে এখানে প্রিভিউ দেখা যাবে।</p>}</div>
+          <label className="platform-toggle"><span><strong>আপডেটের তালিকা প্রকাশ করুন</strong><small>চালু করলে নতুন সংস্করণ উইন্ডোতে ফিচারের তালিকা দেখাবে।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.release_notes_published)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,release_notes_published:event.target.checked}))}/></label>
+          <div className="platform-communications-card-footer"><small>এই অংশের Save শুধু সর্বশেষ সংস্করণের তথ্য সংরক্ষণ করবে।</small><button type="button" className="primary-button" onClick={()=>saveCommunicationSection('release_notes')} disabled={communicationsBusy||!communicationsLoaded||releaseNotesInvalid}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':communicationsDraft.release_notes_published?'আপডেট প্রকাশ করুন':'ড্রাফট সংরক্ষণ করুন'}</button></div>
         </section>
 
         <section className="card platform-panel platform-communications-card">
-          <div className="platform-panel-heading"><div><span className="eyebrow">উইন্ডো নোটিশ</span><h3>সবার জন্য নির্দিষ্ট বার্তা</h3><p>নির্ধারিত সময়ে অ্যাপ বা ওয়েবসাইটে একবার উইন্ডো হিসেবে দেখাবে।</p></div></div>
+          <div className="platform-panel-heading"><div><span className="eyebrow">উইন্ডো নোটিশ</span><h3>সবার জন্য নির্দিষ্ট বার্তা</h3><p>অ্যাপ ব্যবহারকারীদের জন্য আলাদা Popup। নির্ধারিত সময়ে নিজে থেকে খুলবে।</p></div></div>
           <label className="platform-toggle"><span><strong>উইন্ডো নোটিশ চালু</strong><small>বন্ধ করলে সঙ্গে সঙ্গে প্রদর্শন বন্ধ হবে।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.window_notice.enabled)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,enabled:event.target.checked}}))}/></label>
           <Field label="শিরোনাম" value={communicationsDraft.window_notice.title} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,title:value}}))} maxLength={160}/>
           <Field label="বার্তা" value={communicationsDraft.window_notice.body} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,body:value}}))} maxLength={1200} multiline/>
@@ -1960,35 +2013,38 @@ export function SuperAdminPage({ user }) {
             <Field label="শুরুর সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.window_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,starts_at:value}}))}/>
             <Field label="শেষের সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.window_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,ends_at:value}}))}/>
           </div>
-          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.window_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি অ্যাপ খোলায় একবার</option></select></label>
+          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.window_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
+          {windowNoticeInvalid && <p className="platform-communications-inline-error" role="alert">চালু নোটিশে শিরোনাম/বার্তা দিন এবং শেষের সময় শুরুর পরে রাখুন।</p>}
+          <div className="platform-communications-card-footer"><small>শুধু এই Popup-এর তথ্য ও সময়সূচি সংরক্ষিত হবে।</small><button type="button" className="primary-button" onClick={()=>saveCommunicationSection('window_notice')} disabled={communicationsBusy||!communicationsLoaded||Boolean(windowNoticeInvalid)}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'বার্তা সংরক্ষণ করুন'}</button></div>
         </section>
 
         <section className="card platform-panel platform-communications-card">
-          <div className="platform-panel-heading"><div><span className="eyebrow">ওয়েবসাইট বিজ্ঞপ্তি</span><h3>রক্ষণাবেক্ষণ বার্তা বা ব্যানার</h3><p>সাইটে প্রবেশের সময় বার্তা অথবা ছবি দেখান।</p></div></div>
+          <div className="platform-panel-heading"><div><span className="eyebrow">ওয়েবসাইট বিজ্ঞপ্তি</span><h3>রক্ষণাবেক্ষণ বার্তা বা ব্যানার</h3><p>লিখিত নোটিশ অথবা ছবির ব্যানার। এটি আলাদাভাবে চালু ও সময় নির্ধারণ করুন।</p></div></div>
           <label className="platform-toggle"><span><strong>বিজ্ঞপ্তি চালু</strong><small>বন্ধ করলে নির্ধারিত ছবি বা বার্তা আর দেখাবে না।</small></span><input type="checkbox" checked={Boolean(communicationsDraft.site_notice.enabled)} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,enabled:event.target.checked}}))}/></label>
           <label className="field-label"><span>বিজ্ঞপ্তির ধরন</span><select value={communicationsDraft.site_notice.mode} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,mode:event.target.value}}))}><option value="message">লিখিত বার্তা</option><option value="image">ছবির ব্যানার</option></select></label>
           <Field label="শিরোনাম" value={communicationsDraft.site_notice.title} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,title:value}}))} maxLength={160}/>
           {communicationsDraft.site_notice.mode === 'message' ? <Field label="বার্তা" value={communicationsDraft.site_notice.body} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,body:value}}))} maxLength={1200} multiline/> : <div className="platform-communications-image-editor">
             {communicationsDraft.site_notice.image_url ? <img src={communicationsDraft.site_notice.image_url} alt="ব্যানার প্রিভিউ"/> : <div className="platform-communications-image-placeholder"><Icon name="image" size={24}/><span>এখনো কোনো ব্যানার আপলোড করা হয়নি</span></div>}
             <input ref={communicationsImageInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleCommunicationsImage}/>
-            <button type="button" className="secondary-button" disabled={communicationsImageBusy} onClick={()=>communicationsImageInputRef.current?.click()}><Icon name="upload" size={15}/>{communicationsImageBusy?'আপলোড হচ্ছে...':'ব্যানার ছবি আপলোড / পরিবর্তন'}</button>
+            <button type="button" className="secondary-button" disabled={communicationsImageBusy||communicationsBusy} onClick={()=>communicationsImageInputRef.current?.click()}><Icon name="upload" size={15}/>{communicationsImageBusy?'আপলোড হচ্ছে...':'ব্যানার ছবি আপলোড / পরিবর্তন'}</button>
             <small>ছবি ৫ MB-এর কম হতে হবে। নতুন ছবি আগের ছবির একই ফাইলে প্রতিস্থাপিত হবে; অতিরিক্ত Storage Object তৈরি হবে না।</small>
           </div>}
           <div className="platform-communications-date-grid">
             <Field label="শুরুর সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.site_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,starts_at:value}}))}/>
             <Field label="শেষের সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.site_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,ends_at:value}}))}/>
           </div>
-          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.site_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি অ্যাপ খোলায় একবার</option></select></label>
+          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.site_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
+          {siteNoticeInvalid && <p className="platform-communications-inline-error" role="alert">বিজ্ঞপ্তির ধরন অনুযায়ী লেখা/ছবি দিন এবং শেষের সময় শুরুর পরে রাখুন।</p>}
+          <div className="platform-communications-card-footer"><small>শুধু এই ওয়েবসাইট বিজ্ঞপ্তি/ব্যানার সংরক্ষিত হবে।</small><button type="button" className="primary-button" onClick={()=>saveCommunicationSection('site_notice')} disabled={communicationsBusy||communicationsImageBusy||!communicationsLoaded||Boolean(siteNoticeInvalid)}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'বিজ্ঞপ্তি সংরক্ষণ করুন'}</button></div>
         </section>
-
-        {(communicationsInvalidSchedule || communicationsInvalidNotice) && <div className="inline-error platform-alert platform-communications-validation" role="alert">{communicationsInvalidSchedule ? 'প্রতিটি বিজ্ঞপ্তির শেষ সময় শুরুর সময়ের পরে হতে হবে।' : 'চালু করা বিজ্ঞপ্তির জন্য শিরোনাম/বার্তা অথবা ব্যানার ছবি প্রয়োজন।'}</div>}
-        <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={communicationsBusy||communicationsImageBusy||!communicationsCanSave}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'সব পরিবর্তন সংরক্ষণ ও প্রকাশ করুন'}</button></div>
-      </form>}
+      </div>}
     </>}
 
     {tab === 'developer' && <>
       <div className="platform-settings-intro"><span className="eyebrow">DEVELOPER & SUPPORT</span><h2>ডেভেলপার ও সহায়তা তথ্য</h2><p>ব্যবহারকারীর Help বিভাগে প্রদর্শিত যোগাযোগ ও পরিচিতি।</p></div>
-      <form className="platform-settings-grid" onSubmit={saveSettings}>
+      {!settingsLoaded ? <section className="card platform-panel platform-settings-load-state" role="status">
+        {busy ? <LoadingSpinner label="Support তথ্য লোড হচ্ছে..."/> : <><strong>Support তথ্য লোড হয়নি</strong><p>আগে সার্ভারের সংরক্ষিত তথ্য রিফ্রেশ করুন।</p><button type="button" className="secondary-button" onClick={refresh} disabled={busy}>আবার লোড করুন</button></>}
+      </section> : <form className="platform-settings-grid" onSubmit={saveSettings}>
       <section className="card platform-panel">
         <div className="platform-panel-heading"><div><span className="eyebrow">SUPPORT PROFILE</span><h3>Developer ও Support তথ্য</h3><p>ব্যবহারকারীর Help বিভাগে দেখানো যোগাযোগের তথ্য।</p></div></div>
         <Field label="নাম" value={settings.developer_name} onChange={(v)=>setSettings((old)=>({...old,developer_name:v}))} maxLength={160}/>
@@ -1999,32 +2055,36 @@ export function SuperAdminPage({ user }) {
         <Field label="ফোন" value={settings.developer_phone} onChange={(v)=>setSettings((old)=>({...old,developer_phone:v}))} maxLength={80}/>
         <Field label="Portfolio URL" value={settings.developer_portfolio_url} onChange={(v)=>setSettings((old)=>({...old,developer_portfolio_url:v}))} maxLength={1000}/>
       </section>
-      <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||developerPhotoBusy}>{busy?'সংরক্ষণ হচ্ছে...':'সহায়তা তথ্য সংরক্ষণ করুন'}</button></div>
-      </form>
+      <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||developerPhotoBusy||!settingsLoaded}>{busy?'সংরক্ষণ হচ্ছে...':'সহায়তা তথ্য সংরক্ষণ করুন'}</button></div>
+      </form>}
     </>}
 
     {tab === 'appearance' && <>
       <div className="platform-settings-intro"><span className="eyebrow">APP APPEARANCE</span><h2>অ্যাপের ডিফল্ট থিম</h2><p>যেসব ব্যবহারকারী নিজের থিম নির্বাচন করেননি, তাঁদের জন্য প্রাথমিক থিম নির্ধারণ করুন।</p></div>
-      <section className="platform-settings-grid">
+      {!settingsLoaded ? <section className="card platform-panel platform-settings-load-state" role="status">
+        {busy ? <LoadingSpinner label="ডিফল্ট থিম লোড হচ্ছে..."/> : <><strong>ডিফল্ট থিম লোড হয়নি</strong><p>সংরক্ষিত থিম নিশ্চিত না হওয়া পর্যন্ত Save বন্ধ রাখা হয়েছে।</p><button type="button" className="secondary-button" onClick={refresh} disabled={busy}>আবার লোড করুন</button></>}
+      </section> : <section className="platform-settings-grid">
       <div className="card platform-panel platform-preference-card">
         <div className="platform-panel-heading"><div><span className="eyebrow">APP EXPERIENCE</span><h3>নতুন ব্যবহারকারীর Default Theme</h3><p>যাঁদের ব্রাউজারে আগে থেকে Theme Preference নেই, তাঁদের প্রথম প্রবেশে এই থিম ব্যবহার হবে। সংরক্ষিত ব্যক্তিগত পছন্দ পরিবর্তন হবে না।</p></div><span className="platform-status">৪টি থিম</span></div>
         <label className="field-label"><span>ডিফল্ট থিম</span><select value={settings.default_theme || 'dark'} onChange={(e) => setSettings((old) => ({ ...old, default_theme: e.target.value }))}><option value="system">সিস্টেম</option><option value="light">লাইট</option><option value="dark">ডার্ক</option><option value="blue">আকাশি</option></select></label>
-        <button type="button" className="primary-button" disabled={defaultThemeBusy} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button>
+        <button type="button" className="primary-button" disabled={defaultThemeBusy||!settingsLoaded} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button>
       </div>
-      </section>
+      </section>}
     </>}
 
     {tab === 'sessions' && <>
       <div className="platform-settings-intro"><span className="eyebrow">ACCOUNT SECURITY</span><h2>Session নিরাপত্তা</h2><p>একটি অ্যাকাউন্টে কতগুলো Login এবং কতক্ষণ সক্রিয় থাকবে তা নিয়ন্ত্রণ করুন।</p></div>
-      <section className="platform-settings-grid">
+      {!sessionPolicyLoaded ? <section className="card platform-panel platform-settings-load-state" role="status">
+        {busy ? <LoadingSpinner label="Session Policy লোড হচ্ছে..."/> : <><strong>Session Policy লোড হয়নি</strong><p>সর্বশেষ সংরক্ষিত Session সীমা না পাওয়া পর্যন্ত পরিবর্তন সেভ করা যাবে না।</p><button type="button" className="secondary-button" onClick={refresh} disabled={busy}>আবার লোড করুন</button></>}
+      </section> : <section className="platform-settings-grid">
       <div className="card platform-panel platform-preference-card">
         <div className="platform-panel-heading"><div><span className="eyebrow">ACCOUNT PROTECTION</span><h3>Login Session Policy</h3><p>নতুন Login-কে অগ্রাধিকার দিয়ে নির্ধারিত সীমার বাইরে থাকা সবচেয়ে পুরোনো Session বাতিল হবে। একই Browser Session-এর একাধিক Tab একটিই গণ্য হবে।</p></div><span className="platform-status">১–৩০</span></div>
         <label className="field-label"><span>এক অ্যাকাউন্টে একসঙ্গে সর্বোচ্চ Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label>
         <label className="field-label"><span>প্রতি Login Session কতক্ষণ সক্রিয় থাকবে?</span><select value={settings.session_timeout_minutes ?? 0} onChange={(e) => setSettings((old) => ({ ...old, session_timeout_minutes: Number(e.target.value) }))}><option value={0}>সময় নির্ধারণ নেই</option><option value={15}>১৫ মিনিট</option><option value={30}>৩০ মিনিট</option><option value={60}>১ ঘণ্টা</option><option value={120}>২ ঘণ্টা</option><option value={240}>৪ ঘণ্টা</option><option value={480}>৮ ঘণ্টা</option><option value={720}>১২ ঘণ্টা</option><option value={1440}>২৪ ঘণ্টা</option><option value={4320}>৩ দিন</option><option value={10080}>৭ দিন</option></select></label>
         <div className="platform-retention-hint"><Icon name="shield-check" size={15}/> সীমা অতিক্রম করলে নতুন Session চালু থাকবে এবং পুরোনো Session বন্ধ হবে। সময় শেষ হলে ব্যবহারকারীকে নিরাপদভাবে লগআউট করে কারণ জানানো হবে।</div>
-        <button type="button" className="primary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Policy সংরক্ষণ করুন'}</button>
+        <button type="button" className="primary-button" disabled={deviceLimitBusy||!sessionPolicyLoaded} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Policy সংরক্ষণ করুন'}</button>
       </div>
-      </section>
+      </section>}
     </>}
 
     {tab === 'retention' && <section className="platform-settings-grid" aria-label="ডেটা সংরক্ষণ নীতি">
@@ -2056,8 +2116,9 @@ export function SuperAdminPage({ user }) {
       <section className="platform-settings-grid">
         <div className="card platform-panel">
           <div className="platform-panel-heading"><div><h3>Permission code controls</h3><p>নতুন কোড তৈরি হলে আগের কোড একই purpose-এ সঙ্গে সঙ্গে বাতিল হবে।</p></div></div>
-          <label className="platform-toggle"><span><strong>নতুন অ্যাকাউন্টে কোড বাধ্যতামূলক</strong><small>Registration page-এ কোড চাইবে</small></span><input type="checkbox" checked={Boolean(settings.registration_code_required)} disabled={busy} onChange={(e)=>changeGate('registration',e.target.checked)}/></label>
-          <label className="platform-toggle"><span><strong>মেস তৈরিতে কোড বাধ্যতামূলক</strong><small>নতুন মেস তৈরির আগে কোড যাচাই হবে</small></span><input type="checkbox" checked={Boolean(settings.hostel_creation_code_required)} disabled={busy} onChange={(e)=>changeGate('hostel_creation',e.target.checked)}/></label>
+          {!settingsLoaded && <div className="platform-settings-load-state" role="status"><strong>Code gate-এর সংরক্ষিত অবস্থা লোড হয়নি</strong><p>আবার লোড না হওয়া পর্যন্ত Gate চালু/বন্ধ করা যাবে না।</p><button type="button" className="secondary-button compact" onClick={refresh} disabled={busy}>আবার লোড করুন</button></div>}
+          <label className="platform-toggle"><span><strong>নতুন অ্যাকাউন্টে কোড বাধ্যতামূলক</strong><small>Registration page-এ কোড চাইবে</small></span><input type="checkbox" checked={Boolean(settings.registration_code_required)} disabled={busy || !settingsLoaded} onChange={(e)=>changeGate('registration',e.target.checked)}/></label>
+          <label className="platform-toggle"><span><strong>মেস তৈরিতে কোড বাধ্যতামূলক</strong><small>নতুন মেস তৈরির আগে কোড যাচাই হবে</small></span><input type="checkbox" checked={Boolean(settings.hostel_creation_code_required)} disabled={busy || !settingsLoaded} onChange={(e)=>changeGate('hostel_creation',e.target.checked)}/></label>
           <Field label="কোডের মেয়াদ (মিনিট, ৫–১০০৮০)" type="number" value={ttl} onChange={setTtl}/>
           <Field label="সর্বোচ্চ ব্যবহার (১–১০০০)" type="number" value={maxUses} onChange={setMaxUses}/>
           <div className="platform-code-buttons"><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('registration')}>Registration code তৈরি</button><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('hostel_creation')}>Hostel creation code তৈরি</button></div>

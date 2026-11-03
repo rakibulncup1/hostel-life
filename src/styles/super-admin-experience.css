@@ -1,0 +1,551 @@
+/* Focused UX pass: Super Admin controls, persistent notices and onboarding. */
+.platform-page .platform-navigation-group {
+  border-radius: 20px;
+  padding: 15px;
+  box-shadow: 0 8px 26px rgba(20, 52, 39, .055);
+}
+.platform-page .platform-navigation-heading {
+  margin: 0 4px 11px;
+}
+.platform-page .platform-navigation-heading strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.platform-page .platform-config-tabs button,
+.platform-page .platform-main-tabs button {
+  min-height: 46px;
+  padding: 10px 13px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.platform-page .platform-config-tabs button.active {
+  font-weight: 900;
+}
+.platform-page .platform-settings-intro {
+  padding: 3px 2px 2px;
+}
+.platform-page .platform-settings-intro p {
+  display: block;
+  max-width: 70ch;
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.platform-page .platform-settings-grid {
+  gap: 16px;
+}
+.platform-page .platform-panel-heading p,
+.platform-page .platform-panel > p {
+  line-height: 1.7;
+}
+.platform-page .platform-field textarea {
+  line-height: 1.7;
+}
+.platform-communications-guide {
+  display: grid;
+  gap: 12px;
+  width: min(1380px, 100%);
+  margin: 0 auto 16px;
+  padding: 15px 17px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--primary-soft) 46%, var(--surface));
+  color: var(--text);
+}
+.platform-communications-guide-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--primary-strong);
+  font-size: 14px;
+}
+.platform-communications-guide-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.platform-communications-guide-steps > span {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.platform-communications-guide-steps b {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--primary-strong);
+  font-size: 12px;
+}
+.platform-communications-grid .platform-communications-card {
+  gap: 15px;
+  padding: clamp(18px, 2.3vw, 25px);
+}
+.platform-communications-release-heading {
+  align-items: flex-start !important;
+}
+.platform-communications-release-heading .platform-status {
+  margin-top: 3px;
+  padding: 7px 11px;
+  font-size: 11px;
+}
+.platform-communications-count {
+  align-self: end;
+  font-size: 12px;
+}
+.platform-release-preview {
+  display: grid;
+  gap: 11px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface-2);
+}
+.platform-release-preview-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.platform-release-preview-heading strong {
+  color: var(--text);
+  font-size: 12px;
+}
+.platform-release-preview-heading span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+.platform-release-preview ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.platform-release-preview li {
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.platform-release-preview li svg {
+  margin-top: 2px;
+  color: #16a34a;
+}
+.platform-release-preview > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.platform-communications-card .field-label > span small {
+  display: inline;
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.platform-communications-card .platform-toggle {
+  align-items: center;
+}
+.platform-communications-card .platform-toggle strong {
+  font-size: 13px;
+}
+.platform-communications-savebar {
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+}
+.platform-communications-savebar > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.platform-communications-savebar .primary-button {
+  min-width: 220px;
+  justify-content: center;
+}
+.platform-communications-card .platform-communications-date-grid {
+  gap: 12px;
+}
+.platform-communications-card .field-label {
+  gap: 8px;
+}
+.platform-communications-card textarea {
+  min-height: 150px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.platform-communications-card input:not([type="checkbox"]),
+.platform-communications-card select {
+  min-height: 46px;
+  font-size: 14px;
+}
+.platform-communications-image-editor {
+  gap: 12px;
+  padding: 14px;
+}
+.platform-communications-image-editor > img {
+  max-height: 260px;
+}
+.platform-communications-image-editor > small {
+  font-size: 12px;
+}
+
+/* The global banner can be dismissed locally until its content changes. */
+.global-announcement-inner {
+  grid-template-columns: 34px minmax(0, 1fr) 38px;
+}
+.global-announcement-dismiss {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  align-self: center;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.global-announcement-dismiss:hover {
+  border-color: var(--primary);
+  background: var(--surface);
+  color: var(--text);
+}
+.global-announcement-dismiss:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  outline-offset: 2px;
+}
+
+/* Join/Create is a choice first; no input form opens until a card is selected. */
+.onboarding-choice-intro {
+  margin: 5px 0 15px;
+}
+.onboarding-choice-intro h2 {
+  margin-top: 6px;
+  font-size: clamp(21px, 3vw, 25px);
+  line-height: 1.35;
+}
+.onboarding-mode-picker {
+  gap: 12px;
+}
+.onboarding-mode-option {
+  min-height: 82px;
+  padding: 14px 15px;
+  border-radius: 16px;
+}
+.onboarding-mode-copy strong {
+  font-size: 14px;
+}
+.onboarding-mode-copy small {
+  font-size: 12px;
+}
+.onboarding-action-panel {
+  margin-top: 15px;
+  padding: clamp(17px, 3vw, 22px);
+  animation: onboarding-panel-enter .18s ease-out both;
+}
+@keyframes onboarding-panel-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.onboarding-action-heading .eyebrow {
+  font-size: 10px;
+}
+.onboarding-action-heading p {
+  font-size: 13px;
+}
+.onboarding-action-back {
+  justify-self: start;
+  min-height: 40px;
+  margin-top: 12px;
+  padding: 7px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--primary-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.onboarding-action-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.onboarding-action-back:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  outline-offset: 3px;
+  border-radius: 7px;
+}
+
+/* Consistent modal rhythm, readable action targets and safe-area sizing. */
+.release-notice-backdrop,
+.priority-message-backdrop,
+.telegram-nudge-backdrop,
+.release-features-backdrop,
+.platform-communication-backdrop {
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+}
+.release-notice-dialog,
+.priority-message-dialog,
+.telegram-nudge-dialog,
+.release-features-dialog,
+.platform-communication-dialog {
+  max-height: min(88svh, 760px);
+  overscroll-behavior: contain;
+  border-radius: 22px;
+}
+.release-notice-close,
+.platform-communication-close {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+  line-height: 1;
+  z-index: 2;
+}
+.release-notice-close:hover,
+.platform-communication-close:hover {
+  border-color: var(--primary);
+  color: var(--text);
+}
+.priority-message-dialog .priority-message-actions .primary-button,
+.release-notice-dialog .release-notice-actions .primary-button,
+.telegram-nudge-dialog .telegram-nudge-actions .primary-button,
+.platform-communication-dialog .platform-communication-actions .primary-button {
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.priority-message-dialog h2,
+.release-notice-dialog h2,
+.telegram-nudge-dialog h2,
+.release-features-dialog h2,
+.platform-communication-dialog h2 {
+  font-size: clamp(21px, 4.6vw, 25px);
+  line-height: 1.4;
+}
+.platform-communication-dialog p,
+.priority-message-dialog p,
+.release-notice-dialog p {
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+@media (max-width: 760px) {
+  .platform-communications-guide-steps {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .platform-communications-savebar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .platform-communications-savebar .primary-button {
+    width: 100%;
+    min-width: 0;
+  }
+}
+@media (max-width: 620px) {
+  .platform-page .platform-navigation-group {
+    padding: 11px;
+    border-radius: 15px;
+  }
+  .platform-page .platform-tabs button {
+    min-height: 46px;
+    font-size: 12px;
+  }
+  .platform-page .platform-settings-intro p {
+    font-size: 12px;
+  }
+  .platform-communications-guide {
+    padding: 13px;
+  }
+  .platform-communications-grid .platform-communications-card {
+    padding: 16px;
+  }
+  .platform-communications-date-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .platform-release-preview {
+    padding: 12px;
+  }
+  .global-announcement-inner {
+    grid-template-columns: 30px minmax(0, 1fr) 34px;
+    gap: 8px;
+    padding: 11px 12px;
+  }
+  .global-announcement-dismiss {
+    width: 34px;
+    height: 34px;
+  }
+  .onboarding-mode-picker {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+  .onboarding-mode-option {
+    min-height: 72px;
+    padding: 12px 13px;
+  }
+  .onboarding-mode-copy strong {
+    font-size: 14px;
+  }
+  .onboarding-mode-copy small {
+    font-size: 12px;
+  }
+  .onboarding-action-panel {
+    margin-top: 12px;
+    padding: 15px;
+  }
+}
+@media (max-width: 360px) {
+  .onboarding-mode-copy small {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-action-panel {
+    animation: none;
+  }
+  .global-announcement-dismiss {
+    transition: none;
+  }
+}
+
+/* Separate save actions for communications and safe loading states for settings. */
+.platform-communications-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 3px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.platform-communications-card-footer > small {
+  max-width: 42ch;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.platform-communications-card-footer .primary-button {
+  min-height: 44px;
+  min-width: 170px;
+  justify-content: center;
+  font-size: 13px;
+}
+.platform-communications-inline-error {
+  margin: 0;
+  color: var(--danger, #c2413b);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.platform-settings-load-state {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: clamp(20px, 4vw, 30px);
+}
+.platform-settings-load-state > strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 850;
+}
+.platform-settings-load-state > p {
+  margin: 0;
+  max-width: 65ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.75;
+}
+.platform-settings-load-state .secondary-button {
+  min-height: 42px;
+  margin-top: 3px;
+}
+.platform-settings-grid .platform-panel .platform-toggle small {
+  line-height: 1.6;
+}
+.platform-page .platform-settings-intro h2 {
+  font-size: clamp(21px, 3vw, 27px);
+  line-height: 1.35;
+}
+.platform-page .platform-panel-heading h3 {
+  font-size: clamp(16px, 2vw, 19px);
+  line-height: 1.4;
+}
+
+/* Every app-level prompt remains readable on short and narrow screens. */
+.release-notice-dialog,
+.priority-message-dialog,
+.telegram-nudge-dialog,
+.release-features-dialog,
+.platform-communication-dialog {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.release-notice-dialog,
+.priority-message-dialog,
+.telegram-nudge-dialog,
+.release-features-dialog,
+.platform-communication-dialog {
+  width: min(100%, 480px);
+  padding: clamp(22px, 4vw, 30px);
+}
+.release-notice-close,
+.platform-communication-close,
+.install-nudge-close {
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+}
+.release-notice-actions > button,
+.priority-message-actions > button,
+.telegram-nudge-actions > button,
+.install-nudge-actions > button,
+.platform-communication-actions > button {
+  min-height: 44px;
+  font-size: 13px;
+}
+
+@media (max-width: 620px) {
+  .platform-communications-card-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .platform-communications-card-footer .primary-button {
+    width: 100%;
+    min-width: 0;
+  }
+  .release-notice-dialog,
+  .priority-message-dialog,
+  .telegram-nudge-dialog,
+  .release-features-dialog,
+  .platform-communication-dialog {
+    max-height: min(86svh, 680px);
+    padding: 23px 18px;
+  }
+}

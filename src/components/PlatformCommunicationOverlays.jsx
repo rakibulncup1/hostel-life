@@ -53,6 +53,7 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
   const [clock, setClock] = useState(() => Date.now());
   const [activeCampaign, setActiveCampaign] = useState(null);
   const closeButtonRef = useRef(null);
+  const dialogRef = useRef(null);
   const shownThisRender = useRef(new Set());
 
   const campaigns = useMemo(() => {
@@ -85,15 +86,21 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
       return !shownThisRender.current.has(key) && !wasShown(campaign);
     });
     if (!next) return;
-    const key = campaignStorageKey(next);
-    shownThisRender.current.add(key);
-    markShown(next);
+    // Do not record the campaign as seen until the user dismisses it.
+    // This keeps it visible across route changes/reloads if it was not acknowledged.
     setActiveCampaign(next);
   }, [blocked, activeCampaign, campaigns]);
 
   useEffect(() => {
     if (activeCampaign && !campaignIsActive(activeCampaign, clock)) setActiveCampaign(null);
   }, [activeCampaign, clock]);
+
+  useEffect(() => {
+    if (!activeCampaign) return;
+    const latest = campaigns.find((campaign) => campaign.kind === activeCampaign.kind);
+    if (!latest) setActiveCampaign(null);
+    else if (campaignStorageKey(latest) !== campaignStorageKey(activeCampaign)) setActiveCampaign(latest);
+  }, [campaigns, activeCampaign]);
 
   // Keep the page from scrolling behind the notice and support keyboard dismissal.
   useEffect(() => {
@@ -105,7 +112,19 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        setActiveCampaign(null);
+        closeActiveCampaign();
+        return;
+      }
+      if (event.key === 'Tab') {
+        const focusable = dialogRef.current?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+        if (!focusable?.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault(); last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault(); first.focus();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -118,13 +137,22 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
     };
   }, [activeCampaign, blocked]);
 
+  const closeActiveCampaign = () => {
+    if (activeCampaign) {
+      const key = campaignStorageKey(activeCampaign);
+      shownThisRender.current.add(key);
+      markShown(activeCampaign);
+      setActiveCampaign(null);
+    }
+  };
+
   if (!activeCampaign || blocked) return null;
-  const close = () => setActiveCampaign(null);
+  const close = closeActiveCampaign;
   const isImage = activeCampaign.kind === 'site' && activeCampaign.mode === 'image' && activeCampaign.image_url;
 
   return (
     <div className="platform-communication-backdrop" role="presentation">
-      <section className="platform-communication-dialog" role="dialog" aria-modal="true" aria-labelledby="platform-communication-title">
+      <section ref={dialogRef} className="platform-communication-dialog" role="dialog" aria-modal="true" aria-labelledby="platform-communication-title" tabIndex={-1}>
         <button ref={closeButtonRef} type="button" className="platform-communication-close" onClick={close} aria-label="বন্ধ করুন">×</button>
         <span className={`platform-communication-icon ${activeCampaign.kind === 'site' ? 'is-maintenance' : ''}`}>
           <Icon name={activeCampaign.kind === 'site' ? 'wrench' : 'bell'} size={22} />

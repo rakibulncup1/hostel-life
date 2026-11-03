@@ -12,6 +12,7 @@ import './styles/platform-visual-refresh.css';
 import './styles/app-download.css';
 import './styles/invitation-experience.css';
 import './styles/notification-center.css';
+import './styles/super-admin-experience.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();

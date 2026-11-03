@@ -66,7 +66,12 @@ test('Super Admin can publish ordered release notes and scheduled message/image 
   assert.match(platform, /site_notice/);
   assert.match(platform, /once_per_app_open/);
   assert.match(platform, /ব্যানার ছবি আপলোড \/ পরিবর্তন/);
-  assert.match(platform, /সব পরিবর্তন সংরক্ষণ ও প্রকাশ করুন/);
+  assert.match(platform, /আপডেট প্রকাশ করুন/);
+  assert.match(platform, /বার্তা সংরক্ষণ করুন/);
+  assert.match(platform, /বিজ্ঞপ্তি সংরক্ষণ করুন/);
+  assert.match(platform, /saveCommunicationSection\('release_notes'\)/);
+  assert.match(platform, /saveCommunicationSection\('window_notice'\)/);
+  assert.match(platform, /saveCommunicationSection\('site_notice'\)/);
   assert.match(service, /platform_admin_save_communications/);
   assert.match(service, /PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT/);
   assert.match(app, /PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT/);
@@ -129,12 +134,12 @@ test('entry theme overrides apply current theme tokens instead of hard-coded dar
 
 test('communications editor fails closed when the initial server read fails and validates publish bounds before saving', () => {
   assert.match(platform, /communicationsLoaded/);
-  assert.match(platform, /if \(!communicationsLoaded\)[\s\S]{0,260}সংরক্ষণ বন্ধ থাকবে/);
+  assert.match(platform, /if \(!communicationsLoaded \|\| !communicationsSavedDraftRef\.current \|\| communicationsBusy\)[\s\S]{0,280}সংরক্ষণ করা যাবে না/);
   assert.match(platform, /!communicationsLoaded \? <section className=\"card platform-panel platform-communications-load-error\"/);
   assert.match(platform, /onClick=\{loadCommunications\} disabled=\{communicationsLoading\}/);
-  assert.match(platform, /releaseNotesForValidation\.length > 30/);
-  assert.match(platform, /releaseNotesForValidation\.some\(\(line\) => line\.length > 240\)/);
-  assert.match(platform, /communicationsCanSave/);
+  assert.match(platform, /lines\.length > 30/);
+  assert.match(platform, /lines\.some\(\(line\) => line\.length > 240\)/);
+  assert.match(platform, /communicationsSavedDraftRef/);
 });
 
 test('public communication dialog supports Escape and prevents background page scrolling while open', () => {
