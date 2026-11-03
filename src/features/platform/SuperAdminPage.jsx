@@ -51,7 +51,14 @@ async function edgeInvokeErrorText(error) {
   const status = context?.status;
   const requestId = payload?.request_id;
   const base = detail || error?.message || raw || 'Edge Function অনুরোধ ব্যর্থ হয়েছে।';
-  return `${base}${status ? ` (HTTP ${status})` : ''}${requestId ? ` · Request ID: ${requestId}` : ''}`;
+  const diagnostics = [];
+  if (payload?.stage) diagnostics.push(`ধাপ: ${payload.stage}`);
+  if (payload?.upstream_http_status) diagnostics.push(`Telegram HTTP: ${payload.upstream_http_status}`);
+  if (payload?.telegram_error_code) diagnostics.push(`Telegram Error Code: ${payload.telegram_error_code}`);
+  if (payload?.kind === 'telegram_network') diagnostics.push('ধরন: Network/Timeout');
+  if (payload?.hint) diagnostics.push(payload.hint);
+  if (Array.isArray(payload?.missing) && payload.missing.length) diagnostics.push(`অনুপস্থিত Configuration: ${payload.missing.join(', ')}`);
+  return [base, ...diagnostics, status ? `Edge Function HTTP: ${status}` : '', requestId ? `Request ID: ${requestId}` : ''].filter(Boolean).join(' · ');
 }
 
 function Field({ label, value, onChange, type = 'text', maxLength, multiline = false }) {
