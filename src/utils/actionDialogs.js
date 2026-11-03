@@ -1,16 +1,16 @@
 /** App-owned accessible confirmations: no browser confirm/prompt popups. */
-function showDialog(message, requiredText = null) {
+function showDialog(message, requiredText = null, options = {}) {
   return new Promise(resolve => {
     let finished = false;
     const overlay = document.createElement('div');
-    overlay.className = 'hl-action-overlay';
+    overlay.className = `hl-action-overlay${options.kind ? ` hl-action-overlay-${options.kind}` : ''}`;
     const panel = document.createElement('section');
-    panel.className = 'hl-action-panel';
+    panel.className = `hl-action-panel${options.kind ? ` hl-action-panel-${options.kind}` : ''}`;
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-modal','true');
     panel.setAttribute('aria-label','কাজটি নিশ্চিত করুন');
     const title = document.createElement('h2');
-    title.textContent = 'কাজটি নিশ্চিত করুন';
+    title.textContent = options.title || 'কাজটি নিশ্চিত করুন';
     const description = document.createElement('p');
     description.textContent = String(message || 'আপনি কি নিশ্চিত?');
     const actions = document.createElement('div');
@@ -22,7 +22,7 @@ function showDialog(message, requiredText = null) {
     const confirm = document.createElement('button');
     confirm.className = requiredText == null ? 'primary-button' : 'danger-button';
     confirm.type = 'button';
-    confirm.textContent = 'নিশ্চিত করুন';
+    confirm.textContent = options.confirmLabel || 'নিশ্চিত করুন';
     let input;
     if (requiredText != null) {
       const label = document.createElement('label');
@@ -73,5 +73,5 @@ function showDialog(message, requiredText = null) {
     overlay.addEventListener('mousedown', event => { if(event.target === overlay) finish(requiredText == null ? false : null); });
   });
 }
-export const confirmAction = message => showDialog(message);
+export const confirmAction = (message, options = {}) => showDialog(message, null, options);
 export const confirmTypedAction = (message, exactPhrase) => showDialog(message, exactPhrase);

@@ -74,6 +74,19 @@ function Field({ label, value, onChange, type = 'text', maxLength, multiline = f
     ? <textarea rows={4} value={value ?? ''} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} />
     : <input type={type} value={value ?? ''} maxLength={maxLength} onChange={(e) => onChange(e.target.value)} />}</label>;
 }
+function DateTimeField({ id, label, value, onChange, min }) {
+  const setCurrentTime = () => onChange(toDhakaDateTimeInput(new Date()));
+  return (
+    <div className="field-label platform-field platform-datetime-field">
+      <label htmlFor={id}>{label}</label>
+      <div className="platform-datetime-control">
+        <input id={id} type="datetime-local" step="60" value={value || ''} min={min || undefined} onChange={(event) => onChange(event.target.value)} />
+        <button type="button" className="secondary-button compact" onClick={setCurrentTime} title="বর্তমান বাংলাদেশ সময় বসান">এখন</button>
+        <button type="button" className="text-button platform-datetime-clear" onClick={() => onChange('')} disabled={!value}>মুছুন</button>
+      </div>
+    </div>
+  );
+}
 function Stat({ label, value, icon, onClick, active = false }) {
   const content = <><span className="platform-stat-icon"><Icon name={icon} size={20}/></span><div><small>{label}</small><strong>{value === undefined || value === null || value === '' ? '—' : Number(value).toLocaleString('bn-BD')}</strong>{onClick && <span className="platform-stat-action-hint">বিস্তারিত <Icon name="chevron-right" size={13}/></span>}</div></>;
   return onClick
@@ -1105,7 +1118,7 @@ export function SuperAdminPage({ user }) {
 
 শিরোনাম: ${messageTitle.trim()}
 
-বার্তা পাঠানোর পর তা প্রাপকদের ইনবক্সে সংরক্ষিত হবে এবং টেলিগ্রামে যুক্ত ব্যবহারকারীদের কাছেও যেতে পারে।`)) return;
+বার্তা পাঠানোর পর তা প্রাপকদের ইনবক্সে সংরক্ষিত হবে এবং টেলিগ্রামে যুক্ত ব্যবহারকারীদের কাছেও যেতে পারে।`, { title: 'বার্তা পাঠানোর আগে নিশ্চিত হন', confirmLabel: 'বার্তা পাঠান', kind: 'message' })) return;
     setMessageSending(true); setError(''); setNotice('');
     try {
       const result = await platformAdminSendTargetedMessage(
@@ -1967,7 +1980,7 @@ export function SuperAdminPage({ user }) {
         {busy ? <LoadingSpinner label="সিস্টেম সেটিংস লোড হচ্ছে..."/> : <><strong>গ্লোবাল নোটিশের তথ্য লোড হয়নি</strong><p>নিরাপত্তার জন্য ফাঁকা ফর্ম সংরক্ষণ বন্ধ রাখা হয়েছে। রিফ্রেশ করে আবার চেষ্টা করুন।</p><button type="button" className="secondary-button" onClick={refresh} disabled={busy}>আবার লোড করুন</button></>}
       </section> : <form className="platform-settings-grid" onSubmit={saveSettings}>
       <section className="card platform-panel">
-        <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM NOTICE</span><h3>সবার জন্য Global Notice</h3><p>এটি চালু থাকলে ব্যবহারকারীরা X দিয়ে বন্ধ করতে পারবেন। একই বার্তার লেখা বদলালে নতুন করে দেখাবে; নির্দিষ্ট সময় বা Popup দরকার হলে পাশের “আপডেট ও বিজ্ঞপ্তি” ব্যবহার করুন।</p></div></div>
+        <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM NOTICE</span><h3>সবার জন্য Global Notice</h3><p>প্রকাশিত থাকলে এটি সবার অ্যাপের উপরে স্থায়ীভাবে দেখা যাবে। ব্যবহারকারী নিজে বন্ধ করতে পারবেন না; Super Admin বন্ধ বা পরিবর্তন করলে সবার স্ক্রিনে তা আপডেট হবে। নির্দিষ্ট সময়ের Popup-এর জন্য “আপডেট ও বিজ্ঞপ্তি” ব্যবহার করুন।</p></div></div>
         <label className="platform-toggle"><span><strong>নোটিশ চালু</strong><small>চালু থাকলে অ্যাপের ব্যবহারকারীরা ব্যানার দেখবেন</small></span><input type="checkbox" checked={Boolean(settings.announcement_enabled)} onChange={(e)=>setSettings((old)=>({...old,announcement_enabled:e.target.checked}))}/></label>
         <Field label="নোটিশ শিরোনাম" value={settings.announcement_title} onChange={(v)=>setSettings((old)=>({...old,announcement_title:v}))} maxLength={160}/>
         <Field label="নোটিশের বিবরণ" value={settings.announcement_body} onChange={(v)=>setSettings((old)=>({...old,announcement_body:v}))} maxLength={3000} multiline/>
@@ -2010,8 +2023,8 @@ export function SuperAdminPage({ user }) {
           <Field label="শিরোনাম" value={communicationsDraft.window_notice.title} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,title:value}}))} maxLength={160}/>
           <Field label="বার্তা" value={communicationsDraft.window_notice.body} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,body:value}}))} maxLength={1200} multiline/>
           <div className="platform-communications-date-grid">
-            <Field label="শুরুর সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.window_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,starts_at:value}}))}/>
-            <Field label="শেষের সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.window_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,ends_at:value}}))}/>
+            <DateTimeField id="window-notice-starts-at" label="শুরুর সময় · বাংলাদেশ" value={communicationsDraft.window_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,starts_at:value}}))}/>
+            <DateTimeField id="window-notice-ends-at" label="শেষের সময় · বাংলাদেশ" min={communicationsDraft.window_notice.starts_at || undefined} value={communicationsDraft.window_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,ends_at:value}}))}/>
           </div>
           <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.window_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
           {windowNoticeInvalid && <p className="platform-communications-inline-error" role="alert">চালু নোটিশে শিরোনাম/বার্তা দিন এবং শেষের সময় শুরুর পরে রাখুন।</p>}
@@ -2030,8 +2043,8 @@ export function SuperAdminPage({ user }) {
             <small>ছবি ৫ MB-এর কম হতে হবে। নতুন ছবি আগের ছবির একই ফাইলে প্রতিস্থাপিত হবে; অতিরিক্ত Storage Object তৈরি হবে না।</small>
           </div>}
           <div className="platform-communications-date-grid">
-            <Field label="শুরুর সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.site_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,starts_at:value}}))}/>
-            <Field label="শেষের সময় (বাংলাদেশ সময়)" type="datetime-local" value={communicationsDraft.site_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,ends_at:value}}))}/>
+            <DateTimeField id="site-notice-starts-at" label="শুরুর সময় · বাংলাদেশ" value={communicationsDraft.site_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,starts_at:value}}))}/>
+            <DateTimeField id="site-notice-ends-at" label="শেষের সময় · বাংলাদেশ" min={communicationsDraft.site_notice.starts_at || undefined} value={communicationsDraft.site_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,ends_at:value}}))}/>
           </div>
           <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.site_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
           {siteNoticeInvalid && <p className="platform-communications-inline-error" role="alert">বিজ্ঞপ্তির ধরন অনুযায়ী লেখা/ছবি দিন এবং শেষের সময় শুরুর পরে রাখুন।</p>}

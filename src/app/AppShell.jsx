@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '../components/Header';
 import { Icon } from '../components/Icon';
+import { BrandMark } from '../components/BrandMark';
 import { BottomNav } from '../components/BottomNav';
 import { MenuDrawer } from '../components/MenuDrawer';
 import { NotificationsPopover } from '../components/NotificationsPopover';
@@ -61,11 +62,8 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [unreadCount, setUnreadCount] = useState(0);
   const [pinnedManagerNotice, setPinnedManagerNotice] = useState(null);
   const [platformSettings, setPlatformSettings] = useState(null);
-  const [dismissedSystemNoticeSignature, setDismissedSystemNoticeSignature] = useState(() => {
-    try { return window.localStorage.getItem('hostel-life-global-system-notice-dismissed-v1') || ''; }
-    catch { return ''; }
-  });
   const unreadFetchInFlightRef = useRef(null);
+  const platformSettingsRefreshAtRef = useRef(0);
   const [theme, setTheme] = useState(() => getThemePreference());
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
   const [releaseNoticeOpen, setReleaseNoticeOpen] = useState(false);
@@ -76,15 +74,8 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const telegramNudgeCheckedUserRef = useRef('');
 
   const active = pathToKey(pathname);
-  const systemNoticeSignature = `${String(platformSettings?.announcement_title || '').trim()}\u241f${String(platformSettings?.announcement_body || '').trim()}`;
   const systemAnnouncementVisible = Boolean(platformSettings?.announcement_enabled
-    && (platformSettings.announcement_title || platformSettings.announcement_body)
-    && dismissedSystemNoticeSignature !== systemNoticeSignature);
-  const dismissSystemAnnouncement = () => {
-    try { window.localStorage.setItem('hostel-life-global-system-notice-dismissed-v1', systemNoticeSignature); }
-    catch { /* The notice remains dismissible for this app session. */ }
-    setDismissedSystemNoticeSignature(systemNoticeSignature);
-  };
+    && (String(platformSettings.announcement_title || '').trim() || String(platformSettings.announcement_body || '').trim()));
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
 
   useEffect(() => {
@@ -93,9 +84,26 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       if (active) setPlatformSettings(settings || null);
     }).catch(() => { /* Older database deployments have no platform settings endpoint yet. */ });
     loadSettings();
-    const refresh = () => { loadSettings(true); };
-    window.addEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refresh);
-    return () => { active = false; window.removeEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refresh); };
+    const refreshLocal = () => { loadSettings(true); };
+    const refreshWhenVisible = () => {
+      const now = Date.now();
+      // Refresh only when a user returns to the app; no background polling or Realtime channel.
+      if (now - platformSettingsRefreshAtRef.current < 30_000) return;
+      platformSettingsRefreshAtRef.current = now;
+      loadSettings(true);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshWhenVisible();
+    };
+    window.addEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refreshLocal);
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      active = false;
+      window.removeEventListener(PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT, refreshLocal);
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -398,7 +406,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         </div>
       )}
       {systemAnnouncementVisible && (
-        <section className="global-announcement global-system-announcement" role="status" aria-live="polite">
+        <section className="global-announcement global-system-announcement" role="region" aria-label="Hostel Life-এর গুরুত্বপূর্ণ ঘোষণা">
           <div className="global-announcement-inner">
             <span className="global-announcement-icon"><Icon name="shield-check" size={19} /></span>
             <div className="global-announcement-copy">
@@ -406,7 +414,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
               <strong>{platformSettings.announcement_title || 'Hostel Life ঘোষণা'}</strong>
               {platformSettings.announcement_body && <p>{platformSettings.announcement_body}</p>}
             </div>
-            <button type="button" className="global-announcement-dismiss" onClick={dismissSystemAnnouncement} aria-label="সিস্টেম নোটিশ বন্ধ করুন" title="বন্ধ করুন"><Icon name="x" size={18}/></button>
           </div>
         </section>
       )}
@@ -506,7 +513,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       {releaseFeaturesOpen && <div className="release-features-backdrop" role="presentation">
         <section className="release-features-dialog" role="dialog" aria-modal="true" aria-labelledby="release-features-title">
           <button type="button" className="release-notice-close" onClick={() => setReleaseFeaturesOpen(false)} aria-label="বন্ধ করুন">×</button>
-          <span className="release-notice-icon"><Icon name="sparkles" size={21}/></span>
+          <span className="release-notice-icon release-brand-icon"><BrandMark size={42}/></span>
           <span className="eyebrow">HOSTEL LIFE · আপডেট</span>
           <h2 id="release-features-title">নতুন ফিচারসমূহ</h2>
           <div className="release-features-list">{(platformSettings?.communications?.release_notes || []).map((feature, index) => <article className="release-feature-row" key={`${index}-${feature}`}><span><Icon name="check-circle" size={17}/></span><p>{feature}</p></article>)}</div>

@@ -116,10 +116,12 @@ export function TelegramConnectionPage() {
       </header>
 
       <section className="card telegram-connection-card">
-        <div className="telegram-card-top">
-          <span className="telegram-brand-icon"><TelegramLogo size={34}/></span>
-          <div><span className="eyebrow">ব্যক্তিগত সংযোগ</span><h2>{status?.connected ? 'আপনার টেলিগ্রাম যুক্ত আছে' : 'টেলিগ্রামে বিজ্ঞপ্তি পান'}</h2></div>
+        <div className="telegram-card-hero">
+          <span className="telegram-brand-icon"><TelegramLogo size={52}/></span>
           <span className={`telegram-state ${status?.connected ? 'is-connected' : 'is-offline'}`}>{status?.connected ? 'সংযুক্ত' : 'সংযুক্ত নয়'}</span>
+          <span className="eyebrow">ব্যক্তিগত সংযোগ</span>
+          <h2>{status?.connected ? 'আপনার টেলিগ্রাম যুক্ত আছে' : 'টেলিগ্রামে বিজ্ঞপ্তি পান'}</h2>
+          <p>Hostel Life-এর গুরুত্বপূর্ণ বার্তা আপনার টেলিগ্রামে পৌঁছাবে।</p>
         </div>
 
         {status?.connected ? (
@@ -132,7 +134,6 @@ export function TelegramConnectionPage() {
         ) : (
           <div className="telegram-connect-content">
             {status?.telegram_enabled ? <>
-              <p>সংযুক্ত হলে মেসের গুরুত্বপূর্ণ বিজ্ঞপ্তি সরাসরি টেলিগ্রামে পাবেন। এটি ঐচ্ছিক।</p>
               <div className="telegram-steps"><span><b>১</b> সংযোগ লিংক তৈরি করুন</span><span><b>২</b> টেলিগ্রামে বট খুলে <strong>শুরু</strong> চাপুন</span><span><b>৩</b> এখানে ফিরে যাচাই করুন</span></div>
               <button type="button" className="primary-button telegram-connect-button" disabled={busy} onClick={connect}><TelegramLogo size={20}/> {busy ? 'তৈরি হচ্ছে...' : 'টেলিগ্রাম সংযোগ করুন'}</button>
             </> : <div className="telegram-unavailable"><Icon name="info" size={19}/><span>টেলিগ্রাম সংযোগ এখনো চালু করা হয়নি। সেটআপ সম্পন্ন হলে এখানে সংযোগ করতে পারবেন।</span></div>}

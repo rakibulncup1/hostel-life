@@ -8,6 +8,7 @@ const platform = read('src/features/platform/SuperAdminPage.jsx');
 const overlay = read('src/components/PlatformCommunicationOverlays.jsx');
 const shell = read('src/app/AppShell.jsx');
 const styles = read('src/styles/super-admin-experience.css');
+const polishStyles = read('src/styles/experience-polish-v6.css');
 const main = read('src/main.jsx');
 
 test('onboarding starts with a compact choice screen and no expanded join-code form', () => {
@@ -38,11 +39,12 @@ test('communication dialog remains keyboard dismissible and traps focus accessib
   assert.match(overlay, /aria-modal="true"/);
 });
 
-test('global system banner can be dismissed without losing it when the content changes', () => {
-  assert.match(shell, /hostel-life-global-system-notice-dismissed-v1/);
-  assert.match(shell, /systemNoticeSignature/);
-  assert.match(shell, /dismissedSystemNoticeSignature !== systemNoticeSignature/);
-  assert.match(shell, /global-announcement-dismiss/);
+test('global system banner stays pinned for every user until Super Admin disables it', () => {
+  assert.match(shell, /const systemAnnouncementVisible = Boolean/);
+  assert.match(shell, /global-system-announcement/);
+  assert.doesNotMatch(shell, /dismissedSystemNoticeSignature|hostel-life-global-system-notice-dismissed-v1|global-announcement-dismiss/);
+  const banner = shell.slice(shell.indexOf('global-system-announcement'), shell.indexOf('pinnedManagerNotice &&'));
+  assert.doesNotMatch(banner, /button[^>]*aria-label=.*বন্ধ/);
 });
 
 test('priority system messages also have a visible close control connected to acknowledgement', () => {
@@ -65,7 +67,7 @@ test('communications editor explains scheduling, previews release notes and fail
 test('Super Admin settings and onboarding styles are loaded and mobile readable', () => {
   assert.match(main, /super-admin-experience\.css/);
   assert.match(styles, /\.platform-communications-guide-steps/);
-  assert.match(styles, /\.global-announcement-dismiss/);
+  assert.match(polishStyles, /\.global-system-announcement \{/);
   assert.match(styles, /\.onboarding-mode-copy small\s*\{\s*font-size: 12px/);
   assert.match(styles, /@media \(max-width: 620px\)/);
 });
