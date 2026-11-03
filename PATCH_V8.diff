@@ -1,0 +1,1177 @@
+diff --git a/src/app/App.jsx b/src/app/App.jsx
+index 9b8cf26..4bb30ff 100644
+--- a/src/app/App.jsx
++++ b/src/app/App.jsx
+@@ -59,7 +59,6 @@ function resolveAppPage(pathname, isManager) {
+   if (pathname === '/app/menu/khala-money') return <KhalaMoneyPage />;
+   if (pathname === '/app/menu/member-management') return <MemberManagementPage />;
+   if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
+-  if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
+   return <DashboardPage />;
+ }
+ 
+diff --git a/src/app/AppShell.jsx b/src/app/AppShell.jsx
+index 8290b08..f0c2774 100644
+--- a/src/app/AppShell.jsx
++++ b/src/app/AppShell.jsx
+@@ -5,8 +5,7 @@ import { BottomNav } from '../components/BottomNav';
+ import { MenuDrawer } from '../components/MenuDrawer';
+ import { NotificationsPopover } from '../components/NotificationsPopover';
+ import { useOnlineStatus } from '../hooks/useOnlineStatus';
+-import { useInstallPrompt } from '../hooks/useInstallPrompt';
+-import { InstallPromptProvider } from '../contexts/InstallPromptContext';
++import { useInstallPromptContext } from '../contexts/InstallPromptContext';
+ import { getThemePreference, saveThemePreference } from './theme';
+ import { OfflineState } from '../components/OfflineState';
+ import { useToast } from '../components/Toast';
+@@ -36,8 +35,7 @@ export function navigateTo(keyOrPath, replace = false) {
+ 
+ export function AppShell({ pathname, children, membership, profile, isManager, user }) {
+   const isOnline = useOnlineStatus();
+-  const installPrompt = useInstallPrompt();
+-  const { canInstall, installed, install } = installPrompt;
++  const { canInstall, installed, install } = useInstallPromptContext();
+   const { signOut } = useAuth();
+   const { context: managementContext, period, isPrimaryManager, isAssistantManager, isOperationalManager, refresh: refreshManagementContext } = useManagementContext();
+   const hasRunningPeriod = Boolean(period?.period_id || period?.id);
+@@ -93,7 +91,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+   }, [theme]);
+ 
+   useEffect(() => {
+-    if (installed) {
++    if (installed || !canInstall) {
+       setInstallNudgeOpen(false);
+       return undefined;
+     }
+@@ -102,7 +100,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+     if (seen) return undefined;
+     const timer = window.setTimeout(() => setInstallNudgeOpen(true), 1200);
+     return () => window.clearTimeout(timer);
+-  }, [installed, user?.id]);
++  }, [canInstall, installed, user?.id]);
+ 
+   const loadUnread = useCallback(async () => {
+     if (!isOnline || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) {
+@@ -230,13 +228,12 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+   };
+ 
+   const handleNudgeInstall = async () => {
++    if (!canInstall) return;
++    await installApp();
+     dismissInstallNudge();
+-    if (canInstall) await installApp();
+-    else navigateTo('/app/menu/app-download');
+   };
+ 
+   return (
+-    <InstallPromptProvider value={{ canInstall, installed, install }}>
+     <div className="app-shell">
+       <Header
+         hostelName={membership?.hostel_name || 'Hostel Life'}
+@@ -306,8 +303,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+         isManager={effectivePrimaryManager}
+         isPrimaryManager={effectivePrimaryManager}
+         isOperationalManager={effectiveOperationalManager}
+-        canInstall={canInstall}
+-        onInstall={installApp}
+         onAction={handleMenuAction}
+         profile={profile}
+         user={user}
+@@ -322,7 +317,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+         <button className={theme === 'blue' ? 'active' : ''} onClick={() => changeTheme('blue')}>আকাশি</button>
+       </div>
+ 
+-      {installNudgeOpen && !installed && <div className="install-nudge-backdrop" role="presentation">
++      {installNudgeOpen && canInstall && !installed && <div className="install-nudge-backdrop" role="presentation">
+         <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="install-nudge-title">
+           <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
+           <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
+@@ -333,6 +328,5 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+         </section>
+       </div>}
+     </div>
+-    </InstallPromptProvider>
+   );
+ }
+diff --git a/src/components/MenuDrawer.jsx b/src/components/MenuDrawer.jsx
+index e76b7b1..d4e5127 100644
+--- a/src/components/MenuDrawer.jsx
++++ b/src/components/MenuDrawer.jsx
+@@ -38,7 +38,7 @@ const assistantItems = [
+   { key: 'khala-money', label: 'খালার টাকা', icon: 'wallet' },
+ ];
+ 
+-export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager = false, isOperationalManager = false, canInstall, onInstall, onAction, profile, hostelName, role }) {
++export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager = false, isOperationalManager = false, onAction, profile, hostelName, role }) {
+   if (!open) return null;
+ 
+   const click = (key) => {
+@@ -70,14 +70,6 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager
+           <button className="icon-button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={21} /></button>
+         </div>
+ 
+-        {canInstall && (
+-          <button className="install-card" onClick={onInstall}>
+-            <span className="install-card-icon"><Icon name="download" size={19} /></span>
+-            <span><strong>অ্যাপ ইনস্টল করুন</strong><small>হোম স্ক্রিন থেকে অ্যাপের মতো খুলুন</small></span>
+-            <Icon name="chevron" size={18} />
+-          </button>
+-        )}
+-
+         <div className="menu-group">
+           <div className="menu-group-title">সাধারণ</div>
+           {commonItems.filter((item) => !(effectiveOperationalManager && item.key === 'khala-money-view')).map((item) => (
+diff --git a/src/features/invites/HostelInvitePage.jsx b/src/features/invites/HostelInvitePage.jsx
+index f12d7bc..7fffd44 100644
+--- a/src/features/invites/HostelInvitePage.jsx
++++ b/src/features/invites/HostelInvitePage.jsx
+@@ -124,9 +124,11 @@ export function HostelInvitePage({ pathname }) {
+     finally { setBusy(false); }
+   };
+ 
+-  const continueNormally = () => {
++  const exitInvitation = () => {
+     clearPendingHostelLinkToken();
+-    navigateTo('/onboarding', true);
++    if (!auth.isAuthenticated) navigateTo('/auth/login', true);
++    else if (auth.membership?.status === 'active') navigateTo('/app/dashboard', true);
++    else navigateTo('/onboarding', true);
+   };
+ 
+   if (auth.authLoading || (auth.isAuthenticated && auth.identityLoading) || loading) {
+@@ -135,28 +137,28 @@ export function HostelInvitePage({ pathname }) {
+ 
+   return (
+     <main className="hostel-invite-page">
+-      <header className="hostel-invite-topbar"><span><Icon name="shield-check" size={15}/> নিরাপদ সদস্য আমন্ত্রণ</span><EntryThemeSwitcher/></header>
++      <header className="hostel-invite-topbar"><span><Icon name="shield-check" size={15}/> নিরাপদ সদস্য আমন্ত্রণ</span><div className="hostel-invite-topbar-actions"><button className="hostel-invite-exit" type="button" onClick={exitInvitation}>পরে করবেন</button><EntryThemeSwitcher/></div></header>
+       <section className="hostel-invite-card">
+         <div className="hostel-invite-brand"><BrandMark size={56}/><span>HOSTEL LIFE</span></div>
+         <span className="eyebrow">MEMBERSHIP INVITATION</span>
+         <h1>মেসে যোগদানের আমন্ত্রণ</h1>
+         {!auth.isAuthenticated ? <>
+-          <p className="hostel-invite-lead">এই লিংকটি একটি নির্দিষ্ট মেসে Join Request পাঠানোর জন্য। মেসের কোনো তথ্য বা ড্যাশবোর্ড দেখতে হলে আগে নিজের অ্যাকাউন্টে লগইন করতে হবে।</p>
+-          <div className="hostel-invite-security-note"><Icon name="lock" size={18}/><span>এই লিংক কাউকে স্বয়ংক্রিয়ভাবে সদস্য করে না এবং কোনো মেসের ব্যক্তিগত তথ্য প্রকাশ করে না। লগইন/রেজিস্ট্রেশনের পর সার্ভার লিংকটি যাচাই করবে।</span></div>
+-          <div className="hostel-invite-actions"><button className="primary-button large" type="button" onClick={() => navigateTo('/auth/login')}><Icon name="log-in" size={17}/> লগইন করুন</button><button className="secondary-button large" type="button" onClick={() => navigateTo('/auth/register')}><Icon name="user-plus" size={17}/> নতুন অ্যাকাউন্ট তৈরি করুন</button></div>
++          <p className="hostel-invite-lead">আপনাকে একটি মেসে যোগ দেওয়ার আমন্ত্রণ জানানো হয়েছে। এগোতে নতুন অ্যাকাউন্ট তৈরি করুন; এরপর আপনার Join Request ম্যানেজার পর্যালোচনা করবেন।</p>
++          <div className="hostel-invite-security-note"><Icon name="shield-check" size={18}/><span>আপনার অনুমতি ও ম্যানেজারের অনুমোদন ছাড়া সদস্যপদ চালু হবে না।</span></div>
++          <div className="hostel-invite-actions"><button className="primary-button large" type="button" onClick={() => navigateTo('/auth/register')}><Icon name="user-plus" size={17}/> অ্যাকাউন্ট তৈরি করুন</button></div>
+         </> : <>
+           {info?.hostel_name && <div className="hostel-invite-hostel"><span>যে মেস থেকে আমন্ত্রণ এসেছে</span><strong><Icon name="home" size={18}/>{info.hostel_name}</strong><small>মেয়াদ শেষ: {new Date(info.expires_at).toLocaleString('bn-BD')}</small></div>}
+           {error && <div className="hostel-invite-error" role="alert"><Icon name="alert-circle" size={18}/><span>{error}</span><button className="text-button" type="button" onClick={() => window.location.reload()}>আবার চেষ্টা</button></div>}
+           {otherActiveHostel ? <div className="hostel-invite-security-note warning"><Icon name="shield-alert" size={18}/><span>আপনার অ্যাকাউন্ট বর্তমানে অন্য একটি মেসের সক্রিয় সদস্য। একই সময়ে একাধিক মেসে সক্রিয় সদস্যপদ অনুমোদিত নয়। আগে বর্তমান সদস্যপদ সমাধান করুন।</span></div> : null}
+           {!otherActiveHostel && status?.status === 'pending' && <><InviteStatus status="pending"/><button className="secondary-button" type="button" disabled={busy || !online} onClick={refreshStatus}>অবস্থা যাচাই করুন</button></>}
+-          {!otherActiveHostel && status?.status === 'rejected' && <><InviteStatus status="rejected" note={status.review_note}/><button className="primary-button large" type="button" onClick={continueNormally}>সাধারণ মেস সেটআপে যান</button></>}
++          {!otherActiveHostel && status?.status === 'rejected' && <><InviteStatus status="rejected" note={status.review_note}/><button className="secondary-button large" type="button" onClick={exitInvitation}>পরে করবেন</button></>}
+           {!otherActiveHostel && status?.status === 'approved' && <div className="hostel-invite-status approved"><Icon name="check-circle" size={18}/><div><strong>অনুরোধ অনুমোদিত</strong><span>সদস্যপদের তথ্য আপডেট হচ্ছে।</span></div></div>}
+           {!otherActiveHostel && (status?.status === 'not_submitted' || !status) && info && <>
+             <p className="hostel-invite-lead">এই মেসে যুক্ত হতে Join Code লাগবে না। নিচের বোতাম থেকে Join Request পাঠান। ম্যানেজার বা অনুমোদিত সহকারী যাচাই করে অনুমোদন দেবেন।</p>
+             <label className="field-label"><span>ম্যানেজারের জন্য বার্তা (ঐচ্ছিক)</span><textarea rows={3} maxLength={500} value={requestNote} onChange={(event) => setRequestNote(event.target.value)} placeholder="নিজের পরিচয় বা প্রয়োজনীয় তথ্য লিখুন"/></label>
+             <button className="primary-button large" type="button" disabled={busy || !online} onClick={submitRequest}>{busy ? 'অনুরোধ পাঠানো হচ্ছে...' : 'যোগদানের অনুরোধ পাঠান'}</button>
+           </>}
+-          {!otherActiveHostel && !info && status?.status !== 'pending' && status?.status !== 'rejected' && status?.status !== 'approved' && <button className="secondary-button large" type="button" onClick={continueNormally}>সাধারণ মেস সেটআপে যান</button>}
++          {!otherActiveHostel && !info && status?.status !== 'pending' && status?.status !== 'rejected' && status?.status !== 'approved' && <button className="secondary-button large" type="button" onClick={exitInvitation}>পরে করবেন</button>}
+         </>}
+         <footer className="hostel-invite-footer"><Icon name="shield-check" size={16}/><span>সদস্যপদ সক্রিয় হবে শুধু সার্ভার যাচাই ও ম্যানেজারের অনুমোদনের পর।</span></footer>
+       </section>
+diff --git a/src/features/manager/ManagerPages.jsx b/src/features/manager/ManagerPages.jsx
+index 8f33a37..3e54e36 100644
+--- a/src/features/manager/ManagerPages.jsx
++++ b/src/features/manager/ManagerPages.jsx
+@@ -39,8 +39,6 @@ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+ import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
+ import {
+   managerCreateHostelInviteLink,
+-  managerListHostelInviteLinks,
+-  managerRevokeHostelInviteLink,
+   managerListHostelJoinRequests,
+   managerReviewHostelJoinRequest,
+ } from '../../services/hostelInviteService';
+@@ -587,43 +585,48 @@ export function HostelSettingsPage() {
+   const [busy, setBusy] = useState(false);
+   const [codeBusy, setCodeBusy] = useState(false);
+   const [confirmCode, setConfirmCode] = useState(false);
+-  const [inviteLinks, setInviteLinks] = useState([]);
+-  const [inviteLinksLoading, setInviteLinksLoading] = useState(false);
+   const [inviteLinkBusy, setInviteLinkBusy] = useState(false);
+   const [createdInviteUrl, setCreatedInviteUrl] = useState('');
+ 
+-  const loadInviteLinks = useCallback(async () => {
+-    setInviteLinksLoading(true);
+-    try { setInviteLinks(await managerListHostelInviteLinks()); }
+-    catch (error) { toast.error(getFriendlySupabaseError(error, 'Invitation Link-এর তালিকা লোড করা যায়নি।')); }
+-    finally { setInviteLinksLoading(false); }
+-  }, [toast]);
+-
+-  useEffect(() => { if (online) loadInviteLinks(); }, [online, loadInviteLinks]);
+-
+   const createInviteLink = async () => {
+     setInviteLinkBusy(true);
+     try {
+       const result = await managerCreateHostelInviteLink('সদস্য আমন্ত্রণ');
+       if (!result?.token || !/^[0-9a-f]{64}$/.test(result.token)) throw new Error('সার্ভার থেকে বৈধ Invitation Token পাওয়া যায়নি। Run29 Migration প্রয়োগ হয়েছে কি না যাচাই করুন।');
+       setCreatedInviteUrl(`${window.location.origin}/invite#${result.token}`);
+-      await loadInviteLinks();
+-      toast.success('নতুন Invitation Link তৈরি হয়েছে।');
++      toast.success('নতুন আমন্ত্রণ লিংক তৈরি হয়েছে। আগের লিংকটি আর কাজ করবে না।');
+     } catch (error) { toast.error(getFriendlySupabaseError(error, 'Invitation Link তৈরি করা যায়নি।')); }
+     finally { setInviteLinkBusy(false); }
+   };
+ 
+-  const revokeInviteLink = async (row) => {
+-    const ok = await confirmAction({
+-      title: 'Invitation Link বাতিল করবেন?',
+-      message: 'এই লিংক দিয়ে নতুন Join Request আর পাঠানো যাবে না। আগে পাঠানো Request-এর অবস্থা অপরিবর্তিত থাকবে।',
+-      confirmLabel: 'লিংক বাতিল করুন', danger: true,
+-    });
+-    if (!ok) return;
+-    setInviteLinkBusy(true);
+-    try { await managerRevokeHostelInviteLink(row.id); await loadInviteLinks(); toast.success('Invitation Link বাতিল হয়েছে।'); }
+-    catch (error) { toast.error(getFriendlySupabaseError(error, 'Invitation Link বাতিল করা যায়নি।')); }
+-    finally { setInviteLinkBusy(false); }
++  const copyAndShareInvite = async () => {
++    if (!createdInviteUrl) return;
++    const hostelName = membership?.hostel_name || 'Hostel Life মেস';
++    const shareData = {
++      title: `${hostelName} — যোগদানের আমন্ত্রণ`,
++      text: `${hostelName}-এ যোগ দেওয়ার জন্য আপনাকে আমন্ত্রণ জানানো হয়েছে। লিংকটি খুলে অ্যাকাউন্ট তৈরি করে Join Request পাঠান।`,
++      url: createdInviteUrl,
++    };
++    // Start both APIs in the same user-activation turn: Web Share often requires
++    // transient activation, while clipboard permission may resolve asynchronously.
++    let shareTask = null;
++    try { if (typeof navigator.share === 'function') shareTask = navigator.share(shareData); }
++    catch (error) { shareTask = Promise.reject(error); }
++    const clipboardPayload = shareTask ? createdInviteUrl : `${shareData.text}\n${createdInviteUrl}`;
++    const copyTask = copyText(clipboardPayload);
++    const [shareResult, copyResult] = await Promise.allSettled([
++      shareTask || Promise.resolve(null),
++      copyTask,
++    ]);
++    if (copyResult.status === 'fulfilled') {
++      if (shareTask && shareResult.status === 'fulfilled') toast.success('লিংক কপি হয়েছে এবং শেয়ার অপশন সম্পন্ন হয়েছে।');
++      else if (shareResult.status === 'rejected' && shareResult.reason?.name !== 'AbortError') toast.info('লিংক কপি হয়েছে। এই ব্রাউজারে শেয়ার অপশন পাওয়া যায়নি।');
++      else toast.success(shareTask ? 'আমন্ত্রণ লিংক কপি হয়েছে।' : 'আমন্ত্রণ বার্তা ও লিংক কপি হয়েছে।');
++    } else if (shareResult.status === 'fulfilled' && shareTask) {
++      toast.info('শেয়ার করা হয়েছে; তবে লিংক কপি করা যায়নি।');
++    } else {
++      toast.error('লিংক কপি বা শেয়ার করা যায়নি। আবার চেষ্টা করুন।');
++    }
+   };
+ 
+   const saveName = async (event) => {
+@@ -665,12 +668,30 @@ export function HostelSettingsPage() {
+           <div className="join-code-display"><strong>{joinCode || '—'}</strong><button className="secondary-button compact" type="button" onClick={async () => { try { await copyText(joinCode); toast.success('যুক্ত হওয়ার কোড কপি হয়েছে।'); } catch { toast.warning('কপি করা যায়নি।'); } }}>কপি</button></div>
+           <button className="secondary-button" type="button" disabled={codeBusy} onClick={() => setConfirmCode(true)}><Icon name="refresh" size={15} /> নতুন যুক্ত হওয়ার কোড তৈরি করুন</button>
+         </section>
+-        <section className="card manager-form-card manager-invite-card">
+-          <div className="panel-header"><div><span className="eyebrow">INVITATION LINK</span><h2>লিংক দিয়ে নতুন সদস্য আমন্ত্রণ</h2><p>নতুন লিংক তৈরি করলে আগের সক্রিয় Invitation সঙ্গে সঙ্গে বাতিল হবে। নতুন সদস্য লগইন করে Join Request পাঠাবেন; আপনি বা অনুমোদিত সহকারী সেটি পর্যালোচনা করবেন।</p></div></div>
+-          <button className="primary-button" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}><Icon name="link" size={16}/>{inviteLinkBusy ? 'তৈরি হচ্ছে...' : 'নতুন Invitation Link তৈরি করুন'}</button>
+-          {createdInviteUrl && <div className="platform-generated-code"><strong>নতুন Invitation Link</strong><code className="platform-link-value">{createdInviteUrl}</code><button className="secondary-button" type="button" onClick={async () => { try { await copyText(createdInviteUrl); toast.success('Invitation Link কপি হয়েছে।'); } catch { toast.warning('কপি করা যায়নি—লিংকটি হাতে কপি করুন।'); } }}>লিংক কপি করুন</button><small>নিরাপত্তার জন্য লিংকটি শুধু নির্দিষ্ট ব্যক্তিকে পাঠান।</small></div>}
+-          <div className="platform-panel-heading"><div><h3>আগের Invitation Link</h3><p>বাতিল বা মেয়াদ শেষ হলে লিংক আর নতুন Request নিতে পারবে না।</p></div><button type="button" className="secondary-button compact" disabled={inviteLinksLoading} onClick={loadInviteLinks}>রিফ্রেশ</button></div>
+-          {inviteLinksLoading ? <LoadingSpinner label="Invitation Link লোড হচ্ছে..."/> : inviteLinks.length === 0 ? <p className="platform-empty">এখনো কোনো Invitation Link তৈরি হয়নি।</p> : <div className="platform-retention-list">{inviteLinks.map((row) => <div className="platform-retention-row" key={row.id}><div><strong>{row.label || 'সদস্য আমন্ত্রণ'}</strong><small>তৈরি: {formatDateTime12(row.created_at)} · মেয়াদ: {formatDateTime12(row.expires_at)}</small><small>অবস্থা: {row.revoked_at ? 'বাতিল' : new Date(row.expires_at) <= new Date() ? 'মেয়াদ শেষ' : 'চালু'}</small></div>{!row.revoked_at && new Date(row.expires_at) > new Date() && <button type="button" className="danger-button" disabled={inviteLinkBusy} onClick={() => revokeInviteLink(row)}>বাতিল</button>}</div>)}</div>}
++        <section className="card manager-form-card manager-invite-card" aria-labelledby="manager-invite-title">
++          <div className="manager-invite-heading">
++            <span className="manager-invite-icon"><Icon name="mail-plus" size={20}/></span>
++            <div><span className="eyebrow">সদস্য আমন্ত্রণ</span><h2 id="manager-invite-title">লিংক দিয়ে সদস্য যুক্ত করুন</h2><p>নতুন লিংক তৈরি করলে আগেরটি স্বয়ংক্রিয়ভাবে বাতিল হবে।</p></div>
++          </div>
++          {!createdInviteUrl ? (
++            <button className="primary-button manager-invite-create" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}>
++              <Icon name="link" size={17}/>{inviteLinkBusy ? 'লিংক তৈরি হচ্ছে...' : 'আমন্ত্রণ লিংক তৈরি করুন'}
++            </button>
++          ) : (
++            <div className="manager-invite-created" role="status">
++              <div className="manager-invite-ready">
++                <span className="manager-invite-ready-icon"><Icon name="check" size={17}/></span>
++                <div><strong>আমন্ত্রণ লিংক সক্রিয়</strong><small>৭ দিন বৈধ · আগের লিংক বাতিল</small></div>
++              </div>
++              <button className="primary-button manager-invite-share" type="button" onClick={copyAndShareInvite}>
++                <Icon name="copy" size={17}/> কপি ও শেয়ার করুন
++              </button>
++              <button className="manager-invite-regenerate" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}>
++                <Icon name="refresh" size={14}/>{inviteLinkBusy ? 'নতুন লিংক তৈরি হচ্ছে...' : 'নতুন লিংক তৈরি করুন'}
++              </button>
++            </div>
++          )}
++          <p className="manager-invite-footnote"><Icon name="shield-check" size={14}/> অ্যাকাউন্ট তৈরি ও ম্যানেজারের অনুমোদনের পর সদস্যপদ চালু হবে।</p>
+         </section>
+         {confirmCode && <ConfirmModal title="নতুন যুক্ত হওয়ার কোড তৈরি করবেন?" description="নতুন কোড তৈরি করলে আগের যুক্ত হওয়ার কোড দিয়ে আর নতুন সদস্য যুক্ত হতে পারবে না।" confirmLabel="নতুন কোড তৈরি করুন" busy={codeBusy} onClose={() => setConfirmCode(false)} onConfirm={regen} />}
+       </div>
+@@ -709,9 +730,46 @@ function JoinRequestQueue() {
+     finally { setBusyId(''); }
+   };
+   return <section className="card manager-join-request-panel">
+-    <div className="panel-header"><div><span className="eyebrow">MEMBERSHIP APPROVAL</span><h2>নতুন সদস্যের Join Request</h2><p>ব্যক্তিগত Invitation Link দিয়ে পাঠানো অনুরোধ এখানে দেখাবে। অনুমোদনের পরই সদস্যপদ সক্রিয় হবে।</p></div><button className="secondary-button compact" type="button" disabled={loading} onClick={load}>রিফ্রেশ</button></div>
+-    <label className="field-label"><span>পর্যালোচনার নোট (ঐচ্ছিক)</span><input value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} maxLength={500} placeholder="অনুমোদন বা বাতিলের সংক্ষিপ্ত কারণ"/></label>
+-    {loading ? <LoadingSpinner label="Join Request লোড হচ্ছে..."/> : rows.length === 0 ? <p className="platform-empty">এখনো কোনো অপেক্ষমাণ Join Request নেই।</p> : <div className="manager-join-request-list">{rows.map((row) => <article className="manager-join-request-row" key={row.id}><div className="manager-join-request-copy"><strong>{row.full_name || 'নতুন সদস্য'}</strong><small>{formatDateTime12(row.created_at)} · Invitation Link</small>{row.request_note && <p>{row.request_note}</p>}</div><div className="manager-join-request-actions"><button className="primary-button compact" type="button" disabled={Boolean(busyId)} onClick={() => review(row, true)}>{busyId === row.id ? 'প্রক্রিয়াধীন...' : 'অনুমোদন'}</button><button className="danger-button" type="button" disabled={Boolean(busyId)} onClick={() => review(row, false)}>বাতিল</button></div></article>)}</div>}
++    <div className="manager-request-heading">
++      <div>
++        <span className="eyebrow">MEMBERSHIP APPROVAL</span>
++        <h2>অপেক্ষমাণ অনুরোধ</h2>
++        <p>যাচাই করে সদস্যপদ অনুমোদন দিন।</p>
++      </div>
++      <button className="secondary-button compact manager-request-refresh" type="button" disabled={loading || !online} onClick={load}>
++        <Icon name="refresh" size={15}/> রিফ্রেশ
++      </button>
++    </div>
++    <div className="manager-request-note-row">
++      <label className="field-label"><span>সিদ্ধান্তের নোট <small>(ঐচ্ছিক)</small></span><input value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} maxLength={500} placeholder="প্রয়োজন হলে সংক্ষিপ্ত কারণ লিখুন"/></label>
++    </div>
++    {loading ? <LoadingSpinner label="অনুরোধ লোড হচ্ছে..."/> : rows.length === 0 ? (
++      <div className="manager-request-empty"><span><Icon name="user-check" size={25}/></span><strong>নতুন কোনো অনুরোধ নেই</strong><p>নতুন সদস্যের অনুরোধ এলে এখানে দেখা যাবে।</p></div>
++    ) : <div className="manager-join-request-list">
++      {rows.map((row) => {
++        const displayName = String(row.full_name || 'নতুন সদস্য').trim();
++        const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part.slice(0, 1)).join('').toLocaleUpperCase('bn-BD') || 'HL';
++        return <article className="manager-join-request-row" key={row.id}>
++          <div className="manager-request-person">
++            <span className="manager-request-avatar" aria-hidden="true">{initials}</span>
++            <div className="manager-request-person-copy">
++              <strong>{displayName}</strong>
++              <small><Icon name="clock" size={13}/> {formatDateTime12(row.created_at)}</small>
++            </div>
++            <span className="manager-request-status">অপেক্ষমাণ</span>
++          </div>
++          {row.request_note ? <p className="manager-request-message">{row.request_note}</p> : <p className="manager-request-message muted">কোনো অতিরিক্ত বার্তা দেওয়া হয়নি।</p>}
++          <div className="manager-join-request-actions">
++            <button className="primary-button compact" type="button" disabled={Boolean(busyId)} onClick={() => review(row, true)}>
++              {busyId === row.id ? 'প্রক্রিয়াধীন...' : <><Icon name="check" size={15}/> অনুমোদন</>}
++            </button>
++            <button className="danger-button manager-request-reject" type="button" disabled={Boolean(busyId)} onClick={() => review(row, false)}>
++              <Icon name="x" size={15}/> বাতিল
++            </button>
++          </div>
++        </article>;
++      })}
++    </div>}
+   </section>;
+ }
+ 
+@@ -719,7 +777,7 @@ export function JoinRequestReviewPage() {
+   const online = useOnlineStatus();
+   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="Join Request পর্যালোচনার জন্য অনলাইন সংযোগ প্রয়োজন।" />;
+   return <ManagerGuard><div className="page-stack">
+-    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের অনুরোধ যাচাই করে অনুমোদন বা বাতিল করুন।" eyebrow="ম্যানেজার ফিচার" />
++    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের অনুরোধ পর্যালোচনা করুন।" eyebrow="ম্যানেজার ফিচার" />
+     <JoinRequestQueue />
+   </div></ManagerGuard>;
+ }
+diff --git a/src/features/menu/AppDownloadPage.jsx b/src/features/menu/AppDownloadPage.jsx
+index e1c05ba..39f1a22 100644
+--- a/src/features/menu/AppDownloadPage.jsx
++++ b/src/features/menu/AppDownloadPage.jsx
+@@ -37,7 +37,7 @@ export function AppDownloadPage() {
+             <Icon name="download" size={19}/>{installing ? 'ইনস্টল হচ্ছে...' : 'এখনই ইনস্টল করুন'}
+           </button>
+         ) : (
+-          <p className="app-download-single-fallback">এই ব্রাউজারে সরাসরি ইনস্টল সুবিধা নেই। Browser Menu থেকে “Add to Home Screen” নির্বাচন করুন।</p>
++          <p className="app-download-single-fallback">এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। সমর্থিত ব্রাউজারে খুললে এখান থেকেই ইনস্টল করা যাবে।</p>
+         )}
+       </section>
+     </main>
+diff --git a/src/features/menu/MenuPages.jsx b/src/features/menu/MenuPages.jsx
+index 90da03e..9b5ffc6 100644
+--- a/src/features/menu/MenuPages.jsx
++++ b/src/features/menu/MenuPages.jsx
+@@ -518,6 +518,7 @@ const HOW_TO_USE_GROUPS = [
+       ['Late ও Correction Request কে অনুমোদন করেন?', 'ম্যানেজার মেনুর “মিল অনুরোধ”/ডাইনিং-এর ম্যানেজার অনুরোধ অংশে অপেক্ষমাণ আবেদন দেখা যায়। ম্যানেজার বা অনুমোদিত সহকারী আবেদন যাচাই করে গ্রহণ বা প্রত্যাখ্যান করতে পারেন। অনুমোদনের আগে আবেদনকে চূড়ান্ত মিল হিসেবে গণনা করবেন না।'],
+       ['সহকারী ম্যানেজার কি ফাইনাল মিল যোগ বা সংশোধন করতে পারবেন?', 'হ্যাঁ। চলমান মাসে যাঁকে সহকারী ম্যানেজার হিসেবে নির্ধারণ করা হয়েছে, তিনি ডাইনিং → এডমিন এন্ট্রি → “ফাইনাল মিল যোগ ও সংশোধন” ব্যবহার করতে পারবেন। শুধু ইতিমধ্যে চূড়ান্ত হওয়া দিনের মিল যোগ বা সংশোধন করা যাবে; আজ বা ভবিষ্যতের দিন নয়। এই সুবিধার জন্য Supabase-এ Run22 অনুমতি-আপডেট Migration প্রয়োগ থাকতে হবে। বন্ধ মাসের আর্কাইভ সংশোধন আলাদা অনুমতি এবং আগের নিয়ম অনুযায়ী থাকবে।'],
+       ['মেস সেটিংস কে ব্যবহার করতে পারবেন?', 'বর্তমান প্রধান ম্যানেজার এবং চলমান মাসে নির্ধারিত সহকারী ম্যানেজার মেস সেটিংস থেকে মেসের নাম পরিবর্তন ও নতুন যুক্ত হওয়ার কোড তৈরি করতে পারবেন। নতুন কোড তৈরি করলে আগের কোড দিয়ে নতুন সদস্য যুক্ত হওয়া যাবে না। সহকারীর অনুমতি চলমান মাসে তাঁর নির্ধারিত দায়িত্বের সঙ্গে যুক্ত।'],
++      ['Invitation Link দিয়ে কীভাবে নতুন সদস্য যুক্ত করব?', 'মেস সেটিংস থেকে ম্যানেজার বা অনুমোদিত সহকারী নতুন আমন্ত্রণ লিংক তৈরি করে শেয়ার করতে পারবেন। আমন্ত্রিত ব্যক্তি অ্যাকাউন্ট তৈরি করে Join Request পাঠাবেন; অনুমোদনের পরই সদস্যপদ চালু হবে। নতুন লিংক তৈরি করলে আগের লিংক বাতিল হবে।'],
+       ['বর্তমান মাস কীভাবে বন্ধ করব?', 'ম্যানেজার মেনু → “বর্তমান মাস শেষ করুন” খুলুন। সার্ভারের প্রি-ফ্লাইট সতর্কতা, ভবিষ্যৎ তারিখের এন্ট্রি ও অপেক্ষমাণ অনুরোধ দেখে নিন। নিশ্চিত করলে বন্ধের দিন পর্যন্ত মিল সঙ্গে সঙ্গে ফাইনাল হবে; ভবিষ্যতের সক্রিয় অনুরোধ/মিল রেকর্ড এবং অপেক্ষমাণ বিশেষ আবেদন নিয়ম অনুযায়ী বাতিল হবে। পুরোনো ফাইনাল ইতিহাস অক্ষত থাকে।'],
+       ['বন্ধের দিনেই কি নতুন মাস শুরু করা যায়?', 'হ্যাঁ। বর্তমান মাস বন্ধ হওয়ার দিন বাংলাদেশ সময় রাত ৮টার পর নতুন মাস চালু করা যায়। নতুন মাসের প্রথম মিলের তারিখ হবে পরের ক্যালেন্ডার দিন। প্রথম দিনের সাধারণ মিল অনুরোধ রাত ১০টা পর্যন্ত দেওয়া যাবে; এই সময় পেরিয়ে গেলে Late Request-এর নিয়ম প্রযোজ্য হবে।'],
+       ['নতুন মাসের প্রথম তারিখ কে নির্ধারণ করেন?', 'প্রধান ম্যানেজার “নতুন মাস শুরু” পেজে যান। সিস্টেম পূর্ববর্তী মাসের শেষ দিনের পরের দিন নির্ধারণ করে; তারিখটি সাধারণত পরিবর্তন করা যায় না। অনুমোদিত সময় হলে “নতুন মাস শুরু করুন” চাপুন এবং নিশ্চিত করুন।'],
+@@ -535,7 +536,7 @@ const HOW_TO_USE_GROUPS = [
+       ['নোটিফিকেশন কোথায় পাব?', 'অ্যাপের উপরের Bell আইকনে চাপুন। নতুন নোটিফিকেশন খুলে পড়তে পারবেন এবং ইনবক্সের নিয়ন্ত্রণ থেকে দেখা/সরানোর কাজ করতে পারবেন। নোটিফিকেশন পেলেই সংশ্লিষ্ট হিসাব সফল হয়েছে ধরে না নিয়ে প্রয়োজন হলে রেকর্ড যাচাই করুন।'],
+       ['ইন্টারনেট না থাকলে কী করব?', 'উপরে Offline অবস্থা দেখালে কিছু সর্বশেষ সংরক্ষিত তথ্য দেখা যেতে পারে, কিন্তু নতুন অনলাইন কাজ বা পরিবর্তন সম্পন্ন নাও হতে পারে। ইন্টারনেট ফিরে এলে “আবার চেষ্টা করুন” চাপুন। কাজ সফল হয়েছে কি না হিস্টরি বা সংশ্লিষ্ট পেজে যাচাই করুন।'],
+       ['পেজ বা অ্যাপ খুলছে না—কীভাবে চেষ্টা করব?', 'প্রথমে ইন্টারনেট সংযোগ যাচাই করুন। পরে “আবার চেষ্টা করুন” বা “পেজ রিলোড” ব্যবহার করুন। সমস্যা থাকলে ব্রাউজারের Address Bar-এ `https://hostellife-bd.vercel.app/` লিখে সরাসরি ওয়েবসাইট খুলুন। লগআউট করার আগে সমস্যাটি সত্যিই সেশন-সম্পর্কিত কি না নিশ্চিত হোন।'],
+-      ['Hostel Life অ্যাপ কীভাবে ইনস্টল করব?', 'থ্রি-লাইন মেনু → “অ্যাপ ডাউনলোড” খুলুন। Android-এ Chrome-এর Install app বা Add to Home screen, iPhone-এ Safari-এর Share → Add to Home Screen এবং Desktop-এ Address Bar-এর Install আইকন ব্যবহার করুন। এটি Installable Web App (PWA); আপনার একই অ্যাকাউন্ট ও মেসের তথ্য ব্যবহার হবে।'],
++      ['Hostel Life অ্যাপ কীভাবে ইনস্টল করব?', 'থ্রি-লাইন মেনু → “অ্যাপ ডাউনলোড” খুলে “এখনই ইনস্টল করুন” চাপুন। আপনার ব্রাউজার সরাসরি ইনস্টল সুবিধা দিলে সেখানেই ইনস্টল সম্পন্ন হবে। কিছু ব্রাউজার নিরাপত্তা নীতির কারণে ওয়েবসাইট থেকে সরাসরি ইনস্টল অনুমতি দেয় না। ইনস্টল হলে একই অ্যাকাউন্ট ও মেসের তথ্য ব্যবহার হবে।'],
+       ['আরও সহায়তা কোথায় পাব?', 'থ্রি-লাইন মেনুর “হেল্প” অথবা প্রোফাইলের নিচের “হোস্টেল লাইফ সাপোর্ট” লিংক ব্যবহার করুন। মেসের হিসাব-সংক্রান্ত বিষয় হলে তারিখ, রেকর্ড ও সমস্যার বিবরণসহ ম্যানেজারকে জানান।'],
+     ],
+   },
+diff --git a/src/features/onboarding/OnboardingPage.jsx b/src/features/onboarding/OnboardingPage.jsx
+index 4a58dcd..8a2b6ac 100644
+--- a/src/features/onboarding/OnboardingPage.jsx
++++ b/src/features/onboarding/OnboardingPage.jsx
+@@ -3,7 +3,7 @@ import { useToast } from '../../components/Toast';
+ import { Icon } from '../../components/Icon';
+ import { BrandMark } from '../../components/BrandMark';
+ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+-import { useInstallPrompt } from '../../hooks/useInstallPrompt';
++import { useInstallPromptContext } from '../../contexts/InstallPromptContext';
+ import { supabase } from '../../lib/supabase';
+ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+ import { useAuth } from '../../contexts/AuthContext';
+@@ -40,7 +40,7 @@ function OnboardingTopbar() {
+ export function OnboardingPage() {
+   const online = useOnlineStatus();
+   const toast = useToast();
+-  const { canInstall, installed, install } = useInstallPrompt();
++  const { canInstall, installed, install } = useInstallPromptContext();
+   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
+   const { profile, refreshIdentity, signOutLocal } = useAuth();
+   const [mode, setMode] = useState('join');
+@@ -71,13 +71,13 @@ export function OnboardingPage() {
+   }, []);
+ 
+   useEffect(() => {
+-    if (installed || pendingLinkToken) return undefined;
++    if (installed || !canInstall || pendingLinkToken) return undefined;
+     let alreadySeen = false;
+     try { alreadySeen = localStorage.getItem('hostel-life-install-nudge-v1') === '1'; } catch { /* Session-level reminder is still acceptable when storage is unavailable. */ }
+     if (alreadySeen) return undefined;
+     const timer = window.setTimeout(() => setInstallNudgeOpen(true), 2600);
+     return () => window.clearTimeout(timer);
+-  }, [installed, pendingLinkToken]);
++  }, [canInstall, installed, pendingLinkToken]);
+ 
+   const dismissInstallNudge = () => {
+     try { localStorage.setItem('hostel-life-install-nudge-v1', '1'); } catch { /* The prompt remains dismissible for this page session. */ }
+@@ -317,14 +317,14 @@ export function OnboardingPage() {
+             </div>
+           </div>
+         </section>
+-      {installNudgeOpen && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
++      {installNudgeOpen && canInstall && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
+         <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-install-title">
+           <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
+           <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
+           <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
+           <h2 id="onboarding-install-title">অ্যাপটি ইনস্টল করে আরও সহজে ব্যবহার করুন</h2>
+-          <p>হোম স্ক্রিনে যোগ করলে এক ট্যাপেই Hostel Life খুলতে পারবেন। Android/কম্পিউটারে ব্রাউজারের Install App অপশন এবং iPhone-এ Share → Add to Home Screen ব্যবহার করুন।</p>
+-          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'বুঝেছি'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
++          <p>একবার ইনস্টল করুন—এরপর হোম স্ক্রিন থেকেই Hostel Life খুলতে পারবেন।</p>
++          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+         </section>
+       </div>}
+       </main>
+@@ -342,11 +342,11 @@ export function OnboardingPage() {
+           />
+ 
+           {pendingLinkToken && <section className="onboarding-linked-request card" aria-label="Invitation Link দিয়ে মেসে যোগদান">
+-            <div className="onboarding-linked-request-icon"><Icon name="link" size={22}/></div>
++            <div className="onboarding-linked-request-icon"><Icon name="mail-plus" size={22}/></div>
+             <div className="onboarding-linked-request-copy">
+-              <span className="eyebrow">HOSTEL INVITATION</span>
++              <span className="eyebrow">সদস্য আমন্ত্রণ</span>
+               <h2>{pendingLinkInfo?.hostel_name || 'আমন্ত্রিত মেসে যোগদান'}</h2>
+-              <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে Join Code লাগবে না। আপনার অনুরোধ পাঠান; ম্যানেজার বা অনুমোদিত সহকারী ম্যানেজার যাচাই করে সিদ্ধান্ত দেবেন।' : 'Invitation Link যাচাই করা হচ্ছে...')}</p>
++              <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে কোড লাগবে না। Request পাঠান; ম্যানেজার অনুমোদন করলে সদস্যপদ চালু হবে।' : 'Invitation Link যাচাই করা হচ্ছে...')}</p>
+               {joinRequestStatus?.status === 'pending' && <div className="inline-success"><Icon name="clock" size={16}/> আপনার অনুরোধ অপেক্ষমাণ। অনুমোদনের পর মেসে প্রবেশ করতে পারবেন।</div>}
+               {joinRequestStatus?.status === 'rejected' && <div className="inline-error"><Icon name="info" size={16}/> এই অনুরোধটি অনুমোদিত হয়নি। চাইলে নিচে সাধারণ Join Code বা নতুন মেস তৈরির পদ্ধতি ব্যবহার করুন। {joinRequestStatus.review_note || ''}</div>}
+               {joinRequestStatus?.status === 'approved' && <div className="inline-success"><Icon name="check-circle" size={16}/> অনুরোধ অনুমোদিত হয়েছে। অ্যাকাউন্ট যাচাই করা হচ্ছে...</div>}
+@@ -355,7 +355,7 @@ export function OnboardingPage() {
+                 <button type="button" className="primary-button large" disabled={!online || joinRequestBusy || !pendingLinkInfo} onClick={submitLinkedJoinRequest}>{joinRequestBusy ? 'অনুরোধ পাঠানো হচ্ছে...' : 'মেসে যোগদানের অনুরোধ পাঠান'}</button>
+               </>}
+               {joinRequestStatus?.status === 'pending' && <button type="button" className="secondary-button" disabled={joinRequestBusy} onClick={refreshLinkedRequestStatus}>{joinRequestBusy ? 'যাচাই হচ্ছে...' : 'অনুরোধের অবস্থা যাচাই করুন'}</button>}
+-              {joinRequestStatus?.status !== 'pending' && <button type="button" className="onboarding-switch-account" onClick={clearPendingLink}>এই আমন্ত্রণটি সরিয়ে সাধারণভাবে এগিয়ে যান</button>}
++              <button type="button" className="onboarding-switch-account onboarding-invite-exit" onClick={clearPendingLink}>পরে করবেন</button>
+             </div>
+           </section>}
+ 
+@@ -442,14 +442,14 @@ export function OnboardingPage() {
+           </div>
+         </div>
+       </section>
+-      {installNudgeOpen && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
++      {installNudgeOpen && canInstall && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
+         <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-install-title">
+           <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
+           <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
+           <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
+           <h2 id="onboarding-install-title">অ্যাপটি ইনস্টল করে আরও সহজে ব্যবহার করুন</h2>
+-          <p>হোম স্ক্রিনে যোগ করলে এক ট্যাপেই Hostel Life খুলতে পারবেন। Android/কম্পিউটারে ব্রাউজারের Install App অপশন এবং iPhone-এ Share → Add to Home Screen ব্যবহার করুন।</p>
+-          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'বুঝেছি'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
++          <p>একবার ইনস্টল করুন—এরপর হোম স্ক্রিন থেকেই Hostel Life খুলতে পারবেন।</p>
++          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+         </section>
+       </div>}
+     </main>
+diff --git a/src/features/platform/SuperAdminPage.jsx b/src/features/platform/SuperAdminPage.jsx
+index 50dbf94..260fa9e 100644
+--- a/src/features/platform/SuperAdminPage.jsx
++++ b/src/features/platform/SuperAdminPage.jsx
+@@ -1074,7 +1074,16 @@ export function SuperAdminPage({ user }) {
+     <header className="platform-header"><div className="platform-brand"><span className="platform-brand-mark"><BrandMark size={49}/></span><div><small>HOSTEL LIFE · PLATFORM CONTROL</small><h1>Super Admin</h1></div></div><div className="platform-header-actions"><span className="platform-auth-user">{user?.email}</span><button className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরুন</button></div></header>
+     <div className="platform-intro"><div><span className="eyebrow">সিস্টেম ব্যবস্থাপনা</span><h2>মেস, নিরাপত্তা ও পাবলিক সেটিংস</h2><p>এই প্যানেলে ব্যক্তিগত মিল বা আর্থিক লেনদেনের বিস্তারিত দেখানো হয় না; পর্যবেক্ষণে সীমিত সামারি ব্যবহার করা হয়।</p></div><button className="secondary-button" onClick={refresh} disabled={busy}><Icon name="refresh" size={16}/> রিফ্রেশ</button></div>
+     {error && <div className="inline-error platform-alert"><Icon name="warning" size={17}/><span>{error}</span></div>}{notice && <div className="inline-success platform-alert"><Icon name="check-circle" size={17}/><span>{notice}</span></div>}
+-    <nav className="platform-tabs" aria-label="Super Admin বিভাগ">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['settings','নোটিশ ও Developer Info'],['security','Security Codes'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
++    <div className="platform-navigation">
++      <section className="platform-navigation-group" aria-label="পর্যবেক্ষণ ও পরিচালনা">
++        <div className="platform-navigation-heading"><strong>পর্যবেক্ষণ ও পরিচালনা</strong><span>প্ল্যাটফর্মের অবস্থা, ব্যবহার ও কার্যক্রম</span></div>
++        <nav className="platform-tabs platform-main-tabs" aria-label="পর্যবেক্ষণ বিভাগ">{[['overview','ওভারভিউ'],['insights','মেস ইনসাইটস'],['health','System Health'],['notices','নোটিশ পর্যবেক্ষণ'],['reports','রিপোর্ট এক্সপোর্ট'],['backup','Backup & Recovery'],['audit','Audit Log'],['activity','Activity & Security'],['hostels','মেস ও সদস্য'],['retention','ডেটা সংরক্ষণ']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
++      </section>
++      <section className="platform-navigation-group platform-configuration-group" aria-label="সিস্টেম সেটিংস">
++        <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong><span>গ্লোবাল নোটিশ, পরিচিতি, থিম ও নিরাপত্তা নিয়ন্ত্রণ</span></div>
++        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','Global Notice'],['developer','Developer Info'],['appearance','App Theme'],['sessions','Session Security'],['security','Access Codes']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
++      </section>
++    </div>
+     {tab === 'overview' && <>
+       <div className="platform-overview-heading">
+         <div><span className="eyebrow">PLATFORM SNAPSHOT</span><h3>এক নজরে প্ল্যাটফর্ম</h3><p>মেস, অ্যাকাউন্ট ও সদস্যপদের সামগ্রিক অবস্থা—ব্যক্তিগত লেনদেনের তথ্য ছাড়া।</p></div>
+@@ -1370,15 +1379,6 @@ export function SuperAdminPage({ user }) {
+       <div className="platform-action-row"><button type="button" className="primary-button" disabled={recoveryBusy||recoveryCheckBusy||!recoveryVerified||recoveryNote.trim().length<5||Boolean(recoveryResult)} onClick={issueTemporaryPassword}>{recoveryBusy?'তৈরি হচ্ছে...':'অস্থায়ী পাসওয়ার্ড তৈরি'}</button><button type="button" className="secondary-button" disabled={recoveryBusy||recoveryCheckBusy} onClick={checkTemporaryPasswordFunction}>{recoveryCheckBusy?'যাচাই হচ্ছে...':'Function সংযোগ পরীক্ষা'}</button><button type="button" className="secondary-button" onClick={()=>{setRecoveryTarget(null);setRecoveryResult('');setRecoveryNote('');}}>বন্ধ করুন</button></div>
+       {recoveryResult && <div className="platform-generated-code"><strong>একবার দেখানো অস্থায়ী পাসওয়ার্ড</strong><code>{recoveryResult}</code><p>এটি নিরাপদ মাধ্যমে শুধু সংশ্লিষ্ট ব্যবহারকারীকে দিন। এখানে বা নোটিফিকেশনে সংরক্ষণ করবেন না। ব্যবহারকারী লগইন করলে পাসওয়ার্ড পরিবর্তন বাধ্যতামূলক।</p><button type="button" className="secondary-button" onClick={()=>setRecoveryResult('')}>পাসওয়ার্ড স্ক্রিন থেকে সরান</button></div>}
+     </section>}
+-    {tab === 'settings' && <form className="platform-settings-grid" onSubmit={saveSettings}>
+-      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>নতুন ব্যবহারকারীর Default Theme</h3><p>যাঁদের ব্রাউজারে আগে থেকে Theme Preference নেই, তাঁদের প্রথম প্রবেশে এই থিম ব্যবহার হবে। সংরক্ষিত ব্যক্তিগত পছন্দ পরিবর্তন হবে না।</p></div></div><label className="field-label"><span>ডিফল্ট থিম</span><select value={settings.default_theme || 'dark'} onChange={(e) => setSettings((old) => ({ ...old, default_theme: e.target.value }))}><option value="system">সিস্টেম</option><option value="light">লাইট</option><option value="dark">ডার্ক</option><option value="blue">আকাশি</option></select></label><button type="button" className="secondary-button" disabled={defaultThemeBusy} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button></section>
+-      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Login Session নিরাপত্তা</h3><p>একই Browser Session-এর একাধিক Tab একটিই গণ্য হবে। নতুন ডিভাইস/Browser থেকে Login হলে নতুন Session চালু থাকবে এবং সবচেয়ে পুরোনো Session স্বয়ংক্রিয়ভাবে বন্ধ হবে।</p></div><span className="platform-status">১–৩০</span></div><label className="field-label"><span>এক অ্যাকাউন্টে একসঙ্গে সর্বোচ্চ Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label><label className="field-label"><span>প্রতি Login Session কতক্ষণ সক্রিয় থাকবে?</span><select value={settings.session_timeout_minutes ?? 0} onChange={(e) => setSettings((old) => ({ ...old, session_timeout_minutes: Number(e.target.value) }))}><option value={0}>সময় নির্ধারণ নেই</option><option value={15}>১৫ মিনিট</option><option value={30}>৩০ মিনিট</option><option value={60}>১ ঘণ্টা</option><option value={120}>২ ঘণ্টা</option><option value={240}>৪ ঘণ্টা</option><option value={480}>৮ ঘণ্টা</option><option value={720}>১২ ঘণ্টা</option><option value={1440}>২৪ ঘণ্টা</option><option value={4320}>৩ দিন</option><option value={10080}>৭ দিন</option></select></label><div className="platform-retention-hint"><Icon name="shield-check" size={15}/> নতুন Login হলে সবচেয়ে পুরোনো Session বাদ যাবে। নির্ধারিত সময় শেষ হলে খোলা অ্যাপ নিজে থেকে লগআউট হবে এবং কারণসহ বার্তা দেখাবে। “সময় নির্ধারণ নেই” রাখলে শুধু Device Session সংখ্যা নিয়ন্ত্রণ হবে।</div><button type="button" className="secondary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Policy সংরক্ষণ করুন'}</button></section>
+-      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Global announcement</h3><p>ড্যাশবোর্ডের ওপরে সবার জন্য ব্যানার নোটিশ</p></div></div><label className="platform-toggle"><span><strong>নোটিশ চালু</strong><small>চালু থাকলে অ্যাপের ব্যবহারকারীরা ব্যানার দেখবেন</small></span><input type="checkbox" checked={Boolean(settings.announcement_enabled)} onChange={(e)=>setSettings((old)=>({...old,announcement_enabled:e.target.checked}))}/></label><Field label="নোটিশ শিরোনাম" value={settings.announcement_title} onChange={(v)=>setSettings((old)=>({...old,announcement_title:v}))} maxLength={160}/><Field label="নোটিশের বিবরণ" value={settings.announcement_body} onChange={(v)=>setSettings((old)=>({...old,announcement_body:v}))} maxLength={3000} multiline/></section>
+-      <section className="card platform-panel"><div className="platform-panel-heading"><div><h3>Developer Info</h3><p>তথ্য ও ছবি Supabase-এ সংরক্ষণ হবে</p></div></div><Field label="নাম" value={settings.developer_name} onChange={(v)=>setSettings((old)=>({...old,developer_name:v}))} maxLength={160}/><Field label="পরিচয় / পদবি" value={settings.developer_title} onChange={(v)=>setSettings((old)=>({...old,developer_title:v}))} maxLength={240}/>
+-        <div className="developer-photo-uploader"><div className="developer-photo-preview">{settings.developer_photo_url?<img src={settings.developer_photo_url} alt="Developer preview"/>:<span><Icon name="camera" size={24}/></span>}</div><div className="developer-photo-copy"><strong>Developer-এর ছবি</strong><small>JPG / PNG / WEBP · সর্বোচ্চ ৫ MB। আপলোড করলে Supabase Storage-এ ফাইল থাকবে।</small><input ref={developerPhotoInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleDeveloperPhoto}/><button type="button" className="secondary-button compact" disabled={developerPhotoBusy||busy} onClick={()=>developerPhotoInputRef.current?.click()}><Icon name="camera" size={15}/>{developerPhotoBusy?'আপলোড হচ্ছে...':'ছবি আপলোড করুন'}</button></div></div>
+-        <Field label="ছবির Storage URL" value={settings.developer_photo_url} onChange={(v)=>setSettings((old)=>({...old,developer_photo_url:v}))} maxLength={1000}/><Field label="ইমেইল" type="email" value={settings.developer_email} onChange={(v)=>setSettings((old)=>({...old,developer_email:v}))} maxLength={240}/><Field label="ফোন" value={settings.developer_phone} onChange={(v)=>setSettings((old)=>({...old,developer_phone:v}))} maxLength={80}/><Field label="Portfolio URL" value={settings.developer_portfolio_url} onChange={(v)=>setSettings((old)=>({...old,developer_portfolio_url:v}))} maxLength={1000}/></section>
+-      <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||developerPhotoBusy}>{busy?'সংরক্ষণ হচ্ছে...':'সব সেটিংস সংরক্ষণ করুন'}</button></div>
+-    </form>}
+     {tab === 'hostels' && <section className="card platform-panel" aria-label="মেস-বিহীন Auth account">
+       <div className="platform-panel-heading"><div><h3>মেস-বিহীন Auth account</h3><p>প্রতি ধাপে সর্বোচ্চ ৫০০টি Auth account পরীক্ষা হয়। কোনো account-এর যেকোনো membership row থাকলে নিরাপত্তার জন্য সেটি এখানে দেখানো হবে না।</p></div><button className="secondary-button compact" disabled={orphanBusy} type="button" onClick={()=>loadOrphanAccounts(1)}>তালিকা রিফ্রেশ</button></div>
+       {orphanError && <p role="alert" className="inline-error">{orphanError}</p>}
+@@ -1388,6 +1388,60 @@ export function SuperAdminPage({ user }) {
+       <div className="platform-action-row"><button type="button" className="secondary-button compact" disabled={orphanBusy || orphanPage===1} onClick={()=>loadOrphanAccounts(orphanPage-1)}>আগের পৃষ্ঠা</button><span>ধাপ {orphanPage} · প্রতিটি ধাপে সর্বোচ্চ ৫০০ account</span><button type="button" className="secondary-button compact" disabled={orphanBusy || !orphanMore} onClick={()=>loadOrphanAccounts(orphanPage+1)}>পরের ধাপ</button></div>
+       <p className="platform-retention-hint">মেস থেকে সরানোর পর Auth মুছতে এই অপশন। যাচাই না করে ডিলিট করবেন না; নতুন নিবন্ধিত কিন্তু এখনও মেসে যোগ না দেওয়া account-ও এখানে থাকতে পারে।</p>
+     </section>}
++    {tab === 'settings' && <>
++      <div className="platform-settings-intro"><span className="eyebrow">GLOBAL NOTICE</span><h2>গ্লোবাল নোটিশ</h2><p>সব ব্যবহারকারীর জন্য প্রয়োজনীয় ঘোষণা প্রকাশ করুন।</p></div>
++      <form className="platform-settings-grid" onSubmit={saveSettings}>
++      <section className="card platform-panel">
++        <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM NOTICE</span><h3>সবার জন্য Global Notice</h3><p>ড্যাশবোর্ডের ওপরে প্রকাশিত ঘোষণা এখানে পরিচালনা করুন।</p></div></div>
++        <label className="platform-toggle"><span><strong>নোটিশ চালু</strong><small>চালু থাকলে অ্যাপের ব্যবহারকারীরা ব্যানার দেখবেন</small></span><input type="checkbox" checked={Boolean(settings.announcement_enabled)} onChange={(e)=>setSettings((old)=>({...old,announcement_enabled:e.target.checked}))}/></label>
++        <Field label="নোটিশ শিরোনাম" value={settings.announcement_title} onChange={(v)=>setSettings((old)=>({...old,announcement_title:v}))} maxLength={160}/>
++        <Field label="নোটিশের বিবরণ" value={settings.announcement_body} onChange={(v)=>setSettings((old)=>({...old,announcement_body:v}))} maxLength={3000} multiline/>
++      </section>
++      <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy}>{busy?'সংরক্ষণ হচ্ছে...':'নোটিশ সংরক্ষণ করুন'}</button></div>
++      </form>
++    </>}
++
++    {tab === 'developer' && <>
++      <div className="platform-settings-intro"><span className="eyebrow">DEVELOPER & SUPPORT</span><h2>ডেভেলপার ও সহায়তা তথ্য</h2><p>ব্যবহারকারীর Help বিভাগে প্রদর্শিত যোগাযোগ ও পরিচিতি।</p></div>
++      <form className="platform-settings-grid" onSubmit={saveSettings}>
++      <section className="card platform-panel">
++        <div className="platform-panel-heading"><div><span className="eyebrow">SUPPORT PROFILE</span><h3>Developer ও Support তথ্য</h3><p>ব্যবহারকারীর Help বিভাগে দেখানো যোগাযোগের তথ্য।</p></div></div>
++        <Field label="নাম" value={settings.developer_name} onChange={(v)=>setSettings((old)=>({...old,developer_name:v}))} maxLength={160}/>
++        <Field label="পরিচয় / পদবি" value={settings.developer_title} onChange={(v)=>setSettings((old)=>({...old,developer_title:v}))} maxLength={240}/>
++        <div className="developer-photo-uploader"><div className="developer-photo-preview">{settings.developer_photo_url?<img src={settings.developer_photo_url} alt="Developer preview"/>:<span><Icon name="camera" size={24}/></span>}</div><div className="developer-photo-copy"><strong>প্রোফাইল ছবি</strong><small>JPG / PNG / WEBP · সর্বোচ্চ ৫ MB</small><input ref={developerPhotoInputRef} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={handleDeveloperPhoto}/><button type="button" className="secondary-button compact" disabled={developerPhotoBusy||busy} onClick={()=>developerPhotoInputRef.current?.click()}><Icon name="camera" size={15}/>{developerPhotoBusy?'আপলোড হচ্ছে...':'ছবি আপলোড করুন'}</button></div></div>
++        <Field label="ছবির Storage URL" value={settings.developer_photo_url} onChange={(v)=>setSettings((old)=>({...old,developer_photo_url:v}))} maxLength={1000}/>
++        <Field label="ইমেইল" type="email" value={settings.developer_email} onChange={(v)=>setSettings((old)=>({...old,developer_email:v}))} maxLength={240}/>
++        <Field label="ফোন" value={settings.developer_phone} onChange={(v)=>setSettings((old)=>({...old,developer_phone:v}))} maxLength={80}/>
++        <Field label="Portfolio URL" value={settings.developer_portfolio_url} onChange={(v)=>setSettings((old)=>({...old,developer_portfolio_url:v}))} maxLength={1000}/>
++      </section>
++      <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||developerPhotoBusy}>{busy?'সংরক্ষণ হচ্ছে...':'সহায়তা তথ্য সংরক্ষণ করুন'}</button></div>
++      </form>
++    </>}
++
++    {tab === 'appearance' && <>
++      <div className="platform-settings-intro"><span className="eyebrow">APP APPEARANCE</span><h2>অ্যাপের ডিফল্ট থিম</h2><p>যেসব ব্যবহারকারী নিজের থিম নির্বাচন করেননি, তাঁদের জন্য প্রাথমিক থিম নির্ধারণ করুন।</p></div>
++      <section className="platform-settings-grid">
++      <div className="card platform-panel platform-preference-card">
++        <div className="platform-panel-heading"><div><span className="eyebrow">APP EXPERIENCE</span><h3>নতুন ব্যবহারকারীর Default Theme</h3><p>যাঁদের ব্রাউজারে আগে থেকে Theme Preference নেই, তাঁদের প্রথম প্রবেশে এই থিম ব্যবহার হবে। সংরক্ষিত ব্যক্তিগত পছন্দ পরিবর্তন হবে না।</p></div><span className="platform-status">৪টি থিম</span></div>
++        <label className="field-label"><span>ডিফল্ট থিম</span><select value={settings.default_theme || 'dark'} onChange={(e) => setSettings((old) => ({ ...old, default_theme: e.target.value }))}><option value="system">সিস্টেম</option><option value="light">লাইট</option><option value="dark">ডার্ক</option><option value="blue">আকাশি</option></select></label>
++        <button type="button" className="primary-button" disabled={defaultThemeBusy} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button>
++      </div>
++      </section>
++    </>}
++
++    {tab === 'sessions' && <>
++      <div className="platform-settings-intro"><span className="eyebrow">ACCOUNT SECURITY</span><h2>Session নিরাপত্তা</h2><p>একটি অ্যাকাউন্টে কতগুলো Login এবং কতক্ষণ সক্রিয় থাকবে তা নিয়ন্ত্রণ করুন।</p></div>
++      <section className="platform-settings-grid">
++      <div className="card platform-panel platform-preference-card">
++        <div className="platform-panel-heading"><div><span className="eyebrow">ACCOUNT PROTECTION</span><h3>Login Session Policy</h3><p>নতুন Login-কে অগ্রাধিকার দিয়ে নির্ধারিত সীমার বাইরে থাকা সবচেয়ে পুরোনো Session বাতিল হবে। একই Browser Session-এর একাধিক Tab একটিই গণ্য হবে।</p></div><span className="platform-status">১–৩০</span></div>
++        <label className="field-label"><span>এক অ্যাকাউন্টে একসঙ্গে সর্বোচ্চ Session</span><select value={settings.max_devices_per_user || 10} onChange={(e) => setSettings((old) => ({ ...old, max_devices_per_user: Number(e.target.value) }))}>{Array.from({ length: 30 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{value.toLocaleString('bn-BD')}টি Session</option>)}</select></label>
++        <label className="field-label"><span>প্রতি Login Session কতক্ষণ সক্রিয় থাকবে?</span><select value={settings.session_timeout_minutes ?? 0} onChange={(e) => setSettings((old) => ({ ...old, session_timeout_minutes: Number(e.target.value) }))}><option value={0}>সময় নির্ধারণ নেই</option><option value={15}>১৫ মিনিট</option><option value={30}>৩০ মিনিট</option><option value={60}>১ ঘণ্টা</option><option value={120}>২ ঘণ্টা</option><option value={240}>৪ ঘণ্টা</option><option value={480}>৮ ঘণ্টা</option><option value={720}>১২ ঘণ্টা</option><option value={1440}>২৪ ঘণ্টা</option><option value={4320}>৩ দিন</option><option value={10080}>৭ দিন</option></select></label>
++        <div className="platform-retention-hint"><Icon name="shield-check" size={15}/> সীমা অতিক্রম করলে নতুন Session চালু থাকবে এবং পুরোনো Session বন্ধ হবে। সময় শেষ হলে ব্যবহারকারীকে নিরাপদভাবে লগআউট করে কারণ জানানো হবে।</div>
++        <button type="button" className="primary-button" disabled={deviceLimitBusy} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Policy সংরক্ষণ করুন'}</button>
++      </div>
++      </section>
++    </>}
++
+     {tab === 'retention' && <section className="platform-settings-grid" aria-label="ডেটা সংরক্ষণ নীতি">
+       <div className="card platform-panel">
+         <div className="platform-panel-heading"><div><h3>ডেটা সংরক্ষণ নীতি</h3><p>সব মেসের জন্য একই নীতি। এই পৃষ্ঠা নিজে কোনো আর্কাইভ স্বয়ংক্রিয়ভাবে মুছে দেয় না।</p></div><button type="button" className="secondary-button compact" disabled={retentionLoading} onClick={loadRetention}>তালিকা রিফ্রেশ</button></div>
+@@ -1413,6 +1467,7 @@ export function SuperAdminPage({ user }) {
+       </div>
+     </section>}
+     {tab === 'security' && <>
++      <div className="platform-settings-intro"><span className="eyebrow">ACCESS CONTROL</span><h2>Access Code নিয়ন্ত্রণ</h2><p>Registration ও নতুন মেস তৈরির জন্য নিরাপত্তা কোড পরিচালনা করুন।</p></div>
+       <section className="platform-settings-grid">
+         <div className="card platform-panel">
+           <div className="platform-panel-heading"><div><h3>Permission code controls</h3><p>নতুন কোড তৈরি হলে আগের কোড একই purpose-এ সঙ্গে সঙ্গে বাতিল হবে।</p></div></div>
+diff --git a/src/main.jsx b/src/main.jsx
+index b9450ef..c6f5410 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -3,11 +3,19 @@ import ReactDOM from 'react-dom/client';
+ import { App } from './app/App';
+ import { ToastProvider } from './components/Toast';
+ import { AuthProvider } from './contexts/AuthContext';
++import { InstallPromptProvider } from './contexts/InstallPromptContext';
++import { useInstallPrompt } from './hooks/useInstallPrompt';
+ import './styles/global.css';
+ import './styles/ui-refresh.css';
+ import './styles/public-entry.css';
+ import './styles/platform-visual-refresh.css';
+ import './styles/app-download.css';
++import './styles/invitation-experience.css';
++
++function AppWithInstallPrompt() {
++  const installPrompt = useInstallPrompt();
++  return <InstallPromptProvider value={installPrompt}><App /></InstallPromptProvider>;
++}
+ 
+ if ('serviceWorker' in navigator && import.meta.env.PROD) {
+   window.addEventListener('load', () => {
+@@ -21,7 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
+   <React.StrictMode>
+     <ToastProvider>
+       <AuthProvider>
+-        <App />
++        <AppWithInstallPrompt />
+       </AuthProvider>
+     </ToastProvider>
+   </React.StrictMode>,
+diff --git a/src/styles/global.css b/src/styles/global.css
+index e519c76..0bb9a04 100644
+--- a/src/styles/global.css
++++ b/src/styles/global.css
+@@ -286,10 +286,6 @@ button:disabled { cursor: not-allowed; opacity: .55; }
+ .drawer-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 4px 4px 14px; }
+ .drawer-title { font-size: 19px; font-weight: 900; }
+ .drawer-subtitle { color: var(--muted); font-size: 11px; margin-top: 4px; }
+-.install-card { width: 100%; display: grid; grid-template-columns: 40px 1fr 20px; align-items: center; gap: 10px; padding: 12px; text-align: left; border-radius: 15px; background: var(--primary-soft); color: var(--text); cursor: pointer; margin-bottom: 14px; }
+-.install-card-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--surface); color: var(--primary-strong); }
+-.install-card strong { display: block; font-size: 13px; }
+-.install-card small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+ .menu-group + .menu-group { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line); }
+ .menu-group-title { padding: 0 8px 7px; color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
+ .manager-title { color: var(--primary-strong); display: flex; align-items: center; gap: 4px; }
+diff --git a/src/styles/invitation-experience.css b/src/styles/invitation-experience.css
+new file mode 100644
+index 0000000..3c52136
+--- /dev/null
++++ b/src/styles/invitation-experience.css
+@@ -0,0 +1,295 @@
++/* Hostel Life — invitation, manager approval and responsive entry polish. */
++
++/* Manager: compact invitation controls with no token history or exposed secret. */
++.manager-invite-card {
++  display: grid;
++  gap: 13px;
++  padding: clamp(16px, 2.5vw, 22px);
++  border-color: color-mix(in srgb, var(--primary) 24%, var(--line));
++}
++.manager-invite-heading {
++  display: flex;
++  align-items: flex-start;
++  gap: 12px;
++}
++.manager-invite-heading > div { min-width: 0; }
++.manager-invite-heading h2 { margin: 3px 0 3px; color: var(--text); font-size: clamp(17px, 2.4vw, 20px); line-height: 1.4; }
++.manager-invite-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
++.manager-invite-icon {
++  display: grid;
++  flex: 0 0 42px;
++  width: 42px;
++  height: 42px;
++  place-items: center;
++  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
++  border-radius: 13px;
++  background: var(--primary-soft);
++  color: var(--primary-strong);
++}
++.manager-invite-card .manager-invite-create,
++.manager-invite-card .manager-invite-share {
++  display: inline-flex;
++  width: fit-content;
++  min-width: min(250px, 100%);
++  min-height: 44px;
++  align-items: center;
++  justify-content: center;
++  gap: 8px;
++}
++.manager-invite-created {
++  display: grid;
++  width: min(100%, 440px);
++  gap: 10px;
++  padding: 13px;
++  border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--line));
++  border-radius: 15px;
++  background: color-mix(in srgb, var(--primary-soft) 42%, var(--surface));
++}
++.manager-invite-ready { display: flex; align-items: center; gap: 10px; min-width: 0; }
++.manager-invite-ready-icon {
++  display: grid;
++  flex: 0 0 32px;
++  width: 32px;
++  height: 32px;
++  place-items: center;
++  border-radius: 10px;
++  background: var(--primary-soft);
++  color: var(--primary-strong);
++}
++.manager-invite-ready > div { display: grid; gap: 2px; min-width: 0; }
++.manager-invite-ready strong { color: var(--text); font-size: 13px; }
++.manager-invite-ready small { color: var(--muted); font-size: 11px; }
++.manager-invite-created .manager-invite-share { width: 100%; }
++.manager-invite-regenerate {
++  display: inline-flex;
++  justify-self: center;
++  align-items: center;
++  justify-content: center;
++  gap: 6px;
++  min-height: 34px;
++  padding: 5px 10px;
++  border: 0;
++  border-radius: 9px;
++  background: transparent;
++  color: var(--muted);
++  font-size: 11px;
++  font-weight: 750;
++  cursor: pointer;
++}
++.manager-invite-regenerate:hover { background: var(--surface-2); color: var(--text); }
++.manager-invite-footnote { display: flex; align-items: flex-start; gap: 7px; max-width: 65ch; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
++.manager-invite-footnote svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
++
++/* Join request review: clear identity, status, message and decision actions. */
++.manager-join-request-panel { display: grid; gap: 15px; padding: clamp(15px, 2.5vw, 22px); }
++.manager-request-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
++.manager-request-heading > div { min-width: 0; }
++.manager-request-heading h2 { margin: 4px 0 3px; color: var(--text); font-size: clamp(18px, 2.5vw, 22px); line-height: 1.35; }
++.manager-request-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
++.manager-request-refresh { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; }
++.manager-request-note-row { padding: 12px 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); }
++.manager-request-note-row .field-label { display: grid; gap: 6px; color: var(--text); font-size: 12px; }
++.manager-request-note-row .field-label small { color: var(--muted); font-size: 10px; font-weight: 500; }
++.manager-request-note-row input { min-height: 42px; width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--surface); color: var(--text); font-size: 13px; }
++.manager-request-note-row input::placeholder { color: var(--muted); }
++.manager-request-empty { display: grid; justify-items: center; gap: 7px; padding: 30px 18px; border: 1px dashed var(--line); border-radius: 15px; background: var(--surface-2); text-align: center; }
++.manager-request-empty > span { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 15px; background: var(--primary-soft); color: var(--primary-strong); }
++.manager-request-empty strong { color: var(--text); font-size: 14px; }
++.manager-request-empty p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
++.manager-join-request-list { display: grid; gap: 11px; }
++.manager-join-request-row {
++  display: grid;
++  gap: 12px;
++  min-width: 0;
++  padding: 14px;
++  border: 1px solid var(--line);
++  border-radius: 15px;
++  background: var(--surface);
++}
++.manager-request-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
++.manager-request-avatar {
++  display: grid;
++  flex: 0 0 42px;
++  width: 42px;
++  height: 42px;
++  place-items: center;
++  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
++  border-radius: 14px;
++  background: var(--primary-soft);
++  color: var(--primary-strong);
++  font-size: 15px;
++  font-weight: 850;
++}
++.manager-request-person-copy { display: grid; flex: 1; gap: 3px; min-width: 0; }
++.manager-request-person-copy strong { overflow-wrap: anywhere; color: var(--text); font-size: 14px; font-weight: 850; }
++.manager-request-person-copy small { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; }
++.manager-request-status { flex: 0 0 auto; padding: 5px 9px; border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--line)); border-radius: 999px; background: var(--warning-soft); color: var(--warning); font-size: 10px; font-weight: 800; }
++.manager-request-message { margin: 0; padding: 10px 12px; border-radius: 11px; background: var(--surface-2); color: var(--text); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
++.manager-request-message.muted { color: var(--muted); }
++.manager-join-request-actions { display: flex; justify-content: flex-end; gap: 8px; }
++.manager-join-request-actions button { display: inline-flex; min-width: 112px; min-height: 39px; align-items: center; justify-content: center; gap: 6px; }
++.manager-request-reject { padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 10px; background: var(--danger-soft); color: var(--danger); font-size: 12px; font-weight: 800; cursor: pointer; }
++.manager-request-reject:hover { border-color: var(--danger); }
++
++/* Invitation page: compact branded card using the active theme tokens. */
++.hostel-invite-page {
++  display: grid;
++  min-height: 100svh;
++  align-content: center;
++  justify-items: center;
++  gap: 16px;
++  padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
++  overflow-x: clip;
++  background: radial-gradient(ellipse at 8% 8%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 42%), var(--bg);
++  color: var(--text);
++}
++.hostel-invite-topbar { display: flex; width: min(600px, 100%); align-items: center; justify-content: space-between; gap: 12px; }
++.hostel-invite-topbar > span { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; font-weight: 800; }
++.hostel-invite-topbar > span svg { color: var(--primary-strong); }
++.hostel-invite-topbar-actions { display: inline-flex; align-items: center; gap: 8px; }
++.hostel-invite-exit { min-height: 36px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 800; cursor: pointer; }
++.hostel-invite-exit:hover { border-color: var(--primary); color: var(--primary-strong); }
++.hostel-invite-card {
++  display: grid;
++  justify-items: start;
++  gap: 14px;
++  width: min(560px, 100%);
++  padding: clamp(22px, 5vw, 36px);
++  border: 1px solid var(--line);
++  border-radius: 25px;
++  background: var(--surface);
++  color: var(--text);
++  box-shadow: var(--shadow);
++}
++.hostel-invite-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: .12em; }
++.hostel-invite-brand > span:first-child { display: grid; width: 48px; height: 48px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
++.hostel-invite-card > .eyebrow { margin-top: 5px; color: var(--primary-strong); letter-spacing: .08em; }
++.hostel-invite-card > h1 { margin: -7px 0 0; color: var(--text); font-size: clamp(23px, 5vw, 30px); font-weight: 900; line-height: 1.35; }
++.hostel-invite-lead { max-width: 52ch; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
++.hostel-invite-security-note { display: flex; width: 100%; align-items: flex-start; gap: 10px; padding: 12px 13px; border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--primary-soft) 50%, var(--surface)); color: var(--text); font-size: 11px; line-height: 1.65; }
++.hostel-invite-security-note > svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
++.hostel-invite-security-note.warning { border-color: color-mix(in srgb, var(--warning) 28%, var(--line)); background: var(--warning-soft); }
++.hostel-invite-security-note.warning > svg { color: var(--warning); }
++.hostel-invite-actions { display: grid; width: 100%; gap: 8px; }
++.hostel-invite-actions .primary-button { width: 100%; min-height: 49px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
++.hostel-invite-hostel { display: grid; width: 100%; gap: 7px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
++.hostel-invite-hostel > span { color: var(--muted); font-size: 10px; font-weight: 750; }
++.hostel-invite-hostel > strong { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 16px; overflow-wrap: anywhere; }
++.hostel-invite-hostel > strong svg { flex: 0 0 auto; color: var(--primary-strong); }
++.hostel-invite-hostel > small { color: var(--muted); font-size: 10px; }
++.hostel-invite-card > .field-label { display: grid; width: 100%; gap: 7px; color: var(--text); font-size: 12px; font-weight: 750; }
++.hostel-invite-card textarea { width: 100%; min-height: 88px; resize: vertical; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; outline: none; background: var(--surface-2); color: var(--text); font-size: 13px; line-height: 1.6; }
++.hostel-invite-card textarea:focus-visible { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
++.hostel-invite-card > .primary-button,
++.hostel-invite-card > .secondary-button { width: 100%; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
++.hostel-invite-error { display: flex; width: 100%; align-items: flex-start; gap: 9px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--line)); border-radius: 12px; background: var(--danger-soft); color: var(--danger); font-size: 11px; line-height: 1.65; }
++.hostel-invite-error > svg { flex: 0 0 auto; margin-top: 1px; }
++.hostel-invite-error > span { flex: 1; min-width: 0; }
++.hostel-invite-status { display: flex; width: 100%; align-items: flex-start; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); color: var(--text); }
++.hostel-invite-status > svg { flex: 0 0 auto; margin-top: 1px; }
++.hostel-invite-status > div { display: grid; gap: 4px; min-width: 0; }
++.hostel-invite-status strong { font-size: 13px; }
++.hostel-invite-status span { color: var(--muted); font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
++.hostel-invite-status.pending > svg { color: var(--warning); }
++.hostel-invite-status.rejected > svg { color: var(--danger); }
++.hostel-invite-status.approved > svg { color: var(--primary-strong); }
++.hostel-invite-footer { display: flex; align-items: flex-start; gap: 7px; width: 100%; margin-top: 2px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.6; }
++.hostel-invite-footer svg { flex: 0 0 auto; color: var(--primary-strong); }
++
++/* Linked onboarding panel and action text must follow all four supported themes. */
++.onboarding-main-card { color: var(--text); }
++.onboarding-brand-header h1,
++.onboarding-choice-intro h2,
++.onboarding-action-heading h3,
++.auth-form-panel .auth-header h2 { color: var(--text) !important; }
++.onboarding-brand-header p,
++.onboarding-choice-intro p,
++.onboarding-action-heading p,
++.auth-form-panel .auth-header p,
++.auth-form-panel .auth-form-intro,
++.auth-form-panel .auth-switch { color: var(--muted) !important; }
++.auth-form-panel .field-label,
++.auth-form-panel .field-label > span,
++.onboarding-entry-form .field-label { color: var(--text) !important; }
++.onboarding-linked-request {
++  display: grid;
++  grid-template-columns: 42px minmax(0, 1fr);
++  align-items: start;
++  gap: 12px;
++  padding: clamp(13px, 2.6vw, 18px);
++  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
++  border-radius: 17px;
++  background: color-mix(in srgb, var(--primary-soft) 28%, var(--surface));
++  color: var(--text);
++  box-shadow: none;
++}
++.onboarding-linked-request-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; background: var(--primary-soft); color: var(--primary-strong); }
++.onboarding-linked-request-copy { display: grid; min-width: 0; gap: 8px; }
++.onboarding-linked-request-copy .eyebrow { color: var(--primary-strong); }
++.onboarding-linked-request-copy h2 { margin: -4px 0 0; color: var(--text); font-size: clamp(16px, 2.5vw, 19px); line-height: 1.4; overflow-wrap: anywhere; }
++.onboarding-linked-request-copy > p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
++.onboarding-linked-request-copy .field-label { display: grid; gap: 6px; color: var(--text); font-size: 11px; }
++.onboarding-linked-request-copy textarea { width: 100%; min-height: 66px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 12px; resize: vertical; }
++.onboarding-linked-request-copy .primary-button,
++.onboarding-linked-request-copy .secondary-button { width: 100%; min-height: 42px; }
++.onboarding-linked-request-copy .onboarding-invite-exit { justify-self: start; width: auto; min-height: 32px; padding: 5px 10px; background: transparent; color: var(--muted); font-size: 10px; }
++.onboarding-linked-request-waiting { display: grid; justify-items: center; gap: 8px; padding: 20px 15px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); color: var(--text); text-align: center; }
++.onboarding-linked-request-waiting > svg { color: var(--primary-strong); }
++.onboarding-linked-request-waiting strong { color: var(--text); font-size: 14px; }
++.onboarding-linked-request-waiting p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
++
++/* Super Admin: distinct settings area and readable, concise configuration sections. */
++.platform-navigation { display: grid; gap: 12px; width: min(1380px, 100%); margin: 18px auto 16px; }
++.platform-navigation-group { display: grid; gap: 7px; min-width: 0; }
++.platform-navigation-heading { display: flex; align-items: baseline; gap: 10px; padding: 0 3px; }
++.platform-navigation-heading strong { color: var(--text); font-size: 12px; font-weight: 900; }
++.platform-navigation-heading span { color: var(--muted); font-size: 10px; line-height: 1.5; }
++.platform-navigation .platform-tabs { width: 100%; margin: 0; }
++.platform-navigation .platform-main-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
++.platform-navigation .platform-config-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); border-color: color-mix(in srgb, var(--primary) 22%, var(--line)); background: color-mix(in srgb, var(--primary-soft) 22%, var(--surface)); }
++.platform-navigation .platform-config-tabs button { min-height: 43px; font-size: 12px; }
++.platform-navigation .platform-config-tabs button.active { background: var(--primary-strong); color: #fff; }
++.platform-settings-intro { width: min(1380px, 100%); margin: 20px auto 11px; }
++.platform-settings-intro .eyebrow { color: var(--primary-strong); font-size: 10px; letter-spacing: .08em; }
++.platform-settings-intro h2 { margin: 4px 0 3px; color: var(--text); font-size: clamp(19px, 2.5vw, 24px); font-weight: 900; line-height: 1.35; }
++.platform-settings-intro p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
++.platform-settings-grid .platform-panel,
++.platform-settings-grid > .card { min-width: 0; }
++.platform-settings-grid .platform-panel-heading h3 { color: var(--text); font-size: 17px; line-height: 1.4; }
++.platform-settings-grid .platform-panel-heading p { color: var(--muted); font-size: 12px; line-height: 1.7; }
++.platform-settings-grid .field-label { color: var(--text); font-size: 12px; }
++.platform-settings-grid .field-label small,
++.platform-settings-grid .platform-toggle small { color: var(--muted); font-size: 11px; line-height: 1.6; }
++.platform-settings-grid .platform-retention-hint { color: var(--muted); font-size: 11px; line-height: 1.7; }
++@media (max-width: 760px) {
++  .platform-navigation .platform-main-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
++  .platform-navigation .platform-config-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
++}
++@media (max-width: 520px) {
++  .manager-request-heading { align-items: flex-start; }
++  .manager-request-heading p { max-width: 28ch; }
++  .manager-request-refresh { min-height: 37px; padding-inline: 8px; font-size: 10px; }
++  .manager-request-person { flex-wrap: wrap; }
++  .manager-request-status { margin-left: auto; }
++  .manager-join-request-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
++  .manager-join-request-actions button { min-width: 0; }
++  .hostel-invite-page { align-content: start; padding-inline: 12px; gap: 12px; }
++  .hostel-invite-card { padding: 21px 17px; border-radius: 20px; }
++  .hostel-invite-card > h1 { font-size: 23px; }
++  .hostel-invite-lead { font-size: 12px; }
++  .hostel-invite-topbar > span { font-size: 10px; }
++  .hostel-invite-exit { min-height: 34px; padding-inline: 9px; }
++  .onboarding-linked-request { grid-template-columns: 34px minmax(0, 1fr); gap: 9px; padding: 12px; }
++  .onboarding-linked-request-icon { width: 34px; height: 34px; border-radius: 10px; }
++  .onboarding-linked-request-copy h2 { font-size: 16px; }
++  .platform-navigation-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
++  .platform-navigation .platform-main-tabs,
++  .platform-navigation .platform-config-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++  .platform-navigation .platform-tabs button { min-height: 44px; padding: 8px 6px; font-size: 11px; }
++  .platform-settings-intro { margin-top: 14px; }
++}
++@media (prefers-reduced-motion: reduce) {
++  .manager-invite-card *,
++  .manager-join-request-panel *,
++  .hostel-invite-card * { scroll-behavior: auto !important; transition: none !important; }
++}
+diff --git a/tests/authenticatedInviteAndDevicePolicy.test.js b/tests/authenticatedInviteAndDevicePolicy.test.js
+index f70f59e..15f75be 100644
+--- a/tests/authenticatedInviteAndDevicePolicy.test.js
++++ b/tests/authenticatedInviteAndDevicePolicy.test.js
+@@ -111,7 +111,7 @@ test('Join Requests require authentication and explicit manager/assistant approv
+   assert.match(review, /UPDATE public\.archive_edit_permissions\s+SET revoked_at/);
+   assert.match(review, /status='rejected'/);
+   assert.match(manager, /managerCreateHostelInviteLink/);
+-  assert.match(manager, /managerRevokeHostelInviteLink/);
++  assert.doesNotMatch(manager, /managerRevokeHostelInviteLink|managerListHostelInviteLinks/);
+   assert.match(manager, /managerListHostelJoinRequests/);
+   assert.match(manager, /managerReviewHostelJoinRequest/);
+ });
+@@ -138,7 +138,8 @@ test('Pending invite requests cannot be bypassed through normal Join/Create RPCs
+ test('Invitation page reveals no hostel information before authentication', () => {
+   const invitePage = read('src/features/invites/HostelInvitePage.jsx');
+   const unauthBranch = invitePage.slice(invitePage.indexOf('{!auth.isAuthenticated ?'), invitePage.indexOf(': <>', invitePage.indexOf('{!auth.isAuthenticated ?')));
+-  assert.match(unauthBranch, /মেসের কোনো তথ্য বা ড্যাশবোর্ড দেখতে হলে আগে নিজের অ্যাকাউন্টে লগইন করতে হবে/);
++  assert.match(unauthBranch, /নতুন অ্যাকাউন্ট তৈরি করুন/);
++  assert.doesNotMatch(unauthBranch, /লগইন করুন|সাইন ইন|hostel_name|dashboard/i);
+   assert.doesNotMatch(unauthBranch, /info\?\.hostel_name|info\.hostel_name/);
+   assert.match(invitePage, /getHostelInviteLinkInfo\(token\)/);
+   assert.match(invitePage, /createHostelJoinRequestFromInvite\(token, requestNote\)/);
+diff --git a/tests/invitationAndPlatformPresentationV8.test.js b/tests/invitationAndPlatformPresentationV8.test.js
+new file mode 100644
+index 0000000..3d6a996
+--- /dev/null
++++ b/tests/invitationAndPlatformPresentationV8.test.js
+@@ -0,0 +1,129 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++
++const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
++const manager = read('src/features/manager/ManagerPages.jsx');
++const invite = read('src/features/invites/HostelInvitePage.jsx');
++const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
++const appDownload = read('src/features/menu/AppDownloadPage.jsx');
++const appShell = read('src/app/AppShell.jsx');
++const main = read('src/main.jsx');
++const appRouter = read('src/app/App.jsx');
++const drawer = read('src/components/MenuDrawer.jsx');
++const superAdmin = read('src/features/platform/SuperAdminPage.jsx');
++const styles = read('src/styles/invitation-experience.css');
++const publicStyles = read('src/styles/public-entry.css');
++
++function getSection(source, start, end) {
++  const startAt = source.indexOf(start);
++  assert.notEqual(startAt, -1, `Missing section start: ${start}`);
++  const endAt = source.indexOf(end, startAt);
++  assert.notEqual(endAt, -1, `Missing section end: ${end}`);
++  return source.slice(startAt, endAt);
++}
++
++test('Invitation Settings is compact and exposes one Copy & Share action without token history', () => {
++  const settings = getSection(manager, 'export function HostelSettingsPage()', 'function JoinRequestQueue()');
++  assert.match(settings, /managerCreateHostelInviteLink\('সদস্য আমন্ত্রণ'\)/);
++  assert.match(settings, /copyAndShareInvite/);
++  assert.match(settings, /navigator\.share\(shareData\)/);
++  assert.match(settings, /clipboardPayload = shareTask \? createdInviteUrl : `\$\{shareData\.text\}\\n\$\{createdInviteUrl\}`/);
++  assert.match(settings, /copyText\(clipboardPayload\)/);
++  assert.match(settings, /membership\?\.hostel_name/);
++  assert.match(settings, /কপি ও শেয়ার করুন/);
++  assert.match(settings, /নতুন লিংক তৈরি করলে আগেরটি স্বয়ংক্রিয়ভাবে বাতিল হবে/);
++  assert.doesNotMatch(settings, /managerListHostelInviteLinks|managerRevokeHostelInviteLink|inviteLinks|manager-invite-history|manager-invite-url/);
++});
++
++test('Invitation create rotation remains server-side and the UI does not recreate seven-day policy locally', () => {
++  const service = read('src/services/hostelInviteService.js');
++  const migration = read('supabase/migrations/Run29_invitation_link_rotation.sql');
++  assert.match(service, /manager_create_or_rotate_hostel_invite_link/);
++  assert.match(migration, /now\(\) \+ interval '7 days'/);
++  assert.match(migration, /revoked_at = coalesce\(revoked_at, now\(\)\)/);
++  assert.match(migration, /manager_create_or_rotate_hostel_invite_link/);
++});
++
++test('Native share metadata may name the hostel while the bearer token remains in the URL fragment', () => {
++  const settings = getSection(manager, 'const copyAndShareInvite = async () =>', 'const saveName = async');
++  assert.match(settings, /title: `\$\{hostelName\}/);
++  assert.match(settings, /text: `\$\{hostelName\}/);
++  assert.match(settings, /url: createdInviteUrl/);
++  assert.match(manager, /\/invite#\$\{result\.token\}/);
++  assert.doesNotMatch(read('index.html'), /hostel_name|invite_token/i);
++});
++
++test('Unauthenticated invite landing has registration only, no login action, and a clear exit path', () => {
++  const branchStart = invite.indexOf('{!auth.isAuthenticated ?');
++  const branchEnd = invite.indexOf(': <>', branchStart);
++  assert.ok(branchStart >= 0 && branchEnd > branchStart);
++  const unauthBranch = invite.slice(branchStart, branchEnd);
++  assert.match(unauthBranch, /navigateTo\('\/auth\/register'\)/);
++  assert.doesNotMatch(unauthBranch, /auth\/login|লগইন/);
++  assert.match(invite, /hostel-invite-exit/);
++  assert.match(invite, /const exitInvitation/);
++  assert.match(invite, /navigateTo\('\/onboarding', true\)/);
++  assert.match(onboarding, /onboarding-invite-exit/);
++  assert.match(onboarding, /clearPendingLink/);
++});
++
++test('Join Request review remains manager/assistant-authorized but now has structured identity and decision cards', () => {
++  const queue = getSection(manager, 'function JoinRequestQueue()', 'export function JoinRequestReviewPage()');
++  assert.match(queue, /managerListHostelJoinRequests\(\)/);
++  assert.match(queue, /managerReviewHostelJoinRequest\(row\.id, approve, reviewNote\)/);
++  assert.match(queue, /manager-request-avatar/);
++  assert.match(queue, /manager-request-status/);
++  assert.match(queue, /manager-request-message/);
++  assert.match(queue, /manager-request-empty/);
++  assert.match(styles, /\.manager-request-person/);
++  assert.match(styles, /\.manager-join-request-actions/);
++});
++
++test('PWA install listener is held at application root so the menu action does not miss the browser event', () => {
++  assert.match(main, /function AppWithInstallPrompt\(\)/);
++  assert.match(main, /useInstallPrompt\(\)/);
++  assert.match(main, /<InstallPromptProvider value=\{installPrompt\}><App \/><\/InstallPromptProvider>/);
++  assert.match(appShell, /useInstallPromptContext/);
++  assert.doesNotMatch(appShell, /useInstallPrompt\(/);
++  assert.match(appDownload, /canInstall \? \(/);
++  assert.match(appDownload, /install\(\)/);
++  assert.match(drawer, /key: 'app-download', label: 'অ্যাপ ডাউনলোড'/);
++  assert.doesNotMatch(drawer, /install-card/);
++});
++
++test('Install guidance stays honest where a browser does not expose a one-click PWA prompt', () => {
++  assert.match(appDownload, /এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না/);
++  assert.doesNotMatch(appDownload, /তিন ডট|3 dot|browser settings/i);
++  assert.match(read('src/hooks/useInstallPrompt.js'), /beforeinstallprompt/);
++});
++
++test('Super Admin separates system configuration from monitoring navigation', () => {
++  assert.match(superAdmin, /platform-navigation-group/);
++  assert.match(superAdmin, /platform-main-tabs/);
++  assert.match(superAdmin, /platform-config-tabs/);
++  for (const key of ["\['settings','Global Notice'\]", "\['developer','Developer Info'\]", "\['appearance','App Theme'\]", "\['sessions','Session Security'\]"]) {
++    assert.ok(superAdmin.includes(key), `Missing independent setting tab ${key}`);
++  }
++  for (const marker of ['platform-settings-intro', 'গ্লোবাল নোটিশ', 'ডেভেলপার ও সহায়তা তথ্য', 'অ্যাপের ডিফল্ট থিম', 'Session নিরাপত্তা']) {
++    assert.ok(superAdmin.includes(marker), `Missing section heading ${marker}`);
++  }
++  assert.match(styles, /\.platform-navigation \.platform-main-tabs/);
++  assert.match(styles, /\.platform-navigation \.platform-config-tabs/);
++});
++
++test('Auth and onboarding headings use theme tokens and invitation views are responsive', () => {
++  assert.match(styles, /\.auth-form-panel \.auth-header h2 \{ color: var\(--text\) !important/);
++  assert.match(styles, /\.onboarding-brand-header p/);
++  assert.match(styles, /color: var\(--muted\) !important/);
++  assert.match(styles, /@media \(max-width: 520px\)/);
++  assert.match(publicStyles, /:root\[data-theme="blue"\]/);
++  assert.match(publicStyles, /:root\[data-theme="dark"\]/);
++  assert.match(publicStyles, /:root\[data-theme="light"\]/);
++});
++
++
++test('Join Request route is registered once to avoid redundant route branches', () => {
++  const matches = appRouter.match(/if \(pathname === '\/app\/menu\/join-requests'\)/g) || [];
++  assert.equal(matches.length, 1);
++});
+diff --git a/tests/invitationManagerAndInstallPolish.test.js b/tests/invitationManagerAndInstallPolish.test.js
+index 0fb88e0..613e3aa 100644
+--- a/tests/invitationManagerAndInstallPolish.test.js
++++ b/tests/invitationManagerAndInstallPolish.test.js
+@@ -21,16 +21,13 @@ function getFunctionSql(name) {
+   return migration.slice(start, end + 4);
+ }
+ 
+-test('ManagerPages explicitly imports all Invitation RPC wrappers used by Settings and Join Request review', () => {
++test('ManagerPages imports only the Invitation operations used by the compact Settings and review views', () => {
+   const importBlock = manager.match(/import \{[\s\S]*?managerCreateHostelInviteLink[\s\S]*?\} from '\.\.\/\.\.\/services\/hostelInviteService';/);
+   assert.ok(importBlock, 'Invitation service imports must exist at module scope');
+-  for (const name of [
+-    'managerCreateHostelInviteLink',
+-    'managerListHostelInviteLinks',
+-    'managerRevokeHostelInviteLink',
+-    'managerListHostelJoinRequests',
+-    'managerReviewHostelJoinRequest',
+-  ]) assert.match(importBlock[0], new RegExp(`\\b${name}\\b`));
++  for (const name of ['managerCreateHostelInviteLink', 'managerListHostelJoinRequests', 'managerReviewHostelJoinRequest']) {
++    assert.match(importBlock[0], new RegExp(`\\b${name}\\b`));
++  }
++  assert.doesNotMatch(importBlock[0], /managerListHostelInviteLinks|managerRevokeHostelInviteLink/);
+ });
+ 
+ test('Invitation creation sends a concrete seven-day expiry and a named label', () => {
+@@ -85,9 +82,11 @@ test('Assistant invitation controls stay inside ManagerGuard-protected Hostel Se
+   const settings = manager.slice(manager.indexOf('export function HostelSettingsPage()'), manager.indexOf('function JoinRequestQueue()'));
+   assert.match(settings, /return \([\s\S]*?<ManagerGuard>/);
+   assert.match(settings, /managerCreateHostelInviteLink/);
+-  assert.match(settings, /managerListHostelInviteLinks/);
+-  assert.match(settings, /managerRevokeHostelInviteLink/);
+-  assert.match(settings, /আগের সক্রিয় Invitation সঙ্গে সঙ্গে বাতিল হবে/);
++  assert.match(settings, /copyAndShareInvite/);
++  assert.match(settings, /কপি ও শেয়ার করুন/);
++  assert.match(settings, /নতুন লিংক তৈরি করলে আগেরটি স্বয়ংক্রিয়ভাবে বাতিল হবে/);
++  assert.doesNotMatch(settings, /managerListHostelInviteLinks|managerRevokeHostelInviteLink|manager-invite-history/);
++  assert.doesNotMatch(settings, /manager-invite-url/);
+ });
+ 
+ test('App Install page is reduced to a single direct PWA action without download guides', () => {
+@@ -103,8 +102,11 @@ test('App Install page is reduced to a single direct PWA action without download
+ });
+ 
+ test('Invitation and Join Request presentation has responsive manager styling', () => {
+-  assert.match(uiCss, /\.manager-invite-card/);
+-  assert.match(uiCss, /\.manager-join-request-list/);
+-  assert.match(uiCss, /\.manager-join-request-actions/);
+-  assert.match(uiCss, /@media\(max-width:560px\)/);
++  const experienceCss = read('src/styles/invitation-experience.css');
++  assert.match(experienceCss, /\.manager-invite-card/);
++  assert.match(experienceCss, /\.manager-join-request-list/);
++  assert.match(experienceCss, /\.manager-join-request-actions/);
++  assert.match(experienceCss, /@media \(max-width: 520px\)/);
++  assert.match(experienceCss, /\.hostel-invite-card/);
++
+ });
+diff --git a/tests/publicEntryVisualExperience.test.js b/tests/publicEntryVisualExperience.test.js
+index a7345bd..a966e6a 100644
+--- a/tests/publicEntryVisualExperience.test.js
++++ b/tests/publicEntryVisualExperience.test.js
+@@ -27,7 +27,10 @@ test('registration and onboarding preserve responsive presentation hooks', () =>
+ });
+ 
+ test('Super Admin navigation communicates the selected section accessibly', () => {
+-  assert.match(superAdmin, /className="platform-tabs" aria-label="Super Admin বিভাগ"/);
++  assert.match(superAdmin, /className="platform-tabs platform-main-tabs" aria-label="পর্যবেক্ষণ বিভাগ"/);
++  assert.match(superAdmin, /className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ"/);
++  assert.match(superAdmin, /সিস্টেম সেটিংস/);
++  assert.match(superAdmin, /Session Security/);
+   assert.match(superAdmin, /aria-current=\{tab===key\?'page':undefined\}/);
+   assert.match(adminCss, /\.platform-page \.platform-tabs/);
+ });

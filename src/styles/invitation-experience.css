@@ -1,0 +1,295 @@
+/* Hostel Life — invitation, manager approval and responsive entry polish. */
+
+/* Manager: compact invitation controls with no token history or exposed secret. */
+.manager-invite-card {
+  display: grid;
+  gap: 13px;
+  padding: clamp(16px, 2.5vw, 22px);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--line));
+}
+.manager-invite-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.manager-invite-heading > div { min-width: 0; }
+.manager-invite-heading h2 { margin: 3px 0 3px; color: var(--text); font-size: clamp(17px, 2.4vw, 20px); line-height: 1.4; }
+.manager-invite-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.manager-invite-icon {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, var(--line));
+  border-radius: 13px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.manager-invite-card .manager-invite-create,
+.manager-invite-card .manager-invite-share {
+  display: inline-flex;
+  width: fit-content;
+  min-width: min(250px, 100%);
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.manager-invite-created {
+  display: grid;
+  width: min(100%, 440px);
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--primary-soft) 42%, var(--surface));
+}
+.manager-invite-ready { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.manager-invite-ready-icon {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.manager-invite-ready > div { display: grid; gap: 2px; min-width: 0; }
+.manager-invite-ready strong { color: var(--text); font-size: 13px; }
+.manager-invite-ready small { color: var(--muted); font-size: 11px; }
+.manager-invite-created .manager-invite-share { width: 100%; }
+.manager-invite-regenerate {
+  display: inline-flex;
+  justify-self: center;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.manager-invite-regenerate:hover { background: var(--surface-2); color: var(--text); }
+.manager-invite-footnote { display: flex; align-items: flex-start; gap: 7px; max-width: 65ch; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.manager-invite-footnote svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
+
+/* Join request review: clear identity, status, message and decision actions. */
+.manager-join-request-panel { display: grid; gap: 15px; padding: clamp(15px, 2.5vw, 22px); }
+.manager-request-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.manager-request-heading > div { min-width: 0; }
+.manager-request-heading h2 { margin: 4px 0 3px; color: var(--text); font-size: clamp(18px, 2.5vw, 22px); line-height: 1.35; }
+.manager-request-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.manager-request-refresh { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+.manager-request-note-row { padding: 12px 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); }
+.manager-request-note-row .field-label { display: grid; gap: 6px; color: var(--text); font-size: 12px; }
+.manager-request-note-row .field-label small { color: var(--muted); font-size: 10px; font-weight: 500; }
+.manager-request-note-row input { min-height: 42px; width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; background: var(--surface); color: var(--text); font-size: 13px; }
+.manager-request-note-row input::placeholder { color: var(--muted); }
+.manager-request-empty { display: grid; justify-items: center; gap: 7px; padding: 30px 18px; border: 1px dashed var(--line); border-radius: 15px; background: var(--surface-2); text-align: center; }
+.manager-request-empty > span { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 15px; background: var(--primary-soft); color: var(--primary-strong); }
+.manager-request-empty strong { color: var(--text); font-size: 14px; }
+.manager-request-empty p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.manager-join-request-list { display: grid; gap: 11px; }
+.manager-join-request-row {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+}
+.manager-request-person { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.manager-request-avatar {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 15px;
+  font-weight: 850;
+}
+.manager-request-person-copy { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.manager-request-person-copy strong { overflow-wrap: anywhere; color: var(--text); font-size: 14px; font-weight: 850; }
+.manager-request-person-copy small { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 10px; }
+.manager-request-status { flex: 0 0 auto; padding: 5px 9px; border: 1px solid color-mix(in srgb, var(--warning) 25%, var(--line)); border-radius: 999px; background: var(--warning-soft); color: var(--warning); font-size: 10px; font-weight: 800; }
+.manager-request-message { margin: 0; padding: 10px 12px; border-radius: 11px; background: var(--surface-2); color: var(--text); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.manager-request-message.muted { color: var(--muted); }
+.manager-join-request-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.manager-join-request-actions button { display: inline-flex; min-width: 112px; min-height: 39px; align-items: center; justify-content: center; gap: 6px; }
+.manager-request-reject { padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--danger) 28%, var(--line)); border-radius: 10px; background: var(--danger-soft); color: var(--danger); font-size: 12px; font-weight: 800; cursor: pointer; }
+.manager-request-reject:hover { border-color: var(--danger); }
+
+/* Invitation page: compact branded card using the active theme tokens. */
+.hostel-invite-page {
+  display: grid;
+  min-height: 100svh;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: max(18px, env(safe-area-inset-top)) 16px max(22px, env(safe-area-inset-bottom));
+  overflow-x: clip;
+  background: radial-gradient(ellipse at 8% 8%, color-mix(in srgb, var(--primary) 10%, transparent), transparent 42%), var(--bg);
+  color: var(--text);
+}
+.hostel-invite-topbar { display: flex; width: min(600px, 100%); align-items: center; justify-content: space-between; gap: 12px; }
+.hostel-invite-topbar > span { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 11px; font-weight: 800; }
+.hostel-invite-topbar > span svg { color: var(--primary-strong); }
+.hostel-invite-topbar-actions { display: inline-flex; align-items: center; gap: 8px; }
+.hostel-invite-exit { min-height: 36px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 800; cursor: pointer; }
+.hostel-invite-exit:hover { border-color: var(--primary); color: var(--primary-strong); }
+.hostel-invite-card {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  width: min(560px, 100%);
+  padding: clamp(22px, 5vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: 25px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.hostel-invite-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+.hostel-invite-brand > span:first-child { display: grid; width: 48px; height: 48px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.hostel-invite-card > .eyebrow { margin-top: 5px; color: var(--primary-strong); letter-spacing: .08em; }
+.hostel-invite-card > h1 { margin: -7px 0 0; color: var(--text); font-size: clamp(23px, 5vw, 30px); font-weight: 900; line-height: 1.35; }
+.hostel-invite-lead { max-width: 52ch; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+.hostel-invite-security-note { display: flex; width: 100%; align-items: flex-start; gap: 10px; padding: 12px 13px; border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line)); border-radius: 13px; background: color-mix(in srgb, var(--primary-soft) 50%, var(--surface)); color: var(--text); font-size: 11px; line-height: 1.65; }
+.hostel-invite-security-note > svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
+.hostel-invite-security-note.warning { border-color: color-mix(in srgb, var(--warning) 28%, var(--line)); background: var(--warning-soft); }
+.hostel-invite-security-note.warning > svg { color: var(--warning); }
+.hostel-invite-actions { display: grid; width: 100%; gap: 8px; }
+.hostel-invite-actions .primary-button { width: 100%; min-height: 49px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.hostel-invite-hostel { display: grid; width: 100%; gap: 7px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.hostel-invite-hostel > span { color: var(--muted); font-size: 10px; font-weight: 750; }
+.hostel-invite-hostel > strong { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 16px; overflow-wrap: anywhere; }
+.hostel-invite-hostel > strong svg { flex: 0 0 auto; color: var(--primary-strong); }
+.hostel-invite-hostel > small { color: var(--muted); font-size: 10px; }
+.hostel-invite-card > .field-label { display: grid; width: 100%; gap: 7px; color: var(--text); font-size: 12px; font-weight: 750; }
+.hostel-invite-card textarea { width: 100%; min-height: 88px; resize: vertical; padding: 11px 12px; border: 1px solid var(--line); border-radius: 11px; outline: none; background: var(--surface-2); color: var(--text); font-size: 13px; line-height: 1.6; }
+.hostel-invite-card textarea:focus-visible { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+.hostel-invite-card > .primary-button,
+.hostel-invite-card > .secondary-button { width: 100%; min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.hostel-invite-error { display: flex; width: 100%; align-items: flex-start; gap: 9px; padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--line)); border-radius: 12px; background: var(--danger-soft); color: var(--danger); font-size: 11px; line-height: 1.65; }
+.hostel-invite-error > svg { flex: 0 0 auto; margin-top: 1px; }
+.hostel-invite-error > span { flex: 1; min-width: 0; }
+.hostel-invite-status { display: flex; width: 100%; align-items: flex-start; gap: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); color: var(--text); }
+.hostel-invite-status > svg { flex: 0 0 auto; margin-top: 1px; }
+.hostel-invite-status > div { display: grid; gap: 4px; min-width: 0; }
+.hostel-invite-status strong { font-size: 13px; }
+.hostel-invite-status span { color: var(--muted); font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
+.hostel-invite-status.pending > svg { color: var(--warning); }
+.hostel-invite-status.rejected > svg { color: var(--danger); }
+.hostel-invite-status.approved > svg { color: var(--primary-strong); }
+.hostel-invite-footer { display: flex; align-items: flex-start; gap: 7px; width: 100%; margin-top: 2px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; line-height: 1.6; }
+.hostel-invite-footer svg { flex: 0 0 auto; color: var(--primary-strong); }
+
+/* Linked onboarding panel and action text must follow all four supported themes. */
+.onboarding-main-card { color: var(--text); }
+.onboarding-brand-header h1,
+.onboarding-choice-intro h2,
+.onboarding-action-heading h3,
+.auth-form-panel .auth-header h2 { color: var(--text) !important; }
+.onboarding-brand-header p,
+.onboarding-choice-intro p,
+.onboarding-action-heading p,
+.auth-form-panel .auth-header p,
+.auth-form-panel .auth-form-intro,
+.auth-form-panel .auth-switch { color: var(--muted) !important; }
+.auth-form-panel .field-label,
+.auth-form-panel .field-label > span,
+.onboarding-entry-form .field-label { color: var(--text) !important; }
+.onboarding-linked-request {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: clamp(13px, 2.6vw, 18px);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--primary-soft) 28%, var(--surface));
+  color: var(--text);
+  box-shadow: none;
+}
+.onboarding-linked-request-icon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 13px; background: var(--primary-soft); color: var(--primary-strong); }
+.onboarding-linked-request-copy { display: grid; min-width: 0; gap: 8px; }
+.onboarding-linked-request-copy .eyebrow { color: var(--primary-strong); }
+.onboarding-linked-request-copy h2 { margin: -4px 0 0; color: var(--text); font-size: clamp(16px, 2.5vw, 19px); line-height: 1.4; overflow-wrap: anywhere; }
+.onboarding-linked-request-copy > p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+.onboarding-linked-request-copy .field-label { display: grid; gap: 6px; color: var(--text); font-size: 11px; }
+.onboarding-linked-request-copy textarea { width: 100%; min-height: 66px; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 12px; resize: vertical; }
+.onboarding-linked-request-copy .primary-button,
+.onboarding-linked-request-copy .secondary-button { width: 100%; min-height: 42px; }
+.onboarding-linked-request-copy .onboarding-invite-exit { justify-self: start; width: auto; min-height: 32px; padding: 5px 10px; background: transparent; color: var(--muted); font-size: 10px; }
+.onboarding-linked-request-waiting { display: grid; justify-items: center; gap: 8px; padding: 20px 15px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); color: var(--text); text-align: center; }
+.onboarding-linked-request-waiting > svg { color: var(--primary-strong); }
+.onboarding-linked-request-waiting strong { color: var(--text); font-size: 14px; }
+.onboarding-linked-request-waiting p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; }
+
+/* Super Admin: distinct settings area and readable, concise configuration sections. */
+.platform-navigation { display: grid; gap: 12px; width: min(1380px, 100%); margin: 18px auto 16px; }
+.platform-navigation-group { display: grid; gap: 7px; min-width: 0; }
+.platform-navigation-heading { display: flex; align-items: baseline; gap: 10px; padding: 0 3px; }
+.platform-navigation-heading strong { color: var(--text); font-size: 12px; font-weight: 900; }
+.platform-navigation-heading span { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.platform-navigation .platform-tabs { width: 100%; margin: 0; }
+.platform-navigation .platform-main-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.platform-navigation .platform-config-tabs { grid-template-columns: repeat(5, minmax(0, 1fr)); border-color: color-mix(in srgb, var(--primary) 22%, var(--line)); background: color-mix(in srgb, var(--primary-soft) 22%, var(--surface)); }
+.platform-navigation .platform-config-tabs button { min-height: 43px; font-size: 12px; }
+.platform-navigation .platform-config-tabs button.active { background: var(--primary-strong); color: #fff; }
+.platform-settings-intro { width: min(1380px, 100%); margin: 20px auto 11px; }
+.platform-settings-intro .eyebrow { color: var(--primary-strong); font-size: 10px; letter-spacing: .08em; }
+.platform-settings-intro h2 { margin: 4px 0 3px; color: var(--text); font-size: clamp(19px, 2.5vw, 24px); font-weight: 900; line-height: 1.35; }
+.platform-settings-intro p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.platform-settings-grid .platform-panel,
+.platform-settings-grid > .card { min-width: 0; }
+.platform-settings-grid .platform-panel-heading h3 { color: var(--text); font-size: 17px; line-height: 1.4; }
+.platform-settings-grid .platform-panel-heading p { color: var(--muted); font-size: 12px; line-height: 1.7; }
+.platform-settings-grid .field-label { color: var(--text); font-size: 12px; }
+.platform-settings-grid .field-label small,
+.platform-settings-grid .platform-toggle small { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.platform-settings-grid .platform-retention-hint { color: var(--muted); font-size: 11px; line-height: 1.7; }
+@media (max-width: 760px) {
+  .platform-navigation .platform-main-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .platform-navigation .platform-config-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .manager-request-heading { align-items: flex-start; }
+  .manager-request-heading p { max-width: 28ch; }
+  .manager-request-refresh { min-height: 37px; padding-inline: 8px; font-size: 10px; }
+  .manager-request-person { flex-wrap: wrap; }
+  .manager-request-status { margin-left: auto; }
+  .manager-join-request-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .manager-join-request-actions button { min-width: 0; }
+  .hostel-invite-page { align-content: start; padding-inline: 12px; gap: 12px; }
+  .hostel-invite-card { padding: 21px 17px; border-radius: 20px; }
+  .hostel-invite-card > h1 { font-size: 23px; }
+  .hostel-invite-lead { font-size: 12px; }
+  .hostel-invite-topbar > span { font-size: 10px; }
+  .hostel-invite-exit { min-height: 34px; padding-inline: 9px; }
+  .onboarding-linked-request { grid-template-columns: 34px minmax(0, 1fr); gap: 9px; padding: 12px; }
+  .onboarding-linked-request-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .onboarding-linked-request-copy h2 { font-size: 16px; }
+  .platform-navigation-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .platform-navigation .platform-main-tabs,
+  .platform-navigation .platform-config-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .platform-navigation .platform-tabs button { min-height: 44px; padding: 8px 6px; font-size: 11px; }
+  .platform-settings-intro { margin-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .manager-invite-card *,
+  .manager-join-request-panel *,
+  .hostel-invite-card * { scroll-behavior: auto !important; transition: none !important; }
+}

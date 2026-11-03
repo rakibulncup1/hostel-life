@@ -3,11 +3,19 @@ import ReactDOM from 'react-dom/client';
 import { App } from './app/App';
 import { ToastProvider } from './components/Toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { InstallPromptProvider } from './contexts/InstallPromptContext';
+import { useInstallPrompt } from './hooks/useInstallPrompt';
 import './styles/global.css';
 import './styles/ui-refresh.css';
 import './styles/public-entry.css';
 import './styles/platform-visual-refresh.css';
 import './styles/app-download.css';
+import './styles/invitation-experience.css';
+
+function AppWithInstallPrompt() {
+  const installPrompt = useInstallPrompt();
+  return <InstallPromptProvider value={installPrompt}><App /></InstallPromptProvider>;
+}
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -21,7 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ToastProvider>
       <AuthProvider>
-        <App />
+        <AppWithInstallPrompt />
       </AuthProvider>
     </ToastProvider>
   </React.StrictMode>,

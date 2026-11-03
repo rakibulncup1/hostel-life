@@ -39,8 +39,6 @@ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
 import {
   managerCreateHostelInviteLink,
-  managerListHostelInviteLinks,
-  managerRevokeHostelInviteLink,
   managerListHostelJoinRequests,
   managerReviewHostelJoinRequest,
 } from '../../services/hostelInviteService';
@@ -587,19 +585,8 @@ export function HostelSettingsPage() {
   const [busy, setBusy] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
   const [confirmCode, setConfirmCode] = useState(false);
-  const [inviteLinks, setInviteLinks] = useState([]);
-  const [inviteLinksLoading, setInviteLinksLoading] = useState(false);
   const [inviteLinkBusy, setInviteLinkBusy] = useState(false);
   const [createdInviteUrl, setCreatedInviteUrl] = useState('');
-
-  const loadInviteLinks = useCallback(async () => {
-    setInviteLinksLoading(true);
-    try { setInviteLinks(await managerListHostelInviteLinks()); }
-    catch (error) { toast.error(getFriendlySupabaseError(error, 'Invitation Link-এর তালিকা লোড করা যায়নি।')); }
-    finally { setInviteLinksLoading(false); }
-  }, [toast]);
-
-  useEffect(() => { if (online) loadInviteLinks(); }, [online, loadInviteLinks]);
 
   const createInviteLink = async () => {
     setInviteLinkBusy(true);
@@ -607,23 +594,39 @@ export function HostelSettingsPage() {
       const result = await managerCreateHostelInviteLink('সদস্য আমন্ত্রণ');
       if (!result?.token || !/^[0-9a-f]{64}$/.test(result.token)) throw new Error('সার্ভার থেকে বৈধ Invitation Token পাওয়া যায়নি। Run29 Migration প্রয়োগ হয়েছে কি না যাচাই করুন।');
       setCreatedInviteUrl(`${window.location.origin}/invite#${result.token}`);
-      await loadInviteLinks();
-      toast.success('নতুন Invitation Link তৈরি হয়েছে।');
+      toast.success('নতুন আমন্ত্রণ লিংক তৈরি হয়েছে। আগের লিংকটি আর কাজ করবে না।');
     } catch (error) { toast.error(getFriendlySupabaseError(error, 'Invitation Link তৈরি করা যায়নি।')); }
     finally { setInviteLinkBusy(false); }
   };
 
-  const revokeInviteLink = async (row) => {
-    const ok = await confirmAction({
-      title: 'Invitation Link বাতিল করবেন?',
-      message: 'এই লিংক দিয়ে নতুন Join Request আর পাঠানো যাবে না। আগে পাঠানো Request-এর অবস্থা অপরিবর্তিত থাকবে।',
-      confirmLabel: 'লিংক বাতিল করুন', danger: true,
-    });
-    if (!ok) return;
-    setInviteLinkBusy(true);
-    try { await managerRevokeHostelInviteLink(row.id); await loadInviteLinks(); toast.success('Invitation Link বাতিল হয়েছে।'); }
-    catch (error) { toast.error(getFriendlySupabaseError(error, 'Invitation Link বাতিল করা যায়নি।')); }
-    finally { setInviteLinkBusy(false); }
+  const copyAndShareInvite = async () => {
+    if (!createdInviteUrl) return;
+    const hostelName = membership?.hostel_name || 'Hostel Life মেস';
+    const shareData = {
+      title: `${hostelName} — যোগদানের আমন্ত্রণ`,
+      text: `${hostelName}-এ যোগ দেওয়ার জন্য আপনাকে আমন্ত্রণ জানানো হয়েছে। লিংকটি খুলে অ্যাকাউন্ট তৈরি করে Join Request পাঠান।`,
+      url: createdInviteUrl,
+    };
+    // Start both APIs in the same user-activation turn: Web Share often requires
+    // transient activation, while clipboard permission may resolve asynchronously.
+    let shareTask = null;
+    try { if (typeof navigator.share === 'function') shareTask = navigator.share(shareData); }
+    catch (error) { shareTask = Promise.reject(error); }
+    const clipboardPayload = shareTask ? createdInviteUrl : `${shareData.text}\n${createdInviteUrl}`;
+    const copyTask = copyText(clipboardPayload);
+    const [shareResult, copyResult] = await Promise.allSettled([
+      shareTask || Promise.resolve(null),
+      copyTask,
+    ]);
+    if (copyResult.status === 'fulfilled') {
+      if (shareTask && shareResult.status === 'fulfilled') toast.success('লিংক কপি হয়েছে এবং শেয়ার অপশন সম্পন্ন হয়েছে।');
+      else if (shareResult.status === 'rejected' && shareResult.reason?.name !== 'AbortError') toast.info('লিংক কপি হয়েছে। এই ব্রাউজারে শেয়ার অপশন পাওয়া যায়নি।');
+      else toast.success(shareTask ? 'আমন্ত্রণ লিংক কপি হয়েছে।' : 'আমন্ত্রণ বার্তা ও লিংক কপি হয়েছে।');
+    } else if (shareResult.status === 'fulfilled' && shareTask) {
+      toast.info('শেয়ার করা হয়েছে; তবে লিংক কপি করা যায়নি।');
+    } else {
+      toast.error('লিংক কপি বা শেয়ার করা যায়নি। আবার চেষ্টা করুন।');
+    }
   };
 
   const saveName = async (event) => {
@@ -665,12 +668,30 @@ export function HostelSettingsPage() {
           <div className="join-code-display"><strong>{joinCode || '—'}</strong><button className="secondary-button compact" type="button" onClick={async () => { try { await copyText(joinCode); toast.success('যুক্ত হওয়ার কোড কপি হয়েছে।'); } catch { toast.warning('কপি করা যায়নি।'); } }}>কপি</button></div>
           <button className="secondary-button" type="button" disabled={codeBusy} onClick={() => setConfirmCode(true)}><Icon name="refresh" size={15} /> নতুন যুক্ত হওয়ার কোড তৈরি করুন</button>
         </section>
-        <section className="card manager-form-card manager-invite-card">
-          <div className="panel-header"><div><span className="eyebrow">INVITATION LINK</span><h2>লিংক দিয়ে নতুন সদস্য আমন্ত্রণ</h2><p>নতুন লিংক তৈরি করলে আগের সক্রিয় Invitation সঙ্গে সঙ্গে বাতিল হবে। নতুন সদস্য লগইন করে Join Request পাঠাবেন; আপনি বা অনুমোদিত সহকারী সেটি পর্যালোচনা করবেন।</p></div></div>
-          <button className="primary-button" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}><Icon name="link" size={16}/>{inviteLinkBusy ? 'তৈরি হচ্ছে...' : 'নতুন Invitation Link তৈরি করুন'}</button>
-          {createdInviteUrl && <div className="platform-generated-code"><strong>নতুন Invitation Link</strong><code className="platform-link-value">{createdInviteUrl}</code><button className="secondary-button" type="button" onClick={async () => { try { await copyText(createdInviteUrl); toast.success('Invitation Link কপি হয়েছে।'); } catch { toast.warning('কপি করা যায়নি—লিংকটি হাতে কপি করুন।'); } }}>লিংক কপি করুন</button><small>নিরাপত্তার জন্য লিংকটি শুধু নির্দিষ্ট ব্যক্তিকে পাঠান।</small></div>}
-          <div className="platform-panel-heading"><div><h3>আগের Invitation Link</h3><p>বাতিল বা মেয়াদ শেষ হলে লিংক আর নতুন Request নিতে পারবে না।</p></div><button type="button" className="secondary-button compact" disabled={inviteLinksLoading} onClick={loadInviteLinks}>রিফ্রেশ</button></div>
-          {inviteLinksLoading ? <LoadingSpinner label="Invitation Link লোড হচ্ছে..."/> : inviteLinks.length === 0 ? <p className="platform-empty">এখনো কোনো Invitation Link তৈরি হয়নি।</p> : <div className="platform-retention-list">{inviteLinks.map((row) => <div className="platform-retention-row" key={row.id}><div><strong>{row.label || 'সদস্য আমন্ত্রণ'}</strong><small>তৈরি: {formatDateTime12(row.created_at)} · মেয়াদ: {formatDateTime12(row.expires_at)}</small><small>অবস্থা: {row.revoked_at ? 'বাতিল' : new Date(row.expires_at) <= new Date() ? 'মেয়াদ শেষ' : 'চালু'}</small></div>{!row.revoked_at && new Date(row.expires_at) > new Date() && <button type="button" className="danger-button" disabled={inviteLinkBusy} onClick={() => revokeInviteLink(row)}>বাতিল</button>}</div>)}</div>}
+        <section className="card manager-form-card manager-invite-card" aria-labelledby="manager-invite-title">
+          <div className="manager-invite-heading">
+            <span className="manager-invite-icon"><Icon name="mail-plus" size={20}/></span>
+            <div><span className="eyebrow">সদস্য আমন্ত্রণ</span><h2 id="manager-invite-title">লিংক দিয়ে সদস্য যুক্ত করুন</h2><p>নতুন লিংক তৈরি করলে আগেরটি স্বয়ংক্রিয়ভাবে বাতিল হবে।</p></div>
+          </div>
+          {!createdInviteUrl ? (
+            <button className="primary-button manager-invite-create" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}>
+              <Icon name="link" size={17}/>{inviteLinkBusy ? 'লিংক তৈরি হচ্ছে...' : 'আমন্ত্রণ লিংক তৈরি করুন'}
+            </button>
+          ) : (
+            <div className="manager-invite-created" role="status">
+              <div className="manager-invite-ready">
+                <span className="manager-invite-ready-icon"><Icon name="check" size={17}/></span>
+                <div><strong>আমন্ত্রণ লিংক সক্রিয়</strong><small>৭ দিন বৈধ · আগের লিংক বাতিল</small></div>
+              </div>
+              <button className="primary-button manager-invite-share" type="button" onClick={copyAndShareInvite}>
+                <Icon name="copy" size={17}/> কপি ও শেয়ার করুন
+              </button>
+              <button className="manager-invite-regenerate" type="button" disabled={inviteLinkBusy} onClick={createInviteLink}>
+                <Icon name="refresh" size={14}/>{inviteLinkBusy ? 'নতুন লিংক তৈরি হচ্ছে...' : 'নতুন লিংক তৈরি করুন'}
+              </button>
+            </div>
+          )}
+          <p className="manager-invite-footnote"><Icon name="shield-check" size={14}/> অ্যাকাউন্ট তৈরি ও ম্যানেজারের অনুমোদনের পর সদস্যপদ চালু হবে।</p>
         </section>
         {confirmCode && <ConfirmModal title="নতুন যুক্ত হওয়ার কোড তৈরি করবেন?" description="নতুন কোড তৈরি করলে আগের যুক্ত হওয়ার কোড দিয়ে আর নতুন সদস্য যুক্ত হতে পারবে না।" confirmLabel="নতুন কোড তৈরি করুন" busy={codeBusy} onClose={() => setConfirmCode(false)} onConfirm={regen} />}
       </div>
@@ -709,9 +730,46 @@ function JoinRequestQueue() {
     finally { setBusyId(''); }
   };
   return <section className="card manager-join-request-panel">
-    <div className="panel-header"><div><span className="eyebrow">MEMBERSHIP APPROVAL</span><h2>নতুন সদস্যের Join Request</h2><p>ব্যক্তিগত Invitation Link দিয়ে পাঠানো অনুরোধ এখানে দেখাবে। অনুমোদনের পরই সদস্যপদ সক্রিয় হবে।</p></div><button className="secondary-button compact" type="button" disabled={loading} onClick={load}>রিফ্রেশ</button></div>
-    <label className="field-label"><span>পর্যালোচনার নোট (ঐচ্ছিক)</span><input value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} maxLength={500} placeholder="অনুমোদন বা বাতিলের সংক্ষিপ্ত কারণ"/></label>
-    {loading ? <LoadingSpinner label="Join Request লোড হচ্ছে..."/> : rows.length === 0 ? <p className="platform-empty">এখনো কোনো অপেক্ষমাণ Join Request নেই।</p> : <div className="manager-join-request-list">{rows.map((row) => <article className="manager-join-request-row" key={row.id}><div className="manager-join-request-copy"><strong>{row.full_name || 'নতুন সদস্য'}</strong><small>{formatDateTime12(row.created_at)} · Invitation Link</small>{row.request_note && <p>{row.request_note}</p>}</div><div className="manager-join-request-actions"><button className="primary-button compact" type="button" disabled={Boolean(busyId)} onClick={() => review(row, true)}>{busyId === row.id ? 'প্রক্রিয়াধীন...' : 'অনুমোদন'}</button><button className="danger-button" type="button" disabled={Boolean(busyId)} onClick={() => review(row, false)}>বাতিল</button></div></article>)}</div>}
+    <div className="manager-request-heading">
+      <div>
+        <span className="eyebrow">MEMBERSHIP APPROVAL</span>
+        <h2>অপেক্ষমাণ অনুরোধ</h2>
+        <p>যাচাই করে সদস্যপদ অনুমোদন দিন।</p>
+      </div>
+      <button className="secondary-button compact manager-request-refresh" type="button" disabled={loading || !online} onClick={load}>
+        <Icon name="refresh" size={15}/> রিফ্রেশ
+      </button>
+    </div>
+    <div className="manager-request-note-row">
+      <label className="field-label"><span>সিদ্ধান্তের নোট <small>(ঐচ্ছিক)</small></span><input value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} maxLength={500} placeholder="প্রয়োজন হলে সংক্ষিপ্ত কারণ লিখুন"/></label>
+    </div>
+    {loading ? <LoadingSpinner label="অনুরোধ লোড হচ্ছে..."/> : rows.length === 0 ? (
+      <div className="manager-request-empty"><span><Icon name="user-check" size={25}/></span><strong>নতুন কোনো অনুরোধ নেই</strong><p>নতুন সদস্যের অনুরোধ এলে এখানে দেখা যাবে।</p></div>
+    ) : <div className="manager-join-request-list">
+      {rows.map((row) => {
+        const displayName = String(row.full_name || 'নতুন সদস্য').trim();
+        const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part.slice(0, 1)).join('').toLocaleUpperCase('bn-BD') || 'HL';
+        return <article className="manager-join-request-row" key={row.id}>
+          <div className="manager-request-person">
+            <span className="manager-request-avatar" aria-hidden="true">{initials}</span>
+            <div className="manager-request-person-copy">
+              <strong>{displayName}</strong>
+              <small><Icon name="clock" size={13}/> {formatDateTime12(row.created_at)}</small>
+            </div>
+            <span className="manager-request-status">অপেক্ষমাণ</span>
+          </div>
+          {row.request_note ? <p className="manager-request-message">{row.request_note}</p> : <p className="manager-request-message muted">কোনো অতিরিক্ত বার্তা দেওয়া হয়নি।</p>}
+          <div className="manager-join-request-actions">
+            <button className="primary-button compact" type="button" disabled={Boolean(busyId)} onClick={() => review(row, true)}>
+              {busyId === row.id ? 'প্রক্রিয়াধীন...' : <><Icon name="check" size={15}/> অনুমোদন</>}
+            </button>
+            <button className="danger-button manager-request-reject" type="button" disabled={Boolean(busyId)} onClick={() => review(row, false)}>
+              <Icon name="x" size={15}/> বাতিল
+            </button>
+          </div>
+        </article>;
+      })}
+    </div>}
   </section>;
 }
 
@@ -719,7 +777,7 @@ export function JoinRequestReviewPage() {
   const online = useOnlineStatus();
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="Join Request পর্যালোচনার জন্য অনলাইন সংযোগ প্রয়োজন।" />;
   return <ManagerGuard><div className="page-stack">
-    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের অনুরোধ যাচাই করে অনুমোদন বা বাতিল করুন।" eyebrow="ম্যানেজার ফিচার" />
+    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের অনুরোধ পর্যালোচনা করুন।" eyebrow="ম্যানেজার ফিচার" />
     <JoinRequestQueue />
   </div></ManagerGuard>;
 }

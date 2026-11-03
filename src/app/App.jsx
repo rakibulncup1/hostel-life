@@ -59,7 +59,6 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/khala-money') return <KhalaMoneyPage />;
   if (pathname === '/app/menu/member-management') return <MemberManagementPage />;
   if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
-  if (pathname === '/app/menu/join-requests') return <JoinRequestReviewPage />;
   return <DashboardPage />;
 }
 

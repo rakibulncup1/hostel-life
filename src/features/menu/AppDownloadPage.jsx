@@ -37,7 +37,7 @@ export function AppDownloadPage() {
             <Icon name="download" size={19}/>{installing ? 'ইনস্টল হচ্ছে...' : 'এখনই ইনস্টল করুন'}
           </button>
         ) : (
-          <p className="app-download-single-fallback">এই ব্রাউজারে সরাসরি ইনস্টল সুবিধা নেই। Browser Menu থেকে “Add to Home Screen” নির্বাচন করুন।</p>
+          <p className="app-download-single-fallback">এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। সমর্থিত ব্রাউজারে খুললে এখান থেকেই ইনস্টল করা যাবে।</p>
         )}
       </section>
     </main>

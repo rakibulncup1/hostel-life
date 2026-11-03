@@ -21,16 +21,13 @@ function getFunctionSql(name) {
   return migration.slice(start, end + 4);
 }
 
-test('ManagerPages explicitly imports all Invitation RPC wrappers used by Settings and Join Request review', () => {
+test('ManagerPages imports only the Invitation operations used by the compact Settings and review views', () => {
   const importBlock = manager.match(/import \{[\s\S]*?managerCreateHostelInviteLink[\s\S]*?\} from '\.\.\/\.\.\/services\/hostelInviteService';/);
   assert.ok(importBlock, 'Invitation service imports must exist at module scope');
-  for (const name of [
-    'managerCreateHostelInviteLink',
-    'managerListHostelInviteLinks',
-    'managerRevokeHostelInviteLink',
-    'managerListHostelJoinRequests',
-    'managerReviewHostelJoinRequest',
-  ]) assert.match(importBlock[0], new RegExp(`\\b${name}\\b`));
+  for (const name of ['managerCreateHostelInviteLink', 'managerListHostelJoinRequests', 'managerReviewHostelJoinRequest']) {
+    assert.match(importBlock[0], new RegExp(`\\b${name}\\b`));
+  }
+  assert.doesNotMatch(importBlock[0], /managerListHostelInviteLinks|managerRevokeHostelInviteLink/);
 });
 
 test('Invitation creation sends a concrete seven-day expiry and a named label', () => {
@@ -85,9 +82,11 @@ test('Assistant invitation controls stay inside ManagerGuard-protected Hostel Se
   const settings = manager.slice(manager.indexOf('export function HostelSettingsPage()'), manager.indexOf('function JoinRequestQueue()'));
   assert.match(settings, /return \([\s\S]*?<ManagerGuard>/);
   assert.match(settings, /managerCreateHostelInviteLink/);
-  assert.match(settings, /managerListHostelInviteLinks/);
-  assert.match(settings, /managerRevokeHostelInviteLink/);
-  assert.match(settings, /আগের সক্রিয় Invitation সঙ্গে সঙ্গে বাতিল হবে/);
+  assert.match(settings, /copyAndShareInvite/);
+  assert.match(settings, /কপি ও শেয়ার করুন/);
+  assert.match(settings, /নতুন লিংক তৈরি করলে আগেরটি স্বয়ংক্রিয়ভাবে বাতিল হবে/);
+  assert.doesNotMatch(settings, /managerListHostelInviteLinks|managerRevokeHostelInviteLink|manager-invite-history/);
+  assert.doesNotMatch(settings, /manager-invite-url/);
 });
 
 test('App Install page is reduced to a single direct PWA action without download guides', () => {
@@ -103,8 +102,11 @@ test('App Install page is reduced to a single direct PWA action without download
 });
 
 test('Invitation and Join Request presentation has responsive manager styling', () => {
-  assert.match(uiCss, /\.manager-invite-card/);
-  assert.match(uiCss, /\.manager-join-request-list/);
-  assert.match(uiCss, /\.manager-join-request-actions/);
-  assert.match(uiCss, /@media\(max-width:560px\)/);
+  const experienceCss = read('src/styles/invitation-experience.css');
+  assert.match(experienceCss, /\.manager-invite-card/);
+  assert.match(experienceCss, /\.manager-join-request-list/);
+  assert.match(experienceCss, /\.manager-join-request-actions/);
+  assert.match(experienceCss, /@media \(max-width: 520px\)/);
+  assert.match(experienceCss, /\.hostel-invite-card/);
+
 });

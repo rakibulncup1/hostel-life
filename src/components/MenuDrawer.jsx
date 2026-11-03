@@ -38,7 +38,7 @@ const assistantItems = [
   { key: 'khala-money', label: 'খালার টাকা', icon: 'wallet' },
 ];
 
-export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager = false, isOperationalManager = false, canInstall, onInstall, onAction, profile, hostelName, role }) {
+export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager = false, isOperationalManager = false, onAction, profile, hostelName, role }) {
   if (!open) return null;
 
   const click = (key) => {
@@ -69,14 +69,6 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
           </div>
           <button className="icon-button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={21} /></button>
         </div>
-
-        {canInstall && (
-          <button className="install-card" onClick={onInstall}>
-            <span className="install-card-icon"><Icon name="download" size={19} /></span>
-            <span><strong>অ্যাপ ইনস্টল করুন</strong><small>হোম স্ক্রিন থেকে অ্যাপের মতো খুলুন</small></span>
-            <Icon name="chevron" size={18} />
-          </button>
-        )}
 
         <div className="menu-group">
           <div className="menu-group-title">সাধারণ</div>

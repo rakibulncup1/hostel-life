@@ -3,7 +3,7 @@ import { useToast } from '../../components/Toast';
 import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
-import { useInstallPrompt } from '../../hooks/useInstallPrompt';
+import { useInstallPromptContext } from '../../contexts/InstallPromptContext';
 import { supabase } from '../../lib/supabase';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,7 +40,7 @@ function OnboardingTopbar() {
 export function OnboardingPage() {
   const online = useOnlineStatus();
   const toast = useToast();
-  const { canInstall, installed, install } = useInstallPrompt();
+  const { canInstall, installed, install } = useInstallPromptContext();
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
   const { profile, refreshIdentity, signOutLocal } = useAuth();
   const [mode, setMode] = useState('join');
@@ -71,13 +71,13 @@ export function OnboardingPage() {
   }, []);
 
   useEffect(() => {
-    if (installed || pendingLinkToken) return undefined;
+    if (installed || !canInstall || pendingLinkToken) return undefined;
     let alreadySeen = false;
     try { alreadySeen = localStorage.getItem('hostel-life-install-nudge-v1') === '1'; } catch { /* Session-level reminder is still acceptable when storage is unavailable. */ }
     if (alreadySeen) return undefined;
     const timer = window.setTimeout(() => setInstallNudgeOpen(true), 2600);
     return () => window.clearTimeout(timer);
-  }, [installed, pendingLinkToken]);
+  }, [canInstall, installed, pendingLinkToken]);
 
   const dismissInstallNudge = () => {
     try { localStorage.setItem('hostel-life-install-nudge-v1', '1'); } catch { /* The prompt remains dismissible for this page session. */ }
@@ -317,14 +317,14 @@ export function OnboardingPage() {
             </div>
           </div>
         </section>
-      {installNudgeOpen && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
+      {installNudgeOpen && canInstall && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
         <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-install-title">
           <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
           <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
           <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
           <h2 id="onboarding-install-title">অ্যাপটি ইনস্টল করে আরও সহজে ব্যবহার করুন</h2>
-          <p>হোম স্ক্রিনে যোগ করলে এক ট্যাপেই Hostel Life খুলতে পারবেন। Android/কম্পিউটারে ব্রাউজারের Install App অপশন এবং iPhone-এ Share → Add to Home Screen ব্যবহার করুন।</p>
-          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'বুঝেছি'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+          <p>একবার ইনস্টল করুন—এরপর হোম স্ক্রিন থেকেই Hostel Life খুলতে পারবেন।</p>
+          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
         </section>
       </div>}
       </main>
@@ -342,11 +342,11 @@ export function OnboardingPage() {
           />
 
           {pendingLinkToken && <section className="onboarding-linked-request card" aria-label="Invitation Link দিয়ে মেসে যোগদান">
-            <div className="onboarding-linked-request-icon"><Icon name="link" size={22}/></div>
+            <div className="onboarding-linked-request-icon"><Icon name="mail-plus" size={22}/></div>
             <div className="onboarding-linked-request-copy">
-              <span className="eyebrow">HOSTEL INVITATION</span>
+              <span className="eyebrow">সদস্য আমন্ত্রণ</span>
               <h2>{pendingLinkInfo?.hostel_name || 'আমন্ত্রিত মেসে যোগদান'}</h2>
-              <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে Join Code লাগবে না। আপনার অনুরোধ পাঠান; ম্যানেজার বা অনুমোদিত সহকারী ম্যানেজার যাচাই করে সিদ্ধান্ত দেবেন।' : 'Invitation Link যাচাই করা হচ্ছে...')}</p>
+              <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে কোড লাগবে না। Request পাঠান; ম্যানেজার অনুমোদন করলে সদস্যপদ চালু হবে।' : 'Invitation Link যাচাই করা হচ্ছে...')}</p>
               {joinRequestStatus?.status === 'pending' && <div className="inline-success"><Icon name="clock" size={16}/> আপনার অনুরোধ অপেক্ষমাণ। অনুমোদনের পর মেসে প্রবেশ করতে পারবেন।</div>}
               {joinRequestStatus?.status === 'rejected' && <div className="inline-error"><Icon name="info" size={16}/> এই অনুরোধটি অনুমোদিত হয়নি। চাইলে নিচে সাধারণ Join Code বা নতুন মেস তৈরির পদ্ধতি ব্যবহার করুন। {joinRequestStatus.review_note || ''}</div>}
               {joinRequestStatus?.status === 'approved' && <div className="inline-success"><Icon name="check-circle" size={16}/> অনুরোধ অনুমোদিত হয়েছে। অ্যাকাউন্ট যাচাই করা হচ্ছে...</div>}
@@ -355,7 +355,7 @@ export function OnboardingPage() {
                 <button type="button" className="primary-button large" disabled={!online || joinRequestBusy || !pendingLinkInfo} onClick={submitLinkedJoinRequest}>{joinRequestBusy ? 'অনুরোধ পাঠানো হচ্ছে...' : 'মেসে যোগদানের অনুরোধ পাঠান'}</button>
               </>}
               {joinRequestStatus?.status === 'pending' && <button type="button" className="secondary-button" disabled={joinRequestBusy} onClick={refreshLinkedRequestStatus}>{joinRequestBusy ? 'যাচাই হচ্ছে...' : 'অনুরোধের অবস্থা যাচাই করুন'}</button>}
-              {joinRequestStatus?.status !== 'pending' && <button type="button" className="onboarding-switch-account" onClick={clearPendingLink}>এই আমন্ত্রণটি সরিয়ে সাধারণভাবে এগিয়ে যান</button>}
+              <button type="button" className="onboarding-switch-account onboarding-invite-exit" onClick={clearPendingLink}>পরে করবেন</button>
             </div>
           </section>}
 
@@ -442,14 +442,14 @@ export function OnboardingPage() {
           </div>
         </div>
       </section>
-      {installNudgeOpen && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
+      {installNudgeOpen && canInstall && !installed && !pendingLinkToken && <div className="install-nudge-backdrop" role="presentation">
         <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="onboarding-install-title">
           <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
           <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
           <span className="eyebrow">HOSTEL LIFE · APP EXPERIENCE</span>
           <h2 id="onboarding-install-title">অ্যাপটি ইনস্টল করে আরও সহজে ব্যবহার করুন</h2>
-          <p>হোম স্ক্রিনে যোগ করলে এক ট্যাপেই Hostel Life খুলতে পারবেন। Android/কম্পিউটারে ব্রাউজারের Install App অপশন এবং iPhone-এ Share → Add to Home Screen ব্যবহার করুন।</p>
-          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>{canInstall ? 'অ্যাপ ইনস্টল করুন' : 'বুঝেছি'}</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+          <p>একবার ইনস্টল করুন—এরপর হোম স্ক্রিন থেকেই Hostel Life খুলতে পারবেন।</p>
+          <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleInstallNudge}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
         </section>
       </div>}
     </main>

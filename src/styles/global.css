@@ -286,10 +286,6 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .drawer-header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 4px 4px 14px; }
 .drawer-title { font-size: 19px; font-weight: 900; }
 .drawer-subtitle { color: var(--muted); font-size: 11px; margin-top: 4px; }
-.install-card { width: 100%; display: grid; grid-template-columns: 40px 1fr 20px; align-items: center; gap: 10px; padding: 12px; text-align: left; border-radius: 15px; background: var(--primary-soft); color: var(--text); cursor: pointer; margin-bottom: 14px; }
-.install-card-icon { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; background: var(--surface); color: var(--primary-strong); }
-.install-card strong { display: block; font-size: 13px; }
-.install-card small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
 .menu-group + .menu-group { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line); }
 .menu-group-title { padding: 0 8px 7px; color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
 .manager-title { color: var(--primary-strong); display: flex; align-items: center; gap: 4px; }

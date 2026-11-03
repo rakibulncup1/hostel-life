@@ -5,8 +5,7 @@ import { BottomNav } from '../components/BottomNav';
 import { MenuDrawer } from '../components/MenuDrawer';
 import { NotificationsPopover } from '../components/NotificationsPopover';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
-import { useInstallPrompt } from '../hooks/useInstallPrompt';
-import { InstallPromptProvider } from '../contexts/InstallPromptContext';
+import { useInstallPromptContext } from '../contexts/InstallPromptContext';
 import { getThemePreference, saveThemePreference } from './theme';
 import { OfflineState } from '../components/OfflineState';
 import { useToast } from '../components/Toast';
@@ -36,8 +35,7 @@ export function navigateTo(keyOrPath, replace = false) {
 
 export function AppShell({ pathname, children, membership, profile, isManager, user }) {
   const isOnline = useOnlineStatus();
-  const installPrompt = useInstallPrompt();
-  const { canInstall, installed, install } = installPrompt;
+  const { canInstall, installed, install } = useInstallPromptContext();
   const { signOut } = useAuth();
   const { context: managementContext, period, isPrimaryManager, isAssistantManager, isOperationalManager, refresh: refreshManagementContext } = useManagementContext();
   const hasRunningPeriod = Boolean(period?.period_id || period?.id);
@@ -93,7 +91,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   }, [theme]);
 
   useEffect(() => {
-    if (installed) {
+    if (installed || !canInstall) {
       setInstallNudgeOpen(false);
       return undefined;
     }
@@ -102,7 +100,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     if (seen) return undefined;
     const timer = window.setTimeout(() => setInstallNudgeOpen(true), 1200);
     return () => window.clearTimeout(timer);
-  }, [installed, user?.id]);
+  }, [canInstall, installed, user?.id]);
 
   const loadUnread = useCallback(async () => {
     if (!isOnline || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) {
@@ -230,13 +228,12 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   };
 
   const handleNudgeInstall = async () => {
+    if (!canInstall) return;
+    await installApp();
     dismissInstallNudge();
-    if (canInstall) await installApp();
-    else navigateTo('/app/menu/app-download');
   };
 
   return (
-    <InstallPromptProvider value={{ canInstall, installed, install }}>
     <div className="app-shell">
       <Header
         hostelName={membership?.hostel_name || 'Hostel Life'}
@@ -306,8 +303,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         isManager={effectivePrimaryManager}
         isPrimaryManager={effectivePrimaryManager}
         isOperationalManager={effectiveOperationalManager}
-        canInstall={canInstall}
-        onInstall={installApp}
         onAction={handleMenuAction}
         profile={profile}
         user={user}
@@ -322,7 +317,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         <button className={theme === 'blue' ? 'active' : ''} onClick={() => changeTheme('blue')}>আকাশি</button>
       </div>
 
-      {installNudgeOpen && !installed && <div className="install-nudge-backdrop" role="presentation">
+      {installNudgeOpen && canInstall && !installed && <div className="install-nudge-backdrop" role="presentation">
         <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="install-nudge-title">
           <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
           <span className="install-nudge-icon"><Icon name="smartphone" size={27}/></span>
@@ -333,6 +328,5 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         </section>
       </div>}
     </div>
-    </InstallPromptProvider>
   );
 }

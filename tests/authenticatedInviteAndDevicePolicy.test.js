@@ -111,7 +111,7 @@ test('Join Requests require authentication and explicit manager/assistant approv
   assert.match(review, /UPDATE public\.archive_edit_permissions\s+SET revoked_at/);
   assert.match(review, /status='rejected'/);
   assert.match(manager, /managerCreateHostelInviteLink/);
-  assert.match(manager, /managerRevokeHostelInviteLink/);
+  assert.doesNotMatch(manager, /managerRevokeHostelInviteLink|managerListHostelInviteLinks/);
   assert.match(manager, /managerListHostelJoinRequests/);
   assert.match(manager, /managerReviewHostelJoinRequest/);
 });
@@ -138,7 +138,8 @@ test('Pending invite requests cannot be bypassed through normal Join/Create RPCs
 test('Invitation page reveals no hostel information before authentication', () => {
   const invitePage = read('src/features/invites/HostelInvitePage.jsx');
   const unauthBranch = invitePage.slice(invitePage.indexOf('{!auth.isAuthenticated ?'), invitePage.indexOf(': <>', invitePage.indexOf('{!auth.isAuthenticated ?')));
-  assert.match(unauthBranch, /মেসের কোনো তথ্য বা ড্যাশবোর্ড দেখতে হলে আগে নিজের অ্যাকাউন্টে লগইন করতে হবে/);
+  assert.match(unauthBranch, /নতুন অ্যাকাউন্ট তৈরি করুন/);
+  assert.doesNotMatch(unauthBranch, /লগইন করুন|সাইন ইন|hostel_name|dashboard/i);
   assert.doesNotMatch(unauthBranch, /info\?\.hostel_name|info\.hostel_name/);
   assert.match(invitePage, /getHostelInviteLinkInfo\(token\)/);
   assert.match(invitePage, /createHostelJoinRequestFromInvite\(token, requestNote\)/);

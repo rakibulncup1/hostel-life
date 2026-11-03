@@ -124,9 +124,11 @@ export function HostelInvitePage({ pathname }) {
     finally { setBusy(false); }
   };
 
-  const continueNormally = () => {
+  const exitInvitation = () => {
     clearPendingHostelLinkToken();
-    navigateTo('/onboarding', true);
+    if (!auth.isAuthenticated) navigateTo('/auth/login', true);
+    else if (auth.membership?.status === 'active') navigateTo('/app/dashboard', true);
+    else navigateTo('/onboarding', true);
   };
 
   if (auth.authLoading || (auth.isAuthenticated && auth.identityLoading) || loading) {
@@ -135,28 +137,28 @@ export function HostelInvitePage({ pathname }) {
 
   return (
     <main className="hostel-invite-page">
-      <header className="hostel-invite-topbar"><span><Icon name="shield-check" size={15}/> নিরাপদ সদস্য আমন্ত্রণ</span><EntryThemeSwitcher/></header>
+      <header className="hostel-invite-topbar"><span><Icon name="shield-check" size={15}/> নিরাপদ সদস্য আমন্ত্রণ</span><div className="hostel-invite-topbar-actions"><button className="hostel-invite-exit" type="button" onClick={exitInvitation}>পরে করবেন</button><EntryThemeSwitcher/></div></header>
       <section className="hostel-invite-card">
         <div className="hostel-invite-brand"><BrandMark size={56}/><span>HOSTEL LIFE</span></div>
         <span className="eyebrow">MEMBERSHIP INVITATION</span>
         <h1>মেসে যোগদানের আমন্ত্রণ</h1>
         {!auth.isAuthenticated ? <>
-          <p className="hostel-invite-lead">এই লিংকটি একটি নির্দিষ্ট মেসে Join Request পাঠানোর জন্য। মেসের কোনো তথ্য বা ড্যাশবোর্ড দেখতে হলে আগে নিজের অ্যাকাউন্টে লগইন করতে হবে।</p>
-          <div className="hostel-invite-security-note"><Icon name="lock" size={18}/><span>এই লিংক কাউকে স্বয়ংক্রিয়ভাবে সদস্য করে না এবং কোনো মেসের ব্যক্তিগত তথ্য প্রকাশ করে না। লগইন/রেজিস্ট্রেশনের পর সার্ভার লিংকটি যাচাই করবে।</span></div>
-          <div className="hostel-invite-actions"><button className="primary-button large" type="button" onClick={() => navigateTo('/auth/login')}><Icon name="log-in" size={17}/> লগইন করুন</button><button className="secondary-button large" type="button" onClick={() => navigateTo('/auth/register')}><Icon name="user-plus" size={17}/> নতুন অ্যাকাউন্ট তৈরি করুন</button></div>
+          <p className="hostel-invite-lead">আপনাকে একটি মেসে যোগ দেওয়ার আমন্ত্রণ জানানো হয়েছে। এগোতে নতুন অ্যাকাউন্ট তৈরি করুন; এরপর আপনার Join Request ম্যানেজার পর্যালোচনা করবেন।</p>
+          <div className="hostel-invite-security-note"><Icon name="shield-check" size={18}/><span>আপনার অনুমতি ও ম্যানেজারের অনুমোদন ছাড়া সদস্যপদ চালু হবে না।</span></div>
+          <div className="hostel-invite-actions"><button className="primary-button large" type="button" onClick={() => navigateTo('/auth/register')}><Icon name="user-plus" size={17}/> অ্যাকাউন্ট তৈরি করুন</button></div>
         </> : <>
           {info?.hostel_name && <div className="hostel-invite-hostel"><span>যে মেস থেকে আমন্ত্রণ এসেছে</span><strong><Icon name="home" size={18}/>{info.hostel_name}</strong><small>মেয়াদ শেষ: {new Date(info.expires_at).toLocaleString('bn-BD')}</small></div>}
           {error && <div className="hostel-invite-error" role="alert"><Icon name="alert-circle" size={18}/><span>{error}</span><button className="text-button" type="button" onClick={() => window.location.reload()}>আবার চেষ্টা</button></div>}
           {otherActiveHostel ? <div className="hostel-invite-security-note warning"><Icon name="shield-alert" size={18}/><span>আপনার অ্যাকাউন্ট বর্তমানে অন্য একটি মেসের সক্রিয় সদস্য। একই সময়ে একাধিক মেসে সক্রিয় সদস্যপদ অনুমোদিত নয়। আগে বর্তমান সদস্যপদ সমাধান করুন।</span></div> : null}
           {!otherActiveHostel && status?.status === 'pending' && <><InviteStatus status="pending"/><button className="secondary-button" type="button" disabled={busy || !online} onClick={refreshStatus}>অবস্থা যাচাই করুন</button></>}
-          {!otherActiveHostel && status?.status === 'rejected' && <><InviteStatus status="rejected" note={status.review_note}/><button className="primary-button large" type="button" onClick={continueNormally}>সাধারণ মেস সেটআপে যান</button></>}
+          {!otherActiveHostel && status?.status === 'rejected' && <><InviteStatus status="rejected" note={status.review_note}/><button className="secondary-button large" type="button" onClick={exitInvitation}>পরে করবেন</button></>}
           {!otherActiveHostel && status?.status === 'approved' && <div className="hostel-invite-status approved"><Icon name="check-circle" size={18}/><div><strong>অনুরোধ অনুমোদিত</strong><span>সদস্যপদের তথ্য আপডেট হচ্ছে।</span></div></div>}
           {!otherActiveHostel && (status?.status === 'not_submitted' || !status) && info && <>
             <p className="hostel-invite-lead">এই মেসে যুক্ত হতে Join Code লাগবে না। নিচের বোতাম থেকে Join Request পাঠান। ম্যানেজার বা অনুমোদিত সহকারী যাচাই করে অনুমোদন দেবেন।</p>
             <label className="field-label"><span>ম্যানেজারের জন্য বার্তা (ঐচ্ছিক)</span><textarea rows={3} maxLength={500} value={requestNote} onChange={(event) => setRequestNote(event.target.value)} placeholder="নিজের পরিচয় বা প্রয়োজনীয় তথ্য লিখুন"/></label>
             <button className="primary-button large" type="button" disabled={busy || !online} onClick={submitRequest}>{busy ? 'অনুরোধ পাঠানো হচ্ছে...' : 'যোগদানের অনুরোধ পাঠান'}</button>
           </>}
-          {!otherActiveHostel && !info && status?.status !== 'pending' && status?.status !== 'rejected' && status?.status !== 'approved' && <button className="secondary-button large" type="button" onClick={continueNormally}>সাধারণ মেস সেটআপে যান</button>}
+          {!otherActiveHostel && !info && status?.status !== 'pending' && status?.status !== 'rejected' && status?.status !== 'approved' && <button className="secondary-button large" type="button" onClick={exitInvitation}>পরে করবেন</button>}
         </>}
         <footer className="hostel-invite-footer"><Icon name="shield-check" size={16}/><span>সদস্যপদ সক্রিয় হবে শুধু সার্ভার যাচাই ও ম্যানেজারের অনুমোদনের পর।</span></footer>
       </section>
