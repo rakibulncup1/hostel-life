@@ -21,6 +21,7 @@ import {
   platformAdminGetSystemHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
   platformAdminListActivity, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
   platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminCheckSecurityTelemetry,
+  platformAdminGetNotificationSettings, platformAdminUpdateNotificationSettings, platformAdminSendTargetedMessage,
 } from '../../services/platformService';
 
 const EMPTY_SETTINGS = {
@@ -367,6 +368,20 @@ export function SuperAdminPage({ user }) {
   const [reportData, setReportData] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState('');
+  const [telegramAdminSettings, setTelegramAdminSettings] = useState({ active_provider: 'disabled', telegram_enabled: false, telegram_bot_username: '', connected_users: 0 });
+  const [telegramAdminLoading, setTelegramAdminLoading] = useState(false);
+  const [telegramAdminBusy, setTelegramAdminBusy] = useState(false);
+  const [telegramAdminError, setTelegramAdminError] = useState('');
+  const [messageHostelId, setMessageHostelId] = useState('');
+  const [messageMembers, setMessageMembers] = useState([]);
+  const [messageMembersLoading, setMessageMembersLoading] = useState(false);
+  const [messageMembersError, setMessageMembersError] = useState('');
+  const [messageRecipientMode, setMessageRecipientMode] = useState('all');
+  const [messageSelectedUsers, setMessageSelectedUsers] = useState([]);
+  const [messageTitle, setMessageTitle] = useState('');
+  const [messageBody, setMessageBody] = useState('');
+  const [messageSending, setMessageSending] = useState(false);
+  const messageMembersRequestRef = useRef(0);
 
   const pageSize = 20;
 
@@ -747,6 +762,70 @@ export function SuperAdminPage({ user }) {
     finally { setRetentionLoading(false); }
   };
 
+  const loadTelegramAdminSettings = useCallback(async () => {
+    setTelegramAdminLoading(true); setTelegramAdminError('');
+    try { setTelegramAdminSettings(await platformAdminGetNotificationSettings()); }
+    catch (cause) { setTelegramAdminError(errorText(cause, 'নোটিফিকেশন সেটিংস লোড করা যায়নি।')); }
+    finally { setTelegramAdminLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'telegram' && reauthenticated) loadTelegramAdminSettings();
+  }, [tab, reauthenticated, loadTelegramAdminSettings]);
+
+  useEffect(() => {
+    if (tab !== 'messages' || !messageHostelId || !reauthenticated) return undefined;
+    const requestId = ++messageMembersRequestRef.current;
+    setMessageMembersLoading(true); setMessageMembersError(''); setMessageMembers([]); setMessageSelectedUsers([]);
+    platformAdminListHostelMembers(messageHostelId).then((rows) => {
+      if (requestId !== messageMembersRequestRef.current) return;
+      setMessageMembers((Array.isArray(rows) ? rows : []).filter((row) => row.status === 'active' && !row.is_blocked));
+    }).catch((cause) => {
+      if (requestId === messageMembersRequestRef.current) setMessageMembersError(errorText(cause, 'সদস্য তালিকা লোড করা যায়নি।'));
+    }).finally(() => {
+      if (requestId === messageMembersRequestRef.current) setMessageMembersLoading(false);
+    });
+    return () => { messageMembersRequestRef.current += 1; };
+  }, [tab, messageHostelId, reauthenticated]);
+
+  const saveTelegramAdminSettings = async (event) => {
+    event.preventDefault();
+    setTelegramAdminBusy(true); setTelegramAdminError(''); setNotice('');
+    try {
+      const result = await platformAdminUpdateNotificationSettings(telegramAdminSettings.telegram_enabled, telegramAdminSettings.telegram_bot_username);
+      setTelegramAdminSettings(result || telegramAdminSettings);
+      setNotice(telegramAdminSettings.telegram_enabled
+        ? 'Telegram Provider সেটিংস সংরক্ষিত হয়েছে। Edge Function ও Webhook সেটআপ সম্পন্ন না হলে সংযোগ এখনো কাজ করবে না।'
+        : 'Telegram Delivery বন্ধ করা হয়েছে। বিদ্যমান সংযোগগুলো মুছে ফেলা হয়নি।');
+    } catch (cause) { setTelegramAdminError(errorText(cause, 'Telegram সেটিংস সংরক্ষণ করা যায়নি।')); }
+    finally { setTelegramAdminBusy(false); }
+  };
+
+  const sendPlatformMessage = async (event) => {
+    event.preventDefault();
+    if (!messageHostelId) { setError('একটি মেস নির্বাচন করুন।'); return; }
+    if (messageRecipientMode === 'selected' && !messageSelectedUsers.length) { setError('অন্তত একজন সদস্য নির্বাচন করুন।'); return; }
+    const recipientDescription = messageRecipientMode === 'all'
+      ? 'নির্বাচিত মেসের সব সক্রিয় সদস্যকে'
+      : `${messageSelectedUsers.length.toLocaleString('bn-BD')} জন নির্বাচিত সদস্যকে`;
+    if (!await confirmAction(`বার্তাটি ${recipientDescription} পাঠাবেন?
+
+শিরোনাম: ${messageTitle.trim()}
+
+বার্তা পাঠানোর পর তা প্রাপকদের ইনবক্সে সংরক্ষিত হবে এবং Telegram-এ যুক্ত ব্যবহারকারীদের কাছেও যেতে পারে।`)) return;
+    setMessageSending(true); setError(''); setNotice('');
+    try {
+      const result = await platformAdminSendTargetedMessage(
+        messageHostelId, messageTitle, messageBody,
+        messageRecipientMode === 'all' ? null : messageSelectedUsers,
+      );
+      const count = Number(result?.sent_count || 0);
+      setNotice(`${count.toLocaleString('bn-BD')} জন সক্রিয় সদস্যের ইনবক্সে বার্তা পাঠানো হয়েছে। Telegram-এ যাঁরা সংযুক্ত, তাঁরাও বার্তাটি পাবেন।`);
+      setMessageTitle(''); setMessageBody(''); setMessageSelectedUsers([]); setMessageRecipientMode('all');
+    } catch (cause) { setError(errorText(cause, 'বার্তা পাঠানো যায়নি।')); }
+    finally { setMessageSending(false); }
+  };
+
   const metrics = useMemo(() => normalizePlatformOverview(overview), [overview]);
   const selectedStatus = selected?.platform_status || 'active';
   const reauthenticate = async (event) => {
@@ -1081,7 +1160,7 @@ export function SuperAdminPage({ user }) {
       </section>
       <section className="platform-navigation-group platform-configuration-group" aria-label="সিস্টেম সেটিংস">
         <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong><span>গ্লোবাল নোটিশ, পরিচিতি, থিম ও নিরাপত্তা নিয়ন্ত্রণ</span></div>
-        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','Global Notice'],['developer','Developer Info'],['appearance','App Theme'],['sessions','Session Security'],['security','Access Codes']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','Global Notice'],['messages','বার্তা পাঠান'],['telegram','Telegram সেটআপ'],['developer','Developer Info'],['appearance','App Theme'],['sessions','Session Security'],['security','Access Codes']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       </section>
     </div>
     {tab === 'overview' && <>
@@ -1388,6 +1467,48 @@ export function SuperAdminPage({ user }) {
       <div className="platform-action-row"><button type="button" className="secondary-button compact" disabled={orphanBusy || orphanPage===1} onClick={()=>loadOrphanAccounts(orphanPage-1)}>আগের পৃষ্ঠা</button><span>ধাপ {orphanPage} · প্রতিটি ধাপে সর্বোচ্চ ৫০০ account</span><button type="button" className="secondary-button compact" disabled={orphanBusy || !orphanMore} onClick={()=>loadOrphanAccounts(orphanPage+1)}>পরের ধাপ</button></div>
       <p className="platform-retention-hint">মেস থেকে সরানোর পর Auth মুছতে এই অপশন। যাচাই না করে ডিলিট করবেন না; নতুন নিবন্ধিত কিন্তু এখনও মেসে যোগ না দেওয়া account-ও এখানে থাকতে পারে।</p>
     </section>}
+    {tab === 'messages' && <>
+      <div className="platform-settings-intro"><span className="eyebrow">DIRECT PLATFORM MESSAGE</span><h2>ব্যবহারকারীকে বার্তা পাঠান</h2><p>নির্দিষ্ট মেসের সব সক্রিয় সদস্য অথবা নির্বাচিত সদস্যদের ইনবক্সে বার্তা পাঠান। বার্তা লগইনের পর একবার Popup-এ দেখানো হবে।</p></div>
+      <form className="platform-settings-grid platform-message-compose" onSubmit={sendPlatformMessage}>
+        <section className="card platform-panel">
+          <div className="platform-panel-heading"><div><h3>প্রাপক নির্বাচন</h3><p>প্রাপকের ইনবক্সে বার্তা যাবে; কোনো Auth/Supabase Push Notification ব্যবহার করা হচ্ছে না।</p></div></div>
+          <label className="field-label"><span>মেস নির্বাচন</span><select required value={messageHostelId} onChange={(event) => setMessageHostelId(event.target.value)}><option value="">মেস নির্বাচন করুন</option>{hostels.filter((row) => row.platform_status !== 'soft_deleted').map((row) => <option key={row.hostel_id} value={row.hostel_id}>{row.name} · {Number(row.member_count || 0).toLocaleString('bn-BD')} জন</option>)}</select></label>
+          <div className="platform-message-recipient-mode"><label className="platform-radio-card"><input type="radio" name="platform-message-recipients" value="all" checked={messageRecipientMode === 'all'} onChange={() => setMessageRecipientMode('all')}/><span><strong>সব সক্রিয় সদস্য</strong><small>নির্বাচিত মেসের সবাই</small></span></label><label className="platform-radio-card"><input type="radio" name="platform-message-recipients" value="selected" checked={messageRecipientMode === 'selected'} onChange={() => setMessageRecipientMode('selected')}/><span><strong>নির্দিষ্ট সদস্য</strong><small>এক বা একাধিক ব্যক্তি</small></span></label></div>
+          {messageRecipientMode === 'selected' && <div className="platform-message-member-picker">
+            <div className="platform-panel-heading"><div><h4>সক্রিয় সদস্য</h4><p>{messageSelectedUsers.length.toLocaleString('bn-BD')} জন নির্বাচিত</p></div><button type="button" className="text-button" disabled={messageMembersLoading || !messageMembers.length} onClick={() => setMessageSelectedUsers(messageSelectedUsers.length === messageMembers.length ? [] : messageMembers.map((row) => row.user_id))}>{messageSelectedUsers.length === messageMembers.length ? 'সব বাদ' : 'সব নির্বাচন'}</button></div>
+            {messageMembersLoading ? <div className="platform-empty"><LoadingSpinner label="সদস্য তালিকা লোড হচ্ছে..."/></div> : messageMembersError ? <div className="inline-error platform-alert">{messageMembersError}</div> : messageMembers.length === 0 ? <p className="platform-empty">এই মেসে সক্রিয় সদস্য পাওয়া যায়নি।</p> : <div className="platform-message-members">{messageMembers.map((member) => <label key={member.user_id} className="platform-message-member"><input type="checkbox" checked={messageSelectedUsers.includes(member.user_id)} onChange={(event) => setMessageSelectedUsers((current) => event.target.checked ? [...current, member.user_id] : current.filter((id) => id !== member.user_id))}/><span><strong>{member.full_name || 'নাম নেই'}</strong><small>{member.email || member.phone || 'যোগাযোগের তথ্য নেই'}</small></span></label>)}</div>}
+          </div>}
+        </section>
+        <section className="card platform-panel">
+          <div className="platform-panel-heading"><div><h3>বার্তার বিষয়বস্তু</h3><p>এটি অ্যাপের Notification Inbox এবং Popup-এ দেখানো হবে। সংযুক্ত ব্যবহারকারীর Telegram-এও যাবে।</p></div></div>
+          <Field label="শিরোনাম" value={messageTitle} onChange={setMessageTitle} maxLength={160}/>
+          <Field label="বার্তা" value={messageBody} onChange={setMessageBody} maxLength={3000} multiline/>
+          <div className="platform-message-preview"><span className="eyebrow">PREVIEW</span><strong>{messageTitle || 'বার্তার শিরোনাম'}</strong><p>{messageBody || 'বার্তার বিবরণ এখানে দেখা যাবে।'}</p></div>
+          <button type="submit" className="primary-button large" disabled={messageSending || !messageHostelId || !messageTitle.trim() || !messageBody.trim() || (messageRecipientMode === 'selected' && !messageSelectedUsers.length)}><Icon name="send" size={16}/>{messageSending ? 'পাঠানো হচ্ছে...' : 'বার্তা পাঠান'}</button>
+        </section>
+      </form>
+    </>}
+
+    {tab === 'telegram' && <>
+      <div className="platform-settings-intro"><span className="eyebrow">NOTIFICATION DELIVERY</span><h2>Telegram Notification Provider</h2><p>ব্যবহারকারী নিজে সংযোগ করলে বিদ্যমান নোটিফিকেশন Telegram-এ পৌঁছাবে। Bot Token কখনো Database বা Browser-এ রাখা হবে না।</p></div>
+      <form className="platform-settings-grid" onSubmit={saveTelegramAdminSettings}>
+        <section className="card platform-panel">
+          <div className="platform-panel-heading"><div><h3>Telegram Bot</h3><p>Provider চালু করার আগে Edge Function Secrets ও Webhook সেটআপ সম্পন্ন করুন।</p></div><span className="platform-status">{telegramAdminSettings.telegram_enabled ? 'চালু' : 'বন্ধ'}</span></div>
+          {telegramAdminError && <div className="inline-error platform-alert">{telegramAdminError}</div>}
+          <label className="field-label"><span>Bot Username (@ ছাড়া)</span><input value={telegramAdminSettings.telegram_bot_username || ''} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_bot_username: event.target.value }))} maxLength={32} placeholder="HostelLifeBot" autoComplete="off"/></label>
+          <label className="platform-toggle"><span><strong>Telegram Delivery চালু</strong><small>বন্ধ করলে নতুন Telegram বার্তা পাঠানো হবে না; কারও সংযোগ মুছে যাবে না।</small></span><input type="checkbox" checked={Boolean(telegramAdminSettings.telegram_enabled)} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_enabled: event.target.checked }))}/></label>
+          <div className="platform-telegram-connection-stat"><Icon name="users" size={18}/><span><strong>{Number(telegramAdminSettings.connected_users || 0).toLocaleString('bn-BD')}</strong><small>সংযুক্ত ব্যবহারকারী</small></span></div>
+          <button type="submit" className="primary-button large" disabled={telegramAdminBusy || telegramAdminLoading}>{telegramAdminBusy ? 'সংরক্ষণ হচ্ছে...' : 'Telegram সেটিংস সংরক্ষণ করুন'}</button>
+          <button type="button" className="secondary-button compact" disabled={telegramAdminLoading} onClick={loadTelegramAdminSettings}><Icon name="refresh" size={15}/> অবস্থা রিফ্রেশ</button>
+        </section>
+        <section className="card platform-panel platform-telegram-setup-guide">
+          <div className="platform-panel-heading"><div><h3>একবারের Server Setup</h3><p>নিরাপত্তার কারণে গোপন Token এখানে দেওয়া যাবে না।</p></div></div>
+          <ol><li>BotFather থেকে নিজের Telegram Bot তৈরি করে Bot Token নিন।</li><li>Supabase Edge Function Secrets-এ <code>TELEGRAM_BOT_TOKEN</code>, <code>TELEGRAM_WEBHOOK_SECRET</code> এবং <code>NOTIFICATION_DISPATCH_WEBHOOK_SECRET</code> দিন।</li><li><code>telegram-bot-webhook</code> ও <code>telegram-notification-dispatch</code> Edge Function Deploy করুন।</li><li>Telegram-এর <code>setWebhook</code> এবং Supabase Database Webhook একবার সেট করুন।</li></ol>
+          <p className="platform-retention-hint">এখানে কোনো প্রতি-মিনিট Polling নেই। ব্যবহারকারী সংযুক্ত থাকলে নতুন Inbox Notification তৈরি হওয়ার সময়ই শুধু Delivery Queue তৈরি হবে।</p>
+        </section>
+      </form>
+    </>}
+
     {tab === 'settings' && <>
       <div className="platform-settings-intro"><span className="eyebrow">GLOBAL NOTICE</span><h2>গ্লোবাল নোটিশ</h2><p>সব ব্যবহারকারীর জন্য প্রয়োজনীয় ঘোষণা প্রকাশ করুন।</p></div>
       <form className="platform-settings-grid" onSubmit={saveSettings}>

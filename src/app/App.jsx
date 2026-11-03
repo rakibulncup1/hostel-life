@@ -16,6 +16,7 @@ import { SuperAdminPage } from '../features/platform/SuperAdminPage';
 import { HostelInvitePage } from '../features/invites/HostelInvitePage';
 import { getPendingHostelLinkToken } from '../utils/pendingHostelLink';
 import { AppDownloadPage } from '../features/menu/AppDownloadPage';
+import { TelegramConnectionPage } from '../features/telegram/TelegramConnectionPage';
 import { fetchPlatformPublicSettings } from '../services/platformService';
 import { THEME_KEY, THEME_VALUES, applyPlatformDefaultTheme } from './theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -45,6 +46,7 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/terms') return <TermsPage />;
   if (pathname === '/app/menu/how-to-use') return <HowToUsePage />;
   if (pathname === '/app/menu/app-download') return <AppDownloadPage />;
+  if (pathname === '/app/menu/telegram') return <TelegramConnectionPage />;
   if (pathname === '/app/menu/send-notification') return <SendNotificationPage />;
   if (pathname === '/app/menu/archive') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/reports') return <ReportsPage />;
@@ -156,6 +158,7 @@ export function App() {
     else if (pathname.includes('/menu/terms')) title = 'Hostel Life — ব্যবহারের শর্তাবলী';
     else if (pathname.includes('/menu/how-to-use')) title = 'Hostel Life — কীভাবে ব্যবহার করব';
     else if (pathname.includes('/menu/app-download')) title = 'Hostel Life — অ্যাপ ডাউনলোড';
+    else if (pathname.includes('/menu/telegram')) title = 'Hostel Life — Telegram সংযোগ';
     else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
     else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';

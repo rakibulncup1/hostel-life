@@ -1,0 +1,2025 @@
+diff --git a/src/app/App.jsx b/src/app/App.jsx
+index 4bb30ff..628a704 100644
+--- a/src/app/App.jsx
++++ b/src/app/App.jsx
+@@ -16,6 +16,7 @@ import { SuperAdminPage } from '../features/platform/SuperAdminPage';
+ import { HostelInvitePage } from '../features/invites/HostelInvitePage';
+ import { getPendingHostelLinkToken } from '../utils/pendingHostelLink';
+ import { AppDownloadPage } from '../features/menu/AppDownloadPage';
++import { TelegramConnectionPage } from '../features/telegram/TelegramConnectionPage';
+ import { fetchPlatformPublicSettings } from '../services/platformService';
+ import { THEME_KEY, THEME_VALUES, applyPlatformDefaultTheme } from './theme';
+ import { LoadingSpinner } from '../components/LoadingSpinner';
+@@ -45,6 +46,7 @@ function resolveAppPage(pathname, isManager) {
+   if (pathname === '/app/menu/terms') return <TermsPage />;
+   if (pathname === '/app/menu/how-to-use') return <HowToUsePage />;
+   if (pathname === '/app/menu/app-download') return <AppDownloadPage />;
++  if (pathname === '/app/menu/telegram') return <TelegramConnectionPage />;
+   if (pathname === '/app/menu/send-notification') return <SendNotificationPage />;
+   if (pathname === '/app/menu/archive') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
+   if (pathname === '/app/menu/reports') return <ReportsPage />;
+@@ -156,6 +158,7 @@ export function App() {
+     else if (pathname.includes('/menu/terms')) title = 'Hostel Life — ব্যবহারের শর্তাবলী';
+     else if (pathname.includes('/menu/how-to-use')) title = 'Hostel Life — কীভাবে ব্যবহার করব';
+     else if (pathname.includes('/menu/app-download')) title = 'Hostel Life — অ্যাপ ডাউনলোড';
++    else if (pathname.includes('/menu/telegram')) title = 'Hostel Life — Telegram সংযোগ';
+     else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
+     else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
+     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
+diff --git a/src/app/AppShell.jsx b/src/app/AppShell.jsx
+index f0c2774..bad9a6b 100644
+--- a/src/app/AppShell.jsx
++++ b/src/app/AppShell.jsx
+@@ -11,9 +11,11 @@ import { OfflineState } from '../components/OfflineState';
+ import { useToast } from '../components/Toast';
+ import { useAuth } from '../contexts/AuthContext';
+ import { useManagementContext } from '../hooks/useManagementContext';
+-import { fetchNotifications, fetchPinnedManagerAnnouncement } from '../services/notificationService';
++import { fetchNotifications, fetchPinnedManagerAnnouncement, markNotificationSeen } from '../services/notificationService';
++import { APP_RELEASE } from './release';
+ import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+ import { fetchPlatformPublicSettings } from '../services/platformService';
++import { getMyTelegramNotificationStatus } from '../services/telegramService';
+ 
+ export function keyToPath(key) {
+   return `/app/${key}`;
+@@ -60,6 +62,11 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+   const unreadFetchInFlightRef = useRef(null);
+   const [theme, setTheme] = useState(() => getThemePreference());
+   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
++  const [releaseNoticeOpen, setReleaseNoticeOpen] = useState(false);
++  const [telegramNudgeOpen, setTelegramNudgeOpen] = useState(false);
++  const [priorityMessages, setPriorityMessages] = useState([]);
++  const priorityMessageIdsRef = useRef(new Set());
++  const telegramNudgeCheckedUserRef = useRef('');
+ 
+   const active = pathToKey(pathname);
+   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
+@@ -91,7 +98,37 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+   }, [theme]);
+ 
+   useEffect(() => {
+-    if (installed || !canInstall) {
++    if (!user?.id || !APP_RELEASE?.id) return;
++    const key = `hostel-life-last-seen-release-v1:${user.id}`;
++    let lastSeen = '';
++    let sessionSeen = '';
++    try { lastSeen = localStorage.getItem(key) || ''; } catch { /* session fallback below */ }
++    try { sessionSeen = sessionStorage.getItem(key) || ''; } catch { /* storage may be restricted */ }
++    if (lastSeen !== APP_RELEASE.id && sessionSeen === APP_RELEASE.id) lastSeen = sessionSeen;
++    if (!lastSeen) {
++      // First rollout of release notifications: show once to existing and new app users.
++      setReleaseNoticeOpen(true);
++      return;
++    }
++    if (lastSeen !== APP_RELEASE.id) setReleaseNoticeOpen(true);
++  }, [user?.id]);
++
++  const dismissReleaseNotice = () => {
++    const key = `hostel-life-last-seen-release-v1:${user?.id || 'session'}`;
++    try { localStorage.setItem(key, APP_RELEASE.id); }
++    catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* no persistent storage available */ } }
++    setReleaseNoticeOpen(false);
++  };
++
++  const refreshForRelease = () => {
++    const key = `hostel-life-last-seen-release-v1:${user?.id || 'session'}`;
++    try { localStorage.setItem(key, APP_RELEASE.id); }
++    catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* ignore */ } }
++    window.location.reload();
++  };
++
++  useEffect(() => {
++    if (installed || !canInstall || releaseNoticeOpen || priorityMessages.length > 0) {
+       setInstallNudgeOpen(false);
+       return undefined;
+     }
+@@ -100,7 +137,61 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+     if (seen) return undefined;
+     const timer = window.setTimeout(() => setInstallNudgeOpen(true), 1200);
+     return () => window.clearTimeout(timer);
+-  }, [canInstall, installed, user?.id]);
++  }, [canInstall, installed, user?.id, releaseNoticeOpen, priorityMessages.length]);
++
++  useEffect(() => {
++    if (!user?.id || !membership?.hostel_id || platformSettings?.telegram_enabled !== true
++      || releaseNoticeOpen || installNudgeOpen || priorityMessages.length > 0) {
++      setTelegramNudgeOpen(false);
++      return undefined;
++    }
++    if (telegramNudgeCheckedUserRef.current === user.id) return undefined;
++    const dismissedKey = `hostel-life-telegram-nudge-v1:${user.id}`;
++    const connectedKey = `hostel-life-telegram-connected-v1:${user.id}`;
++    let dismissed = false;
++    let locallyConnected = false;
++    try { dismissed = localStorage.getItem(dismissedKey) === '1'; locallyConnected = localStorage.getItem(connectedKey) === '1'; }
++    catch {
++      try { dismissed = sessionStorage.getItem(dismissedKey) === '1'; locallyConnected = sessionStorage.getItem(connectedKey) === '1'; }
++      catch { /* Session storage may also be restricted. */ }
++    }
++    if (dismissed || locallyConnected) {
++      telegramNudgeCheckedUserRef.current = user.id;
++      return undefined;
++    }
++
++    // One private status check prevents prompting an account that was already
++    // linked from another device. It runs once per eligible app session, never polls.
++    telegramNudgeCheckedUserRef.current = user.id;
++    let cancelled = false;
++    let timer = null;
++    const schedulePrompt = () => {
++      if (!cancelled) timer = window.setTimeout(() => setTelegramNudgeOpen(true), 900);
++    };
++    getMyTelegramNotificationStatus()
++      .then((status) => {
++        if (cancelled) return;
++        if (status?.connected) {
++          try { localStorage.setItem(connectedKey, '1'); } catch { /* Status remains authoritative for this session. */ }
++          return;
++        }
++        schedulePrompt();
++      })
++      .catch(() => schedulePrompt());
++    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
++  }, [user?.id, membership?.hostel_id, platformSettings?.telegram_enabled, releaseNoticeOpen, installNudgeOpen, priorityMessages.length]);
++
++  const dismissTelegramNudge = () => {
++    const key = `hostel-life-telegram-nudge-v1:${user?.id || 'session'}`;
++    try { localStorage.setItem(key, '1'); }
++    catch { try { sessionStorage.setItem(key, '1'); } catch { /* Dismiss for this render only. */ } }
++    setTelegramNudgeOpen(false);
++  };
++
++  const openTelegramSettings = () => {
++    dismissTelegramNudge();
++    navigateTo('/app/menu/telegram');
++  };
+ 
+   const loadUnread = useCallback(async () => {
+     if (!isOnline || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) {
+@@ -114,7 +205,24 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+         fetchPinnedManagerAnnouncement(),
+       ]);
+       if (inboxResult.status === 'fulfilled') {
+-        setUnreadCount(inboxResult.value.filter((item) => !item.is_seen).length);
++        const inbox = inboxResult.value;
++        setUnreadCount(inbox.filter((item) => !item.is_seen).length);
++        const priority = inbox
++          .filter((item) => !item.is_seen && ['platform_message', 'system_notice'].includes(item.notification_kind))
++          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
++        if (priority.length) {
++          setPriorityMessages((current) => {
++            const next = [...current];
++            for (const item of priority) {
++              const id = item.notification_id || item.id;
++              if (id && !priorityMessageIdsRef.current.has(id)) {
++                priorityMessageIdsRef.current.add(id);
++                next.push(item);
++              }
++            }
++            return next;
++          });
++        }
+       }
+       if (pinnedResult.status === 'fulfilled') {
+         setPinnedManagerNotice(pinnedResult.value || null);
+@@ -132,6 +240,19 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+     else setUnreadCount(0);
+   }, [isOnline, loadUnread]);
+ 
++  const dismissPriorityMessage = async () => {
++    const current = priorityMessages[0];
++    if (!current) return;
++    const id = current.notification_id || current.id;
++    setPriorityMessages((rows) => rows.slice(1));
++    if (!current.is_seen && id && isOnline) {
++      try {
++        await markNotificationSeen(id);
++        setUnreadCount((count) => Math.max(0, count - 1));
++      } catch { /* The item remains in the inbox; do not block dismissing the modal. */ }
++    }
++  };
++
+   // No five-minute notification polling. Refresh the badge only for visible,
+   // active sessions when the notifications table changes or the app resumes.
+   useRealtimeRefresh({
+@@ -186,6 +307,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+       terms: '/app/menu/terms',
+       'how-to-use': '/app/menu/how-to-use',
+       'app-download': '/app/menu/app-download',
++      telegram: '/app/menu/telegram',
+       'send-notification': '/app/menu/send-notification',
+       'reports': '/app/menu/reports',
+       'meal-sheet': '/app/menu/meal-sheet',
+@@ -199,7 +321,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+       'khala-money': '/app/menu/khala-money',
+       'member-management': '/app/menu/member-management',
+       'join-requests': '/app/menu/join-requests',
+-      'join-requests': '/app/menu/join-requests',
+     };
+     const path = routes[key];
+     if (path) navigateTo(path);
+@@ -327,6 +448,40 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
+           <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleNudgeInstall}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+         </section>
+       </div>}
++
++      {telegramNudgeOpen && <div className="telegram-nudge-backdrop" role="presentation">
++        <section className="telegram-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="telegram-nudge-title">
++          <button type="button" className="release-notice-close" onClick={dismissTelegramNudge} aria-label="বন্ধ করুন">×</button>
++          <span className="telegram-nudge-icon"><Icon name="send" size={21}/></span>
++          <span className="eyebrow">OPTIONAL · TELEGRAM NOTIFICATION</span>
++          <h2 id="telegram-nudge-title">গুরুত্বপূর্ণ নোটিশ Telegram-এ পান</h2>
++          <p>মেসের নোটিশ, ম্যানেজারের বার্তা এবং আপনার জন্য পাঠানো গুরুত্বপূর্ণ অ্যাপ নোটিফিকেশন সরাসরি Telegram-এ পেতে Hostel Life Bot-এর সঙ্গে সংযোগ করুন। এটি ঐচ্ছিক; পরে যেকোনো সময় বিচ্ছিন্ন করতে পারবেন।</p>
++          <div className="telegram-nudge-actions"><button type="button" className="primary-button" onClick={openTelegramSettings}>Telegram সংযোগ করুন</button><button type="button" className="secondary-button" onClick={dismissTelegramNudge}>পরে করব</button></div>
++        </section>
++      </div>}
++
++      {releaseNoticeOpen && <div className="release-notice-backdrop" role="presentation">
++        <section className="release-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notice-title">
++          <button type="button" className="release-notice-close" onClick={dismissReleaseNotice} aria-label="বন্ধ করুন">×</button>
++          <span className="release-notice-icon"><Icon name="refresh-cw" size={20}/></span>
++          <span className="eyebrow">HOSTEL LIFE · SYSTEM UPDATE</span>
++          <h2 id="release-notice-title">সিস্টেম আপডেট হয়েছে</h2>
++          <p>Hostel Life-এর নতুন সংস্করণ প্রকাশ করা হয়েছে। সর্বশেষ সুবিধা পেতে একবার রিফ্রেশ করুন।</p>
++          <small>আপডেটের সময়: {new Date(APP_RELEASE.builtAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small>
++          <div className="release-notice-actions"><button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button><button type="button" className="secondary-button" onClick={dismissReleaseNotice}>পরে</button></div>
++        </section>
++      </div>}
++
++      {priorityMessages.length > 0 && !releaseNoticeOpen && !installNudgeOpen && <div className="priority-message-backdrop" role="presentation">
++        <section className="priority-message-dialog" role="dialog" aria-modal="true" aria-labelledby="priority-message-title">
++          <span className="priority-message-icon"><Icon name="bell" size={21}/></span>
++          <span className="eyebrow">HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা</span>
++          <h2 id="priority-message-title">{priorityMessages[0].title || 'আপনার জন্য একটি বার্তা'}</h2>
++          <p>{priorityMessages[0].body}</p>
++          <small>{new Date(priorityMessages[0].created_at).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small>
++          <div className="priority-message-actions"><button type="button" className="primary-button" onClick={dismissPriorityMessage}>বুঝেছি</button></div>
++        </section>
++      </div>}
+     </div>
+   );
+ }
+diff --git a/src/app/release.js b/src/app/release.js
+new file mode 100644
+index 0000000..736fa41
+--- /dev/null
++++ b/src/app/release.js
+@@ -0,0 +1,2 @@
++// The object is injected by vite.config.js during build; it contains no secret.
++export const APP_RELEASE = __HOSTEL_LIFE_RELEASE__;
+diff --git a/src/components/MenuDrawer.jsx b/src/components/MenuDrawer.jsx
+index d4e5127..5fe7a9d 100644
+--- a/src/components/MenuDrawer.jsx
++++ b/src/components/MenuDrawer.jsx
+@@ -16,6 +16,7 @@ const systemItems = [
+   { key: 'terms', label: 'ব্যবহারের শর্তাবলী', icon: 'file' },
+   { key: 'how-to-use', label: 'কীভাবে ব্যবহার করব', icon: 'book' },
+   { key: 'app-download', label: 'অ্যাপ ডাউনলোড', icon: 'smartphone' },
++  { key: 'telegram', label: 'Telegram সংযোগ', icon: 'send' },
+   { key: 'developer', label: 'হেল্প', icon: 'user' },
+ ];
+ 
+diff --git a/src/components/NotificationsPopover.jsx b/src/components/NotificationsPopover.jsx
+index 7a3319f..384949a 100644
+--- a/src/components/NotificationsPopover.jsx
++++ b/src/components/NotificationsPopover.jsx
+@@ -9,6 +9,8 @@ import { getFriendlySupabaseError } from '../utils/supabaseErrors';
+ 
+ function typeLabel(type) {
+   if (type === 'manager_message') return 'ম্যানেজারের বার্তা';
++  if (type === 'platform_message') return 'Super Admin-এর বার্তা';
++  if (type === 'system_notice') return 'সিস্টেম ঘোষণা';
+   if (type === 'market_entry') return 'বাজার আপডেট';
+   if (['new_month', 'month_started', 'period_started'].includes(type)) return 'নতুন মাস';
+   if (['manager_change', 'manager_changed'].includes(type)) return 'ম্যানেজার পরিবর্তন';
+@@ -27,7 +29,8 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
+   const load = useCallback(async () => {
+     setLoading(true);
+     try {
+-      const next = await fetchNotifications(50);
++      const result = await fetchNotifications(50);
++      const next = result.map((item) => ({ ...item, notification_type: item.notification_type || item.notification_kind || 'activity' }));
+       setItems(next);
+       onUnreadChange?.(next.filter((item) => !item.is_seen).length);
+     } catch (error) {
+diff --git a/src/features/menu/MenuPages.jsx b/src/features/menu/MenuPages.jsx
+index 9b5ffc6..1a525d5 100644
+--- a/src/features/menu/MenuPages.jsx
++++ b/src/features/menu/MenuPages.jsx
+@@ -423,7 +423,11 @@ export function PrivacyPolicyPage() {
+           <p>সিস্টেমের নিরাপত্তা ও সমস্যা শনাক্ত করতে Login, Logout, Last Seen, ব্যবহৃত Session, IP ঠিকানা এবং ডিভাইস/ব্রাউজারের User-Agent সংরক্ষিত হতে পারে। মেসের গুরুত্বপূর্ণ কার্যক্রম—যেমন সদস্য, মিল, বাজার, হিসাব, প্রোফাইল ও নোটিফিকেশন-সংক্রান্ত পরিবর্তন—Activity Log-এ রেকর্ড হয়। নির্ধারিত Super Admin এই লগ দেখতে পারেন। Activity ও Login History নিরাপত্তা ও অডিটের প্রয়োজনে সংরক্ষিত থাকে; এই সংস্করণে এগুলোর স্বয়ংক্রিয় মেয়াদভিত্তিক মুছে ফেলা চালু করা হয়নি। ব্যর্থ Login/Registration প্রচেষ্টার জন্য আসল পাসওয়ার্ড বা Email সংরক্ষণ করা হয় না; পরিচয়-রেফারেন্স HMAC দিয়ে তৈরি হয়। Security Event ৯০ দিনের বেশি হলে নতুন Event আসার সময় পুরোনো Event পরিষ্কার করা হয়। IP ঠিকানা কোনো ব্যক্তিকে নিশ্চিতভাবে শনাক্ত করে না এবং একা অপরাধের প্রমাণ নয়।</p>
+         </div>
+         <div className="policy-section-block">
+-          <h2>৮. সহায়তা ও নীতির পরিবর্তন</h2>
++          <h2>৮. ঐচ্ছিক Telegram সংযোগ</h2>
++          <p>আপনি নিজে Telegram সংযোগ করলে Hostel Life আপনার Telegram Chat ID, Telegram User ID এবং ঐচ্ছিক Username নিরাপদ সার্ভার-সাইড রেকর্ডে রাখে। আপনার জন্য তৈরি নোটিফিকেশনের শিরোনাম ও বার্তার লেখা সংযুক্ত Telegram অ্যাকাউন্টে পাঠানো হয়। Bot Token ও Webhook Secret ব্যবহারকারীর Browser-এ প্রকাশ করা হয় না। Telegram সংযোগ সম্পূর্ণ ঐচ্ছিক; মেনুর “Telegram সংযোগ” অংশ থেকে যেকোনো সময় বিচ্ছিন্ন করতে পারবেন। সংযোগ বিচ্ছিন্ন করার পর নতুন নোটিফিকেশন আর Telegram-এ পাঠানো হবে না। Telegram-এর নিজস্ব গোপনীয়তা ও ডেটা-প্রক্রিয়াকরণ নীতি আলাদাভাবে প্রযোজ্য।</p>
++        </div>
++        <div className="policy-section-block">
++          <h2>৯. সহায়তা ও নীতির পরিবর্তন</h2>
+           <p>তথ্যের ভুল, অননুমোদিত ব্যবহার বা গোপনীয়তা-সংক্রান্ত প্রশ্ন থাকলে মেসের ম্যানেজার অথবা থ্রি-লাইন মেনুর “হেল্প” অংশে দেওয়া Hostel Life Support-এর সঙ্গে যোগাযোগ করুন। অ্যাপের কার্যপ্রণালি বদলালে এই নীতিও হালনাগাদ হতে পারে।</p>
+         </div>
+         <div className="policy-note"><Icon name="info" size={18}/><span>মনে রাখবেন: একই মেসের সদস্যদের মধ্যে কিছু মিল ও হিসাবের তথ্য শেয়ার হয়। তাই রেকর্ডে অপ্রয়োজনীয় ব্যক্তিগত তথ্য লিখবেন না।</span></div>
+diff --git a/src/features/platform/SuperAdminPage.jsx b/src/features/platform/SuperAdminPage.jsx
+index 260fa9e..edd784f 100644
+--- a/src/features/platform/SuperAdminPage.jsx
++++ b/src/features/platform/SuperAdminPage.jsx
+@@ -21,6 +21,7 @@ import {
+   platformAdminGetSystemHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
+   platformAdminListActivity, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
+   platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminCheckSecurityTelemetry,
++  platformAdminGetNotificationSettings, platformAdminUpdateNotificationSettings, platformAdminSendTargetedMessage,
+ } from '../../services/platformService';
+ 
+ const EMPTY_SETTINGS = {
+@@ -367,6 +368,20 @@ export function SuperAdminPage({ user }) {
+   const [reportData, setReportData] = useState(null);
+   const [reportLoading, setReportLoading] = useState(false);
+   const [reportError, setReportError] = useState('');
++  const [telegramAdminSettings, setTelegramAdminSettings] = useState({ active_provider: 'disabled', telegram_enabled: false, telegram_bot_username: '', connected_users: 0 });
++  const [telegramAdminLoading, setTelegramAdminLoading] = useState(false);
++  const [telegramAdminBusy, setTelegramAdminBusy] = useState(false);
++  const [telegramAdminError, setTelegramAdminError] = useState('');
++  const [messageHostelId, setMessageHostelId] = useState('');
++  const [messageMembers, setMessageMembers] = useState([]);
++  const [messageMembersLoading, setMessageMembersLoading] = useState(false);
++  const [messageMembersError, setMessageMembersError] = useState('');
++  const [messageRecipientMode, setMessageRecipientMode] = useState('all');
++  const [messageSelectedUsers, setMessageSelectedUsers] = useState([]);
++  const [messageTitle, setMessageTitle] = useState('');
++  const [messageBody, setMessageBody] = useState('');
++  const [messageSending, setMessageSending] = useState(false);
++  const messageMembersRequestRef = useRef(0);
+ 
+   const pageSize = 20;
+ 
+@@ -747,6 +762,70 @@ export function SuperAdminPage({ user }) {
+     finally { setRetentionLoading(false); }
+   };
+ 
++  const loadTelegramAdminSettings = useCallback(async () => {
++    setTelegramAdminLoading(true); setTelegramAdminError('');
++    try { setTelegramAdminSettings(await platformAdminGetNotificationSettings()); }
++    catch (cause) { setTelegramAdminError(errorText(cause, 'নোটিফিকেশন সেটিংস লোড করা যায়নি।')); }
++    finally { setTelegramAdminLoading(false); }
++  }, []);
++
++  useEffect(() => {
++    if (tab === 'telegram' && reauthenticated) loadTelegramAdminSettings();
++  }, [tab, reauthenticated, loadTelegramAdminSettings]);
++
++  useEffect(() => {
++    if (tab !== 'messages' || !messageHostelId || !reauthenticated) return undefined;
++    const requestId = ++messageMembersRequestRef.current;
++    setMessageMembersLoading(true); setMessageMembersError(''); setMessageMembers([]); setMessageSelectedUsers([]);
++    platformAdminListHostelMembers(messageHostelId).then((rows) => {
++      if (requestId !== messageMembersRequestRef.current) return;
++      setMessageMembers((Array.isArray(rows) ? rows : []).filter((row) => row.status === 'active' && !row.is_blocked));
++    }).catch((cause) => {
++      if (requestId === messageMembersRequestRef.current) setMessageMembersError(errorText(cause, 'সদস্য তালিকা লোড করা যায়নি।'));
++    }).finally(() => {
++      if (requestId === messageMembersRequestRef.current) setMessageMembersLoading(false);
++    });
++    return () => { messageMembersRequestRef.current += 1; };
++  }, [tab, messageHostelId, reauthenticated]);
++
++  const saveTelegramAdminSettings = async (event) => {
++    event.preventDefault();
++    setTelegramAdminBusy(true); setTelegramAdminError(''); setNotice('');
++    try {
++      const result = await platformAdminUpdateNotificationSettings(telegramAdminSettings.telegram_enabled, telegramAdminSettings.telegram_bot_username);
++      setTelegramAdminSettings(result || telegramAdminSettings);
++      setNotice(telegramAdminSettings.telegram_enabled
++        ? 'Telegram Provider সেটিংস সংরক্ষিত হয়েছে। Edge Function ও Webhook সেটআপ সম্পন্ন না হলে সংযোগ এখনো কাজ করবে না।'
++        : 'Telegram Delivery বন্ধ করা হয়েছে। বিদ্যমান সংযোগগুলো মুছে ফেলা হয়নি।');
++    } catch (cause) { setTelegramAdminError(errorText(cause, 'Telegram সেটিংস সংরক্ষণ করা যায়নি।')); }
++    finally { setTelegramAdminBusy(false); }
++  };
++
++  const sendPlatformMessage = async (event) => {
++    event.preventDefault();
++    if (!messageHostelId) { setError('একটি মেস নির্বাচন করুন।'); return; }
++    if (messageRecipientMode === 'selected' && !messageSelectedUsers.length) { setError('অন্তত একজন সদস্য নির্বাচন করুন।'); return; }
++    const recipientDescription = messageRecipientMode === 'all'
++      ? 'নির্বাচিত মেসের সব সক্রিয় সদস্যকে'
++      : `${messageSelectedUsers.length.toLocaleString('bn-BD')} জন নির্বাচিত সদস্যকে`;
++    if (!await confirmAction(`বার্তাটি ${recipientDescription} পাঠাবেন?
++
++শিরোনাম: ${messageTitle.trim()}
++
++বার্তা পাঠানোর পর তা প্রাপকদের ইনবক্সে সংরক্ষিত হবে এবং Telegram-এ যুক্ত ব্যবহারকারীদের কাছেও যেতে পারে।`)) return;
++    setMessageSending(true); setError(''); setNotice('');
++    try {
++      const result = await platformAdminSendTargetedMessage(
++        messageHostelId, messageTitle, messageBody,
++        messageRecipientMode === 'all' ? null : messageSelectedUsers,
++      );
++      const count = Number(result?.sent_count || 0);
++      setNotice(`${count.toLocaleString('bn-BD')} জন সক্রিয় সদস্যের ইনবক্সে বার্তা পাঠানো হয়েছে। Telegram-এ যাঁরা সংযুক্ত, তাঁরাও বার্তাটি পাবেন।`);
++      setMessageTitle(''); setMessageBody(''); setMessageSelectedUsers([]); setMessageRecipientMode('all');
++    } catch (cause) { setError(errorText(cause, 'বার্তা পাঠানো যায়নি।')); }
++    finally { setMessageSending(false); }
++  };
++
+   const metrics = useMemo(() => normalizePlatformOverview(overview), [overview]);
+   const selectedStatus = selected?.platform_status || 'active';
+   const reauthenticate = async (event) => {
+@@ -1081,7 +1160,7 @@ export function SuperAdminPage({ user }) {
+       </section>
+       <section className="platform-navigation-group platform-configuration-group" aria-label="সিস্টেম সেটিংস">
+         <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong><span>গ্লোবাল নোটিশ, পরিচিতি, থিম ও নিরাপত্তা নিয়ন্ত্রণ</span></div>
+-        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','Global Notice'],['developer','Developer Info'],['appearance','App Theme'],['sessions','Session Security'],['security','Access Codes']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
++        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','Global Notice'],['messages','বার্তা পাঠান'],['telegram','Telegram সেটআপ'],['developer','Developer Info'],['appearance','App Theme'],['sessions','Session Security'],['security','Access Codes']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+       </section>
+     </div>
+     {tab === 'overview' && <>
+@@ -1388,6 +1467,48 @@ export function SuperAdminPage({ user }) {
+       <div className="platform-action-row"><button type="button" className="secondary-button compact" disabled={orphanBusy || orphanPage===1} onClick={()=>loadOrphanAccounts(orphanPage-1)}>আগের পৃষ্ঠা</button><span>ধাপ {orphanPage} · প্রতিটি ধাপে সর্বোচ্চ ৫০০ account</span><button type="button" className="secondary-button compact" disabled={orphanBusy || !orphanMore} onClick={()=>loadOrphanAccounts(orphanPage+1)}>পরের ধাপ</button></div>
+       <p className="platform-retention-hint">মেস থেকে সরানোর পর Auth মুছতে এই অপশন। যাচাই না করে ডিলিট করবেন না; নতুন নিবন্ধিত কিন্তু এখনও মেসে যোগ না দেওয়া account-ও এখানে থাকতে পারে।</p>
+     </section>}
++    {tab === 'messages' && <>
++      <div className="platform-settings-intro"><span className="eyebrow">DIRECT PLATFORM MESSAGE</span><h2>ব্যবহারকারীকে বার্তা পাঠান</h2><p>নির্দিষ্ট মেসের সব সক্রিয় সদস্য অথবা নির্বাচিত সদস্যদের ইনবক্সে বার্তা পাঠান। বার্তা লগইনের পর একবার Popup-এ দেখানো হবে।</p></div>
++      <form className="platform-settings-grid platform-message-compose" onSubmit={sendPlatformMessage}>
++        <section className="card platform-panel">
++          <div className="platform-panel-heading"><div><h3>প্রাপক নির্বাচন</h3><p>প্রাপকের ইনবক্সে বার্তা যাবে; কোনো Auth/Supabase Push Notification ব্যবহার করা হচ্ছে না।</p></div></div>
++          <label className="field-label"><span>মেস নির্বাচন</span><select required value={messageHostelId} onChange={(event) => setMessageHostelId(event.target.value)}><option value="">মেস নির্বাচন করুন</option>{hostels.filter((row) => row.platform_status !== 'soft_deleted').map((row) => <option key={row.hostel_id} value={row.hostel_id}>{row.name} · {Number(row.member_count || 0).toLocaleString('bn-BD')} জন</option>)}</select></label>
++          <div className="platform-message-recipient-mode"><label className="platform-radio-card"><input type="radio" name="platform-message-recipients" value="all" checked={messageRecipientMode === 'all'} onChange={() => setMessageRecipientMode('all')}/><span><strong>সব সক্রিয় সদস্য</strong><small>নির্বাচিত মেসের সবাই</small></span></label><label className="platform-radio-card"><input type="radio" name="platform-message-recipients" value="selected" checked={messageRecipientMode === 'selected'} onChange={() => setMessageRecipientMode('selected')}/><span><strong>নির্দিষ্ট সদস্য</strong><small>এক বা একাধিক ব্যক্তি</small></span></label></div>
++          {messageRecipientMode === 'selected' && <div className="platform-message-member-picker">
++            <div className="platform-panel-heading"><div><h4>সক্রিয় সদস্য</h4><p>{messageSelectedUsers.length.toLocaleString('bn-BD')} জন নির্বাচিত</p></div><button type="button" className="text-button" disabled={messageMembersLoading || !messageMembers.length} onClick={() => setMessageSelectedUsers(messageSelectedUsers.length === messageMembers.length ? [] : messageMembers.map((row) => row.user_id))}>{messageSelectedUsers.length === messageMembers.length ? 'সব বাদ' : 'সব নির্বাচন'}</button></div>
++            {messageMembersLoading ? <div className="platform-empty"><LoadingSpinner label="সদস্য তালিকা লোড হচ্ছে..."/></div> : messageMembersError ? <div className="inline-error platform-alert">{messageMembersError}</div> : messageMembers.length === 0 ? <p className="platform-empty">এই মেসে সক্রিয় সদস্য পাওয়া যায়নি।</p> : <div className="platform-message-members">{messageMembers.map((member) => <label key={member.user_id} className="platform-message-member"><input type="checkbox" checked={messageSelectedUsers.includes(member.user_id)} onChange={(event) => setMessageSelectedUsers((current) => event.target.checked ? [...current, member.user_id] : current.filter((id) => id !== member.user_id))}/><span><strong>{member.full_name || 'নাম নেই'}</strong><small>{member.email || member.phone || 'যোগাযোগের তথ্য নেই'}</small></span></label>)}</div>}
++          </div>}
++        </section>
++        <section className="card platform-panel">
++          <div className="platform-panel-heading"><div><h3>বার্তার বিষয়বস্তু</h3><p>এটি অ্যাপের Notification Inbox এবং Popup-এ দেখানো হবে। সংযুক্ত ব্যবহারকারীর Telegram-এও যাবে।</p></div></div>
++          <Field label="শিরোনাম" value={messageTitle} onChange={setMessageTitle} maxLength={160}/>
++          <Field label="বার্তা" value={messageBody} onChange={setMessageBody} maxLength={3000} multiline/>
++          <div className="platform-message-preview"><span className="eyebrow">PREVIEW</span><strong>{messageTitle || 'বার্তার শিরোনাম'}</strong><p>{messageBody || 'বার্তার বিবরণ এখানে দেখা যাবে।'}</p></div>
++          <button type="submit" className="primary-button large" disabled={messageSending || !messageHostelId || !messageTitle.trim() || !messageBody.trim() || (messageRecipientMode === 'selected' && !messageSelectedUsers.length)}><Icon name="send" size={16}/>{messageSending ? 'পাঠানো হচ্ছে...' : 'বার্তা পাঠান'}</button>
++        </section>
++      </form>
++    </>}
++
++    {tab === 'telegram' && <>
++      <div className="platform-settings-intro"><span className="eyebrow">NOTIFICATION DELIVERY</span><h2>Telegram Notification Provider</h2><p>ব্যবহারকারী নিজে সংযোগ করলে বিদ্যমান নোটিফিকেশন Telegram-এ পৌঁছাবে। Bot Token কখনো Database বা Browser-এ রাখা হবে না।</p></div>
++      <form className="platform-settings-grid" onSubmit={saveTelegramAdminSettings}>
++        <section className="card platform-panel">
++          <div className="platform-panel-heading"><div><h3>Telegram Bot</h3><p>Provider চালু করার আগে Edge Function Secrets ও Webhook সেটআপ সম্পন্ন করুন।</p></div><span className="platform-status">{telegramAdminSettings.telegram_enabled ? 'চালু' : 'বন্ধ'}</span></div>
++          {telegramAdminError && <div className="inline-error platform-alert">{telegramAdminError}</div>}
++          <label className="field-label"><span>Bot Username (@ ছাড়া)</span><input value={telegramAdminSettings.telegram_bot_username || ''} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_bot_username: event.target.value }))} maxLength={32} placeholder="HostelLifeBot" autoComplete="off"/></label>
++          <label className="platform-toggle"><span><strong>Telegram Delivery চালু</strong><small>বন্ধ করলে নতুন Telegram বার্তা পাঠানো হবে না; কারও সংযোগ মুছে যাবে না।</small></span><input type="checkbox" checked={Boolean(telegramAdminSettings.telegram_enabled)} onChange={(event) => setTelegramAdminSettings((old) => ({ ...old, telegram_enabled: event.target.checked }))}/></label>
++          <div className="platform-telegram-connection-stat"><Icon name="users" size={18}/><span><strong>{Number(telegramAdminSettings.connected_users || 0).toLocaleString('bn-BD')}</strong><small>সংযুক্ত ব্যবহারকারী</small></span></div>
++          <button type="submit" className="primary-button large" disabled={telegramAdminBusy || telegramAdminLoading}>{telegramAdminBusy ? 'সংরক্ষণ হচ্ছে...' : 'Telegram সেটিংস সংরক্ষণ করুন'}</button>
++          <button type="button" className="secondary-button compact" disabled={telegramAdminLoading} onClick={loadTelegramAdminSettings}><Icon name="refresh" size={15}/> অবস্থা রিফ্রেশ</button>
++        </section>
++        <section className="card platform-panel platform-telegram-setup-guide">
++          <div className="platform-panel-heading"><div><h3>একবারের Server Setup</h3><p>নিরাপত্তার কারণে গোপন Token এখানে দেওয়া যাবে না।</p></div></div>
++          <ol><li>BotFather থেকে নিজের Telegram Bot তৈরি করে Bot Token নিন।</li><li>Supabase Edge Function Secrets-এ <code>TELEGRAM_BOT_TOKEN</code>, <code>TELEGRAM_WEBHOOK_SECRET</code> এবং <code>NOTIFICATION_DISPATCH_WEBHOOK_SECRET</code> দিন।</li><li><code>telegram-bot-webhook</code> ও <code>telegram-notification-dispatch</code> Edge Function Deploy করুন।</li><li>Telegram-এর <code>setWebhook</code> এবং Supabase Database Webhook একবার সেট করুন।</li></ol>
++          <p className="platform-retention-hint">এখানে কোনো প্রতি-মিনিট Polling নেই। ব্যবহারকারী সংযুক্ত থাকলে নতুন Inbox Notification তৈরি হওয়ার সময়ই শুধু Delivery Queue তৈরি হবে।</p>
++        </section>
++      </form>
++    </>}
++
+     {tab === 'settings' && <>
+       <div className="platform-settings-intro"><span className="eyebrow">GLOBAL NOTICE</span><h2>গ্লোবাল নোটিশ</h2><p>সব ব্যবহারকারীর জন্য প্রয়োজনীয় ঘোষণা প্রকাশ করুন।</p></div>
+       <form className="platform-settings-grid" onSubmit={saveSettings}>
+diff --git a/src/features/telegram/TelegramConnectionPage.jsx b/src/features/telegram/TelegramConnectionPage.jsx
+new file mode 100644
+index 0000000..f8ed550
+--- /dev/null
++++ b/src/features/telegram/TelegramConnectionPage.jsx
+@@ -0,0 +1,126 @@
++import { useCallback, useEffect, useState } from 'react';
++import { Icon } from '../../components/Icon';
++import { LoadingSpinner } from '../../components/LoadingSpinner';
++import { useToast } from '../../components/Toast';
++import { useAuth } from '../../contexts/AuthContext';
++import {
++  createMyTelegramLink,
++  getMyTelegramNotificationStatus,
++  unlinkMyTelegram,
++} from '../../services/telegramService';
++import { confirmAction } from '../../utils/actionDialogs';
++import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
++
++function formatDate(value) {
++  if (!value) return '—';
++  const date = new Date(value);
++  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' });
++}
++
++export function TelegramConnectionPage() {
++  const toast = useToast();
++  const { user } = useAuth();
++  const [status, setStatus] = useState(null);
++  const [link, setLink] = useState(null);
++  const [loading, setLoading] = useState(true);
++  const [busy, setBusy] = useState(false);
++  const [error, setError] = useState('');
++
++  const load = useCallback(async () => {
++    setLoading(true); setError('');
++    try {
++      const next = await getMyTelegramNotificationStatus();
++      setStatus(next);
++      if (user?.id) {
++        const key = `hostel-life-telegram-connected-v1:${user.id}`;
++        try { if (next.connected) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch { /* Optional local reminder only. */ }
++      }
++    }
++    catch (cause) { setError(getFriendlySupabaseError(cause, 'Telegram সংযোগের তথ্য আনা যায়নি।')); }
++    finally { setLoading(false); }
++  }, [user?.id]);
++
++  useEffect(() => { load(); }, [load]);
++
++  const connect = async () => {
++    setBusy(true); setError(''); setLink(null);
++    try { setLink(await createMyTelegramLink()); }
++    catch (cause) { setError(getFriendlySupabaseError(cause, 'Telegram সংযোগ লিংক তৈরি করা যায়নি।')); }
++    finally { setBusy(false); }
++  };
++
++  const verify = async () => {
++    setBusy(true); setError('');
++    try {
++      const next = await getMyTelegramNotificationStatus();
++      setStatus(next);
++      if (user?.id) {
++        const key = `hostel-life-telegram-connected-v1:${user.id}`;
++        try { if (next.connected) localStorage.setItem(key, '1'); else localStorage.removeItem(key); } catch { /* Optional local reminder only. */ }
++      }
++      if (next.connected) { setLink(null); toast.success('আপনার Telegram অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে।'); }
++      else toast.info('Telegram-এ Bot-এর Start বোতাম চাপার পর আবার যাচাই করুন।');
++    } catch (cause) { setError(getFriendlySupabaseError(cause, 'সংযোগ যাচাই করা যায়নি।')); }
++    finally { setBusy(false); }
++  };
++
++  const disconnect = async () => {
++    if (!await confirmAction('Telegram সংযোগ বিচ্ছিন্ন করবেন? এরপর নতুন Notification Telegram-এ যাবে না।')) return;
++    setBusy(true); setError('');
++    try { await unlinkMyTelegram(); if (user?.id) { try { localStorage.removeItem(`hostel-life-telegram-connected-v1:${user.id}`); } catch { /* Optional local reminder only. */ } } setStatus((current) => ({ ...current, connected: false, connected_at: null, provider_username: null })); setLink(null); toast.success('Telegram সংযোগ বিচ্ছিন্ন হয়েছে।'); }
++    catch (cause) { setError(getFriendlySupabaseError(cause, 'Telegram সংযোগ বিচ্ছিন্ন করা যায়নি।')); }
++    finally { setBusy(false); }
++  };
++
++  const copyLink = async () => {
++    try { await navigator.clipboard.writeText(link.url); toast.success('Telegram সংযোগ লিংক কপি হয়েছে।'); }
++    catch { toast.warning('লিংকটি কপি করা যায়নি। Telegram বোতাম ব্যবহার করুন।'); }
++  };
++
++  if (loading) return <main className="page-container telegram-page"><LoadingSpinner label="Telegram সংযোগ যাচাই হচ্ছে..."/></main>;
++
++  return (
++    <main className="page-container telegram-page">
++      <header className="page-heading telegram-heading">
++        <span className="eyebrow">PERSONAL NOTIFICATION CHANNEL</span>
++        <h1>Telegram সংযোগ</h1>
++        <p>Hostel Life-এর নোটিফিকেশন আপনার Telegram-এ নিরাপদে পেতে সংযোগ করুন।</p>
++      </header>
++
++      <section className="card telegram-connection-card">
++        <div className="telegram-card-top">
++          <span className="telegram-brand-icon"><Icon name="send" size={25}/></span>
++          <div><span className="eyebrow">TELEGRAM</span><h2>{status?.connected ? 'আপনার Telegram যুক্ত আছে' : 'Telegram-এ নোটিফিকেশন নিন'}</h2></div>
++          <span className={`telegram-state ${status?.connected ? 'is-connected' : 'is-offline'}`}>{status?.connected ? 'সংযুক্ত' : 'সংযুক্ত নয়'}</span>
++        </div>
++
++        {status?.connected ? (
++          <div className="telegram-connected-summary">
++            <div><span>Telegram Username</span><strong>{status.provider_username ? `@${status.provider_username.replace(/^@/, '')}` : 'সংযুক্ত অ্যাকাউন্ট'}</strong></div>
++            <div><span>সংযুক্তির সময়</span><strong>{formatDate(status.connected_at)}</strong></div>
++            <p>নতুন অ্যাপ নোটিফিকেশন, ম্যানেজারের বার্তা এবং Super Admin-এর প্রযোজ্য বার্তা এই Telegram-এ পাঠানো হবে।</p>
++            <div className="telegram-actions"><button type="button" className="secondary-button" disabled={busy} onClick={verify}><Icon name="refresh" size={16}/> সংযোগ যাচাই</button><button type="button" className="danger-button" disabled={busy} onClick={disconnect}>সংযোগ বিচ্ছিন্ন</button></div>
++          </div>
++        ) : (
++          <div className="telegram-connect-content">
++            {status?.telegram_enabled ? <>
++              <p>Telegram Bot-এর সঙ্গে যুক্ত হলে মেসের নোটিশ, ম্যানেজারের বার্তা এবং আপনার অ্যাকাউন্টের জন্য তৈরি অ্যাপ নোটিফিকেশন একই জায়গায় পাবেন। এটি ঐচ্ছিক; না চাইলে Hostel Life আগের মতোই ব্যবহার করতে পারবেন।</p>
++              <div className="telegram-steps"><span><b>১</b> সংযোগ লিংক তৈরি করুন</span><span><b>২</b> Telegram-এ Bot খুলে <strong>Start</strong> চাপুন</span><span><b>৩</b> এখানে ফিরে সংযোগ যাচাই করুন</span></div>
++              <button type="button" className="primary-button telegram-connect-button" disabled={busy} onClick={connect}><Icon name="send" size={17}/> {busy ? 'তৈরি হচ্ছে...' : 'Telegram সংযোগ করুন'}</button>
++            </> : <div className="telegram-unavailable"><Icon name="info" size={19}/><span>Telegram সংযোগ এখনো চালু করা হয়নি। Super Admin সেটআপ সম্পন্ন করলে এখানে সংযোগ করা যাবে।</span></div>}
++          </div>
++        )}
++
++        {link && <div className="telegram-link-result">
++          <div><strong>আপনার সংযোগ লিংক তৈরি হয়েছে</strong><small>লিংকটি ১০ মিনিটের মধ্যে ব্যবহার করুন। এটি একবারই কার্যকর।</small></div>
++          <a className="primary-button" href={link.url} target="_blank" rel="noopener noreferrer"><Icon name="external-link" size={16}/> Telegram খুলুন</a>
++          <button type="button" className="secondary-button" onClick={copyLink}>লিংক কপি</button>
++          <button type="button" className="text-button" disabled={busy} onClick={verify}>Start চাপার পর যাচাই করুন</button>
++        </div>}
++        {error && <div className="inline-error telegram-error" role="alert">{error}</div>}
++      </section>
++
++      <p className="telegram-privacy-note"><Icon name="shield-check" size={16}/> সংযোগটি ঐচ্ছিক। আপনি যেসব অ্যাপ নোটিফিকেশন পান, কেবল সেগুলোর বার্তাই Telegram-এ পাঠানো হবে। পাসওয়ার্ড, লগইন কোড বা গোপন নিরাপত্তা তথ্য পাঠানো হয় না। Telegram অ্যাকাউন্টের গোপনীয়তা Telegram-এর নিজস্ব নীতির অধীন।</p>
++    </main>
++  );
++}
+diff --git a/src/main.jsx b/src/main.jsx
+index c6f5410..616bdcf 100644
+--- a/src/main.jsx
++++ b/src/main.jsx
+@@ -11,6 +11,7 @@ import './styles/public-entry.css';
+ import './styles/platform-visual-refresh.css';
+ import './styles/app-download.css';
+ import './styles/invitation-experience.css';
++import './styles/notification-center.css';
+ 
+ function AppWithInstallPrompt() {
+   const installPrompt = useInstallPrompt();
+diff --git a/src/services/platformService.js b/src/services/platformService.js
+index 8797d28..e094ac9 100644
+--- a/src/services/platformService.js
++++ b/src/services/platformService.js
+@@ -447,3 +447,34 @@ export async function platformAdminSetMaxDevicesPerUser(limit) {
+   const current = await platformAdminGetSessionPolicy();
+   return platformAdminSetSessionPolicy(limit, current?.session_timeout_minutes || 0);
+ }
++
++// Notification center: all mutations are server-authorized; the browser never
++// inserts directly into notifications or reads provider/channel tables.
++export async function platformAdminGetNotificationSettings() {
++  assertSupabase();
++  const { data, error } = await supabase.rpc('platform_admin_get_notification_settings');
++  if (error) throw error;
++  return firstRow(data) || data || { active_provider: 'disabled', telegram_enabled: false, telegram_bot_username: '', connected_users: 0 };
++}
++
++export async function platformAdminUpdateNotificationSettings(telegramEnabled, botUsername) {
++  assertSupabase();
++  const { data, error } = await supabase.rpc('platform_admin_update_notification_settings', {
++    p_telegram_enabled: Boolean(telegramEnabled),
++    p_telegram_bot_username: String(botUsername || '').trim(),
++  });
++  if (error) throw error;
++  return firstRow(data) || data;
++}
++
++export async function platformAdminSendTargetedMessage(hostelId, title, body, recipientUserIds = null) {
++  assertSupabase();
++  const { data, error } = await supabase.rpc('platform_admin_send_targeted_message', {
++    p_hostel_id: hostelId,
++    p_title: String(title || '').trim(),
++    p_body: String(body || '').trim(),
++    p_recipient_user_ids: Array.isArray(recipientUserIds) ? recipientUserIds : null,
++  });
++  if (error) throw error;
++  return firstRow(data) || data;
++}
+diff --git a/src/services/telegramService.js b/src/services/telegramService.js
+new file mode 100644
+index 0000000..98687b6
+--- /dev/null
++++ b/src/services/telegramService.js
+@@ -0,0 +1,27 @@
++import { supabase } from '../lib/supabase';
++
++function assertSupabase() {
++  if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
++}
++
++export async function getMyTelegramNotificationStatus() {
++  assertSupabase();
++  const { data, error } = await supabase.rpc('get_my_telegram_notification_status');
++  if (error) throw error;
++  return data || { telegram_enabled: false, connected: false, bot_username: '' };
++}
++
++export async function createMyTelegramLink() {
++  assertSupabase();
++  const { data, error } = await supabase.rpc('create_my_telegram_link');
++  if (error) throw error;
++  if (!data?.token || !data?.bot_username) throw new Error('Telegram সংযোগ লিংক তৈরি করা যায়নি।');
++  return { ...data, url: `https://t.me/${data.bot_username}?start=${data.token}` };
++}
++
++export async function unlinkMyTelegram() {
++  assertSupabase();
++  const { data, error } = await supabase.rpc('unlink_my_telegram_notification');
++  if (error) throw error;
++  return data;
++}
+diff --git a/src/styles/notification-center.css b/src/styles/notification-center.css
+new file mode 100644
+index 0000000..adb51c5
+--- /dev/null
++++ b/src/styles/notification-center.css
+@@ -0,0 +1,201 @@
++.release-notice-backdrop,
++.priority-message-backdrop {
++  position: fixed;
++  inset: 0;
++  z-index: 150;
++  display: grid;
++  place-items: center;
++  padding: 18px;
++  background: rgba(5, 15, 10, .48);
++  backdrop-filter: blur(5px);
++}
++.release-notice-dialog,
++.priority-message-dialog {
++  position: relative;
++  width: min(100%, 420px);
++  max-height: min(80vh, 620px);
++  overflow: auto;
++  padding: 26px;
++  border: 1px solid var(--line);
++  border-radius: 22px;
++  background: var(--surface);
++  color: var(--text);
++  box-shadow: 0 24px 70px rgba(0, 0, 0, .24);
++}
++.release-notice-close {
++  position: absolute;
++  top: 12px;
++  right: 12px;
++  width: 34px;
++  height: 34px;
++  border-radius: 11px;
++  background: var(--surface-2);
++  color: var(--muted);
++  font-size: 23px;
++  cursor: pointer;
++}
++.release-notice-icon,
++.priority-message-icon {
++  width: 44px;
++  height: 44px;
++  display: grid;
++  place-items: center;
++  border-radius: 14px;
++  margin-bottom: 16px;
++  background: var(--primary-soft);
++  color: var(--primary-strong);
++}
++.release-notice-dialog .eyebrow,
++.priority-message-dialog .eyebrow {
++  display: block;
++  margin-bottom: 7px;
++  color: var(--primary-strong);
++  font-size: 10px;
++  font-weight: 850;
++  letter-spacing: .09em;
++}
++.release-notice-dialog h2,
++.priority-message-dialog h2 {
++  margin: 0 36px 9px 0;
++  font-size: clamp(19px, 4vw, 23px);
++  line-height: 1.35;
++  font-weight: 850;
++}
++.release-notice-dialog p,
++.priority-message-dialog p {
++  margin: 0 0 16px;
++  color: var(--muted);
++  font-size: 14px;
++  line-height: 1.75;
++  white-space: pre-wrap;
++  overflow-wrap: anywhere;
++}
++.release-notice-dialog small,
++.priority-message-dialog small {
++  display: block;
++  color: var(--muted);
++  font-size: 11px;
++}
++.release-notice-actions,
++.priority-message-actions {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 9px;
++  margin-top: 20px;
++}
++.release-notice-actions .primary-button,
++.priority-message-actions .primary-button { flex: 1 1 170px; justify-content: center; }
++.priority-message-dialog { border-top: 4px solid var(--primary); }
++
++.telegram-page { width: min(100% - 28px, 760px); margin: 28px auto 64px; }
++.telegram-heading { margin-bottom: 20px; }
++.telegram-heading h1 { margin: 5px 0 6px; }
++.telegram-heading p { margin: 0; color: var(--muted); }
++.telegram-connection-card { padding: clamp(18px, 4vw, 28px); }
++.telegram-card-top { display: flex; align-items: center; gap: 13px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
++.telegram-brand-icon { width: 48px; height: 48px; flex: 0 0 48px; display: grid; place-items: center; border-radius: 15px; background: var(--primary-soft); color: var(--primary-strong); }
++.telegram-card-top h2 { margin: 2px 0 0; font-size: 19px; }
++.telegram-card-top .eyebrow { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .1em; }
++.telegram-state { margin-left: auto; padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
++.telegram-state.is-connected { background: var(--primary-soft); color: var(--primary-strong); }
++.telegram-state.is-offline { background: var(--surface-2); color: var(--muted); }
++.telegram-connect-content { padding-top: 18px; }
++.telegram-connect-content > p { margin: 0 0 17px; color: var(--muted); line-height: 1.8; font-size: 14px; }
++.telegram-steps { display: grid; gap: 9px; padding: 13px; margin-bottom: 17px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
++.telegram-steps span { display: flex; gap: 10px; align-items: center; color: var(--text); font-size: 13px; }
++.telegram-steps b { width: 23px; height: 23px; display: grid; place-items: center; flex: 0 0 23px; border-radius: 50%; background: var(--primary-soft); color: var(--primary-strong); font-size: 11px; }
++.telegram-connect-button { width: 100%; justify-content: center; }
++.telegram-unavailable { display: flex; gap: 10px; align-items: flex-start; padding: 13px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); color: var(--muted); font-size: 13px; line-height: 1.65; }
++.telegram-connected-summary { display: grid; gap: 12px; padding-top: 18px; }
++.telegram-connected-summary > div:not(.telegram-actions) { display: flex; justify-content: space-between; gap: 16px; padding: 11px 0; border-bottom: 1px solid var(--line); }
++.telegram-connected-summary span { color: var(--muted); font-size: 12px; }
++.telegram-connected-summary strong { font-size: 13px; text-align: right; overflow-wrap: anywhere; }
++.telegram-connected-summary > p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
++.telegram-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 5px; }
++.telegram-link-result { display: grid; gap: 10px; padding: 16px; margin-top: 17px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface-2); }
++.telegram-link-result > div { display: grid; gap: 3px; }
++.telegram-link-result strong { font-size: 14px; }
++.telegram-link-result small { color: var(--muted); font-size: 12px; }
++.telegram-link-result .primary-button { justify-content: center; text-decoration: none; }
++.telegram-link-result .secondary-button { justify-content: center; }
++.telegram-privacy-note { display: flex; gap: 9px; align-items: flex-start; margin: 15px 3px 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
++.telegram-privacy-note svg { flex: 0 0 auto; color: var(--primary-strong); margin-top: 2px; }
++.telegram-error { margin-top: 13px; }
++
++.platform-message-compose { align-items: start; }
++.platform-message-recipient-mode { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 16px; }
++.platform-radio-card { display: flex; gap: 9px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); cursor: pointer; }
++.platform-radio-card input { margin-top: 3px; accent-color: var(--primary); }
++.platform-radio-card span { display: grid; gap: 3px; }
++.platform-radio-card strong { font-size: 13px; }
++.platform-radio-card small { color: var(--muted); font-size: 11px; line-height: 1.5; }
++.platform-message-member-picker { margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--line); }
++.platform-message-member-picker .platform-panel-heading { align-items: center; }
++.platform-message-member-picker h4 { margin: 0; font-size: 14px; }
++.platform-message-members { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; max-height: 300px; overflow: auto; padding: 5px 2px; }
++.platform-message-member { min-width: 0; display: flex; gap: 9px; align-items: flex-start; padding: 9px; border: 1px solid var(--line); border-radius: 11px; cursor: pointer; }
++.platform-message-member input { margin-top: 3px; accent-color: var(--primary); }
++.platform-message-member span { display: grid; min-width: 0; gap: 3px; }
++.platform-message-member strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
++.platform-message-member small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 10px; }
++.platform-message-preview { padding: 13px; margin: 14px 0; border: 1px solid var(--line); border-radius: 13px; background: var(--surface-2); }
++.platform-message-preview .eyebrow { color: var(--muted); font-size: 10px; font-weight: 800; }
++.platform-message-preview strong { display: block; margin: 7px 0 5px; font-size: 14px; }
++.platform-message-preview p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
++.platform-telegram-connection-stat { display: flex; align-items: center; gap: 11px; padding: 12px; margin: 12px 0; border-radius: 13px; background: var(--surface-2); color: var(--primary-strong); }
++.platform-telegram-connection-stat span { display: grid; gap: 2px; }
++.platform-telegram-connection-stat strong { font-size: 19px; }
++.platform-telegram-connection-stat small { color: var(--muted); font-size: 11px; }
++.platform-telegram-setup-guide ol { display: grid; gap: 11px; padding-left: 22px; color: var(--muted); font-size: 13px; line-height: 1.7; }
++.platform-telegram-setup-guide code { padding: 2px 5px; border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 11px; overflow-wrap: anywhere; }
++
++@media (max-width: 620px) {
++  .telegram-page { width: min(100% - 22px, 760px); margin-top: 18px; }
++  .telegram-card-top { flex-wrap: wrap; }
++  .telegram-state { margin-left: auto; }
++  .platform-message-recipient-mode,
++  .platform-message-members { grid-template-columns: 1fr; }
++  .release-notice-dialog,
++  .priority-message-dialog { padding: 22px 19px; }
++}
++
++.telegram-nudge-backdrop {
++  position: fixed;
++  z-index: 151;
++  inset: 0;
++  display: grid;
++  place-items: center;
++  padding: 18px;
++  background: rgba(5, 15, 10, .48);
++  backdrop-filter: blur(5px);
++}
++.telegram-nudge-dialog {
++  position: relative;
++  width: min(100%, 430px);
++  padding: 25px;
++  border: 1px solid var(--line);
++  border-radius: 21px;
++  background: var(--surface);
++  color: var(--text);
++  box-shadow: 0 24px 70px rgba(0, 0, 0, .24);
++}
++.telegram-nudge-icon {
++  width: 44px;
++  height: 44px;
++  display: grid;
++  place-items: center;
++  margin-bottom: 14px;
++  border-radius: 14px;
++  background: var(--primary-soft);
++  color: var(--primary-strong);
++}
++.telegram-nudge-dialog .eyebrow { display: block; margin-bottom: 7px; color: var(--primary-strong); font-size: 10px; font-weight: 850; letter-spacing: .08em; }
++.telegram-nudge-dialog h2 { margin: 0 35px 9px 0; font-size: clamp(19px, 4vw, 23px); line-height: 1.35; font-weight: 850; }
++.telegram-nudge-dialog p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.75; }
++.telegram-nudge-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 19px; }
++.telegram-nudge-actions .primary-button { flex: 1 1 190px; justify-content: center; }
++.offline-recovery-state { width: min(100%, 760px); margin: clamp(24px, 7vh, 72px) auto; }
++@media (max-width: 620px) {
++  .telegram-nudge-dialog { padding: 22px 19px; }
++  .offline-recovery-state { width: 100%; margin: 12px 0; }
++}
+diff --git a/supabase/config.toml b/supabase/config.toml
+index 409ff6e..c553a6e 100644
+--- a/supabase/config.toml
++++ b/supabase/config.toml
+@@ -1,2 +1,8 @@
+ [functions.record-auth-event]
+ verify_jwt = false
++
++[functions.telegram-bot-webhook]
++verify_jwt = false
++
++[functions.telegram-notification-dispatch]
++verify_jwt = false
+diff --git a/supabase/functions/telegram-bot-webhook/index.ts b/supabase/functions/telegram-bot-webhook/index.ts
+new file mode 100644
+index 0000000..09737a2
+--- /dev/null
++++ b/supabase/functions/telegram-bot-webhook/index.ts
+@@ -0,0 +1,108 @@
++// Private Telegram account-link webhook. A user must start the bot with a
++// one-time token generated from an authenticated Hostel Life session.
++import { createClient } from 'npm:@supabase/supabase-js@2';
++
++const VERSION = 'hostel-life-telegram-link-1';
++
++function serverKey(): string {
++  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
++  if (legacy) return legacy;
++  try {
++    const parsed = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
++    return typeof parsed?.default === 'string' ? parsed.default.trim() : '';
++  } catch { return ''; }
++}
++
++function json(body: Record<string, unknown>, status = 200): Response {
++  return new Response(JSON.stringify(body), {
++    status,
++    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
++  });
++}
++
++async function sha256Hex(value: string): Promise<string> {
++  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
++  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
++}
++
++function safeEqual(left: string, right: string): boolean {
++  if (!left || !right || left.length !== right.length) return false;
++  let diff = 0;
++  for (let i = 0; i < left.length; i += 1) diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
++  return diff === 0;
++}
++
++async function sendBotMessage(botToken: string, chatId: string | number, text: string): Promise<void> {
++  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
++    method: 'POST',
++    headers: { 'content-type': 'application/json' },
++    body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 3900), disable_web_page_preview: true }),
++  });
++  if (!response.ok) throw new Error(`TELEGRAM_SEND_HTTP_${response.status}`);
++}
++
++Deno.serve(async (request) => {
++  if (request.method === 'GET') {
++    return json({ ok: true, version: VERSION, configured: Boolean(Deno.env.get('TELEGRAM_BOT_TOKEN') && Deno.env.get('TELEGRAM_WEBHOOK_SECRET')) });
++  }
++  if (request.method !== 'POST') return json({ ok: false, code: 'METHOD_NOT_ALLOWED' }, 405);
++
++  const expectedSecret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')?.trim() ?? '';
++  const providedSecret = request.headers.get('x-telegram-bot-api-secret-token') ?? '';
++  if (!safeEqual(expectedSecret, providedSecret)) return json({ ok: false, code: 'WEBHOOK_UNAUTHORIZED' }, 401);
++
++  const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')?.trim() ?? '';
++  const url = Deno.env.get('SUPABASE_URL')?.trim() ?? '';
++  const key = serverKey();
++  if (!botToken || !url || !key) return json({ ok: false, code: 'SERVER_CONFIGURATION_MISSING' }, 503);
++
++  let update: Record<string, unknown>;
++  try {
++    const raw = await request.text();
++    if (raw.length > 65536) return json({ ok: false, code: 'PAYLOAD_TOO_LARGE' }, 413);
++    update = JSON.parse(raw);
++  } catch { return json({ ok: false, code: 'INVALID_JSON' }, 400); }
++
++  const message = update.message as Record<string, unknown> | undefined;
++  const chat = message?.chat as Record<string, unknown> | undefined;
++  const from = message?.from as Record<string, unknown> | undefined;
++  const chatId = chat?.id;
++  if (!message || chat?.type !== 'private' || (typeof chatId !== 'number' && typeof chatId !== 'string')) {
++    // Telegram groups/channels are deliberately not accepted as account destinations.
++    return json({ ok: true, ignored: true });
++  }
++
++  const text = typeof message.text === 'string' ? message.text.trim() : '';
++  const start = /^\/start(?:\s+([A-Za-z0-9_-]{1,64}))?$/.exec(text);
++  if (!start || !start[1]) {
++    try { await sendBotMessage(botToken, chatId, 'Hostel Life Notification Bot\n\nআপনার অ্যাকাউন্ট যুক্ত করতে Hostel Life অ্যাপের Telegram সংযোগ পেজ থেকে নতুন সংযোগ লিংক তৈরি করে এখানে Start চাপুন।'); }
++    catch { /* Telegram webhook is acknowledged; no secret or chat data is logged. */ }
++    return json({ ok: true });
++  }
++
++  const token = start[1];
++  if (!/^[0-9a-f]{64}$/i.test(token)) {
++    try { await sendBotMessage(botToken, chatId, 'সংযোগ লিংকটি সঠিক নয়। Hostel Life অ্যাপ থেকে নতুন লিংক তৈরি করুন।'); } catch { /* ignore */ }
++    return json({ ok: true });
++  }
++
++  const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
++  const username = typeof from?.username === 'string' ? from.username : null;
++  const telegramUserId = from?.id === undefined ? String(chatId) : String(from.id);
++  const { data, error } = await admin.rpc('complete_telegram_notification_link', {
++    p_token_hash: await sha256Hex(token.toLowerCase()),
++    p_chat_id: String(chatId),
++    p_telegram_user_id: telegramUserId,
++    p_username: username,
++  });
++
++  let confirmation = 'আপনার Telegram সংযোগ সফল হয়েছে। এখন থেকে আপনার জন্য তৈরি Hostel Life নোটিফিকেশন এখানে পাঠানো হবে।';
++  if (error) confirmation = error.code === '23505'
++    ? 'এই Telegram অ্যাকাউন্টটি অন্য একটি Hostel Life অ্যাকাউন্টের সঙ্গে যুক্ত আছে। আগে সেই অ্যাকাউন্ট থেকে সংযোগ বিচ্ছিন্ন করুন।'
++    : 'সংযোগ সম্পন্ন করা যায়নি। লিংকটির মেয়াদ শেষ বা এটি আগেই ব্যবহার করা হয়েছে। Hostel Life অ্যাপ থেকে নতুন লিংক তৈরি করুন।';
++  else if (!data?.linked) confirmation = 'সংযোগ লিংকটির মেয়াদ শেষ অথবা এটি আগেই ব্যবহার করা হয়েছে। Hostel Life অ্যাপ থেকে নতুন লিংক তৈরি করুন।';
++
++  try { await sendBotMessage(botToken, chatId, confirmation); }
++  catch { /* Linking has already been committed; app-side status refresh is authoritative. */ }
++  return json({ ok: true, linked: Boolean(data?.linked && !error) });
++});
+diff --git a/supabase/functions/telegram-notification-dispatch/index.ts b/supabase/functions/telegram-notification-dispatch/index.ts
+new file mode 100644
+index 0000000..5ae04da
+--- /dev/null
++++ b/supabase/functions/telegram-notification-dispatch/index.ts
+@@ -0,0 +1,197 @@
++// Statement-batched Database Webhook target. One invocation processes up to
++// 100 opted-in recipients from an existing inbox INSERT; there is no polling.
++import { createClient } from 'npm:@supabase/supabase-js@2';
++
++const VERSION = 'hostel-life-telegram-dispatch-2';
++const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
++type DeliveryStatus = 'delivered' | 'failed' | 'skipped';
++type DeliveryResult = { id: string; status: DeliveryStatus; attempts: number; code: string | null; disableUser?: string };
++
++function serverKey(): string {
++  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
++  if (legacy) return legacy;
++  try {
++    const parsed = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
++    return typeof parsed?.default === 'string' ? parsed.default.trim() : '';
++  } catch { return ''; }
++}
++function json(body: Record<string, unknown>, status = 200): Response {
++  return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
++}
++function safeEqual(left: string, right: string): boolean {
++  if (!left || !right || left.length !== right.length) return false;
++  let diff = 0;
++  for (let i = 0; i < left.length; i += 1) diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
++  return diff === 0;
++}
++function boundedTelegramText(title: unknown, body: unknown): string {
++  const text = `Hostel Life\n${String(title || 'নোটিফিকেশন')}\n\n${String(body || '')}`;
++  return Array.from(text).slice(0, 3900).join('');
++}
++
++async function sendTelegram(botToken: string, chatId: string, text: string): Promise<{ ok: boolean; attempts: number; code: string | null; blocked: boolean }> {
++  let attempts = 0;
++  let lastCode = 'TELEGRAM_SEND_FAILED';
++  while (attempts < 3) {
++    attempts += 1;
++    try {
++      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
++        method: 'POST', headers: { 'content-type': 'application/json' },
++        body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
++      });
++      let result: Record<string, unknown> = {};
++      try { result = await response.json(); } catch { result = {}; }
++      if (response.ok && result.ok === true) return { ok: true, attempts, code: null, blocked: false };
++      const errorCode = Number(result.error_code || response.status);
++      lastCode = `TELEGRAM_${errorCode}`;
++      if (errorCode === 403) return { ok: false, attempts, code: lastCode, blocked: true };
++      const parameters = result.parameters as Record<string, unknown> | undefined;
++      const retryAfter = Number(parameters?.retry_after || 0);
++      if (errorCode === 429 && retryAfter > 0 && retryAfter <= 8 && attempts < 3) {
++        await delay(retryAfter * 1000);
++        continue;
++      }
++      if (response.status >= 500 && attempts < 3) {
++        await delay(attempts * 400);
++        continue;
++      }
++      return { ok: false, attempts, code: lastCode, blocked: false };
++    } catch {
++      lastCode = 'TELEGRAM_NETWORK_ERROR';
++      if (attempts < 3) { await delay(attempts * 400); continue; }
++    }
++  }
++  return { ok: false, attempts, code: lastCode, blocked: false };
++}
++
++Deno.serve(async (request) => {
++  if (request.method === 'GET') return json({ ok: true, version: VERSION });
++  if (request.method !== 'POST') return json({ ok: false, code: 'METHOD_NOT_ALLOWED' }, 405);
++
++  const expected = Deno.env.get('NOTIFICATION_DISPATCH_WEBHOOK_SECRET')?.trim() ?? '';
++  const provided = request.headers.get('x-hostel-delivery-secret') ?? '';
++  if (!safeEqual(expected, provided)) return json({ ok: false, code: 'WEBHOOK_UNAUTHORIZED' }, 401);
++
++  const url = Deno.env.get('SUPABASE_URL')?.trim() ?? '';
++  const key = serverKey();
++  const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')?.trim() ?? '';
++  if (!url || !key || !botToken) return json({ ok: false, code: 'SERVER_CONFIGURATION_MISSING' }, 503);
++
++  let payload: Record<string, unknown>;
++  try {
++    const raw = await request.text();
++    if (raw.length > 65536) return json({ ok: false, code: 'PAYLOAD_TOO_LARGE' }, 413);
++    payload = JSON.parse(raw);
++  } catch { return json({ ok: false, code: 'INVALID_JSON' }, 400); }
++
++  const record = (payload.record && typeof payload.record === 'object') ? payload.record as Record<string, unknown> : payload;
++  const batchId = typeof record.id === 'string' ? record.id : '';
++  if (!/^[0-9a-f-]{36}$/i.test(batchId)) return json({ ok: false, code: 'BATCH_ID_MISSING' }, 400);
++
++  const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
++  const { data: batch, error: claimError } = await admin
++    .from('notification_delivery_batches')
++    .update({ status: 'processing', updated_at: new Date().toISOString(), last_error_code: null })
++    .eq('id', batchId).eq('status', 'pending')
++    .select('id,outbox_ids').maybeSingle();
++  if (claimError) return json({ ok: false, code: 'BATCH_CLAIM_FAILED' }, 503);
++  if (!batch) return json({ ok: true, skipped: true, reason: 'ALREADY_CLAIMED_OR_PROCESSED' });
++
++  const outboxIds = Array.isArray(batch.outbox_ids) ? batch.outbox_ids.filter((id: unknown): id is string => typeof id === 'string') : [];
++  if (outboxIds.length < 1 || outboxIds.length > 100) {
++    await admin.from('notification_delivery_batches').update({ status: 'failed', last_error_code: 'INVALID_BATCH_SIZE', updated_at: new Date().toISOString() }).eq('id', batchId);
++    return json({ ok: false, code: 'INVALID_BATCH_SIZE' }, 200);
++  }
++
++  try {
++    const { data: providerSettings, error: settingsError } = await admin
++      .from('platform_notification_provider_settings').select('active_provider').eq('singleton', true).maybeSingle();
++    if (settingsError) throw new Error('PROVIDER_SETTINGS_READ_FAILED');
++    if (providerSettings?.active_provider !== 'telegram') {
++      await admin.from('notification_delivery_outbox').update({ status: 'skipped', last_error_code: 'PROVIDER_DISABLED', updated_at: new Date().toISOString() }).in('id', outboxIds).eq('status', 'pending');
++      await admin.from('notification_delivery_batches').update({ status: 'skipped', last_error_code: 'PROVIDER_DISABLED', updated_at: new Date().toISOString(), delivered_at: new Date().toISOString() }).eq('id', batchId);
++      return json({ ok: true, skipped: true, reason: 'PROVIDER_DISABLED' });
++    }
++
++    const { data: outboxRows, error: outboxError } = await admin.from('notification_delivery_outbox')
++      .select('id,notification_id,recipient_user_id,provider,status').in('id', outboxIds);
++    if (outboxError) throw new Error('OUTBOX_READ_FAILED');
++    const rows = Array.isArray(outboxRows) ? outboxRows : [];
++    if (rows.length === 0) {
++      await admin.from('notification_delivery_batches').update({ status: 'skipped', last_error_code: 'NO_OUTBOX_ROWS', delivered_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', batchId);
++      return json({ ok: true, skipped: true, reason: 'NO_OUTBOX_ROWS' });
++    }
++    const notificationIds = [...new Set(rows.map((row: any) => row.notification_id).filter(Boolean))];
++    const userIds = [...new Set(rows.map((row: any) => row.recipient_user_id).filter(Boolean))];
++    const [{ data: notifications, error: notificationError }, { data: channels, error: channelError }] = await Promise.all([
++      notificationIds.length ? admin.from('notifications').select('id,title,body,recipient_user_id,deleted_at').in('id', notificationIds) : Promise.resolve({ data: [], error: null } as any),
++      userIds.length ? admin.from('user_notification_channels').select('user_id,channel_address,enabled').eq('provider', 'telegram').in('user_id', userIds) : Promise.resolve({ data: [], error: null } as any),
++    ]);
++    if (notificationError || channelError) throw new Error('RECIPIENT_DATA_READ_FAILED');
++    const notificationMap = new Map((notifications || []).map((item: any) => [item.id, item]));
++    const channelMap = new Map((channels || []).map((item: any) => [item.user_id, item]));
++    const results: DeliveryResult[] = [];
++
++    // Sequential sends stay below Telegram's ordinary bot throughput limits and
++    // avoid spiky traffic on a free Supabase plan.
++    for (const row of rows) {
++      if (row.status !== 'pending' || row.provider !== 'telegram') {
++        results.push({ id: row.id, status: 'skipped', attempts: 0, code: 'OUTBOX_NOT_PENDING' });
++        continue;
++      }
++      const notification = notificationMap.get(row.notification_id) as any;
++      const channel = channelMap.get(row.recipient_user_id) as any;
++      if (!notification || notification.deleted_at || notification.recipient_user_id !== row.recipient_user_id || !channel?.enabled || !channel.channel_address) {
++        results.push({ id: row.id, status: 'skipped', attempts: 0, code: 'RECIPIENT_OR_NOTIFICATION_UNAVAILABLE' });
++        continue;
++      }
++      const sent = await sendTelegram(botToken, channel.channel_address, boundedTelegramText(notification.title, notification.body));
++      results.push({ id: row.id, status: sent.ok ? 'delivered' : 'failed', attempts: sent.attempts, code: sent.code, ...(sent.blocked ? { disableUser: row.recipient_user_id } : {}) });
++      await delay(40);
++    }
++
++    // Update in small groups instead of one Database API call per recipient.
++    const groups = new Map<string, DeliveryResult[]>();
++    for (const item of results) {
++      const key = `${item.status}|${item.attempts}|${item.code || ''}`;
++      groups.set(key, [...(groups.get(key) || []), item]);
++    }
++    for (const group of groups.values()) {
++      const first = group[0];
++      const { error: outboxUpdateError } = await admin.from('notification_delivery_outbox').update({
++        status: first.status,
++        attempt_count: first.attempts,
++        last_error_code: first.code,
++        delivered_at: first.status === 'delivered' ? new Date().toISOString() : null,
++        updated_at: new Date().toISOString(),
++      }).in('id', group.map((item) => item.id)).eq('status', 'pending');
++      if (outboxUpdateError) throw new Error('OUTBOX_UPDATE_FAILED');
++    }
++    const disableIds = [...new Set(results.map((item) => item.disableUser).filter(Boolean))] as string[];
++    if (disableIds.length) {
++      const { error: disableError } = await admin.from('user_notification_channels').update({ enabled: false, updated_at: new Date().toISOString() })
++        .eq('provider', 'telegram').in('user_id', disableIds);
++      if (disableError) throw new Error('CHANNEL_DISABLE_FAILED');
++    }
++
++    const delivered = results.filter((item) => item.status === 'delivered').length;
++    const failed = results.filter((item) => item.status === 'failed').length;
++    const skipped = results.length - delivered - failed;
++    const status = results.length === 0 ? 'skipped' : delivered === results.length ? 'delivered' : delivered > 0 ? 'partial' : failed > 0 ? 'failed' : 'skipped';
++    const code = status === 'delivered' ? null : failed > 0 ? (delivered > 0 ? 'PARTIAL_DELIVERY_FAILURE' : 'DELIVERY_FAILED') : 'NO_ELIGIBLE_RECIPIENTS';
++    const { error: batchUpdateError } = await admin.from('notification_delivery_batches').update({
++      status, last_error_code: code,
++      delivered_at: status === 'delivered' || status === 'skipped' ? new Date().toISOString() : null,
++      updated_at: new Date().toISOString(),
++    }).eq('id', batchId);
++    if (batchUpdateError) throw new Error('BATCH_UPDATE_FAILED');
++    return json({ ok: true, delivered, failed, skipped, batch_status: status });
++  } catch (error) {
++    await admin.from('notification_delivery_outbox').update({ status: 'failed', last_error_code: 'DELIVERY_RUNTIME_ERROR', updated_at: new Date().toISOString() })
++      .in('id', outboxIds).eq('status', 'pending');
++    await admin.from('notification_delivery_batches').update({ status: 'failed', last_error_code: 'DELIVERY_RUNTIME_ERROR', updated_at: new Date().toISOString() }).eq('id', batchId);
++    // Never log notification content, chat IDs, tokens or recipient identifiers.
++    console.error('telegram notification batch failed', { code: 'DELIVERY_RUNTIME_ERROR' });
++    return json({ ok: false, code: 'DELIVERY_RUNTIME_ERROR' }, 200);
++  }
++});
+diff --git a/supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql b/supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql
+new file mode 100644
+index 0000000..c6da65e
+--- /dev/null
++++ b/supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql
+@@ -0,0 +1,579 @@
++-- Hostel Life Run31: notification inbox extension, targeted platform messages,
++-- optional Telegram linking and asynchronous delivery outbox.
++-- No polling, no third-party work until a recipient explicitly links Telegram.
++BEGIN;
++SET LOCAL lock_timeout = '8s';
++SET LOCAL statement_timeout = '120s';
++
++DO $preflight$
++BEGIN
++  IF to_regclass('public.notifications') IS NULL
++     OR to_regclass('public.hostel_memberships') IS NULL
++     OR to_regclass('public.profiles') IS NULL
++     OR to_regclass('public.hostels') IS NULL
++     OR to_regclass('public.platform_settings') IS NULL
++     OR to_regclass('public.platform_audit_log') IS NULL
++     OR to_regclass('public.hostel_pinned_announcements') IS NULL
++     OR to_regprocedure('private.is_super_admin()') IS NULL
++     OR to_regprocedure('private.assert_signed_in()') IS NULL
++     OR to_regprocedure('public.get_notifications(integer)') IS NULL
++     OR to_regprocedure('public.get_platform_public_settings()') IS NULL THEN
++    RAISE EXCEPTION 'Run31 preflight failed: required notification/platform objects are missing. No changes applied.';
++  END IF;
++  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='notifications' AND column_name='announcement_batch_id')
++     OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='platform_settings' AND column_name='default_theme')
++     OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='platform_settings' AND column_name='updated_by') THEN
++    RAISE EXCEPTION 'Run31 preflight failed: Run21/Run28 notification or theme columns are missing. No changes applied.';
++  END IF;
++  IF to_regprocedure('extensions.digest(bytea,text)') IS NULL
++     OR to_regprocedure('extensions.gen_random_bytes(integer)') IS NULL THEN
++    RAISE EXCEPTION 'Run31 preflight failed: pgcrypto functions are unavailable in schema extensions. No changes applied.';
++  END IF;
++END
++$preflight$;
++
++-- Keep a category on the existing inbox rows. Existing notification producers
++-- continue working; the default makes future INSERTs Telegram-aware automatically.
++ALTER TABLE public.notifications
++  ADD COLUMN IF NOT EXISTS notification_kind text NOT NULL DEFAULT 'activity';
++
++CREATE TABLE IF NOT EXISTS public.platform_notification_provider_settings (
++  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
++  active_provider text NOT NULL DEFAULT 'disabled',
++  telegram_bot_username text NOT NULL DEFAULT '',
++  updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
++  updated_at timestamptz NOT NULL DEFAULT now(),
++  outbox_pruned_at timestamptz,
++  CONSTRAINT platform_notification_provider_supported
++    CHECK (active_provider IN ('disabled','telegram'))
++);
++INSERT INTO public.platform_notification_provider_settings(singleton, active_provider)
++VALUES (true, 'disabled') ON CONFLICT (singleton) DO NOTHING;
++
++CREATE TABLE IF NOT EXISTS public.user_notification_channels (
++  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
++  provider text NOT NULL,
++  channel_address text NOT NULL,
++  provider_user_id text,
++  provider_username text,
++  enabled boolean NOT NULL DEFAULT true,
++  connected_at timestamptz NOT NULL DEFAULT now(),
++  updated_at timestamptz NOT NULL DEFAULT now(),
++  PRIMARY KEY (user_id, provider),
++  CONSTRAINT user_notification_channels_provider_address_unique UNIQUE (provider, channel_address)
++);
++
++CREATE TABLE IF NOT EXISTS public.notification_link_tokens (
++  token_hash text PRIMARY KEY,
++  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
++  expires_at timestamptz NOT NULL,
++  used_at timestamptz,
++  created_at timestamptz NOT NULL DEFAULT now()
++);
++CREATE INDEX IF NOT EXISTS notification_link_tokens_user_idx
++  ON public.notification_link_tokens(user_id, created_at DESC);
++CREATE INDEX IF NOT EXISTS notification_link_tokens_expiry_idx
++  ON public.notification_link_tokens(expires_at);
++
++CREATE TABLE IF NOT EXISTS public.notification_delivery_outbox (
++  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++  notification_id uuid NOT NULL REFERENCES public.notifications(id) ON DELETE CASCADE,
++  recipient_user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
++  provider text NOT NULL,
++  status text NOT NULL DEFAULT 'pending'
++    CHECK (status IN ('pending','processing','delivered','failed','skipped')),
++  attempt_count smallint NOT NULL DEFAULT 0 CHECK (attempt_count BETWEEN 0 AND 5),
++  last_error_code text,
++  created_at timestamptz NOT NULL DEFAULT now(),
++  delivered_at timestamptz,
++  updated_at timestamptz NOT NULL DEFAULT now(),
++  UNIQUE (notification_id, provider)
++);
++CREATE INDEX IF NOT EXISTS notification_delivery_outbox_status_idx
++  ON public.notification_delivery_outbox(status, created_at)
++  WHERE status IN ('pending','processing');
++CREATE INDEX IF NOT EXISTS notification_delivery_outbox_retention_idx
++  ON public.notification_delivery_outbox(created_at)
++  WHERE status IN ('delivered','failed','skipped');
++
++-- One webhook event can carry all recipients from a single bulk INSERT statement.
++-- The array contains outbox UUIDs only; it never duplicates message content or chat IDs.
++CREATE TABLE IF NOT EXISTS public.notification_delivery_batches (
++  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
++  outbox_ids uuid[] NOT NULL CHECK (cardinality(outbox_ids) BETWEEN 1 AND 100),
++  status text NOT NULL DEFAULT 'pending'
++    CHECK (status IN ('pending','processing','delivered','partial','failed','skipped')),
++  last_error_code text,
++  created_at timestamptz NOT NULL DEFAULT now(),
++  updated_at timestamptz NOT NULL DEFAULT now(),
++  delivered_at timestamptz
++);
++CREATE INDEX IF NOT EXISTS notification_delivery_batches_retention_idx
++  ON public.notification_delivery_batches(created_at)
++  WHERE status IN ('delivered','partial','failed','skipped');
++
++ALTER TABLE public.platform_notification_provider_settings ENABLE ROW LEVEL SECURITY;
++ALTER TABLE public.user_notification_channels ENABLE ROW LEVEL SECURITY;
++ALTER TABLE public.notification_link_tokens ENABLE ROW LEVEL SECURITY;
++ALTER TABLE public.notification_delivery_outbox ENABLE ROW LEVEL SECURITY;
++ALTER TABLE public.notification_delivery_batches ENABLE ROW LEVEL SECURITY;
++REVOKE ALL ON public.platform_notification_provider_settings FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON public.user_notification_channels FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON public.notification_link_tokens FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON public.notification_delivery_outbox FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON public.notification_delivery_batches FROM PUBLIC, anon, authenticated;
++GRANT ALL ON public.platform_notification_provider_settings TO service_role;
++GRANT ALL ON public.user_notification_channels TO service_role;
++GRANT ALL ON public.notification_link_tokens TO service_role;
++GRANT ALL ON public.notification_delivery_outbox TO service_role;
++GRANT ALL ON public.notification_delivery_batches TO service_role;
++
++-- User-facing Telegram status: a single authenticated RPC, no direct table access.
++CREATE OR REPLACE FUNCTION public.get_my_telegram_notification_status()
++RETURNS jsonb
++LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE
++  v_settings public.platform_notification_provider_settings%ROWTYPE;
++  v_channel public.user_notification_channels%ROWTYPE;
++  v_connected boolean := false;
++BEGIN
++  PERFORM private.assert_signed_in();
++  SELECT * INTO v_settings FROM public.platform_notification_provider_settings WHERE singleton = true;
++  SELECT * INTO v_channel FROM public.user_notification_channels
++  WHERE user_id = auth.uid() AND provider = 'telegram' AND enabled = true;
++  v_connected := FOUND;
++  RETURN jsonb_build_object(
++    'active_provider', COALESCE(v_settings.active_provider, 'disabled'),
++    'telegram_enabled', COALESCE(v_settings.active_provider = 'telegram', false),
++    'bot_username', COALESCE(v_settings.telegram_bot_username, ''),
++    'connected', v_connected,
++    'connected_at', CASE WHEN v_connected THEN v_channel.connected_at ELSE NULL END,
++    'provider_username', CASE WHEN v_connected THEN v_channel.provider_username ELSE NULL END
++  );
++END
++$function$;
++
++CREATE OR REPLACE FUNCTION public.create_my_telegram_link()
++RETURNS jsonb
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE
++  v_settings public.platform_notification_provider_settings%ROWTYPE;
++  v_token text;
++  v_expiry timestamptz := now() + interval '10 minutes';
++BEGIN
++  PERFORM private.assert_signed_in();
++  SELECT * INTO v_settings FROM public.platform_notification_provider_settings WHERE singleton = true;
++  IF NOT FOUND OR v_settings.active_provider <> 'telegram' OR btrim(v_settings.telegram_bot_username) = '' THEN
++    RAISE EXCEPTION USING MESSAGE = 'Telegram সংযোগ এখনো Super Admin চালু করেননি।', ERRCODE = '55000';
++  END IF;
++
++  -- Remove expired codes globally and replace this account's previous code.
++  -- The expiry index keeps this cleanup bounded without a scheduled job.
++  DELETE FROM public.notification_link_tokens WHERE expires_at <= now() OR user_id = auth.uid();
++  v_token := encode(extensions.gen_random_bytes(32), 'hex');
++  INSERT INTO public.notification_link_tokens(token_hash, user_id, expires_at)
++  VALUES (encode(extensions.digest(convert_to(v_token, 'UTF8'), 'sha256'), 'hex'), auth.uid(), v_expiry);
++
++  RETURN jsonb_build_object(
++    'token', v_token,
++    'bot_username', regexp_replace(v_settings.telegram_bot_username, '^@', ''),
++    'expires_at', v_expiry
++  );
++END
++$function$;
++
++CREATE OR REPLACE FUNCTION public.unlink_my_telegram_notification()
++RETURNS jsonb
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE v_count integer := 0;
++BEGIN
++  PERFORM private.assert_signed_in();
++  DELETE FROM public.user_notification_channels
++  WHERE user_id = auth.uid() AND provider = 'telegram';
++  GET DIAGNOSTICS v_count = ROW_COUNT;
++  DELETE FROM public.notification_link_tokens WHERE user_id = auth.uid();
++  RETURN jsonb_build_object('status', 'success', 'unlinked', v_count > 0);
++END
++$function$;
++
++-- Called only by the server-side Telegram webhook using the service-role key.
++CREATE OR REPLACE FUNCTION public.complete_telegram_notification_link(
++  p_token_hash text,
++  p_chat_id text,
++  p_telegram_user_id text,
++  p_username text DEFAULT NULL
++)
++RETURNS jsonb
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE
++  v_user_id uuid;
++BEGIN
++  IF auth.role() <> 'service_role' THEN
++    RAISE EXCEPTION USING MESSAGE = 'Only the verified Telegram webhook may complete a link.', ERRCODE = '42501';
++  END IF;
++  IF p_token_hash !~ '^[0-9a-f]{64}$'
++     OR p_chat_id IS NULL OR length(p_chat_id) > 32
++     OR p_telegram_user_id IS NULL OR length(p_telegram_user_id) > 32 THEN
++    RAISE EXCEPTION USING MESSAGE = 'Telegram link request is invalid.', ERRCODE = '22023';
++  END IF;
++
++  SELECT t.user_id INTO v_user_id
++  FROM public.notification_link_tokens t
++  WHERE t.token_hash = p_token_hash AND t.used_at IS NULL AND t.expires_at > now()
++  FOR UPDATE;
++  IF NOT FOUND THEN
++    RETURN jsonb_build_object('linked', false, 'code', 'LINK_EXPIRED_OR_INVALID');
++  END IF;
++
++  UPDATE public.notification_link_tokens SET used_at = now() WHERE token_hash = p_token_hash AND used_at IS NULL;
++  BEGIN
++    INSERT INTO public.user_notification_channels(
++      user_id, provider, channel_address, provider_user_id, provider_username, enabled, connected_at, updated_at
++    ) VALUES (
++      v_user_id, 'telegram', p_chat_id, p_telegram_user_id, nullif(left(p_username, 128), ''), true, now(), now()
++    )
++    ON CONFLICT (user_id, provider) DO UPDATE SET
++      channel_address = EXCLUDED.channel_address,
++      provider_user_id = EXCLUDED.provider_user_id,
++      provider_username = EXCLUDED.provider_username,
++      enabled = true,
++      connected_at = now(),
++      updated_at = now();
++  EXCEPTION WHEN unique_violation THEN
++    RAISE EXCEPTION USING MESSAGE = 'এই Telegram অ্যাকাউন্টটি অন্য একটি Hostel Life অ্যাকাউন্টের সঙ্গে যুক্ত আছে।', ERRCODE = '23505';
++  END;
++
++  DELETE FROM public.notification_link_tokens WHERE user_id = v_user_id;
++  RETURN jsonb_build_object('linked', true, 'user_id', v_user_id);
++END
++$function$;
++
++CREATE OR REPLACE FUNCTION public.platform_admin_get_notification_settings()
++RETURNS jsonb
++LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE v_settings public.platform_notification_provider_settings%ROWTYPE; v_connected bigint;
++BEGIN
++  PERFORM private.assert_signed_in();
++  IF NOT private.is_super_admin() THEN RAISE EXCEPTION USING MESSAGE = 'Only Super Admin can view notification provider settings.', ERRCODE = '42501'; END IF;
++  SELECT * INTO v_settings FROM public.platform_notification_provider_settings WHERE singleton = true;
++  SELECT count(*) INTO v_connected FROM public.user_notification_channels WHERE provider = 'telegram' AND enabled = true;
++  RETURN jsonb_build_object(
++    'active_provider', COALESCE(v_settings.active_provider, 'disabled'),
++    'telegram_enabled', COALESCE(v_settings.active_provider = 'telegram', false),
++    'telegram_bot_username', COALESCE(v_settings.telegram_bot_username, ''),
++    'connected_users', v_connected,
++    'updated_at', v_settings.updated_at
++  );
++END
++$function$;
++
++CREATE OR REPLACE FUNCTION public.platform_admin_update_notification_settings(
++  p_telegram_enabled boolean,
++  p_telegram_bot_username text
++)
++RETURNS jsonb
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE v_username text := regexp_replace(btrim(COALESCE(p_telegram_bot_username, '')), '^@', '');
++BEGIN
++  PERFORM private.assert_signed_in();
++  IF NOT private.is_super_admin() THEN RAISE EXCEPTION USING MESSAGE = 'Only Super Admin can update notification provider settings.', ERRCODE = '42501'; END IF;
++  IF length(v_username) > 32 OR (v_username <> '' AND v_username !~ '^[A-Za-z0-9_]{5,32}$') THEN
++    RAISE EXCEPTION USING MESSAGE = 'Telegram Bot Username সঠিক নয়। @ ছাড়া ৫–৩২ অক্ষর দিন।', ERRCODE = '22023';
++  END IF;
++  IF COALESCE(p_telegram_enabled, false) AND v_username = '' THEN
++    RAISE EXCEPTION USING MESSAGE = 'Telegram চালু করতে Bot Username দিতে হবে।', ERRCODE = '22023';
++  END IF;
++  INSERT INTO public.platform_notification_provider_settings(singleton, active_provider, telegram_bot_username, updated_by, updated_at)
++  VALUES (true, CASE WHEN COALESCE(p_telegram_enabled, false) THEN 'telegram' ELSE 'disabled' END, v_username, auth.uid(), now())
++  ON CONFLICT (singleton) DO UPDATE SET
++    active_provider = EXCLUDED.active_provider,
++    telegram_bot_username = EXCLUDED.telegram_bot_username,
++    updated_by = EXCLUDED.updated_by,
++    updated_at = now();
++  INSERT INTO public.platform_audit_log(actor_user_id, action, target_type, target_id, details)
++  VALUES (auth.uid(), 'notification_provider_updated', 'notification_provider', 'telegram',
++    jsonb_build_object('enabled', COALESCE(p_telegram_enabled, false), 'bot_username', v_username));
++  RETURN public.platform_admin_get_notification_settings();
++END
++$function$;
++
++CREATE OR REPLACE FUNCTION public.platform_admin_send_targeted_message(
++  p_hostel_id uuid,
++  p_title text,
++  p_body text,
++  p_recipient_user_ids uuid[] DEFAULT NULL
++)
++RETURNS jsonb
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE
++  v_title text := btrim(COALESCE(p_title, ''));
++  v_body text := btrim(COALESCE(p_body, ''));
++  v_requested integer := 0;
++  v_eligible integer := 0;
++  v_sent integer := 0;
++BEGIN
++  PERFORM private.assert_signed_in();
++  IF NOT private.is_super_admin() THEN RAISE EXCEPTION USING MESSAGE = 'Only Super Admin can send platform messages.', ERRCODE = '42501'; END IF;
++  IF p_hostel_id IS NULL OR NOT EXISTS (SELECT 1 FROM public.hostels h WHERE h.id = p_hostel_id) THEN
++    RAISE EXCEPTION USING MESSAGE = 'সঠিক মেস নির্বাচন করুন।', ERRCODE = 'P0002';
++  END IF;
++  IF v_title = '' OR length(v_title) > 160 OR v_body = '' OR length(v_body) > 3000 THEN
++    RAISE EXCEPTION USING MESSAGE = 'শিরোনাম ১–১৬০ এবং বার্তা ১–৩০০০ অক্ষরের মধ্যে হতে হবে।', ERRCODE = '22023';
++  END IF;
++  IF p_recipient_user_ids IS NOT NULL THEN
++    SELECT count(DISTINCT requested.user_id) INTO v_requested
++    FROM unnest(p_recipient_user_ids) AS requested(user_id);
++    IF v_requested = 0 THEN RAISE EXCEPTION USING MESSAGE = 'অন্তত একজন সদস্য নির্বাচন করুন।', ERRCODE = '22023'; END IF;
++  END IF;
++
++  SELECT count(DISTINCT m.user_id) INTO v_eligible
++  FROM public.hostel_memberships m
++  JOIN public.profiles p ON p.id = m.user_id
++  WHERE m.hostel_id = p_hostel_id AND m.status = 'active' AND NOT COALESCE(p.is_blocked, false)
++    AND (p_recipient_user_ids IS NULL OR m.user_id = ANY(p_recipient_user_ids));
++
++  IF v_eligible = 0 THEN RAISE EXCEPTION USING MESSAGE = 'নির্বাচিত মেসে সক্রিয় প্রাপক পাওয়া যায়নি।', ERRCODE = 'P0002'; END IF;
++  IF p_recipient_user_ids IS NOT NULL AND v_eligible <> v_requested THEN
++    RAISE EXCEPTION USING MESSAGE = 'নির্বাচিত এক বা একাধিক ব্যবহারকারী এই মেসের সক্রিয় সদস্য নন। কোনো বার্তা পাঠানো হয়নি।', ERRCODE = '42501';
++  END IF;
++
++  INSERT INTO public.notifications(hostel_id, recipient_user_id, title, body, created_by, notification_kind)
++  SELECT p_hostel_id, m.user_id, v_title, v_body, auth.uid(), 'platform_message'
++  FROM public.hostel_memberships m
++  JOIN public.profiles p ON p.id = m.user_id
++  WHERE m.hostel_id = p_hostel_id AND m.status = 'active' AND NOT COALESCE(p.is_blocked, false)
++    AND (p_recipient_user_ids IS NULL OR m.user_id = ANY(p_recipient_user_ids));
++  GET DIAGNOSTICS v_sent = ROW_COUNT;
++
++  INSERT INTO public.platform_audit_log(actor_user_id, action, target_type, target_id, details)
++  VALUES (auth.uid(), 'platform_message_sent', 'hostel', p_hostel_id::text,
++    jsonb_build_object('recipient_count', v_sent));
++
++  RETURN jsonb_build_object('status', 'success', 'sent_count', v_sent, 'hostel_id', p_hostel_id);
++END
++$function$;
++
++-- Extend the existing cached public-settings response with one non-sensitive
++-- feature flag. This reuses the existing request; it exposes no bot username,
++-- Telegram chat id, token, or per-user connection state.
++CREATE OR REPLACE FUNCTION public.get_platform_public_settings()
++RETURNS jsonb
++LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
++  SELECT COALESCE((
++    SELECT jsonb_build_object(
++      'announcement_enabled', s.announcement_enabled,
++      'announcement_title', s.announcement_title,
++      'announcement_body', s.announcement_body,
++      'registration_code_required', s.registration_code_required,
++      'hostel_creation_code_required', s.hostel_creation_code_required,
++      'developer_name', s.developer_name,
++      'developer_title', s.developer_title,
++      'developer_photo_url', s.developer_photo_url,
++      'developer_email', s.developer_email,
++      'developer_phone', s.developer_phone,
++      'developer_portfolio_url', s.developer_portfolio_url,
++      'default_theme', s.default_theme,
++      'telegram_enabled', EXISTS (
++        SELECT 1 FROM public.platform_notification_provider_settings ps
++        WHERE ps.singleton = true AND ps.active_provider = 'telegram'
++      ),
++      'updated_at', s.updated_at
++    )
++    FROM public.platform_settings s WHERE s.singleton = true
++  ), '{}'::jsonb)
++$$;
++
++-- Preserve the existing pinned-manager notice behavior while classifying it
++-- explicitly so the shared inbox and Telegram adapter can label it correctly.
++CREATE OR REPLACE FUNCTION public.manager_send_notification(p_title text, p_body text)
++RETURNS jsonb
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE
++  v_hostel uuid := private.my_hostel_id();
++  v_count integer := 0;
++  v_title text := btrim(COALESCE(p_title, ''));
++  v_body text := btrim(COALESCE(p_body, ''));
++  v_batch_id uuid := gen_random_uuid();
++BEGIN
++  PERFORM private.assert_signed_in();
++  PERFORM private.assert_hostel_manager(v_hostel, NULL, false, false);
++  IF v_title = '' OR length(v_title) > 160 THEN
++    RAISE EXCEPTION USING MESSAGE = 'নোটিশের শিরোনাম ১ থেকে ১৬০ অক্ষরের হতে হবে।', ERRCODE = '22023';
++  END IF;
++  IF v_body = '' OR length(v_body) > 3000 THEN
++    RAISE EXCEPTION USING MESSAGE = 'নোটিশের বিবরণ ১ থেকে ৩০০০ অক্ষরের হতে হবে।', ERRCODE = '22023';
++  END IF;
++
++  PERFORM pg_advisory_xact_lock(hashtextextended('hostel-life-pinned-notice:' || v_hostel::text, 0));
++  INSERT INTO public.hostel_pinned_announcements(
++    hostel_id, announcement_batch_id, title, body, created_by, created_at, updated_at
++  ) VALUES (v_hostel, v_batch_id, v_title, v_body, auth.uid(), now(), now())
++  ON CONFLICT (hostel_id) DO UPDATE SET
++    announcement_batch_id = EXCLUDED.announcement_batch_id,
++    title = EXCLUDED.title,
++    body = EXCLUDED.body,
++    created_by = EXCLUDED.created_by,
++    created_at = EXCLUDED.created_at,
++    updated_at = EXCLUDED.updated_at;
++
++  INSERT INTO public.notifications(
++    hostel_id, recipient_user_id, title, body, created_by, announcement_batch_id, notification_kind
++  )
++  SELECT v_hostel, m.user_id, v_title, v_body, auth.uid(), v_batch_id, 'manager_message'
++  FROM public.hostel_memberships m
++  JOIN public.profiles p ON p.id = m.user_id
++  WHERE m.hostel_id = v_hostel AND m.status = 'active' AND NOT p.is_blocked;
++  GET DIAGNOSTICS v_count = ROW_COUNT;
++  IF v_count = 0 THEN
++    RAISE EXCEPTION USING MESSAGE = 'এই মেসে নোটিশ পাওয়ার মতো কোনো সক্রিয় সদস্য পাওয়া যায়নি।', ERRCODE = 'P0002';
++  END IF;
++  RETURN jsonb_build_object('status', 'success', 'sent_count', v_count, 'is_pinned', true, 'announcement_batch_id', v_batch_id);
++END
++$function$;
++
++-- Replace the existing read RPC to include the message category in the same
++-- inbox query. AppShell uses its existing first-load/realtime refresh; no polling added.
++CREATE OR REPLACE FUNCTION public.get_notifications(p_limit integer DEFAULT 50)
++RETURNS jsonb
++LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE v_hostel uuid := private.my_hostel_id(); v_result jsonb;
++BEGIN
++  PERFORM private.assert_signed_in();
++  SELECT COALESCE(jsonb_agg(jsonb_build_object(
++    'notification_id', n.id, 'id', n.id, 'title', n.title, 'body', n.body,
++    'created_at', n.created_at, 'seen_at', n.seen_at, 'is_seen', n.seen_at IS NOT NULL,
++    'created_by', n.created_by, 'announcement_batch_id', n.announcement_batch_id,
++    'notification_kind', n.notification_kind,
++    'is_pinned', EXISTS (
++      SELECT 1 FROM public.hostel_pinned_announcements a
++      WHERE a.hostel_id = n.hostel_id AND a.announcement_batch_id = n.announcement_batch_id
++    )
++  ) ORDER BY n.created_at DESC), '[]'::jsonb)
++  INTO v_result
++  FROM (
++    SELECT * FROM public.notifications
++    WHERE hostel_id = v_hostel AND recipient_user_id = auth.uid() AND deleted_at IS NULL
++    -- Keep unseen platform/system messages inside the existing 50-row fetch
++    -- even if ordinary activity has accumulated since the user last logged in.
++    ORDER BY (notification_kind IN ('platform_message', 'system_notice') AND seen_at IS NULL) DESC,
++             created_at DESC
++    LIMIT GREATEST(1, LEAST(COALESCE(p_limit, 50), 200))
++  ) n;
++  RETURN v_result;
++END
++$function$;
++
++-- The global banner remains a single platform setting. Only a real enabled
++-- content change creates per-user inbox messages (and therefore optional Telegram delivery).
++CREATE OR REPLACE FUNCTION private.hl_notify_global_platform_notice()
++RETURNS trigger
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++BEGIN
++  IF NEW.announcement_enabled
++     AND (OLD.announcement_enabled IS DISTINCT FROM NEW.announcement_enabled
++       OR OLD.announcement_title IS DISTINCT FROM NEW.announcement_title
++       OR OLD.announcement_body IS DISTINCT FROM NEW.announcement_body)
++     AND (btrim(COALESCE(NEW.announcement_title, '')) <> '' OR btrim(COALESCE(NEW.announcement_body, '')) <> '') THEN
++    INSERT INTO public.notifications(hostel_id, recipient_user_id, title, body, created_by, notification_kind)
++    SELECT DISTINCT ON (m.user_id) m.hostel_id, m.user_id,
++      COALESCE(NULLIF(btrim(NEW.announcement_title), ''), 'Hostel Life ঘোষণা'),
++      COALESCE(NEW.announcement_body, ''), NEW.updated_by, 'system_notice'
++    FROM public.hostel_memberships m
++    JOIN public.profiles p ON p.id = m.user_id
++    WHERE m.status = 'active' AND NOT COALESCE(p.is_blocked, false)
++    ORDER BY m.user_id, m.created_at DESC;
++  END IF;
++  RETURN NEW;
++END
++$function$;
++DROP TRIGGER IF EXISTS hl_notify_global_platform_notice_trg ON public.platform_settings;
++CREATE TRIGGER hl_notify_global_platform_notice_trg
++AFTER UPDATE OF announcement_enabled, announcement_title, announcement_body
++ON public.platform_settings FOR EACH ROW
++EXECUTE FUNCTION private.hl_notify_global_platform_notice();
++
++-- One universal statement-level hook covers current and future notification rows.
++-- A bulk INSERT (e.g. Super Admin message/global notice) creates one delivery batch,
++-- so the Database Webhook invokes the Edge Function once for the whole recipient set.
++CREATE OR REPLACE FUNCTION private.hl_enqueue_notification_delivery()
++RETURNS trigger
++LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $function$
++DECLARE
++  v_provider text;
++  v_outbox_ids uuid[];
++BEGIN
++  SELECT s.active_provider INTO v_provider
++  FROM public.platform_notification_provider_settings s WHERE s.singleton = true;
++  IF COALESCE(v_provider, 'disabled') = 'telegram' THEN
++    WITH inserted AS (
++      INSERT INTO public.notification_delivery_outbox(notification_id, recipient_user_id, provider)
++      SELECT n.id, n.recipient_user_id, 'telegram'
++      FROM new_notifications n
++      JOIN public.user_notification_channels c
++        ON c.user_id = n.recipient_user_id AND c.provider = 'telegram' AND c.enabled = true
++      ON CONFLICT (notification_id, provider) DO NOTHING
++      RETURNING id
++    )
++    SELECT array_agg(id) INTO v_outbox_ids FROM inserted;
++
++    IF COALESCE(cardinality(v_outbox_ids), 0) > 0 THEN
++      -- Keep each Webhook invocation bounded: 100 direct recipients per batch.
++      -- Large hostel-wide notices are split into multiple bounded batches.
++      INSERT INTO public.notification_delivery_batches(outbox_ids)
++      SELECT array_agg(chunk.id ORDER BY chunk.ordinality)
++      FROM (
++        SELECT ids.id, ids.ordinality,
++               ((ids.ordinality - 1) / 100)::integer AS batch_number
++        FROM unnest(v_outbox_ids) WITH ORDINALITY AS ids(id, ordinality)
++      ) AS chunk
++      GROUP BY chunk.batch_number;
++    END IF;
++  END IF;
++
++  -- Bounded metadata cleanup runs at most once per day, on notification traffic.
++  -- No cron job, polling, or additional external API request is required.
++  UPDATE public.platform_notification_provider_settings
++  SET outbox_pruned_at = now()
++  WHERE singleton = true
++    AND (outbox_pruned_at IS NULL OR outbox_pruned_at < now() - interval '1 day');
++  IF FOUND THEN
++    UPDATE public.notification_delivery_outbox
++    SET status = 'failed', last_error_code = 'DELIVERY_EXPIRED', updated_at = now()
++    WHERE status IN ('pending','processing') AND created_at < now() - interval '7 days';
++    DELETE FROM public.notification_delivery_outbox
++    WHERE created_at < now() - interval '7 days' AND status IN ('delivered','failed','skipped');
++    UPDATE public.notification_delivery_batches
++    SET status = 'failed', last_error_code = 'DELIVERY_EXPIRED', updated_at = now()
++    WHERE status IN ('pending','processing') AND created_at < now() - interval '7 days';
++    DELETE FROM public.notification_delivery_batches
++    WHERE created_at < now() - interval '7 days' AND status IN ('delivered','partial','failed','skipped');
++    DELETE FROM public.notification_link_tokens WHERE expires_at <= now();
++  END IF;
++  RETURN NULL;
++END
++$function$;
++DROP TRIGGER IF EXISTS hl_enqueue_notification_delivery_trg ON public.notifications;
++CREATE TRIGGER hl_enqueue_notification_delivery_trg
++AFTER INSERT ON public.notifications
++REFERENCING NEW TABLE AS new_notifications
++FOR EACH STATEMENT
++EXECUTE FUNCTION private.hl_enqueue_notification_delivery();
++
++REVOKE ALL ON FUNCTION public.get_my_telegram_notification_status() FROM PUBLIC, anon;
++REVOKE ALL ON FUNCTION public.create_my_telegram_link() FROM PUBLIC, anon;
++REVOKE ALL ON FUNCTION public.unlink_my_telegram_notification() FROM PUBLIC, anon;
++REVOKE ALL ON FUNCTION public.complete_telegram_notification_link(text,text,text,text) FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON FUNCTION public.platform_admin_get_notification_settings() FROM PUBLIC, anon;
++REVOKE ALL ON FUNCTION public.platform_admin_update_notification_settings(boolean,text) FROM PUBLIC, anon;
++REVOKE ALL ON FUNCTION public.platform_admin_send_targeted_message(uuid,text,text,uuid[]) FROM PUBLIC, anon;
++REVOKE ALL ON FUNCTION private.hl_notify_global_platform_notice() FROM PUBLIC, anon, authenticated;
++REVOKE ALL ON FUNCTION private.hl_enqueue_notification_delivery() FROM PUBLIC, anon, authenticated;
++GRANT EXECUTE ON FUNCTION public.get_my_telegram_notification_status() TO authenticated;
++GRANT EXECUTE ON FUNCTION public.create_my_telegram_link() TO authenticated;
++GRANT EXECUTE ON FUNCTION public.unlink_my_telegram_notification() TO authenticated;
++GRANT EXECUTE ON FUNCTION public.complete_telegram_notification_link(text,text,text,text) TO service_role;
++GRANT EXECUTE ON FUNCTION public.platform_admin_get_notification_settings() TO authenticated;
++GRANT EXECUTE ON FUNCTION public.platform_admin_update_notification_settings(boolean,text) TO authenticated;
++GRANT EXECUTE ON FUNCTION public.platform_admin_send_targeted_message(uuid,text,text,uuid[]) TO authenticated;
++
++COMMIT;
+diff --git a/tests/v9NotificationHubReleaseTelegram.test.js b/tests/v9NotificationHubReleaseTelegram.test.js
+new file mode 100644
+index 0000000..58bc583
+--- /dev/null
++++ b/tests/v9NotificationHubReleaseTelegram.test.js
+@@ -0,0 +1,169 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++
++const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
++const migration = read('supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql');
++const shell = read('src/app/AppShell.jsx');
++const release = read('vite.config.js');
++const releaseModule = read('src/app/release.js');
++const platform = read('src/features/platform/SuperAdminPage.jsx');
++const platformService = read('src/services/platformService.js');
++const telegramPage = read('src/features/telegram/TelegramConnectionPage.jsx');
++const telegramService = read('src/services/telegramService.js');
++const botWebhook = read('supabase/functions/telegram-bot-webhook/index.ts');
++const delivery = read('supabase/functions/telegram-notification-dispatch/index.ts');
++const config = read('supabase/config.toml');
++const privacy = read('src/features/menu/MenuPages.jsx');
++const css = read('src/styles/notification-center.css');
++const notificationPopover = read('src/components/NotificationsPopover.jsx');
++
++ test('release update notice uses build-time metadata and no database log or polling', () => {
++  assert.match(release, /VERCEL_GIT_COMMIT_SHA/);
++  assert.match(release, /new Date\(\)\.toISOString\(\)/);
++  assert.match(release, /__HOSTEL_LIFE_RELEASE__/);
++  assert.match(releaseModule, /__HOSTEL_LIFE_RELEASE__/);
++  assert.match(shell, /hostel-life-last-seen-release-v1:\$\{user\.id\}/);
++  assert.match(shell, /APP_RELEASE\.id/);
++  assert.match(shell, /APP_RELEASE\.builtAt/);
++  assert.match(shell, /এখনই রিফ্রেশ করুন/);
++  assert.match(shell, /window\.location\.reload\(\)/);
++  assert.doesNotMatch(shell, /setInterval\(/);
++  assert.doesNotMatch(migration, /release_notice_log|deployment_history/i);
++});
++
++test('platform messages reuse the existing notification inbox and show one-time priority popups', () => {
++  assert.match(migration, /ADD COLUMN IF NOT EXISTS notification_kind text NOT NULL DEFAULT 'activity'/);
++  assert.match(migration, /platform_admin_send_targeted_message/);
++  assert.match(migration, /'platform_message'/);
++  assert.match(migration, /'system_notice'/);
++  assert.match(migration, /notification_kind', n\.notification_kind/);
++  assert.match(shell, /fetchNotifications\(50\)/);
++  assert.match(shell, /\['platform_message', 'system_notice'\]/);
++  assert.match(shell, /markNotificationSeen\(id\)/);
++  assert.match(shell, /useRealtimeRefresh\([\s\S]*tables: \['notifications'\]/);
++  assert.match(migration, /notification_kind IN \('platform_message', 'system_notice'\) AND seen_at IS NULL/);
++  assert.match(notificationPopover, /notification_type: item\.notification_type \\|\| item\.notification_kind/);
++  assert.doesNotMatch(shell, /setInterval\(/);
++  assert.match(platform, /platformAdminSendTargetedMessage/);
++  assert.match(platformService, /platform_admin_send_targeted_message/);
++  assert.match(platform, /confirmAction\(`বার্তাটি/);
++  assert.match(migration, /private\.is_super_admin\(\)/);
++  assert.match(migration, /m\.status = 'active'/);
++  assert.match(migration, /NOT COALESCE\(p\.is_blocked, false\)/);
++  assert.match(migration, /recipient_count', v_sent/);
++});
++
++test('targeted message SQL validates recipient membership before any insert', () => {
++  const functionBody = migration.split('CREATE OR REPLACE FUNCTION public.platform_admin_send_targeted_message')[1].split('$function$;')[0];
++  assert.match(functionBody, /IF NOT private\.is_super_admin\(\)/);
++  assert.match(functionBody, /p_recipient_user_ids IS NOT NULL/);
++  assert.match(functionBody, /v_eligible <> v_requested/);
++  assert.ok(functionBody.indexOf('v_eligible <> v_requested') < functionBody.indexOf('INSERT INTO public.notifications'));
++  assert.match(functionBody, /notification_kind\)[\s\S]*'platform_message'/);
++  assert.match(functionBody, /p_title[\s\S]*160/);
++  assert.match(functionBody, /p_body[\s\S]*3000/);
++});
++
++test('Telegram linking is optional, authenticated, one-time and stores only a token hash', () => {
++  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.user_notification_channels/);
++  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.notification_link_tokens/);
++  assert.match(migration, /CREATE TABLE IF NOT EXISTS public\.notification_delivery_outbox/);
++  assert.match(migration, /extensions\.gen_random_bytes\(32\)/);
++  assert.match(migration, /extensions\.digest\(convert_to\(v_token, 'UTF8'\), 'sha256'\)/);
++  assert.match(migration, /expires_at timestamptz NOT NULL/);
++  assert.match(migration, /DELETE FROM public\.notification_link_tokens WHERE expires_at <= now\(\) OR user_id = auth\.uid\(\)/);
++  assert.match(migration, /REVOKE ALL ON public\.user_notification_channels FROM PUBLIC, anon, authenticated/);
++  assert.match(migration, /REVOKE ALL ON public\.notification_link_tokens FROM PUBLIC, anon, authenticated/);
++  assert.match(migration, /REVOKE ALL ON FUNCTION public\.complete_telegram_notification_link\(text,text,text,text\) FROM PUBLIC, anon, authenticated/);
++  assert.match(migration, /IF auth\.role\(\) <> 'service_role'/);
++  assert.match(telegramPage, /Telegram সংযোগ করুন/);
++  assert.match(telegramPage, /সংযোগ বিচ্ছিন্ন/);
++  assert.match(telegramService, /create_my_telegram_link/);
++  assert.doesNotMatch(telegramPage, /SUPABASE_SERVICE_ROLE_KEY|user_notification_channels|password/i);
++  assert.match(shell, /Telegram সংযোগ করুন/);
++  assert.match(shell, /hostel-life-telegram-nudge-v1/);
++});
++
++test('Telegram first-time prompt waits behind release, install and priority dialogs and uses the cached public feature flag', () => {
++  assert.match(migration, /'telegram_enabled', EXISTS/);
++  assert.match(migration, /public\.platform_notification_provider_settings/);
++  assert.match(shell, /platformSettings\?\.telegram_enabled !== true/);
++  assert.match(shell, /getMyTelegramNotificationStatus\(\)/);
++  assert.match(shell, /status\?\.connected/);
++  assert.match(shell, /releaseNoticeOpen \|\| installNudgeOpen \|\| priorityMessages\.length > 0/);
++  assert.match(shell, /hostel-life-telegram-connected-v1/);
++  assert.match(telegramPage, /hostel-life-telegram-connected-v1/);
++  assert.match(shell, /পরে করব/);
++  assert.match(css, /\.telegram-nudge-dialog/);
++});
++
++test('a single notification INSERT hook covers current and future notification kinds without storing message bodies in the outbox', () => {
++  assert.match(migration, /CREATE OR REPLACE FUNCTION private\.hl_enqueue_notification_delivery\(\)/);
++  assert.match(migration, /AFTER INSERT ON public\.notifications/);
++  assert.match(migration, /REFERENCING NEW TABLE AS new_notifications/);
++  assert.match(migration, /GROUP BY chunk\.batch_number/);
++  assert.match(migration, /cardinality\(outbox_ids\) BETWEEN 1 AND 100/);
++  assert.match(migration, /notification_id, recipient_user_id, provider/);
++  assert.match(migration, /ON CONFLICT \(notification_id, provider\) DO NOTHING/);
++  const outboxBlock = migration.split('CREATE TABLE IF NOT EXISTS public.notification_delivery_outbox')[1].split(');')[0];
++  assert.doesNotMatch(outboxBlock, /title|body|message_content|chat_id/i);
++  assert.match(migration, /interval '7 days'/);
++  assert.match(migration, /outbox_pruned_at < now\(\) - interval '1 day'/);
++  assert.match(migration, /notification_link_tokens WHERE expires_at <= now\(\)/);
++  assert.match(migration, /status IN \('delivered','failed','skipped'\)/);
++});
++
++test('Telegram bot webhook is private-chat-only, protected by Telegram secret header and never logs bot/chat credentials', () => {
++  assert.match(botWebhook, /x-telegram-bot-api-secret-token/);
++  assert.match(botWebhook, /TELEGRAM_WEBHOOK_SECRET/);
++  assert.match(botWebhook, /chat\?\.type !== 'private'/);
++  assert.match(botWebhook, /complete_telegram_notification_link/);
++  assert.match(botWebhook, /sha256Hex\(token\.toLowerCase\(\)\)/);
++  assert.match(botWebhook, /TELEGRAM_BOT_TOKEN/);
++  assert.doesNotMatch(botWebhook, /console\.(log|error).*chatId|console\.(log|error).*botToken/);
++  assert.match(config, /\[functions\.telegram-bot-webhook\][\s\S]*verify_jwt = false/);
++});
++
++test('Telegram dispatcher only sends for explicitly linked users and validates its dedicated webhook secret', () => {
++  assert.match(delivery, /NOTIFICATION_DISPATCH_WEBHOOK_SECRET/);
++  assert.match(delivery, /notification_delivery_batches/);
++  assert.match(delivery, /NO_OUTBOX_ROWS/);
++  assert.match(delivery, /OUTBOX_UPDATE_FAILED/);
++  assert.match(delivery, /outbox_ids/);
++  assert.match(delivery, /BATCH_ID_MISSING/);
++  assert.match(delivery, /x-hostel-delivery-secret/);
++  assert.match(delivery, /providerSettings\?\.active_provider !== 'telegram'/);
++  assert.match(delivery, /channel\?\.enabled/);
++  assert.match(delivery, /api\.telegram\.org\/bot/);
++  assert.match(delivery, /sendMessage/);
++  assert.match(delivery, /retry_after/);
++  assert.match(delivery, /TELEGRAM_\$\{errorCode\}/);
++  assert.doesNotMatch(delivery, /console\.(log|error).*telegramText|console\.(log|error).*channel_address/);
++  assert.match(config, /\[functions\.telegram-notification-dispatch\][\s\S]*verify_jwt = false/);
++});
++
++test('public platform settings expose only Telegram enabled status, not bot secrets or recipient identities', () => {
++  const fn = migration.split('CREATE OR REPLACE FUNCTION public.get_platform_public_settings()')[1].split('$$;')[0];
++  assert.match(fn, /'telegram_enabled', EXISTS/);
++  assert.doesNotMatch(fn, /telegram_bot_username|channel_address|provider_user_id|token_hash|TELEGRAM_BOT_TOKEN/i);
++  assert.match(migration, /platform_notification_provider_settings FROM PUBLIC, anon, authenticated/);
++  assert.match(migration, /hostel_pinned_announcements/);
++});
++
++test('manager pinned notice behavior is preserved and tagged for the shared notification provider', () => {
++  const fn = migration.split('CREATE OR REPLACE FUNCTION public.manager_send_notification')[1].split('$function$;')[0];
++  assert.match(fn, /private\.assert_hostel_manager\(v_hostel, NULL, false, false\)/);
++  assert.match(fn, /hostel_pinned_announcements/);
++  assert.match(fn, /pg_advisory_xact_lock/);
++  assert.match(fn, /announcement_batch_id/);
++  assert.match(fn, /'manager_message'/);
++  assert.match(fn, /IF v_count = 0 THEN/);
++});
++
++test('privacy policy explains Telegram identity data and how to disconnect', () => {
++  assert.match(privacy, /ঐচ্ছিক Telegram সংযোগ/);
++  assert.match(privacy, /Telegram Chat ID/);
++  assert.match(privacy, /নোটিফিকেশনের শিরোনাম ও বার্তার লেখা সংযুক্ত Telegram অ্যাকাউন্টে পাঠানো হয়/);
++  assert.match(privacy, /যেকোনো সময় বিচ্ছিন্ন/);
++});
+diff --git a/vite.config.js b/vite.config.js
+index 1c42b8a..2806915 100644
+--- a/vite.config.js
++++ b/vite.config.js
+@@ -1,8 +1,23 @@
++import { execFileSync } from 'node:child_process';
+ import { defineConfig } from 'vite';
+ import react from '@vitejs/plugin-react';
+ 
++function readGitValue(args) {
++  try { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); }
++  catch { return ''; }
++}
++
++// Release metadata is embedded at build time. It costs no runtime/API request
++// and changes on every production build, including redeploys of the same commit.
++const builtAt = new Date().toISOString();
++const commit = process.env.VERCEL_GIT_COMMIT_SHA || readGitValue(['rev-parse', 'HEAD']) || 'manual-build';
++const releaseId = `${commit.slice(0, 12)}-${builtAt}`;
++
+ export default defineConfig({
+   plugins: [react()],
++  define: {
++    __HOSTEL_LIFE_RELEASE__: JSON.stringify({ id: releaseId, builtAt, commit: commit.slice(0, 40) }),
++  },
+   server: {
+     host: true,
+     port: 5173,

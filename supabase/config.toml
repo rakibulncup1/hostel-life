@@ -1,2 +1,8 @@
 [functions.record-auth-event]
 verify_jwt = false
+
+[functions.telegram-bot-webhook]
+verify_jwt = false
+
+[functions.telegram-notification-dispatch]
+verify_jwt = false

@@ -9,6 +9,8 @@ import { getFriendlySupabaseError } from '../utils/supabaseErrors';
 
 function typeLabel(type) {
   if (type === 'manager_message') return 'ম্যানেজারের বার্তা';
+  if (type === 'platform_message') return 'Super Admin-এর বার্তা';
+  if (type === 'system_notice') return 'সিস্টেম ঘোষণা';
   if (type === 'market_entry') return 'বাজার আপডেট';
   if (['new_month', 'month_started', 'period_started'].includes(type)) return 'নতুন মাস';
   if (['manager_change', 'manager_changed'].includes(type)) return 'ম্যানেজার পরিবর্তন';
@@ -27,7 +29,8 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const next = await fetchNotifications(50);
+      const result = await fetchNotifications(50);
+      const next = result.map((item) => ({ ...item, notification_type: item.notification_type || item.notification_kind || 'activity' }));
       setItems(next);
       onUnreadChange?.(next.filter((item) => !item.is_seen).length);
     } catch (error) {

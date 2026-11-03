@@ -1,141 +1,150 @@
-# Hostel Life Backup Assistant — বাংলা নির্দেশনা
+# Hostel Life — Notification Hub, Release Notice & Telegram Patch V9
 
-এই Windows Utility-তে চারটি কাজ করা যায়: **Master Backup, Hostel Backup, Backup Verify এবং Restore & Disaster Recovery**। Backup/Restore চালানোর সময় Database ও API-তে কাজ আপনার কম্পিউটার থেকেই হবে। Web Panel কোনো Database Restore চালায় না। `.hlbackup` ফাইল AES-256-GCM এনক্রিপ্টেড।
+এই প্যাচটি বর্তমান V8 কোডের ওপর Incremental Patch। এটি সম্পূর্ণ Project ZIP নয়।
 
-> গুরুত্বপূর্ণ: Module 2-তে Live Supabase Project-এ বাস্তব Restore চালিয়ে পরীক্ষা করা হয়নি। আগে একটি নতুন Test Project-এ Dry Run ও Restore যাচাই করুন। নিজের একমাত্র/চলমান Project-এ প্রথমবার পরীক্ষা করবেন না।
+## ১. প্যাচের ভিত্তি ও ক্রম
 
-## ১. কী কী লাগবে
+প্রয়োগের ভিত্তি:
 
-- Windows 10/11 64-bit
-- Python 3.11 বা নতুন সংস্করণ, Tkinter নির্বাচনসহ
-- `cryptography`, `requests`, `psycopg` Python Package (প্রথমবার `RUN_BACKUP_ASSISTANT.bat` ইনস্টল করবে)
-- **PostgreSQL Client Tools (`psql`) — Master Restore-এর জন্য আবশ্যক**। `psql --version` চালিয়ে PATH-এ আছে কি না যাচাই করুন। PostgreSQL Server/Docker ইনস্টল করা বাধ্যতামূলক নয়; Restore-এর জন্য Client Tools-ই যথেষ্ট।
-- Node.js 20.19+, `npx` / Supabase CLI এবং চালু Docker Desktop — Master Backup তৈরির জন্য
-- Target Project-এর Supabase Project URL, Project Ref, Database Connection String এবং Target Secret/Legacy `service_role` Key
-- কমপক্ষে ১২ অক্ষরের Encryption Password
-- Restore-এর জন্য পর্যাপ্ত খালি Disk Space; Workspace-এ অস্থায়ী Plaintext ফাইল তৈরি হয়
+`Hostel Life(2).zip → V1 → V2 → V3 → V4 → V5 → V6 → V7 → V8 → V9`
 
-## ২. Supabase CLI একবার Login
+V9-এর নতুন Database Migration হলো `supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql`। এটি Run30-এর পরে প্রয়োগ করতে হবে। আগের প্রয়োজনীয় Migration/patch এখনো প্রয়োগ না করা থাকলে সরাসরি Run31 চালাবেন না।
 
-Master Backup তৈরির সময় Command Prompt/PowerShell-এ চালান:
+## ২. কী যুক্ত হয়েছে
+
+### Release Update Notice
+
+- Build সময় ও Commit ID Vite build-এর সময় অ্যাপের মধ্যে embed হয়।
+- ব্যবহারকারী প্রতি নতুন Build-এ একবার ছোট Update Dialog দেখেন।
+- সময় Asia/Dhaka অনুযায়ী দেখা যায়; Refresh অথবা পরে করার সুযোগ থাকে।
+- এ জন্য কোনো নতুন Database table, API request, polling বা log নেই।
+
+### Super Admin বার্তা
+
+- Super Admin একটি নির্দিষ্ট মেসের সব সক্রিয় সদস্য অথবা ওই মেসের নির্বাচিত সদস্যদের বার্তা দিতে পারবেন।
+- Database আগে যাচাই করে নির্বাচিত প্রত্যেক প্রাপক ওই মেসের সক্রিয় ও Block না হওয়া সদস্য কি না; একটি ID-ও ভুল হলে কোনো বার্তা insert হবে না।
+- বার্তা বিদ্যমান `notifications` Inbox-এ সংরক্ষিত হয় এবং অ্যাপে লগইন/পরবর্তী refresh-এ অগ্রাধিকার Popup দেখায়।
+- Global Platform Notice আপডেট হলে সেটিও বিদ্যমান Inbox-এ system notice হিসেবে যায়। Manager Notice-এর বর্তমান pinned আচরণ বজায় থাকে।
+
+### Telegram Notification Provider
+
+- Telegram সম্পূর্ণ ঐচ্ছিক। ব্যবহারকারী নিজে সংযোগ না করলে তার কাছে Telegram বার্তা যাবে না।
+- Notification-এর জন্য একটি কেন্দ্রীয় Database hook আছে; ভবিষ্যতের নতুন `notifications` INSERT-ও একই Delivery Layer-এ যাবে। আলাদা আলাদা feature-এ Telegram কোড যোগ করতে হবে না।
+- Telegram Chat ID, Telegram User ID ও ঐচ্ছিক Username Server-side private table-এ থাকে। Browser-এ Bot Token/Webhook Secret আসে না।
+- সংযোগ Token ৩২ random byte (৬৪ hex character); Database-এ raw token নয়, শুধু SHA-256 hash রাখা হয়; ১০ মিনিটে মেয়াদ শেষ এবং একবার ব্যবহারের পর বাতিল।
+- Delivery Outbox-এ শুধু notification ID, recipient ID, status, attempt ও সীমিত error code থাকে—message body, Chat ID বা Bot Token নয়। Outbox/Batch metadata ৭ দিন পর প্রথম দৈনিক Notification INSERT-এর সময় পরিষ্কার হয়। কোনো Cron/Polling দরকার নেই।
+- একটি Database INSERT-এ সর্বোচ্চ ১০০ প্রাপকের ID নিয়ে একটি batch হয়; বড় insert একাধিক batch-এ ভাগ হয়। প্রতিটি batch-এ একটি Edge Function invocation লাগে। Telegram API-তে অবশ্য প্রত্যেক opt-in ব্যবহারকারীর জন্য আলাদা `sendMessage` request লাগে।
+- Provider setting `disabled` থাকলে নতুন Telegram outbox/batch তৈরি হয় না। In-App Notification স্বাভাবিকভাবে কাজ করে।
+- Provider architecture কেন্দ্রীয়; ভবিষ্যতে অন্য Provider যোগ করতে নতুন backend adapter/permission/migration লাগবে—শুধু UI থেকে নাম পাল্টালেই হবে না।
+
+## ৩. Run31 Migration
+
+ফাইল:
+
+`supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql`
+
+এটি নতুন Provider/Channel/Link Token/Outbox/Batch টেবিল, `notifications.notification_kind`, প্রয়োজনীয় RPC, বিদ্যমান notification RPC-এর compatibility update এবং statement-level delivery trigger তৈরি করে। কোনো পুরোনো ব্যবসায়িক হিসাব, মিল, বাজার, সদস্যপদ বা Notification row মুছে ফেলে না। শুধু মেয়াদোত্তীর্ণ একবারের Telegram link token এবং ৭ দিনের বেশি পুরোনো delivery metadata পরিষ্কার হয়।
+
+**Production-এ চালানোর আগে:**
+
+1. তোমার সম্পূর্ণ Database Backup নাও।
+2. আলাদা Staging Supabase Project-এ Baseline থেকে প্রয়োজনীয় আগের Migration (বিশেষ করে Run28, Run29, Run30) এবং Run31 ক্রমানুসারে প্রয়োগ করে পরীক্ষা করো।
+3. Run31-এর SQL Editor output-এ Error নেই নিশ্চিত করো। এই প্যাচ তৈরির পরিবেশে Postgres Runtime/`psql` ছিল না; SQL Static Review ও Contract Tests হয়েছে, Live DB-তে Run31 execute করা হয়নি।
+4. Staging পরীক্ষা সফল হলে Production-এ Run31 একবার চালাও। কোনো Error হলে output দেখে কারণ নির্ণয় না করে একই Migration বারবার চালিও না।
+
+## ৪. Telegram হাতে সেটআপ — একবারের কাজ
+
+Telegram ব্যবহার করতে না চাইলে এই অংশ বাদ দিতে পারো। Telegram Provider ডিফল্টভাবে `disabled`; সেটি চালু না করলে কোনো Telegram Delivery হবে না।
+
+### ধাপ A — Bot তৈরি ও Secret প্রস্তুত
+
+1. Telegram-এর BotFather দিয়ে একটি Bot তৈরি করো এবং Bot Token সংগ্রহ করো।
+2. দুটি আলাদা ৩২-byte random hexadecimal secret তৈরি করো:
+   - `TELEGRAM_WEBHOOK_SECRET` — Telegram থেকে আসা Bot update যাচাইয়ের জন্য।
+   - `NOTIFICATION_DISPATCH_WEBHOOK_SECRET` — Database Webhook থেকে Dispatcher Function-এ অনুরোধ যাচাইয়ের জন্য।
+3. এগুলো Supabase Project-এর Edge Function Secrets-এ রাখো:
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_WEBHOOK_SECRET`
+   - `NOTIFICATION_DISPATCH_WEBHOOK_SECRET`
+
+**কোনো Token/Secret Frontend `.env`, GitHub, SQL Migration, বা Browser-এ রাখবে না।** আলাদা দুটি Secret একই মানের হবে না।
+
+### ধাপ B — Edge Function Deploy
+
+Project root থেকে PowerShell-এ (নিজের Project Ref বসিয়ে):
 
 ```powershell
-npx --yes supabase@2 login
+npx supabase functions deploy telegram-bot-webhook --project-ref <PROJECT_REF> --no-verify-jwt
+npx supabase functions deploy telegram-notification-dispatch --project-ref <PROJECT_REF> --no-verify-jwt
 ```
 
-Supabase Personal Access Token দিয়ে Login করুন। এরপর Docker Desktop চালু রাখুন। Master Restore-এর জন্য Supabase CLI Login বা Docker দরকার হয় না; কিন্তু `psql` দরকার হয়।
+Functions-এর `verify_jwt=false`; তার বদলে প্রত্যেক Function নিজস্ব Secret Header যাচাই করে।
 
-## ৩. Utility চালু
+### ধাপ C — Telegram Webhook সেট
 
-এই ফোল্ডারের `RUN_BACKUP_ASSISTANT.bat` ডাবল-ক্লিক করুন। প্রথমবার Python Package অনুপস্থিত থাকলে ইনস্টল হবে। বিকল্পভাবে:
+Telegram Bot API-এর `setWebhook`-এ এই URL দেবে:
+
+`https://<PROJECT_REF>.supabase.co/functions/v1/telegram-bot-webhook`
+
+প্যারামিটার:
+
+- `secret_token`: Supabase Secret-এ রাখা `TELEGRAM_WEBHOOK_SECRET`-এর একই মান। Telegram এই মান `X-Telegram-Bot-Api-Secret-Token` Header-এ পাঠায়।
+- `allowed_updates`: শুধু `message`।
+
+Telegram-এর নিয়মে `secret_token` ১–২৫৬ অক্ষরের এবং `A-Z`, `a-z`, `0-9`, `_`, `-` অক্ষর ব্যবহার করতে হয়। সংযোগ Token ৬৪ অক্ষরের হওয়ায় Bot Deep Link-এর Start Parameter সীমার মধ্যে থাকে।
+
+### ধাপ D — Supabase Database Webhook সেট
+
+Supabase Dashboard → Database → Webhooks থেকে নতুন Webhook তৈরি করো:
+
+- Name: `hostel-life-telegram-delivery`
+- Table: `public.notification_delivery_batches`
+- Event: `INSERT`
+- Method: `POST`
+- URL: `https://<PROJECT_REF>.supabase.co/functions/v1/telegram-notification-dispatch`
+- Header `Content-Type`: `application/json`
+- Header `x-hostel-delivery-secret`: `NOTIFICATION_DISPATCH_WEBHOOK_SECRET`-এর একই মান
+
+Supabase Database Webhooks `pg_net`-ভিত্তিক asynchronous request ব্যবহার করে; বাহ্যিক HTTP request-এর জন্য মূল Database transaction দীর্ঘক্ষণ আটকে থাকে না। Project-এ Database Webhook/`pg_net` উপলভ্য ও সক্রিয় আছে কি না Dashboard-এ যাচাই করবে।
+
+### ধাপ E — Super Admin থেকে চালু
+
+1. Super Admin → System Settings → Telegram Setup-এ যাও।
+2. Bot Username (`@` ছাড়া) লিখো।
+3. Secrets, দুইটি Function ও উভয় Webhook সফলভাবে পরীক্ষা করার পর Telegram Delivery চালু করো।
+4. Provider বন্ধ করলে নতুন Telegram Delivery বন্ধ হবে; ব্যবহারকারীর পুরোনো সংযোগ মুছে যাবে না।
+
+### ধাপ F — প্রত্যেক ব্যবহারকারীর নিজস্ব সম্মতি
+
+1. ব্যবহারকারী Menu → Telegram সংযোগ খুলবেন, অথবা প্রথমবারের ঐচ্ছিক Prompt থেকে যাবেন।
+2. সংযোগ লিংক তৈরি করে Telegram Bot খুলবেন এবং Private Chat-এ **Start** চাপবেন।
+3. Hostel Life-এ ফিরে **সংযোগ যাচাই** করবেন।
+4. চাইলে একই পেজ থেকে যেকোনো সময় সংযোগ বিচ্ছিন্ন করতে পারবেন।
+
+Telegram Bot আগে থেকে Start না করা ব্যক্তিকে নিজে থেকে প্রথম বার্তা শুরু করতে পারে না। ব্যবহারকারীকে Bot-এর সঙ্গে Private Chat শুরু করতে হবে।
+
+## ৫. Free Plan, সীমা ও খরচ
+
+- Release Popup build-time metadata ব্যবহার করে; কোনো runtime request/log নেই।
+- বিদ্যমান Notification Inbox এবং Realtime refresh পুনর্ব্যবহার করা হয়েছে; নতুন polling/Push Service নেই। Telegram Nudge-এর জন্য Provider সক্রিয় থাকলে সংযুক্তি পরীক্ষা করতে একবার authenticated status RPC হয়; এটি polling নয়।
+- Telegram সংযোগ না থাকলে Delivery Batch তৈরি হয় না।
+- Supabase-এর Free plan-এ Edge Function invocation-এর মাসিক quota বর্তমানে ৫০০,০০০; এটি পুরো Organization-এর সব Project মিলিয়ে usage হতে পারে। নিজের Dashboard-এর Usage পেজে প্রকৃত consumption দেখবে।
+- Telegram-এর বিনামূল্যের Bot broadcast সীমা প্রায় ৩০ message/second; একটি chat-এ সাধারণত ১ message/second-এর বেশি না পাঠানোর সুপারিশ আছে। Dispatcher sequential pacing ও HTTP 429 retry ব্যবহার করে; খুব বড়/একসঙ্গে অনেক broadcast হলে Telegram rate-limit-এর কারণে কিছু Delivery দেরি বা ব্যর্থ হতে পারে। Paid Broadcast চালু করা হয়নি।
+- In-App notification insert সফল হলেও Telegram Delivery ব্যর্থ হতে পারে; এতে মূল Hostel Life কাজ বা In-App Inbox ব্যাহত হওয়ার কথা নয়।
+
+## ৬. যাচাই কমান্ড
 
 ```powershell
-py -3 backup_assistant.py
+npm ci
+npm test
+npm run build
 ```
 
-`প্রয়োজনীয় Tool পরীক্ষা` বোতামে Restore-এর জন্য `psql` সহ প্রয়োজনীয় Tool আছে কি না দেখুন। `psql` না থাকলে PostgreSQL-এর Windows Client Tools ইনস্টল করে PATH-এ যোগ করুন; তারপর নতুন Command Prompt খুলে `psql --version` পরীক্ষা করুন।
+এই প্যাচ তৈরির পরিবেশে `vite` executable অনুপস্থিত থাকায় `npm run build` সফলভাবে যাচাই করা যায়নি। তাই স্থানীয়/ Staging Build সফল না হওয়া পর্যন্ত Production Deploy করবে না।
 
-## ৪. Master Backup
+## ৭. এই প্যাচে যা করা হয়নি
 
-1. Source Project URL ও Project Ref দিন।
-2. Source Database Connection String দিন। Dashboard → Connect থেকে নিন।
-3. Source Storage পড়ার জন্য ঐ Project-এর `sb_secret_...` Key অথবা Legacy `service_role` JWT দিন।
-4. Hostel Life Project Folder নির্বাচন করুন। `.git`, `node_modules`, `dist`, `.vercel` ও `.env` বাদ থাকবে; Source, SQL Migration, Edge Function Source ও PWA Asset থাকবে।
-5. Destination Folder ও ১২+ অক্ষরের Encryption Password দিন।
-6. প্রয়োজন হলে ঐচ্ছিক Reusable Secrets File নির্বাচন করুন। পুরোনো Project-এর Database Password/API Key নতুন Project-এ পুনর্ব্যবহার করবেন না।
-7. `Full Master Backup তৈরি করুন` চাপুন।
-
-Master Backup-এ Database Roles/Schema/Data, Auth Users/Identities, উপলব্ধ MFA Factor, Storage Bucket ও Object, Website Source, SQL Migration, Edge Function Source Snapshot, Database Inventory এবং Manual Recovery Checklist থাকে। Cron Job-এর SQL Command-ও আলাদা Review File-এ থাকে; এটি কোনো Backup-এর ভেতরেই স্বয়ংক্রিয়ভাবে চালানো হয় না।
-
-Source `.env`, `.env.local`, Database Password, API Key ও CLI Access Token কপি হয় না। Auth Password Hash Backup-এ থাকে, তাই `.hlbackup` অত্যন্ত সংবেদনশীল। নির্বাচিত Drive-এ সাময়িক Plaintext Staging তৈরি হয়; কাজ শেষে সরানো হয়, কিন্তু Secure Erasure নিশ্চিত নয়। BitLocker/Device Encryption চালু Drive ব্যবহার করুন।
-
-## ৫. Hostel Backup
-
-1. Source Database Connection String দিন।
-2. `Database থেকে মেসের তালিকা লোড করুন` চাপুন।
-3. একটি মেস নির্বাচন করুন, Password ও Destination দিন।
-4. Backup তৈরি করুন।
-
-এতে নির্বাচিত মেসের সম্পর্কিত `public`/`private` রেকর্ড এবং সংশ্লিষ্ট সদস্যদের `profile-avatars` ছবি থাকে। Auth Account/Password Hash, Global Settings, Global Audit, Edge Function বা Website Source থাকে না। Target-এ সংশ্লিষ্ট Auth User ID আগে থেকেই থাকতে হবে।
-
-## ৬. Verify Backup
-
-`Verify Backup` Tab-এ `.hlbackup` ও Password নির্বাচন করুন। AES-256-GCM Authentication, ZIP Structure এবং Manifest-এর প্রতিটি SHA-256 Hash যাচাই হবে। এটি Target Project-এ সংযোগ করে না এবং কোনো Restore করে না।
-
-## ৭. Restore & Disaster Recovery — Module 2
-
-### Restore-এর আগে
-
-- প্রথমে Backup `Verify` করুন।
-- Source Project-এর `.hlbackup` ফাইলটিই ব্যবহার করছেন কি না নিশ্চিত করুন।
-- Encryption Password ছাড়া Restore সম্ভব নয়।
-- Restore Workspace Backup File-এর Folder থেকে আলাদা রাখুন; BitLocker-সুরক্ষিত Drive উত্তম।
-- Target Project URL, Ref, Database Connection String ও Key—সবই **Target Project-এর** হতে হবে, পুরোনো Source Project-এর নয়।
-- `psql --version` চালিয়ে PostgreSQL Client Tools আছে কি না নিশ্চিত করুন।
-
-### A. Master Restore — কেবল নতুন/খালি Supabase Project
-
-Master Restore একটি নতুন Supabase Project-এ পূর্ণ সিস্টেম ফিরিয়ে আনার জন্য। এটি একই Source Project-এ চলবে না। Target Project-এ আগে থেকে Application Table/View/Sequence, Auth User/Identity, Storage Bucket/Object বা Migration History থাকলে Dry Run/Preflight বন্ধ করবে। কোনো বিদ্যমান Project পরিষ্কার করার চেষ্টা করবে না।
-
-1. `Restore & Recovery` Tab খুলুন।
-2. Source `.hlbackup` ও তার Encryption Password দিন।
-3. নতুন Target Project-এর সঠিক Project URL, Project Ref, Database Connection String এবং **Target Project-এর** Secret/Service Role Key দিন।
-4. আলাদা Local Restore Workspace নির্বাচন করুন। এটি Journal ও অস্থায়ী Plaintext staging রাখবে।
-5. Website/Edge Function Source চাইলে একটি আলাদা **খালি Folder** নির্বাচন করুন। না চাইলে ফাঁকা রাখুন।
-6. `প্রথমে Dry Run / Target Check` চাপুন। এতে Backup Integrity, Target Project Identity, Target Database-এর শূন্যতা/permission, Storage API Access এবং প্রয়োজনীয় Extension যাচাই হবে। Dry Run কেবল Read-only।
-7. Dry Run সফল হলে Confirmation ঘরে ঠিক `RESTORE <Target Project Ref>` লিখুন।
-8. `Restore / Resume শুরু করুন` চাপুন এবং শেষ পর্যন্ত Utility খোলা রাখুন।
-
-Database Roles/Schema/Data এক Transaction-এ Restore হয়। তারপর Migration History, Auth Users/Identities এবং Storage Bucket/Object পৃথক ধাপে যায়। Database step-এর marker একই Transaction-এ লেখা হয়। Object Upload-এ `upsert` ব্যবহার করা হয় না; Target-এ একই Object Path-এর ভিন্ন File থাকলে সেটি Overwrite না করে Restore থামবে।
-
-### B. Selected Hostel Restore — বিদ্যমান সামঞ্জস্যপূর্ণ Schema-তে নতুন মেস
-
-এটি বিদ্যমান Hostel Life Project-এ নির্বাচিত মেসের তথ্য যোগ করে। Target-এর Schema/Migration Version সামঞ্জস্যপূর্ণ থাকতে হবে। Target Auth-এ ঐ Backup-এর সব প্রয়োজনীয় User ID আগে থেকে থাকতে হবে। একই Hostel ID আগে থাকলে Restore বন্ধ হবে। Primary Key conflict, missing required column, schema mismatch বা Circular Foreign Key ধরা পড়লে কোনো Tenant Row commit করা হবে না। আগে থেকে থাকা `public.profiles` Row কখনো Overwrite হবে না। এই Backup Auth Account বা Password তৈরি করে না।
-
-1. Target Project URL/Ref, Database Connection String ও Target Storage Key দিন। Source ও Target একই Project হতে পারে, কারণ এটি একটি নতুন, আলাদা Hostel ID যুক্ত করার জন্য।
-2. Backup ও Password নির্বাচন করুন।
-3. `Dry Run / Target Check` চালান। এটি Hostel ID, Auth Reference, Table/Column, Required Column, Primary Key ও Storage Access Read-only পরীক্ষা করবে।
-4. Dry Run সফল হলে `RESTORE <Target Project Ref>` লিখে Restore চালু করুন।
-
-### Interrupted Restore Resume
-
-- একই `.hlbackup`, Password, Target Project এবং একই Workspace ব্যবহার করে আবার Dry Run করুন, তারপর Restore/Resume শুরু করুন।
-- Restore Journal-এ Backup SHA-256, Target Ref, Step Status ও Object Hash থাকে; Password, Database URL বা API Key থাকে না।
-- Database-এর marker এবং Local Journal মিলিয়ে আগের ধাপ পরীক্ষা হয়। Journal-এ Done কিন্তু Database marker অনুপস্থিত হলে Utility নিরাপত্তার জন্য থেমে যাবে।
-- Storage ধাপ Resume-এর সময় প্রতিটি Object আবার Target-এর সঙ্গে Hash মিলিয়ে দেখে। একই Path-এ আলাদা Object থাকলে Overwrite করে না।
-- Source Backup, Target Project, বা Workspace বদলালে নতুন আলাদা Workspace ব্যবহার করুন। Journal হাতে Edit করবেন না।
-
-### Restore-এর পরে হাতে যাচাই
-
-Master Restore শেষে `recovery_review` Folder-এ Recovery Checklist, Credential-সদৃশ Literal আড়াল করা Cron Job Command Review Copy এবং Remote Edge Function Source Snapshot পাবেন। মূল Cron Command কেবল এনক্রিপ্টেড Backup-এর ভেতরে থাকে। **Cron Job স্বয়ংক্রিয়ভাবে Enable/চালানো হয় না এবং Edge Function স্বয়ংক্রিয়ভাবে Deploy হয় না।** আগে Code/Secrets/Target URL পরীক্ষা করে হাতে Deploy/Configure করুন। Auth Provider, SMTP, Site URL/Redirect URL, Realtime Publication, non-default Extension, Vercel Environment/Domain, Vault/Encryption Root Key ও Custom Auth/Storage Trigger/RLS হাতে যাচাই করতে হবে। Active Session/Refresh Token ফেরে না; সদস্যদের পুনরায় Login করতে হবে।
-
-## ৮. Restore-এর নিরাপত্তা সীমা
-
-- Master Restore-এ `supabase db reset --linked`, `DROP`, `TRUNCATE` বা Database Reset চালানো হয় না।
-- Master Restore-এর Target অবশ্যই Source থেকে আলাদা এবং নতুন/খালি হতে হবে।
-- Hostel Restore কেবল একই/সামঞ্জস্যপূর্ণ Schema-তে যোগ করে; Duplicate Hostel বা Primary Key overwrite করে না।
-- Restore-এ Target API Key ও Database Password শুধু Utility-র বর্তমান Process-এ থাকে; Journal/Log-এ লেখা হয় না।
-- Windows/SSD থেকে Temporary Plaintext File Delete হলে Secure Erasure নিশ্চিত নয়। BitLocker ব্যবহার করুন।
-- এই সংস্করণে Live Supabase Project-এ Restore বাস্তবে চালিয়ে পরীক্ষা করা হয়নি। Unit Test ও Mock/Local Logic Test হয়েছে; প্রকৃত Restore-এর আগে নতুন Test Project-এ পরীক্ষা বাধ্যতামূলক।
-
-## ৯. Backup ও Restore-এর সীমাবদ্ধতা
-
-1. Auth Active Session/Refresh Token Restore হয় না।
-2. Storage File Content/Path ফেরত আসে; Storage owner ও generated metadata নতুন Upload API অনুযায়ী তৈরি হবে।
-3. Auth Provider, SMTP, Redirect URL, Project API/JWT Key, Realtime Publication, non-default Extension, Edge Function Secret/Deploy, Vercel Environment/Domain এবং Vault Root/Encryption Key আলাদা করে Configure করতে হবে।
-4. Custom Auth/Storage Managed Schema-এর অতিরিক্ত Trigger/RLS/Function হাতে যাচাই করুন।
-5. `supabase_migrations`-এ Target-এ আগে থেকে History থাকলে স্বয়ংক্রিয় Restore বাদ দিয়ে Manual Review warning দেবে।
-6. `psql` না থাকলে Master Restore চালানো যাবে না; Hostel Restore-এর জন্য `psycopg` Python Package যথেষ্ট।
-7. Windows `.exe` এই Linux পরিবেশে Build করা হয়নি; Windows PC-তে `BUILD_EXE.bat` চালাতে হবে।
-
-## ১০. Free Plan ও Backup অভ্যাস
-
-- সপ্তাহে অন্তত একবার Master Backup এবং বড় Migration-এর আগে Backup রাখুন।
-- মাস বন্ধের আগে/পরে প্রয়োজনমতো আলাদা Hostel Backup রাখুন।
-- দুটি আলাদা কপি রাখুন: একটি PC-তে, আরেকটি আলাদা USB/নিরাপদ স্থানে।
-- Backup Password Password Manager/Offline নিরাপদ স্থানে রাখুন।
-
-## Official Docs
-
-- Supabase Backup/Restore: https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore
-- Supabase Storage Download: https://supabase.com/docs/guides/storage/management/download-objects
+- কোনো Live Supabase Database/Function/Vercel Deploy করা হয়নি।
+- Telegram Bot তৈরি, Secret বসানো বা Webhook সেট করা হয়নি; এগুলো Project Owner-কে একবার হাতে করতে হবে।
+- Public/Anonymous Hostel Dashboard বা অননুমোদিত ডেটা পড়ার কোনো পথ যোগ করা হয়নি।
+- Telegram-এ পুরোনো Notification backfill করা হয় না; সংযোগের পর নতুন Notification পাঠানো হবে।

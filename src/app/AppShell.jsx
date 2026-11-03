@@ -11,9 +11,11 @@ import { OfflineState } from '../components/OfflineState';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useManagementContext } from '../hooks/useManagementContext';
-import { fetchNotifications, fetchPinnedManagerAnnouncement } from '../services/notificationService';
+import { fetchNotifications, fetchPinnedManagerAnnouncement, markNotificationSeen } from '../services/notificationService';
+import { APP_RELEASE } from './release';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { fetchPlatformPublicSettings } from '../services/platformService';
+import { getMyTelegramNotificationStatus } from '../services/telegramService';
 
 export function keyToPath(key) {
   return `/app/${key}`;
@@ -60,6 +62,11 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const unreadFetchInFlightRef = useRef(null);
   const [theme, setTheme] = useState(() => getThemePreference());
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
+  const [releaseNoticeOpen, setReleaseNoticeOpen] = useState(false);
+  const [telegramNudgeOpen, setTelegramNudgeOpen] = useState(false);
+  const [priorityMessages, setPriorityMessages] = useState([]);
+  const priorityMessageIdsRef = useRef(new Set());
+  const telegramNudgeCheckedUserRef = useRef('');
 
   const active = pathToKey(pathname);
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
@@ -91,7 +98,37 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   }, [theme]);
 
   useEffect(() => {
-    if (installed || !canInstall) {
+    if (!user?.id || !APP_RELEASE?.id) return;
+    const key = `hostel-life-last-seen-release-v1:${user.id}`;
+    let lastSeen = '';
+    let sessionSeen = '';
+    try { lastSeen = localStorage.getItem(key) || ''; } catch { /* session fallback below */ }
+    try { sessionSeen = sessionStorage.getItem(key) || ''; } catch { /* storage may be restricted */ }
+    if (lastSeen !== APP_RELEASE.id && sessionSeen === APP_RELEASE.id) lastSeen = sessionSeen;
+    if (!lastSeen) {
+      // First rollout of release notifications: show once to existing and new app users.
+      setReleaseNoticeOpen(true);
+      return;
+    }
+    if (lastSeen !== APP_RELEASE.id) setReleaseNoticeOpen(true);
+  }, [user?.id]);
+
+  const dismissReleaseNotice = () => {
+    const key = `hostel-life-last-seen-release-v1:${user?.id || 'session'}`;
+    try { localStorage.setItem(key, APP_RELEASE.id); }
+    catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* no persistent storage available */ } }
+    setReleaseNoticeOpen(false);
+  };
+
+  const refreshForRelease = () => {
+    const key = `hostel-life-last-seen-release-v1:${user?.id || 'session'}`;
+    try { localStorage.setItem(key, APP_RELEASE.id); }
+    catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* ignore */ } }
+    window.location.reload();
+  };
+
+  useEffect(() => {
+    if (installed || !canInstall || releaseNoticeOpen || priorityMessages.length > 0) {
       setInstallNudgeOpen(false);
       return undefined;
     }
@@ -100,7 +137,61 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     if (seen) return undefined;
     const timer = window.setTimeout(() => setInstallNudgeOpen(true), 1200);
     return () => window.clearTimeout(timer);
-  }, [canInstall, installed, user?.id]);
+  }, [canInstall, installed, user?.id, releaseNoticeOpen, priorityMessages.length]);
+
+  useEffect(() => {
+    if (!user?.id || !membership?.hostel_id || platformSettings?.telegram_enabled !== true
+      || releaseNoticeOpen || installNudgeOpen || priorityMessages.length > 0) {
+      setTelegramNudgeOpen(false);
+      return undefined;
+    }
+    if (telegramNudgeCheckedUserRef.current === user.id) return undefined;
+    const dismissedKey = `hostel-life-telegram-nudge-v1:${user.id}`;
+    const connectedKey = `hostel-life-telegram-connected-v1:${user.id}`;
+    let dismissed = false;
+    let locallyConnected = false;
+    try { dismissed = localStorage.getItem(dismissedKey) === '1'; locallyConnected = localStorage.getItem(connectedKey) === '1'; }
+    catch {
+      try { dismissed = sessionStorage.getItem(dismissedKey) === '1'; locallyConnected = sessionStorage.getItem(connectedKey) === '1'; }
+      catch { /* Session storage may also be restricted. */ }
+    }
+    if (dismissed || locallyConnected) {
+      telegramNudgeCheckedUserRef.current = user.id;
+      return undefined;
+    }
+
+    // One private status check prevents prompting an account that was already
+    // linked from another device. It runs once per eligible app session, never polls.
+    telegramNudgeCheckedUserRef.current = user.id;
+    let cancelled = false;
+    let timer = null;
+    const schedulePrompt = () => {
+      if (!cancelled) timer = window.setTimeout(() => setTelegramNudgeOpen(true), 900);
+    };
+    getMyTelegramNotificationStatus()
+      .then((status) => {
+        if (cancelled) return;
+        if (status?.connected) {
+          try { localStorage.setItem(connectedKey, '1'); } catch { /* Status remains authoritative for this session. */ }
+          return;
+        }
+        schedulePrompt();
+      })
+      .catch(() => schedulePrompt());
+    return () => { cancelled = true; if (timer) window.clearTimeout(timer); };
+  }, [user?.id, membership?.hostel_id, platformSettings?.telegram_enabled, releaseNoticeOpen, installNudgeOpen, priorityMessages.length]);
+
+  const dismissTelegramNudge = () => {
+    const key = `hostel-life-telegram-nudge-v1:${user?.id || 'session'}`;
+    try { localStorage.setItem(key, '1'); }
+    catch { try { sessionStorage.setItem(key, '1'); } catch { /* Dismiss for this render only. */ } }
+    setTelegramNudgeOpen(false);
+  };
+
+  const openTelegramSettings = () => {
+    dismissTelegramNudge();
+    navigateTo('/app/menu/telegram');
+  };
 
   const loadUnread = useCallback(async () => {
     if (!isOnline || document.visibilityState !== 'visible' || !document.hasFocus() || !navigator.onLine) {
@@ -114,7 +205,24 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         fetchPinnedManagerAnnouncement(),
       ]);
       if (inboxResult.status === 'fulfilled') {
-        setUnreadCount(inboxResult.value.filter((item) => !item.is_seen).length);
+        const inbox = inboxResult.value;
+        setUnreadCount(inbox.filter((item) => !item.is_seen).length);
+        const priority = inbox
+          .filter((item) => !item.is_seen && ['platform_message', 'system_notice'].includes(item.notification_kind))
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        if (priority.length) {
+          setPriorityMessages((current) => {
+            const next = [...current];
+            for (const item of priority) {
+              const id = item.notification_id || item.id;
+              if (id && !priorityMessageIdsRef.current.has(id)) {
+                priorityMessageIdsRef.current.add(id);
+                next.push(item);
+              }
+            }
+            return next;
+          });
+        }
       }
       if (pinnedResult.status === 'fulfilled') {
         setPinnedManagerNotice(pinnedResult.value || null);
@@ -131,6 +239,19 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     if (isOnline) loadUnread();
     else setUnreadCount(0);
   }, [isOnline, loadUnread]);
+
+  const dismissPriorityMessage = async () => {
+    const current = priorityMessages[0];
+    if (!current) return;
+    const id = current.notification_id || current.id;
+    setPriorityMessages((rows) => rows.slice(1));
+    if (!current.is_seen && id && isOnline) {
+      try {
+        await markNotificationSeen(id);
+        setUnreadCount((count) => Math.max(0, count - 1));
+      } catch { /* The item remains in the inbox; do not block dismissing the modal. */ }
+    }
+  };
 
   // No five-minute notification polling. Refresh the badge only for visible,
   // active sessions when the notifications table changes or the app resumes.
@@ -186,6 +307,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       terms: '/app/menu/terms',
       'how-to-use': '/app/menu/how-to-use',
       'app-download': '/app/menu/app-download',
+      telegram: '/app/menu/telegram',
       'send-notification': '/app/menu/send-notification',
       'reports': '/app/menu/reports',
       'meal-sheet': '/app/menu/meal-sheet',
@@ -198,7 +320,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       archive: '/app/menu/archive',
       'khala-money': '/app/menu/khala-money',
       'member-management': '/app/menu/member-management',
-      'join-requests': '/app/menu/join-requests',
       'join-requests': '/app/menu/join-requests',
     };
     const path = routes[key];
@@ -325,6 +446,40 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
           <h2 id="install-nudge-title">মোবাইলে Hostel Life ব্যবহার আরও সহজ করুন</h2>
           <p>হোম স্ক্রিনে অ্যাপটি যোগ করলে এক ট্যাপেই খুলতে পারবেন। বারবার ব্রাউজারে খুঁজতে হবে না।</p>
           <div className="install-nudge-actions"><button type="button" className="primary-button large" onClick={handleNudgeInstall}>অ্যাপ ইনস্টল করুন</button><button type="button" className="secondary-button" onClick={dismissInstallNudge}>পরে দেখব</button></div>
+        </section>
+      </div>}
+
+      {telegramNudgeOpen && <div className="telegram-nudge-backdrop" role="presentation">
+        <section className="telegram-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="telegram-nudge-title">
+          <button type="button" className="release-notice-close" onClick={dismissTelegramNudge} aria-label="বন্ধ করুন">×</button>
+          <span className="telegram-nudge-icon"><Icon name="send" size={21}/></span>
+          <span className="eyebrow">OPTIONAL · TELEGRAM NOTIFICATION</span>
+          <h2 id="telegram-nudge-title">গুরুত্বপূর্ণ নোটিশ Telegram-এ পান</h2>
+          <p>মেসের নোটিশ, ম্যানেজারের বার্তা এবং আপনার জন্য পাঠানো গুরুত্বপূর্ণ অ্যাপ নোটিফিকেশন সরাসরি Telegram-এ পেতে Hostel Life Bot-এর সঙ্গে সংযোগ করুন। এটি ঐচ্ছিক; পরে যেকোনো সময় বিচ্ছিন্ন করতে পারবেন।</p>
+          <div className="telegram-nudge-actions"><button type="button" className="primary-button" onClick={openTelegramSettings}>Telegram সংযোগ করুন</button><button type="button" className="secondary-button" onClick={dismissTelegramNudge}>পরে করব</button></div>
+        </section>
+      </div>}
+
+      {releaseNoticeOpen && <div className="release-notice-backdrop" role="presentation">
+        <section className="release-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notice-title">
+          <button type="button" className="release-notice-close" onClick={dismissReleaseNotice} aria-label="বন্ধ করুন">×</button>
+          <span className="release-notice-icon"><Icon name="refresh-cw" size={20}/></span>
+          <span className="eyebrow">HOSTEL LIFE · SYSTEM UPDATE</span>
+          <h2 id="release-notice-title">সিস্টেম আপডেট হয়েছে</h2>
+          <p>Hostel Life-এর নতুন সংস্করণ প্রকাশ করা হয়েছে। সর্বশেষ সুবিধা পেতে একবার রিফ্রেশ করুন।</p>
+          <small>আপডেটের সময়: {new Date(APP_RELEASE.builtAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small>
+          <div className="release-notice-actions"><button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button><button type="button" className="secondary-button" onClick={dismissReleaseNotice}>পরে</button></div>
+        </section>
+      </div>}
+
+      {priorityMessages.length > 0 && !releaseNoticeOpen && !installNudgeOpen && <div className="priority-message-backdrop" role="presentation">
+        <section className="priority-message-dialog" role="dialog" aria-modal="true" aria-labelledby="priority-message-title">
+          <span className="priority-message-icon"><Icon name="bell" size={21}/></span>
+          <span className="eyebrow">HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা</span>
+          <h2 id="priority-message-title">{priorityMessages[0].title || 'আপনার জন্য একটি বার্তা'}</h2>
+          <p>{priorityMessages[0].body}</p>
+          <small>{new Date(priorityMessages[0].created_at).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small>
+          <div className="priority-message-actions"><button type="button" className="primary-button" onClick={dismissPriorityMessage}>বুঝেছি</button></div>
         </section>
       </div>}
     </div>

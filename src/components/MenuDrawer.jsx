@@ -16,6 +16,7 @@ const systemItems = [
   { key: 'terms', label: 'ব্যবহারের শর্তাবলী', icon: 'file' },
   { key: 'how-to-use', label: 'কীভাবে ব্যবহার করব', icon: 'book' },
   { key: 'app-download', label: 'অ্যাপ ডাউনলোড', icon: 'smartphone' },
+  { key: 'telegram', label: 'Telegram সংযোগ', icon: 'send' },
   { key: 'developer', label: 'হেল্প', icon: 'user' },
 ];
 

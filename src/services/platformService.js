@@ -447,3 +447,34 @@ export async function platformAdminSetMaxDevicesPerUser(limit) {
   const current = await platformAdminGetSessionPolicy();
   return platformAdminSetSessionPolicy(limit, current?.session_timeout_minutes || 0);
 }
+
+// Notification center: all mutations are server-authorized; the browser never
+// inserts directly into notifications or reads provider/channel tables.
+export async function platformAdminGetNotificationSettings() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_notification_settings');
+  if (error) throw error;
+  return firstRow(data) || data || { active_provider: 'disabled', telegram_enabled: false, telegram_bot_username: '', connected_users: 0 };
+}
+
+export async function platformAdminUpdateNotificationSettings(telegramEnabled, botUsername) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_update_notification_settings', {
+    p_telegram_enabled: Boolean(telegramEnabled),
+    p_telegram_bot_username: String(botUsername || '').trim(),
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+export async function platformAdminSendTargetedMessage(hostelId, title, body, recipientUserIds = null) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_send_targeted_message', {
+    p_hostel_id: hostelId,
+    p_title: String(title || '').trim(),
+    p_body: String(body || '').trim(),
+    p_recipient_user_ids: Array.isArray(recipientUserIds) ? recipientUserIds : null,
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
