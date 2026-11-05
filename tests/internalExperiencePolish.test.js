@@ -53,7 +53,7 @@ test('auth and onboarding late overrides use selected theme tokens for light, bl
   assert.match(css, /\.onboarding-main-card \.join-code-box/);
   assert.match(auth, /auth-form-panel/);
   assert.match(onboarding, /কোড দিয়ে যুক্ত হন/);
-  assert.match(onboarding, /মেসের ১২ অক্ষরের কোড দিন/);
+  assert.match(onboarding, /১২ অক্ষরের সঠিক যুক্ত হওয়ার কোড দিন/);
 });
 
 test('Excel paste instructions receive the same bordered theme-aware panel in every theme', () => {
@@ -67,7 +67,8 @@ test('release modal waits for a fresh server settings response and displays publ
   assert.match(shell, /communications\?\.release_notes_published === true/);
   assert.match(shell, /system-notice-feature-list/);
   assert.doesNotMatch(shell, /release-features-dialog|release-features-trigger|নতুন ফিচারসমূহ/);
-  assert.match(vite, /const releaseId = commit === 'manual-build' \? `manual-\$\{builtAt\}` : commit\.slice\(0, 12\)/);
+  assert.match(vite, /const releaseId = `\$\{commit\.slice\(0, 12\)\}-\$\{builtAt\}`/);
+  assert.match(vite, /__HOSTEL_LIFE_RELEASE__/);
 });
 
 test('release and priority modals share one accessible dialog component', () => {

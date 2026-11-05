@@ -12,6 +12,10 @@ function dhakaDayKey() {
   }
 }
 
+function campaignHasMissingImage(campaign) {
+  return campaign?.kind === 'site' && campaign.mode === 'image' && !campaign.image_url;
+}
+
 function campaignIsActive(campaign, now) {
   if (!campaign?.enabled) return false;
   const start = campaign.starts_at ? new Date(campaign.starts_at).getTime() : null;
@@ -61,8 +65,7 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
     // Maintenance/site notices take priority, followed by a general window notice.
     if (site) rows.push({ ...site, kind: 'site', frequency: site.frequency || 'once_per_device' });
     if (windowNotice) rows.push({ ...windowNotice, kind: 'window', frequency: windowNotice.frequency || 'once_per_device' });
-    return rows.filter((campaign) => campaignIsActive(campaign, clock)
-      && !(campaign.kind === 'site' && campaign.mode === 'image' && !campaign.image_url));
+    return rows.filter((campaign) => campaignIsActive(campaign, clock));
   }, [communications, clock]);
 
   // A single timeout activates scheduled notices without polling or repeated API calls.
@@ -111,19 +114,26 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
   };
 
   if (!activeCampaign || blocked) return null;
-  const isImage = activeCampaign.kind === 'site' && activeCampaign.mode === 'image';
+  const close = closeActiveCampaign;
+  const isImage = activeCampaign.kind === 'site' && activeCampaign.mode === 'image' && activeCampaign.image_url;
+  const missingImage = campaignHasMissingImage(activeCampaign);
+  const title = activeCampaign.title || (activeCampaign.kind === 'site' ? 'সাময়িক বিজ্ঞপ্তি' : 'আপনার জন্য একটি বার্তা');
+  const kicker = activeCampaign.kind === 'site' ? 'HOSTEL LIFE · বিজ্ঞপ্তি' : 'HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা';
+
   if (isImage) {
-    return <SystemNoticeDialog imageOnly imageUrl={activeCampaign.image_url} onClose={closeActiveCampaign} />;
+    return <SystemNoticeDialog imageOnly imageUrl={activeCampaign.image_url} title={title} kicker={kicker} onClose={close} />;
   }
 
   return (
     <SystemNoticeDialog
-      kicker={activeCampaign.kind === 'site' ? 'HOSTEL LIFE · বিজ্ঞপ্তি' : 'HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা'}
+      kicker={kicker}
       icon={activeCampaign.kind === 'site' ? 'wrench' : 'bell'}
-      title={activeCampaign.title || (activeCampaign.kind === 'site' ? 'সাময়িক বিজ্ঞপ্তি' : 'আপনার জন্য একটি বার্তা')}
-      description={activeCampaign.body || ''}
-      onClose={closeActiveCampaign}
-      actions={<button type="button" className="primary-button" onClick={closeActiveCampaign}>বুঝেছি</button>}
-    />
+      title={title}
+      onClose={close}
+      description={missingImage ? 'এই বিজ্ঞপ্তির ছবি বর্তমানে পাওয়া যাচ্ছে না। অনুগ্রহ করে পরে আবার চেষ্টা করুন।' : ''}
+      actions={<button type="button" className="primary-button" onClick={close}>বুঝেছি</button>}
+    >
+      {activeCampaign.body && <p className="system-notice-description">{activeCampaign.body}</p>}
+    </SystemNoticeDialog>
   );
 }

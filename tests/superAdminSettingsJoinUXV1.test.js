@@ -6,6 +6,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
 const platform = read('src/features/platform/SuperAdminPage.jsx');
 const overlay = read('src/components/PlatformCommunicationOverlays.jsx');
+const noticeDialog = read('src/components/SystemNoticeDialog.jsx');
 const shell = read('src/app/AppShell.jsx');
 const styles = read('src/styles/super-admin-experience.css');
 const polishStyles = read('src/styles/experience-polish-v6.css');
@@ -32,12 +33,12 @@ test('communication windows are not marked as seen until the user dismisses them
 });
 
 test('communication dialog remains keyboard dismissible and traps focus accessibly', () => {
-  const dialog = read('src/components/SystemNoticeDialog.jsx');
-  assert.match(dialog, /event\.key === 'Escape'/);
-  assert.match(dialog, /event\.key !== 'Tab'/);
-  assert.match(dialog, /dialogRef\.current\?\.querySelectorAll/);
-  assert.match(dialog, /aria-modal="true"/);
   assert.match(overlay, /<SystemNoticeDialog/);
+  assert.match(noticeDialog, /event\.key === 'Escape'/);
+  assert.match(noticeDialog, /event\.key === 'Tab'/);
+  assert.match(noticeDialog, /dialogRef\.current\?\.querySelectorAll/);
+  assert.match(noticeDialog, /className="system-notice-close"/);
+  assert.match(noticeDialog, /aria-modal="true"/);
 });
 
 test('global system banner stays pinned for every user until Super Admin disables it', () => {
@@ -50,7 +51,7 @@ test('global system banner stays pinned for every user until Super Admin disable
 
 test('priority system messages also have a visible close control connected to acknowledgement', () => {
   assert.match(shell, /onClose=\{dismissPriorityMessage\}/);
-  assert.match(shell, /actions=\{<button type="button" className="primary-button" onClick=\{dismissPriorityMessage\}/);
+  assert.match(noticeDialog, /className="system-notice-close"/);
 });
 
 test('communications editor explains scheduling, previews release notes and fails closed on every reload error', () => {

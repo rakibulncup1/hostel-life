@@ -843,6 +843,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
   };
 
   const moveToNextMarketField = (event, index, field) => {
+    if (document.activeElement === document.body) return;
     if (event.key !== 'Enter' || (field === 'item_name' && event.shiftKey) || event.nativeEvent?.isComposing || event.nativeEvent?.keyCode === 229) return;
     event.preventDefault();
     if (field === 'item_name') return focusMarketField(index, 'quantity');

@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/Run27_activity_presence_security_monitoring.sql'), 'utf8');
+const retentionMigration = fs.readFileSync(path.join(root, 'supabase/migrations/Run35_super_admin_security_retention_telegram_sessions.sql'), 'utf8');
 const verification = fs.readFileSync(path.join(root, 'supabase/verify/Run27_read_only_verification.sql'), 'utf8');
 const authContext = fs.readFileSync(path.join(root, 'src/contexts/AuthContext.jsx'), 'utf8');
 const appShell = fs.readFileSync(path.join(root, 'src/app/AppShell.jsx'), 'utf8');
@@ -204,8 +205,9 @@ test('Presence heartbeat resumes immediately after a prolonged idle period', () 
 });
 
 test('Security event retention notice matches event-triggered cleanup behavior', () => {
-  assert.match(adminPage, /নতুন Security Event এলে ৯০ দিনের বেশি পুরোনো Event পরিষ্কার হয়/);
-  assert.match(migration, /DELETE FROM private\.hl_security_events WHERE created_at < now\(\)-interval '90 days'/);
+  assert.match(adminPage, /৩০ দিনের বেশি Activity\/Security log নতুন Event এলে পরিষ্কার হয়/);
+  assert.match(retentionMigration, /DELETE FROM private\.hl_security_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
+  assert.match(retentionMigration, /DELETE FROM private\.hl_activity_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
 });
 
 

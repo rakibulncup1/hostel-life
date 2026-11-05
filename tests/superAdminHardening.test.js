@@ -22,7 +22,7 @@ test('Super Admin audit, activity, security, codes, health, notices and reports 
 });
 
 test('Security summary and event list load independently instead of hiding both on one RPC failure', () => {
-  assert.match(page, /const results = await Promise\.allSettled\(\[\s*platformAdminGetSecurityOverview\(\),[\s\S]*?platformAdminListSecurityEvents/);
+  assert.match(page, /const results = await Promise\.allSettled\(\[\s*platformAdminGetSecurityOverviewV2\(\),[\s\S]*?platformAdminListSecurityEventsV2/);
   assert.match(page, /Security Summary:/);
   assert.match(page, /Security Event List:/);
 });

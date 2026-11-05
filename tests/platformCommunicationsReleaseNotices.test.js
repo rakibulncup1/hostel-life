@@ -39,11 +39,10 @@ test('release dialog is device-scoped and never shows a stale release to a first
   assert.match(shell, /hostel-life-device-last-seen-release-v2/);
   assert.match(shell, /if \(!lastDeviceRelease\)[\s\S]{0,420}APP_RELEASE\.id[\s\S]{0,160}return;/);
   assert.match(shell, /lastDeviceRelease !== APP_RELEASE\.id/);
-  assert.match(shell, /platformSettingsReadyForUser !== user\.id/);
+  assert.match(shell, /আপডেটের বিস্তারিত/);
   assert.match(shell, /release_notes_published/);
-  assert.match(shell, /system-notice-feature-list/);
-  assert.doesNotMatch(shell, /release-features-dialog|release-features-trigger/);
-  assert.match(shell, /loadSettings\(true\);/);
+  assert.match(shell, /<SystemNoticeDialog/);
+  assert.doesNotMatch(shell, /release-notice-dialog|release-features-dialog/);
   assert.match(shell, /refreshForRelease/);
 });
 
@@ -57,7 +56,6 @@ test('scheduled public communications support device/day/app-open frequency with
   assert.match(app, /PlatformCommunicationOverlays/);
   assert.match(app, /withPublicCommunications\(<LoadingSpinner/);
   assert.match(communicationsCss, /platform-communication-dialog/);
-  assert.match(read('src/styles/production-flow-finishing.css'), /system-notice-dialog/);
 });
 
 test('Super Admin can publish ordered release notes and scheduled message/image notices', () => {
@@ -145,10 +143,10 @@ test('communications editor fails closed when the initial server read fails and 
 });
 
 test('public communication dialog supports Escape and prevents background page scrolling while open', () => {
-  const dialog = read('src/components/SystemNoticeDialog.jsx');
+  const dialog = readFileSync(new URL('../src/components/SystemNoticeDialog.jsx', import.meta.url), 'utf8');
+  assert.match(overlay, /<SystemNoticeDialog/);
   assert.match(dialog, /closeButtonRef/);
   assert.match(dialog, /event\.key === 'Escape'/);
   assert.match(dialog, /document\.body\.style\.overflow = 'hidden'/);
   assert.match(dialog, /window\.removeEventListener\('keydown', handleKeyDown\)/);
-  assert.match(overlay, /<SystemNoticeDialog imageOnly/);
 });

@@ -3,14 +3,14 @@
 // Deploy with verify_jwt=false; service-role access remains server-only.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-11-02-auth-security-telemetry-2';
+const VERSION = '2026-11-06-auth-security-telemetry-3';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
   'http://localhost:5173',
 ];
 const ALLOWED_EVENTS = new Set([
-  'login_failed', 'signup_failed', 'signup_submitted', 'password_reset_failed',
+  'login_failed', 'login_success', 'signup_failed', 'signup_submitted', 'password_reset_failed', 'password_reset_requested',
 ]);
 const ALLOWED_FAILURE_CODES = new Set([
   'invalid_credentials', 'rate_limited', 'account_exists', 'signup_disabled', 'other',
@@ -144,11 +144,11 @@ Deno.serve(async (request) => {
   });
 
   // Read-only health check. The deliberately invalid event type is rejected
-  // by Run27 with SQLSTATE 22023 before any insert; that proves the RPC exists
+  // by Run35 with SQLSTATE 22023 before any insert; that proves the v2 RPC exists
   // and is callable without creating a synthetic Security Event.
   if (request.method === 'GET') {
     try {
-      const { error } = await admin.rpc('hl_record_public_security_event', {
+      const { error } = await admin.rpc('hl_record_public_security_event_v2', {
         p_event_type: '__hostel_life_health_check__',
         p_identity_fingerprint: null,
         p_ip_fingerprint: null,
@@ -192,9 +192,11 @@ Deno.serve(async (request) => {
   const ipFingerprint = ip ? await hmacFingerprint(`ip:${ip}`, hmacSecret) : null;
   const failureCode = typeof body.failure_code === 'string' && ALLOWED_FAILURE_CODES.has(body.failure_code)
     ? body.failure_code : null;
+  const countryHeader = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
+  const countryCode = /^[A-Z]{2}$/.test(countryHeader) && countryHeader !== 'XX' ? countryHeader : null;
 
   try {
-    const { data, error } = await admin.rpc('hl_record_public_security_event', {
+    const { data, error } = await admin.rpc('hl_record_public_security_event_v2', {
       p_event_type: eventType,
       p_identity_fingerprint: identityFingerprint,
       p_ip_fingerprint: ipFingerprint,
@@ -202,6 +204,7 @@ Deno.serve(async (request) => {
       p_failure_code: failureCode,
       p_user_agent: request.headers.get('user-agent')?.slice(0, 512) ?? null,
       p_request_origin: normalizedOrigin,
+      p_country_code: countryCode,
     });
     if (error) {
       console.error('record-auth-event database write failed', {

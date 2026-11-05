@@ -401,6 +401,13 @@ export async function platformAdminGetSystemHealth(staleDays = 14) {
   return firstRow(data) || {};
 }
 
+export async function platformAdminGetDatabaseRuntimeHealth() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_database_runtime_health');
+  if (error) throw error;
+  return firstRow(data) || {};
+}
+
 export async function platformAdminListNoticeMonitoring({ limit = 25, offset = 0, search = null } = {}) {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_list_notice_monitoring', {
@@ -437,6 +444,20 @@ export async function platformAdminListActivity({ hostelId = null, eventType = n
   });
   if (error) throw error;
   return data || { items: [], total_count: 0 };
+}
+
+export async function platformAdminListActivityV2({ hostelId = null, eventType = null, from = null, to = null, limit = 30, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_activity_v2', {
+    p_hostel_id: hostelId || null,
+    p_event_type: eventType || null,
+    p_from: from || null,
+    p_to: to || null,
+    p_limit: Number(limit) || 30,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || { items: [], total_count: 0 };
 }
 
 export async function platformAdminGetMemberActivityOverview(hostelId, userId) {
@@ -492,11 +513,73 @@ export async function platformAdminListSecurityEvents({ eventType = null, ipSear
   return data || { items: [], total_count: 0 };
 }
 
+export async function platformAdminGetSecurityOverviewV2() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_security_overview_v2');
+  if (error) throw error;
+  return firstRow(data) || data || {};
+}
+
+export async function platformAdminListSecurityEventsV2({ eventType = null, ipSearch = null, countryCode = null, from = null, to = null, limit = 30, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_security_events_v2', {
+    p_event_type: eventType || null,
+    p_ip_search: ipSearch || null,
+    p_country_code: countryCode || null,
+    p_from: from || null,
+    p_to: to || null,
+    p_limit: Number(limit) || 30,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || { items: [], total_count: 0 };
+}
+
+export async function platformAdminListSecurityIpBlocks({ scope = null, limit = 30, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_security_ip_blocks', {
+    p_scope: scope || null, p_limit: Number(limit) || 30, p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || { items: [], total_count: 0 };
+}
+
 export async function platformAdminCheckSecurityTelemetry() {
   assertSupabase();
-  const { data, error } = await supabase.functions.invoke('record-auth-event', { method: 'GET' });
+  const [telemetryResult, authGateResult] = await Promise.allSettled([
+    supabase.functions.invoke('record-auth-event', { method: 'GET' }),
+    supabase.functions.invoke('auth-security-gate', { method: 'GET' }),
+  ]);
+  if (telemetryResult.status === 'rejected') throw telemetryResult.reason;
+  if (telemetryResult.value.error) throw telemetryResult.value.error;
+  const telemetry = telemetryResult.value.data || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' };
+  const authGate = authGateResult.status === 'fulfilled' && !authGateResult.value.error
+    ? authGateResult.value.data : null;
+  return {
+    ...telemetry,
+    auth_gate_ready: authGate?.ready === true && authGate?.protection_available === true,
+    auth_gate_ip_available: authGate?.client_ip_available === true,
+    auth_gate_version: authGate?.version || null,
+    auth_gate_code: authGate?.code || (authGateResult.status === 'rejected' ? 'AUTH_GATE_UNAVAILABLE' : null),
+  };
+}
+
+export async function platformAdminListActiveSessions({ search = null, limit = 50, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_active_sessions', {
+    p_search: search || null, p_limit: Number(limit) || 50, p_offset: Number(offset) || 0,
+  });
   if (error) throw error;
-  return data || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' };
+  return firstRow(data) || data || { items: [], total_count: 0 };
+}
+
+export async function platformAdminRevokeActiveSession(userId, sessionRef, reason = '') {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_revoke_active_session', {
+    p_user_id: userId, p_session_ref: sessionRef, p_reason: String(reason || '').trim() || null,
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
 }
 
 export async function platformAdminSetDefaultTheme(theme) {
@@ -544,6 +627,24 @@ export async function platformAdminUpdateNotificationSettings(telegramEnabled, b
   const { data, error } = await supabase.rpc('platform_admin_update_notification_settings', {
     p_telegram_enabled: Boolean(telegramEnabled),
     p_telegram_bot_username: String(botUsername || '').trim(),
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
+export async function platformAdminListTelegramConnections({ search = null, limit = 25, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_telegram_connections', {
+    p_search: search || null, p_limit: Number(limit) || 25, p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || { items: [], total_count: 0 };
+}
+
+export async function platformAdminDisconnectTelegramUser(userId, reason = '') {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_disconnect_telegram_user', {
+    p_user_id: userId, p_reason: String(reason || '').trim() || null,
   });
   if (error) throw error;
   return firstRow(data) || data;

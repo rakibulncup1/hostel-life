@@ -6,3 +6,12 @@ verify_jwt = false
 
 [functions.telegram-notification-dispatch]
 verify_jwt = false
+
+[functions.auth-security-gate]
+verify_jwt = false
+
+[functions.request-password-reset]
+verify_jwt = false
+
+[functions.admin-delete-unlinked-user]
+verify_jwt = true

@@ -4,6 +4,7 @@ import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { TelegramLogo } from '../../components/TelegramLogo';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
+import { SearchableSelect } from '../../components/SearchableSelect';
 import { supabase } from '../../lib/supabase';
 import { verifyPassword } from '../../services/authService';
 import { normalizePlatformOverview } from '../../utils/platformOverview';
@@ -19,11 +20,13 @@ import {
   platformAdminListExpiredArchives, platformAdminDeleteExpiredArchive,
   platformAdminFinalizeArchiveSummary, platformAdminVerifyArchiveSummary, platformAdminListSavedSummaries,
   platformAdminListAuditLogs, platformAdminListAccessCodeHistory, platformAdminGetHostelInsights,
-  platformAdminGetSystemHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
-  platformAdminListActivity, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
-  platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminCheckSecurityTelemetry,
+  platformAdminGetSystemHealth, platformAdminGetDatabaseRuntimeHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
+  platformAdminListActivity, platformAdminListActivityV2, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
+  platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminGetSecurityOverviewV2, platformAdminListSecurityEventsV2, platformAdminListSecurityIpBlocks, platformAdminCheckSecurityTelemetry,
+  platformAdminListActiveSessions, platformAdminRevokeActiveSession,
   platformAdminGetNotificationSettings, platformAdminUpdateNotificationSettings, platformAdminSendTargetedMessage,
   platformAdminGetTelegramDeliveryHealth, platformAdminListTelegramDeliveryBatches, platformAdminGetTelegramWebhookStatus, platformAdminConfigureTelegramWebhook,
+  platformAdminListTelegramConnections, platformAdminDisconnectTelegramUser,
   platformAdminGetCommunications, platformAdminSaveCommunications, uploadPlatformNoticeImage,
 } from '../../services/platformService';
 
@@ -173,6 +176,14 @@ function fromDhakaDateTimeInput(value) {
   }
   return new Date(timestamp);
 }
+function addCalendarDaysToDateInput(value, days = 1) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+  if (!match || !Number.isInteger(days) || Math.abs(days) > 366) return '';
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day) + days));
+  if (date.getUTCFullYear() < 1000 || date.getUTCFullYear() > 9999) return '';
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
 function presenceLabel(member) {
   if (!member?.last_seen_at) return 'সক্রিয়তার তথ্য নেই';
   return member.is_online ? 'সাম্প্রতিক সক্রিয়' : 'এখন সক্রিয় নয়';
@@ -220,7 +231,7 @@ function activityEventLabel(eventType) {
   return String(eventType || 'অন্যান্য কার্যক্রম').replaceAll('.', ' · ').replaceAll('_', ' ');
 }
 function securityEventLabel(eventType) {
-  return ({ login_failed: 'ব্যর্থ লগইন চেষ্টা', signup_failed: 'ব্যর্থ রেজিস্ট্রেশন', signup_submitted: 'রেজিস্ট্রেশন অনুরোধ', password_reset_failed: 'ব্যর্থ পাসওয়ার্ড রিসেট' })[eventType] || eventType || 'অন্যান্য';
+  return ({ login_failed: 'ব্যর্থ লগইন চেষ্টা', login_success: 'সফল Login', signup_failed: 'ব্যর্থ রেজিস্ট্রেশন', signup_submitted: 'রেজিস্ট্রেশন অনুরোধ জমা', password_reset_failed: 'ব্যর্থ পাসওয়ার্ড রিসেট', password_reset_requested: 'Reset email পাঠানোর অনুরোধ গ্রহণ' })[eventType] || eventType || 'অন্যান্য';
 }
 function activityChangedFields(metadata) {
   const fields = Array.isArray(metadata?.changed_fields) ? metadata.changed_fields : [];
@@ -262,6 +273,17 @@ function systemSeverityLabel(value) {
 function formatReportCurrency(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? `৳${numeric.toLocaleString('bn-BD', { maximumFractionDigits: 2 })}` : '—';
+}
+
+function formatBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return '—';
+  if (bytes < 1024) return `${bytes.toLocaleString('bn-BD')} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let amount = bytes / 1024;
+  let index = 0;
+  while (amount >= 1024 && index < units.length - 1) { amount /= 1024; index += 1; }
+  return `${amount.toLocaleString('bn-BD', { maximumFractionDigits: 2 })} ${units[index]}`;
 }
 
 function toWhatsAppUrl(phone) {
@@ -330,6 +352,14 @@ export function SuperAdminPage({ user }) {
   const [sessionPolicyLoaded, setSessionPolicyLoaded] = useState(false);
   const [defaultThemeBusy, setDefaultThemeBusy] = useState(false);
   const [deviceLimitBusy, setDeviceLimitBusy] = useState(false);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [activeSessionTotal, setActiveSessionTotal] = useState(0);
+  const [activeSessionSearchDraft, setActiveSessionSearchDraft] = useState('');
+  const [activeSessionSearch, setActiveSessionSearch] = useState('');
+  const [activeSessionPage, setActiveSessionPage] = useState(0);
+  const [activeSessionLoading, setActiveSessionLoading] = useState(false);
+  const [activeSessionError, setActiveSessionError] = useState('');
+  const [activeSessionBusyRef, setActiveSessionBusyRef] = useState('');
   const [reason, setReason] = useState('');
   const [ttl, setTtl] = useState('1440');
   const [maxUses, setMaxUses] = useState('1');
@@ -370,6 +400,7 @@ export function SuperAdminPage({ user }) {
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
   const [deleteAccounts, setDeleteAccounts] = useState(false);
   const [orphanAccounts, setOrphanAccounts] = useState([]);
+  const [orphanSelectedIds, setOrphanSelectedIds] = useState([]);
   const [orphanPage, setOrphanPage] = useState(1);
   const [orphanMore, setOrphanMore] = useState(false);
   const [orphanBusy, setOrphanBusy] = useState(false);
@@ -390,6 +421,8 @@ export function SuperAdminPage({ user }) {
   const [activityPage, setActivityPage] = useState(0);
   const [activityHostelFilter, setActivityHostelFilter] = useState('all');
   const [activityEventFilter, setActivityEventFilter] = useState('all');
+  const [activityFromDate, setActivityFromDate] = useState('');
+  const [activityToDate, setActivityToDate] = useState('');
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState('');
   const [securityOverview, setSecurityOverview] = useState(null);
@@ -399,6 +432,12 @@ export function SuperAdminPage({ user }) {
   const [securityEventFilter, setSecurityEventFilter] = useState('all');
   const [securityIpSearchDraft, setSecurityIpSearchDraft] = useState('');
   const [securityIpSearch, setSecurityIpSearch] = useState('');
+  const [securityCountryDraft, setSecurityCountryDraft] = useState('');
+  const [securityCountryFilter, setSecurityCountryFilter] = useState('');
+  const [securityFromDate, setSecurityFromDate] = useState('');
+  const [securityToDate, setSecurityToDate] = useState('');
+  const [securityIpBlocks, setSecurityIpBlocks] = useState([]);
+  const [securityIpBlocksError, setSecurityIpBlocksError] = useState('');
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securityError, setSecurityError] = useState('');
   const [securityTelemetryStatus, setSecurityTelemetryStatus] = useState(null);
@@ -441,6 +480,8 @@ export function SuperAdminPage({ user }) {
   const [insightsError, setInsightsError] = useState('');
   const insightsRequestRef = useRef(0);
   const [healthData, setHealthData] = useState(null);
+  const [databaseHealthData, setDatabaseHealthData] = useState(null);
+  const [databaseHealthError, setDatabaseHealthError] = useState('');
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthError, setHealthError] = useState('');
   const [healthStaleDays, setHealthStaleDays] = useState('14');
@@ -472,6 +513,14 @@ export function SuperAdminPage({ user }) {
   const [telegramDeliveryFilter, setTelegramDeliveryFilter] = useState('all');
   const [telegramDeliveryPage, setTelegramDeliveryPage] = useState(0);
   const [telegramDeliveryLoading, setTelegramDeliveryLoading] = useState(false);
+  const [telegramConnections, setTelegramConnections] = useState([]);
+  const [telegramConnectionSearchDraft, setTelegramConnectionSearchDraft] = useState('');
+  const [telegramConnectionSearch, setTelegramConnectionSearch] = useState('');
+  const [telegramConnectionPage, setTelegramConnectionPage] = useState(0);
+  const [telegramConnectionTotal, setTelegramConnectionTotal] = useState(0);
+  const [telegramConnectionLoading, setTelegramConnectionLoading] = useState(false);
+  const [telegramConnectionError, setTelegramConnectionError] = useState('');
+  const [telegramConnectionBusyUserId, setTelegramConnectionBusyUserId] = useState('');
   const [refreshingWorkspace, setRefreshingWorkspace] = useState(false);
   const [lastWorkspaceRefresh, setLastWorkspaceRefresh] = useState(null);
   const [healthSeverityFilter, setHealthSeverityFilter] = useState('all');
@@ -548,9 +597,12 @@ export function SuperAdminPage({ user }) {
     const requestId = ++activityRequestRef.current;
     setActivityLoading(true); setActivityError('');
     try {
-      const result = await platformAdminListActivity({
+      const activityFrom = activityFromDate ? fromDhakaDateTimeInput(`${activityFromDate}T00:00`).toISOString() : null;
+      const activityTo = activityToDate ? fromDhakaDateTimeInput(`${addCalendarDaysToDateInput(activityToDate)}T00:00`).toISOString() : null;
+      const result = await platformAdminListActivityV2({
         hostelId: activityHostelFilter === 'all' ? null : activityHostelFilter,
         eventType: activityEventFilter === 'all' ? null : activityEventFilter,
+        from: activityFrom, to: activityTo,
         limit: pageSize, offset: activityPage * pageSize,
       });
       if (requestId !== activityRequestRef.current) return;
@@ -559,23 +611,28 @@ export function SuperAdminPage({ user }) {
     } catch (cause) {
       if (requestId === activityRequestRef.current) setActivityError(errorText(cause, 'Activity Log রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
     } finally { if (requestId === activityRequestRef.current) setActivityLoading(false); }
-  }, [activityHostelFilter, activityEventFilter, activityPage]);
+  }, [activityHostelFilter, activityEventFilter, activityPage, activityFromDate, activityToDate]);
 
   const loadSecurityMonitor = useCallback(async () => {
     const requestId = ++securityRequestRef.current;
-    setSecurityLoading(true); setSecurityError(''); setSecurityTelemetryStatus(null);
+    setSecurityLoading(true); setSecurityError(''); setSecurityTelemetryStatus(null); setSecurityIpBlocksError('');
+    const securityFrom = securityFromDate ? fromDhakaDateTimeInput(`${securityFromDate}T00:00`).toISOString() : null;
+    const securityTo = securityToDate ? fromDhakaDateTimeInput(`${addCalendarDaysToDateInput(securityToDate)}T00:00`).toISOString() : null;
     const results = await Promise.allSettled([
-      platformAdminGetSecurityOverview(),
-      platformAdminListSecurityEvents({
+      platformAdminGetSecurityOverviewV2(),
+      platformAdminListSecurityEventsV2({
         eventType: securityEventFilter === 'all' ? null : securityEventFilter,
         ipSearch: securityIpSearch || null,
+        countryCode: securityCountryFilter || null,
+        from: securityFrom, to: securityTo,
         limit: pageSize, offset: securityPage * pageSize,
       }),
       platformAdminCheckSecurityTelemetry(),
+      platformAdminListSecurityIpBlocks({ limit: 20, offset: 0 }),
     ]);
     if (requestId !== securityRequestRef.current) return;
     const failures = [];
-    const [overviewResult, listResult, telemetryResult] = results;
+    const [overviewResult, listResult, telemetryResult, blocksResult] = results;
     if (overviewResult.status === 'fulfilled') setSecurityOverview(overviewResult.value || {});
     else failures.push(`Security Summary: ${errorText(overviewResult.reason, 'লোড হয়নি')}`);
     if (listResult.status === 'fulfilled') {
@@ -589,9 +646,11 @@ export function SuperAdminPage({ user }) {
       if (requestId !== securityRequestRef.current) return;
       setSecurityTelemetryStatus({ ready: false, message });
     }
+    if (blocksResult.status === 'fulfilled') setSecurityIpBlocks(Array.isArray(blocksResult.value?.items) ? blocksResult.value.items : []);
+    else { setSecurityIpBlocks([]); setSecurityIpBlocksError(errorText(blocksResult.reason, 'সক্রিয় IP Block তালিকা লোড হয়নি।')); }
     setSecurityError(failures.length ? `কিছু Security তথ্য লোড হয়নি; সফল অংশটি দেখা যাচ্ছে। ${failures.join(' · ')}` : '');
     setSecurityLoading(false);
-  }, [securityEventFilter, securityIpSearch, securityPage]);
+  }, [securityEventFilter, securityIpSearch, securityCountryFilter, securityFromDate, securityToDate, securityPage]);
 
   const loadMemberActivity = useCallback(async (member, page = 0) => {
     if (!member?.hostel_id || !member?.user_id) return;
@@ -657,14 +716,18 @@ export function SuperAdminPage({ user }) {
 
   const loadSystemHealth = useCallback(async () => {
     const requestId = ++healthRequestRef.current;
-    setHealthLoading(true); setHealthError('');
-    try {
-      const result = await platformAdminGetSystemHealth(Number(healthStaleDays) || 14);
-      if (requestId !== healthRequestRef.current) return;
-      setHealthData(result || null);
-    } catch (cause) {
-      if (requestId === healthRequestRef.current) setHealthError(errorText(cause, 'System Health রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
-    } finally { if (requestId === healthRequestRef.current) setHealthLoading(false); }
+    setHealthLoading(true); setHealthError(''); setDatabaseHealthError('');
+    const results = await Promise.allSettled([
+      platformAdminGetSystemHealth(Number(healthStaleDays) || 14),
+      platformAdminGetDatabaseRuntimeHealth(),
+    ]);
+    if (requestId !== healthRequestRef.current) return;
+    const [operationsResult, databaseResult] = results;
+    if (operationsResult.status === 'fulfilled') setHealthData(operationsResult.value || null);
+    else setHealthError(errorText(operationsResult.reason, 'System Health রিফ্রেশ করা যায়নি। আগের সফল তথ্য রাখা হয়েছে।'));
+    if (databaseResult.status === 'fulfilled') setDatabaseHealthData(databaseResult.value || null);
+    else setDatabaseHealthError('Database Runtime Metrics লোড হয়নি। Run34 Migration প্রয়োগ ও Schema Reload হয়েছে কি না যাচাই করুন।');
+    setHealthLoading(false);
   }, [healthStaleDays]);
 
   const loadNoticeMonitoring = useCallback(async () => {
@@ -709,6 +772,32 @@ export function SuperAdminPage({ user }) {
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setNotice('Aggregate রিপোর্ট CSV ডাউনলোড শুরু হয়েছে।');
     } catch (cause) { setReportError(cause?.message || 'রিপোর্ট ডাউনলোড করা যায়নি।'); }
+  }, [reportData]);
+
+  const downloadPlatformReportJson = useCallback(() => {
+    if (!reportData) return;
+    try {
+      const safeReport = {
+        report_type: 'hostel-life-platform-aggregate',
+        schema_version: 1,
+        generated_at: reportData.generated_at || new Date().toISOString(),
+        from_date: reportData.from_date,
+        to_date: reportData.to_date,
+        totals: reportData.totals || {},
+        items: Array.isArray(reportData.items) ? reportData.items : [],
+        notes: [reportData.snapshot_note, 'এটি মেসভিত্তিক Aggregate রিপোর্ট; সদস্যভিত্তিক ব্যক্তিগত লেনদেন অন্তর্ভুক্ত নয়।'].filter(Boolean),
+      };
+      const blob = new Blob([JSON.stringify(safeReport, null, 2)], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `hostel-life-platform-report-${reportData.from_date}-${reportData.to_date}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice('Aggregate রিপোর্ট JSON ডাউনলোড শুরু হয়েছে।');
+    } catch (cause) { setReportError(cause?.message || 'JSON রিপোর্ট ডাউনলোড করা যায়নি।'); }
   }, [reportData]);
 
   const loadHostelInsights = useCallback(async (hostelId, periodId = null) => {
@@ -876,6 +965,62 @@ export function SuperAdminPage({ user }) {
       await loadRetention(); setNotice('আর্কাইভ অপসারণের অনুরোধ সফল হয়েছে; সারসংক্ষেপ সংরক্ষিত।');
     } catch (cause) { setRetentionError(errorText(cause, 'আর্কাইভ অপসারণ ব্যর্থ হয়েছে।')); }
     finally { setRetentionLoading(false); }
+  };
+
+  const loadTelegramConnections = useCallback(async () => {
+    setTelegramConnectionLoading(true); setTelegramConnectionError('');
+    try {
+      const result = await platformAdminListTelegramConnections({ search: telegramConnectionSearch || null, limit: pageSize, offset: telegramConnectionPage * pageSize });
+      setTelegramConnections(Array.isArray(result?.items) ? result.items : []);
+      setTelegramConnectionTotal(Number(result?.total_count) || 0);
+    } catch (cause) {
+      setTelegramConnections([]); setTelegramConnectionTotal(0);
+      setTelegramConnectionError(errorText(cause, 'Telegram সংযোগের তালিকা লোড করা যায়নি। Run35 migration প্রয়োগ হয়েছে কি না যাচাই করুন।'));
+    } finally { setTelegramConnectionLoading(false); }
+  }, [telegramConnectionSearch, telegramConnectionPage]);
+
+  const disconnectTelegramConnection = async (connection) => {
+    const expected = `DISCONNECT TELEGRAM ${connection.user_id}`;
+    const typed = await confirmTypedAction(
+      `${connection.full_name || connection.email || connection.user_id}-এর Telegram সংযোগ বিচ্ছিন্ন হবে। Telegram ID-র সংযোগ এবং pending link token বাতিল হবে; Hostel Life account বা অন্য তথ্য মুছবে না।`,
+      expected,
+    );
+    if (typed !== expected) return;
+    setTelegramConnectionBusyUserId(connection.user_id); setTelegramConnectionError('');
+    try {
+      await platformAdminDisconnectTelegramUser(connection.user_id, 'Super Admin থেকে Telegram সংযোগ বিচ্ছিন্ন');
+      await Promise.all([loadTelegramConnections(), loadTelegramAdminSettings()]);
+      setNotice(`${connection.full_name || 'ব্যবহারকারী'}-এর Telegram সংযোগ বিচ্ছিন্ন হয়েছে।`);
+    } catch (cause) { setTelegramConnectionError(errorText(cause, 'Telegram সংযোগ বিচ্ছিন্ন করা যায়নি।')); }
+    finally { setTelegramConnectionBusyUserId(''); }
+  };
+
+  const loadActiveSessions = useCallback(async () => {
+    setActiveSessionLoading(true); setActiveSessionError('');
+    try {
+      const result = await platformAdminListActiveSessions({ search: activeSessionSearch || null, limit: pageSize, offset: activeSessionPage * pageSize });
+      setActiveSessions(Array.isArray(result?.items) ? result.items : []);
+      setActiveSessionTotal(Number(result?.total_count) || 0);
+    } catch (cause) {
+      setActiveSessions([]); setActiveSessionTotal(0);
+      setActiveSessionError(errorText(cause, 'সক্রিয় Device Session তালিকা লোড করা যায়নি। Run35 migration ও Auth Session access যাচাই করুন।'));
+    } finally { setActiveSessionLoading(false); }
+  }, [activeSessionSearch, activeSessionPage]);
+
+  const revokeActiveSession = async (session) => {
+    const expected = `REVOKE SESSION ${session.user_id} ${session.session_ref}`;
+    const typed = await confirmTypedAction(
+      `${session.full_name || session.email}-এর নির্দিষ্ট Device Session বন্ধ হবে। এই কাজটি শুধু নির্বাচিত Session-এ প্রয়োগ হবে; অন্য Session অক্ষত থাকবে।`,
+      expected,
+    );
+    if (typed !== expected) return;
+    setActiveSessionBusyRef(session.session_ref); setActiveSessionError('');
+    try {
+      await platformAdminRevokeActiveSession(session.user_id, session.session_ref, 'Super Admin কর্তৃক নির্দিষ্ট ডিভাইস Session বাতিল');
+      await loadActiveSessions();
+      setNotice(`${session.full_name || 'ব্যবহারকারী'}-এর নির্বাচিত Session বন্ধ করা হয়েছে।`);
+    } catch (cause) { setActiveSessionError(errorText(cause, 'Session বন্ধ করা যায়নি। তালিকা রিফ্রেশ করে আবার চেষ্টা করুন।')); }
+    finally { setActiveSessionBusyRef(''); }
   };
 
   const loadTelegramAdminSettings = useCallback(async () => {
@@ -1081,6 +1226,14 @@ export function SuperAdminPage({ user }) {
   }, [tab, reauthenticated, loadTelegramDeliveryBatches]);
 
   useEffect(() => {
+    if (tab === 'telegram' && reauthenticated) loadTelegramConnections();
+  }, [tab, reauthenticated, loadTelegramConnections]);
+
+  useEffect(() => {
+    if (tab === 'sessions' && reauthenticated) loadActiveSessions();
+  }, [tab, reauthenticated, loadActiveSessions]);
+
+  useEffect(() => {
     if (tab !== 'messages' || !messageHostelId || !reauthenticated) return undefined;
     const requestId = ++messageMembersRequestRef.current;
     setMessageMembersLoading(true); setMessageMembersError(''); setMessageMembers([]); setMessageSelectedUsers([]);
@@ -1256,6 +1409,7 @@ export function SuperAdminPage({ user }) {
       if (fnError) throw new Error(await edgeInvokeErrorText(fnError));
       if (data?.error) throw new Error(data.message || data.error);
       setOrphanAccounts(Array.isArray(data?.items) ? data.items : []);
+      setOrphanSelectedIds([]);
       setOrphanPage(Number(data?.page) || page);
       setOrphanMore(Boolean(data?.has_more));
       setOrphanScanInfo({
@@ -1279,9 +1433,35 @@ export function SuperAdminPage({ user }) {
       if (fnError) throw new Error(await edgeInvokeErrorText(fnError));
       if (data?.error || !data?.deleted) throw new Error(data?.message || data?.error || 'Auth মুছতে পারেনি।');
       setOrphanAccounts(old=>old.filter(row=>row.id!==account.id));
+      setOrphanSelectedIds(old=>old.filter(id=>id!==account.id));
       setNotice('Auth account স্থায়ীভাবে মুছে ফেলা হয়েছে।');
     } catch(cause){setOrphanError(cause?.message || 'Auth মুছতে পারেনি।');}
     finally {setOrphanBusy(false);}
+  };
+  const removeSelectedOrphanAccounts = async () => {
+    const selected = orphanAccounts.filter((row) => orphanSelectedIds.includes(row.id));
+    if (!selected.length || selected.length > 25) return;
+    const expected = `DELETE ${selected.length} ORPHAN AUTH ACCOUNTS`;
+    const typed = await confirmTypedAction(
+      `নিচের ${selected.length}টি Auth account স্থায়ীভাবে মুছে ফেলা হবে। সার্ভার প্রতিটি account-এর membership, Super Admin role ও বর্তমান Admin account আবার যাচাই করবে। মুছে ফেললে ফিরিয়ে আনা যাবে না।`,
+      expected,
+    );
+    if (typed !== expected) return;
+    setOrphanBusy(true); setOrphanError('');
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('admin-delete-unlinked-user', {
+        body: { action: 'delete_many', user_ids: selected.map((row) => row.id), confirmation: expected },
+      });
+      if (fnError) throw new Error(await edgeInvokeErrorText(fnError));
+      if (data?.error) throw new Error(data.message || data.error);
+      const deleted = new Set(Array.isArray(data?.results) ? data.results.filter((row) => row.deleted).map((row) => row.user_id) : []);
+      setOrphanAccounts((old) => old.filter((row) => !deleted.has(row.id)));
+      setOrphanSelectedIds((old) => old.filter((id) => !deleted.has(id)));
+      const failed = Array.isArray(data?.results) ? data.results.filter((row) => !row.deleted) : [];
+      setNotice(`${deleted.size.toLocaleString('bn-BD')}টি Auth account মুছে ফেলা হয়েছে${failed.length ? `; ${failed.length.toLocaleString('bn-BD')}টি নিরাপত্তা যাচাই/ডিলিটে ব্যর্থ হওয়ায় রাখা হয়েছে` : ''}।`);
+      if (failed.length) setOrphanError(failed.map((row) => `${row.email || row.user_id}: ${row.message || row.code || 'ব্যর্থ'}`).join(' · '));
+    } catch (cause) { setOrphanError(cause?.message || 'Bulk Auth account deletion ব্যর্থ হয়েছে।'); }
+    finally { setOrphanBusy(false); }
   };
 
   const permanentlyDeleteHostel = async () => {
@@ -1498,6 +1678,29 @@ export function SuperAdminPage({ user }) {
     setTab('hostels');
   };
 
+  const openOverviewDestination = (destination, message) => {
+    if (destination === 'hostels') {
+      setHostelFilter('all');
+      setHostelQuery('');
+      setSelected(null);
+    }
+    if (destination === 'activity') {
+      setActivityView('timeline');
+      setActivityHostelFilter('all');
+      setActivityEventFilter('all');
+      setActivityPage(0);
+    }
+    if (destination === 'audit') {
+      setAuditActionFilter('all');
+      setAuditTargetFilter('all');
+      setAuditSearchDraft('');
+      setAuditSearch('');
+      setAuditPage(0);
+    }
+    setTab(destination);
+    if (message) setNotice(message);
+  };
+
   const openSecurityEvents = (eventType = 'all') => {
     setSecurityEventFilter(eventType);
     setSecurityIpSearchDraft('');
@@ -1560,19 +1763,28 @@ export function SuperAdminPage({ user }) {
       <Stat label="মোট মেস" value={metrics.hostels} icon="home" onClick={() => openHostelDirectory('all')}/>
       <Stat label="সক্রিয় মেস" value={metrics.activeHostels} icon="home" onClick={() => openHostelDirectory('active')}/>
       <Stat label="স্থগিত মেস" value={metrics.suspendedHostels} icon="lock" onClick={() => openHostelDirectory('suspended')}/>
-      <Stat label="মোট অ্যাকাউন্ট" value={metrics.users} icon="users"/>
-      <Stat label="সক্রিয় মেম্বারশিপ" value={metrics.activeMemberships} icon="user-plus"/>
-      <Stat label="নিষ্ক্রিয় মেম্বারশিপ" value={metrics.inactiveMemberships} icon="user"/>
+      <Stat label="মোট অ্যাকাউন্ট" value={metrics.users} icon="users" onClick={() => openOverviewDestination('hostels','অ্যাকাউন্টের বিস্তারিত দেখতে একটি মেস নির্বাচন করে সদস্য তালিকা খুলুন।')}/>
+      <Stat label="সক্রিয় মেম্বারশিপ" value={metrics.activeMemberships} icon="user-plus" onClick={() => openOverviewDestination('hostels','সক্রিয় মেম্বারশিপ যাচাই করতে মেস নির্বাচন করে সদস্য তালিকা খুলুন।')}/>
+      <Stat label="নিষ্ক্রিয় মেম্বারশিপ" value={metrics.inactiveMemberships} icon="user" onClick={() => openOverviewDestination('activity','সদস্যপদ পরিবর্তনের ইতিহাস Activity Timeline-এ দেখুন।')}/>
       <Stat label="গত ৩০ দিনে তৈরি মেস" value={metrics.recentHostels} icon="calendar" onClick={() => openHostelDirectory('recent')}/>
-      <Stat label="ব্লক করা অ্যাকাউন্ট" value={metrics.blockedUsers} icon="shield"/>
-      <Stat label="Super Admin" value={metrics.superAdmins} icon="shield-check"/>
+      <Stat label="ব্লক করা অ্যাকাউন্ট" value={metrics.blockedUsers} icon="shield" onClick={() => openOverviewDestination('hostels','ব্লক করা সদস্য দেখতে মেস নির্বাচন করুন এবং সদস্য তালিকায় Blocked ফিল্টার ব্যবহার করুন।')}/>
+      <Stat label="Super Admin" value={metrics.superAdmins} icon="shield-check" onClick={() => openOverviewDestination('audit','Super Admin-সম্পর্কিত প্রশাসনিক পরিবর্তন Audit Log-এ যাচাই করুন।')}/>
       <div className="card platform-privacy-note"><Icon name="shield" size={22}/><div><strong>Privacy boundary</strong><p>এই Overview-তে শুধু সামগ্রিক সংখ্যা দেখানো হয়। ব্যক্তিগত সদস্যের আর্থিক বা মিলের বিস্তারিত এখানে দেখানো হয় না।</p></div></div>
+      </section>
+      <section className="platform-overview-shortcuts" aria-label="Super Admin দ্রুত সংযোগ">
+        <div><span className="eyebrow">QUICK ACCESS</span><h4>গুরুত্বপূর্ণ বিভাগে দ্রুত যান</h4><p>Overview থেকে সংশ্লিষ্ট পর্যবেক্ষণ ও নিয়ন্ত্রণে সরাসরি প্রবেশ করুন।</p></div>
+        <div className="platform-overview-shortcut-actions">
+          {[
+            ['health','সিস্টেম হেলথ','activity'],['reports','রিপোর্ট এক্সপোর্ট','file-text'],['audit','অডিট লগ','history'],
+            ['activity','অ্যাক্টিভিটি ও সিকিউরিটি','shield'],['backup','Backup & Recovery','database'],['sessions','সেশন নিরাপত্তা','monitor'],
+          ].map(([destination,label,icon])=><button key={destination} type="button" className="secondary-button compact" onClick={()=>openOverviewDestination(destination)}><Icon name={icon} size={15}/>{label}</button>)}
+        </div>
       </section>
     </>}
     {tab === 'insights' && <section className="card platform-panel platform-insights-panel">
       <div className="platform-panel-heading"><div><span className="eyebrow">HOSTEL INTELLIGENCE</span><h3>মেসভিত্তিক বিস্তারিত সারসংক্ষেপ</h3><p>নির্বাচিত মেসের মাসভিত্তিক মিল, বাজার ও আর্থিক Aggregate দেখা যাবে। ব্যক্তিগত সদস্যের লেনদেন এখানে প্রকাশ করা হয় না।</p></div><button type="button" className="secondary-button compact" disabled={insightsLoading || !insightsHostelId} onClick={()=>loadHostelInsights(insightsHostelId,insightsPeriodId||null)}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
       <div className="platform-insights-toolbar">
-        <label className="field-label"><span>মেস নির্বাচন</span><select value={insightsHostelId} onChange={(event)=>{setInsightsHostelId(event.target.value);setInsightsPeriodId('');setInsightsData(null);}}><option value="">মেস নির্বাচন করুন</option>{hostels.map((hostel)=><option key={hostel.hostel_id} value={hostel.hostel_id}>{hostel.name} · {hostel.platform_status==='suspended'?'স্থগিত':'সক্রিয়'}</option>)}</select></label>
+        <label className="field-label"><span>মেস নির্বাচন</span><SearchableSelect value={insightsHostelId} onChange={(value)=>{setInsightsHostelId(value);setInsightsPeriodId('');setInsightsData(null);}} options={hostels.map((hostel)=>({value:hostel.hostel_id,label:`${hostel.name} · ${hostel.platform_status==='suspended'?'স্থগিত':'সক্রিয়'}`}))} placeholder="মেস নির্বাচন করুন" ariaLabel="মেস নির্বাচন"/></label>
         <label className="field-label"><span>মাস নির্বাচন</span><select value={insightsPeriodId} onChange={(event)=>setInsightsPeriodId(event.target.value)} disabled={!insightsHostelId || !(insightsData?.periods || []).length}><option value="">স্বয়ংক্রিয়ভাবে সর্বশেষ মাস</option>{(insightsData?.periods || []).map((period)=><option key={period.id} value={period.id}>{period.label} · {periodStatusLabel(period.status)}</option>)}</select></label>
       </div>
       {insightsError && <div className="inline-error platform-alert"><Icon name="warning" size={16}/>{insightsError}</div>}
@@ -1621,7 +1833,7 @@ export function SuperAdminPage({ user }) {
       </form>
       {auditError && <div className="inline-error platform-alert">{auditError}</div>}
       {auditLoading ? <div className="platform-empty"><LoadingSpinner label="Audit Log লোড হচ্ছে..."/></div> : auditRows.length === 0 ? <div className="platform-empty-state"><Icon name="history" size={28}/><strong>কোনো কার্যক্রম পাওয়া যায়নি</strong><span>ফিল্টার পরিবর্তন করুন অথবা পরে আবার রিফ্রেশ করুন।</span></div> : <div className="platform-audit-list">{auditRows.map((row)=><article className="platform-audit-item" key={row.id}>
-        <div className="platform-audit-top"><div><strong>{auditActionLabel(row.action)}</strong><small>{auditTargetLabel(row.target_type)} · {row.target_id || '—'}</small></div><time>{formatPlatformDate(row.created_at)}</time></div>
+        <div className="platform-audit-top"><div><strong>{auditActionLabel(row.action)}</strong><small>{auditTargetLabel(row.target_type)} · {row.target_label || row.target_id || '—'}</small></div><time>{formatPlatformDate(row.created_at)}</time></div>
         <div className="platform-audit-actor"><Icon name="user" size={14}/>{row.actor_name || 'অজানা অ্যাকাউন্ট'}</div>
         {row.reason && <p className="platform-audit-reason">কারণ: {row.reason}</p>}
         {row.details && Object.entries(row.details).length > 0 && <div className="platform-audit-details">{Object.entries(row.details).map(([key,value])=><span key={key}>{AUDIT_DETAIL_LABELS[key] || key}: {typeof value === 'boolean' ? (value ? 'হ্যাঁ' : 'না') : String(value)}</span>)}</div>}
@@ -1632,28 +1844,35 @@ export function SuperAdminPage({ user }) {
       <div className="platform-panel-heading"><div><span className="eyebrow">USER & SECURITY OBSERVABILITY</span><h3>Activity Log ও Security Monitoring</h3><p>মেসের কাজ, সদস্য Login/Logout এবং অ্যাপের মাধ্যমে আসা ব্যর্থ Login/Registration প্রচেষ্টা পর্যবেক্ষণ করুন।</p></div><button type="button" className="secondary-button compact" disabled={activityLoading||securityLoading} onClick={activityView==='timeline'?loadActivity:loadSecurityMonitor}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
       <div className="platform-filter-pills" role="tablist" aria-label="Activity Monitor View"><button type="button" role="tab" aria-selected={activityView==='timeline'} className={activityView==='timeline'?'active':''} onClick={()=>setActivityView('timeline')}>Activity Timeline</button><button type="button" role="tab" aria-selected={activityView==='security'} className={activityView==='security'?'active':''} onClick={()=>setActivityView('security')}>Security Monitor</button></div>
       {activityView==='timeline' ? <>
-        <div className="platform-activity-filters"><label className="field-label"><span>মেস</span><select value={activityHostelFilter} onChange={(event)=>{setActivityHostelFilter(event.target.value);setActivityPage(0);}}><option value="all">সব মেস</option>{hostels.map((hostel)=><option value={hostel.hostel_id} key={hostel.hostel_id}>{hostel.name}</option>)}</select></label><label className="field-label"><span>কার্যক্রম</span><select value={activityEventFilter} onChange={(event)=>{setActivityEventFilter(event.target.value);setActivityPage(0);}}><option value="all">সব কার্যক্রম</option><optgroup label="ব্যবহারকারী ও মেসের কার্যক্রম">{Object.entries(ACTIVITY_EVENT_LABELS).map(([value,label])=><option value={value} key={value}>{label}</option>)}</optgroup><optgroup label="আর্কাইভ কার্যক্রম">{Object.entries(ARCHIVE_ACTIVITY_LABELS).map(([value,label])=><option value={value} key={value}>{label}</option>)}</optgroup><optgroup label="Super Admin কার্যক্রম">{Object.entries(AUDIT_ACTION_LABELS).map(([action,label])=><option value={`platform.${action}`} key={`platform.${action}`}>{label}</option>)}</optgroup></select></label></div>
+        <div className="platform-activity-filters"><label className="field-label"><span>মেস</span><SearchableSelect value={activityHostelFilter} onChange={(value)=>{setActivityHostelFilter(value);setActivityPage(0);}} options={[{value:'all',label:'সব মেস'},...hostels.map((hostel)=>({value:hostel.hostel_id,label:hostel.name}))]} placeholder="সব মেস" ariaLabel="Activity Log মেস ফিল্টার"/></label><label className="field-label"><span>কার্যক্রম</span><select value={activityEventFilter} onChange={(event)=>{setActivityEventFilter(event.target.value);setActivityPage(0);}}><option value="all">সব কার্যক্রম</option><optgroup label="ব্যবহারকারী ও মেসের কার্যক্রম">{Object.entries(ACTIVITY_EVENT_LABELS).map(([value,label])=><option value={value} key={value}>{label}</option>)}</optgroup><optgroup label="আর্কাইভ কার্যক্রম">{Object.entries(ARCHIVE_ACTIVITY_LABELS).map(([value,label])=><option value={value} key={value}>{label}</option>)}</optgroup></select></label><label className="field-label"><span>শুরুর তারিখ (বাংলাদেশ)</span><input type="date" value={activityFromDate} max={activityToDate || undefined} onChange={(event)=>{setActivityFromDate(event.target.value);setActivityPage(0);}}/></label><label className="field-label"><span>শেষ তারিখ (বাংলাদেশ)</span><input type="date" value={activityToDate} min={activityFromDate || undefined} onChange={(event)=>{setActivityToDate(event.target.value);setActivityPage(0);}}/></label><button type="button" className="secondary-button compact" onClick={()=>{setActivityFromDate('');setActivityToDate('');setActivityPage(0);}}>তারিখ মুছুন</button></div>
+        <div className="platform-monitor-crosslink"><span>প্রশাসনিক পরিবর্তনের কারণ ও বিস্তারিত দেখতে</span><button type="button" className="text-button" onClick={()=>setTab('audit')}>Audit Log খুলুন <Icon name="external-link" size={14}/></button></div>
         {activityError && <div className="inline-error platform-alert">{activityError}</div>}
-        {activityLoading ? <div className="platform-empty"><LoadingSpinner label="Activity Log লোড হচ্ছে..."/></div> : activityRows.length===0 ? <div className="platform-empty-state"><Icon name="activity" size={28}/><strong>কোনো কার্যক্রম পাওয়া যায়নি</strong><span>Module 3 migration চালু হওয়ার পর নতুন কার্যক্রম এখানে দেখা যাবে।</span></div> : <div className="platform-audit-list">{activityRows.map((row)=><article className="platform-audit-item" key={row.id}><div className="platform-audit-top"><div><strong>{activityEventLabel(row.event_type)}</strong><small>{row.hostel_name || 'প্ল্যাটফর্ম'} · {row.source_table || 'auth'}</small></div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-audit-actor"><Icon name="user" size={14}/>{row.actor_name || 'সিস্টেম/অজানা'}{row.subject_name && row.subject_name!=='—' ? ` · সংশ্লিষ্ট: ${row.subject_name}`:''}</div>{activityChangedFields(row.metadata) && <p className="platform-audit-reason">পরিবর্তিত অংশ: {activityChangedFields(row.metadata)}</p>}{row.ip_address && <small className="platform-security-ip">Login IP: {row.ip_address}</small>}</article>)}</div>}
+        {activityLoading ? <div className="platform-empty"><LoadingSpinner label="Activity Log লোড হচ্ছে..."/></div> : activityRows.length===0 ? <div className="platform-empty-state"><Icon name="activity" size={28}/><strong>কোনো কার্যক্রম পাওয়া যায়নি</strong><span>Module 3 migration চালু হওয়ার পর নতুন কার্যক্রম এখানে দেখা যাবে।</span></div> : <div className="platform-audit-list">{activityRows.map((row)=><article className="platform-audit-item" key={row.id}><div className="platform-audit-top"><div><strong>{activityEventLabel(row.event_type)}</strong><small>{row.hostel_name || 'প্ল্যাটফর্ম'} · {row.source_table || 'auth'} · {row.target_label || (row.target_id ? `Ref ${String(row.target_id).slice(0,12)}` : 'সংশ্লিষ্ট রেকর্ড')}</small></div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-audit-actor"><Icon name="user" size={14}/>{row.actor_name || 'সিস্টেম/অজানা'}{row.subject_name && row.subject_name!=='—' ? ` · সংশ্লিষ্ট: ${row.subject_name}`:''}</div>{activityChangedFields(row.metadata) && <p className="platform-audit-reason">পরিবর্তিত অংশ: {activityChangedFields(row.metadata)}</p>}{row.ip_address && <small className="platform-security-ip">Login IP: {row.ip_address}</small>}</article>)}</div>}
         <div className="platform-history-pager"><span>{activityTotal.toLocaleString('bn-BD')}টি কার্যক্রম · পৃষ্ঠা {activityTotal?activityPage+1:0} / {Math.max(1,Math.ceil(activityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={activityLoading||activityPage===0} onClick={()=>setActivityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={activityLoading||(activityPage+1)*pageSize>=activityTotal} onClick={()=>setActivityPage(value=>value+1)}>পরের</button></div></div>
       </> : <>
-        <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Log-এ শুধু অ্যাপের মাধ্যমে পাঠানো Login/Registration প্রচেষ্টা থাকবে। Password বা আসল Email সংরক্ষণ করা হয় না। IP ঠিকানা কেবল Super Admin দেখতে পারবেন; নতুন Security Event এলে ৯০ দিনের বেশি পুরোনো Event পরিষ্কার হয়। IP একা কোনো ব্যক্তির পরিচয় বা অপরাধের প্রমাণ নয়।</span></div>
+        <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>এই Log-এ অ্যাপের Auth flow এবং Password Reset Edge Function-এ পাওয়া Event থাকে; Password বা আসল Email রাখা হয় না। IP ও আনুমানিক Country Code কেবল Super Admin দেখতে পারেন। ৩০ দিনের বেশি Activity/Security log নতুন Event এলে পরিষ্কার হয়; Scheduler না থাকায় এটি opportunistic cleanup, নির্দিষ্ট সময়ে চালানোর গ্যারান্টি নয়। IP একা কোনো ব্যক্তির পরিচয় বা অপরাধের প্রমাণ নয়। Login/Registration IP gate অ্যাপের pre-check-এ কার্যকর; সরাসরি Supabase Auth endpoint-এ request পাঠালে এই app gate এড়িয়ে যেতে পারে। একই Wi-Fi/CGNAT IP ভাগ করা অনেক ব্যবহারকারীর ক্ষেত্রে একজনের ব্যর্থ প্রচেষ্টায় পুরো shared IP সাময়িকভাবে block হতে পারে।</span></div>
         {securityTelemetryStatus && (securityTelemetryStatus.ready === true
-          ? <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Telemetry সংযোগ সচল এবং Run27 Database RPC যাচাই হয়েছে। Version: {securityTelemetryStatus.version || '—'}। শূন্য Event মানে এই সময়সীমায় কোনো সংরক্ষিত Security Event নেই।</span></div>
-          : <div className="inline-error platform-alert"><Icon name="alert-triangle" size={17}/> Security Telemetry সংযোগ যাচাই ব্যর্থ। Edge Function Deploy, Origin Allowlist, Server Secret এবং Run27 RPC পরীক্ষা করুন। {securityTelemetryStatus.message || securityTelemetryStatus.code || 'Function অনুপলব্ধ বা পুরোনো সংস্করণে চলছে।'}</div>)}
+          ? <div className="platform-security-note"><Icon name="shield-check" size={17}/><span>Security Telemetry ও Run35 Database RPC সচল · Version {securityTelemetryStatus.version || '—'}। Login IP Gate: {securityTelemetryStatus.auth_gate_ready ? `সচল (${securityTelemetryStatus.auth_gate_version || 'Version অজানা'})` : `যাচাই ব্যর্থ (${securityTelemetryStatus.auth_gate_code || (securityTelemetryStatus.auth_gate_ip_available === false ? 'Client IP পাওয়া যায়নি' : 'Function Deploy/Config পরীক্ষা করুন')})`}। Gate সচল মানে অ্যাপের pre-check প্রস্তুত; সরাসরি Supabase Auth endpoint-এর bypass সীমাবদ্ধতা অপরিবর্তিত। শূন্য Event মানে এই সময়সীমায় কোনো সংরক্ষিত Security Event নেই।</span></div>
+          : <div className="inline-error platform-alert"><Icon name="alert-triangle" size={17}/> Security Telemetry সংযোগ যাচাই ব্যর্থ। Run35 migration, Edge Function Deploy, Origin Allowlist ও Server Secret পরীক্ষা করুন। {securityTelemetryStatus.message || securityTelemetryStatus.code || 'Function অনুপলব্ধ বা পুরোনো সংস্করণে চলছে।'}</div>)}
         {securityOverview && <div className="platform-phase3-stat-grid">
           <Stat label="শেষ ২৪ ঘণ্টার Event" value={securityOverview.events_24h} icon="activity"/>
           <Stat label="শেষ ৭ দিনের Event" value={securityOverview.events_7d} icon="calendar"/>
           <Stat label="ব্যর্থ Login · ২৪ ঘণ্টা" value={securityOverview.failed_logins_24h} icon="lock" onClick={() => openSecurityEvents('login_failed')}/>
+          <Stat label="সফল Login · ২৪ ঘণ্টা" value={securityOverview.successful_logins_24h} icon="shield-check" onClick={() => openSecurityEvents('login_success')}/>
           <Stat label="ব্যর্থ Registration · ২৪ ঘণ্টা" value={securityOverview.failed_signups_24h} icon="user-x" onClick={() => openSecurityEvents('signup_failed')}/>
           <Stat label="Registration অনুরোধ · ২৪ ঘণ্টা" value={securityOverview.signup_submitted_24h} icon="user-plus" onClick={() => openSecurityEvents('signup_submitted')}/>
+          <Stat label="Reset email অনুরোধ গ্রহণ" value={securityOverview.password_reset_requested_24h} icon="mail-check" onClick={() => openSecurityEvents('password_reset_requested')}/>
           <Stat label="Password Reset ব্যর্থ · ২৪ ঘণ্টা" value={securityOverview.password_reset_failed_24h} icon="key-round" onClick={() => openSecurityEvents('password_reset_failed')}/>
+          <Stat label="সক্রিয় Auth IP Block" value={securityOverview.active_auth_ip_blocks} icon="shield-alert" onClick={() => setSecurityEventFilter('login_failed')}/>
+          <Stat label="সক্রিয় Reset IP Block" value={securityOverview.active_reset_ip_blocks} icon="ban" onClick={() => setSecurityEventFilter('password_reset_requested')}/>
           <Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/>
           <Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/>
         </div>}
-        <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="password_reset_failed">ব্যর্থ Password Reset</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button>{(securityIpSearch||securityEventFilter!=='all')&&<button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityEventFilter('all');setSecurityPage(0);}}>ফিল্টার মুছুন</button>}</form>
+        <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityCountryFilter(securityCountryDraft.trim().toUpperCase());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="login_success">সফল Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="password_reset_failed">ব্যর্থ Password Reset</option><option value="password_reset_requested">Reset email অনুরোধ গ্রহণ</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><label className="field-label"><span>Country Code</span><input value={securityCountryDraft} maxLength={2} onChange={(event)=>setSecurityCountryDraft(event.target.value.toUpperCase().replace(/[^A-Z]/g,''))} placeholder="BD"/></label><label className="field-label"><span>শুরুর তারিখ (বাংলাদেশ)</span><input type="date" value={securityFromDate} max={securityToDate || undefined} onChange={(event)=>{setSecurityFromDate(event.target.value);setSecurityPage(0);}}/></label><label className="field-label"><span>শেষ তারিখ (বাংলাদেশ)</span><input type="date" value={securityToDate} min={securityFromDate || undefined} onChange={(event)=>{setSecurityToDate(event.target.value);setSecurityPage(0);}}/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button><button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityCountryDraft('');setSecurityCountryFilter('');setSecurityEventFilter('all');setSecurityFromDate('');setSecurityToDate('');setSecurityPage(0);}}>ফিল্টার মুছুন</button></form>
+        {securityOverview?.top_countries?.length > 0 && <div className="platform-monitor-country-list"><strong>শেষ ২৪ ঘণ্টার Country breakdown</strong>{securityOverview.top_countries.map((item)=><button type="button" key={item.country_code} className="platform-monitor-country" onClick={()=>{setSecurityCountryDraft(item.country_code);setSecurityCountryFilter(item.country_code);setSecurityPage(0);}}><span>{item.country_code}</span><b>{Number(item.events||0).toLocaleString('bn-BD')} Event</b></button>)}</div>}
+        <section className="card platform-panel platform-monitor-blocks"><div className="platform-panel-heading"><div><h4>সক্রিয় IP Block</h4><p>সার্ভারে বর্তমানে কার্যকর অস্থায়ী block। মেয়াদ শেষে স্বয়ংক্রিয়ভাবে আর block হিসেবে গণ্য হবে না।</p></div><span className="platform-panel-count">{securityIpBlocks.length.toLocaleString('bn-BD')}</span></div>{securityIpBlocksError && <div className="inline-error">{securityIpBlocksError}</div>}{securityIpBlocks.length===0 ? <p className="platform-empty">এখন কোনো সক্রিয় IP Block নেই।</p> : <div className="platform-retention-list">{securityIpBlocks.map((block)=><div className="platform-retention-row" key={`${block.scope}:${block.ip_address}`}><div><strong>{block.ip_address} · {block.scope==='auth'?'Login/Registration':'Password Reset'}</strong><small>{block.country_code || 'Country অজানা'} · {Number(block.attempt_count||0).toLocaleString('bn-BD')}টি প্রচেষ্টা · {block.block_reason}</small><small>ব্লক শেষ: {formatPlatformDate(block.blocked_until)}</small></div><button type="button" className="text-button" onClick={()=>{setSecurityIpSearchDraft(block.ip_address);setSecurityIpSearch(block.ip_address);setActivityView('security');}}>Event দেখুন <Icon name="external-link" size={14}/></button></div>)}</div>}</section>
         {securityError && <div className="inline-error platform-alert">{securityError}</div>}
-        {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>{securityTelemetryStatus?.ready === false ? 'Security Telemetry এখনো যাচাই করা যায়নি' : 'কোনো Security Event নেই'}</strong><span>{securityTelemetryStatus?.ready === false ? 'সংযোগ সচল না হওয়া পর্যন্ত শূন্য সংখ্যাকে প্রকৃত নিরাপত্তা-তথ্য ধরে নেবেন না।' : 'এখানে ব্যর্থ Login/Registration ও Password Reset প্রচেষ্টা এবং Registration submission রেকর্ড হবে। সফল Login/Logout Activity Timeline-এ দেখা যায়।'}</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
+        {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>{securityTelemetryStatus?.ready === false ? 'Security Telemetry এখনো যাচাই করা যায়নি' : 'কোনো Security Event নেই'}</strong><span>{securityTelemetryStatus?.ready === false ? 'সংযোগ সচল না হওয়া পর্যন্ত শূন্য সংখ্যাকে প্রকৃত নিরাপত্তা-তথ্য ধরে নেবেন না।' : 'এখানে ব্যর্থ Login/Registration ও Password Reset প্রচেষ্টা এবং Registration submission রেকর্ড হবে। সফল Login এবং reset-email request-ও এখানে দেখা যায়; Login/Logout Activity Timeline-এ থাকে।'}</span></div> : <div className="platform-security-list">{securityRows.map((row)=><article className="platform-security-item" key={row.id}><div className="platform-audit-top"><div><strong>{securityEventLabel(row.event_type)}</strong><small>{row.failure_code || 'ফলাফল কোড নেই'} · Identity Ref: {row.identity_ref || '—'}</small>{row.risk_level==='high'?<span className="platform-security-risk risk-high">উচ্চ পুনরাবৃত্তি</span>:row.risk_level==='review'?<span className="platform-security-risk risk-review">পর্যালোচনা দরকার</span>:null}</div><time>{formatPlatformDate(row.created_at)}</time></div><div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'প্রক্সি IP পাওয়া যায়নি'}</strong></div>{(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয় রেফারেন্স: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}{row.country_code && <small className="platform-security-agent">Country: {row.country_code}</small>}{Number(row.ip_attempts_1m||0)>0 && <small className="platform-security-agent">শেষ ১ মিনিটে একই IP: {Number(row.ip_attempts_1m).toLocaleString('bn-BD')}টি ব্যর্থ Login/Registration</small>}{row.active_block_until && <span className="platform-security-risk risk-high">সক্রিয় Block · শেষ {formatPlatformDate(row.active_block_until)}</span>}{row.user_agent && <small className="platform-security-agent">{row.user_agent}</small>}</article>)}</div>}
         <div className="platform-history-pager"><span>{securityTotal.toLocaleString('bn-BD')}টি Event · পৃষ্ঠা {securityTotal?securityPage+1:0} / {Math.max(1,Math.ceil(securityTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={securityLoading||securityPage===0} onClick={()=>setSecurityPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={securityLoading||(securityPage+1)*pageSize>=securityTotal} onClick={()=>setSecurityPage(value=>value+1)}>পরের</button></div></div>
       </>}
     </section>}
@@ -1662,6 +1881,23 @@ export function SuperAdminPage({ user }) {
       <div className="platform-panel-heading"><div><span className="eyebrow">PLATFORM HEALTH</span><h3>মেসের কার্যক্রম ও সিস্টেম স্বাস্থ্য</h3><p>মেসভিত্তিক অপারেশনাল সংকেত। এগুলো সম্ভাব্য সমস্যা শনাক্ত করে; কোনো মেসে স্বয়ংক্রিয় পরিবর্তন করে না।</p></div><button type="button" className="secondary-button compact" disabled={healthLoading} onClick={loadSystemHealth}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
       <div className="platform-phase3-toolbar"><label className="field-label"><span>কত দিনের নিষ্ক্রিয়তাকে সতর্কতা ধরবে</span><select value={healthStaleDays} onChange={(event)=>setHealthStaleDays(event.target.value)}><option value="7">৭ দিন</option><option value="14">১৪ দিন</option><option value="30">৩০ দিন</option><option value="60">৬০ দিন</option></select></label><span className="platform-phase3-note">শুধু পর্যবেক্ষণ · নতুন মেসে ৪৮ ঘণ্টা ছাড় · ৮+ অপেক্ষমাণ অনুরোধে সতর্কতা · কোনো অটোমেটিক ব্লক নয়</span></div>
       {healthError && <div className="inline-error platform-alert">{healthError}</div>}
+      {databaseHealthError && <div className="platform-health-runtime-warning"><Icon name="info" size={16}/><span>{databaseHealthError}</span></div>}
+      {databaseHealthData && <section className="platform-database-runtime" aria-label="Database Runtime Health">
+        <div className="platform-database-runtime-heading"><div><span className="eyebrow">DATABASE RUNTIME · READ ONLY</span><h4>ডাটাবেজের বর্তমান ব্যবহার</h4><p>PostgreSQL-এর বর্তমান মাপ; Supabase Billing Plan-এর পূর্ণ কোটা বা Edge/Egress ব্যবহার নয়।</p></div><small>তথ্য: {formatPlatformDate(databaseHealthData.captured_at)}</small></div>
+        <div className="platform-database-runtime-stats">
+          <InsightStat label="Database Size" value={formatBytes(databaseHealthData.database_size_bytes)} icon="database" hint="বর্তমান Database-এর মোট আকার" />
+          <InsightStat label="Connection ব্যবহার" value={databaseHealthData.connection_usage_percent} format="percent" icon="activity" hint={`${Number(databaseHealthData.connection_count||0).toLocaleString('bn-BD')} / ${Number(databaseHealthData.max_connections||0).toLocaleString('bn-BD')}টি সংযোগ`} />
+          <InsightStat label="Active Connection" value={databaseHealthData.active_connections} icon="globe" hint={`${Number(databaseHealthData.idle_connections||0).toLocaleString('bn-BD')}টি idle`} />
+          <InsightStat label="Lock Waiting" value={databaseHealthData.lock_waiting_sessions} icon="lock" hint={`${Number(databaseHealthData.ungranted_locks||0).toLocaleString('bn-BD')}টি ungranted lock`} />
+          <InsightStat label="৫ মিনিটের বেশি Query" value={databaseHealthData.long_running_queries_over_5m} icon="clock" hint="বর্তমানে চলমান query" />
+          <InsightStat label="Buffer Cache Hit" value={databaseHealthData.buffer_cache_hit_percent} format="percent" icon="activity" hint="PostgreSQL statistics since reset" />
+          <InsightStat label="Deadlock" value={databaseHealthData.deadlocks_since_stats_reset} icon="alert-triangle" hint="Statistics reset-এর পর থেকে" />
+          <InsightStat label="Committed Transaction" value={databaseHealthData.transactions_committed_since_stats_reset} icon="check-circle" hint="Statistics reset-এর পর থেকে" />
+          <InsightStat label="Rolled Back Transaction" value={databaseHealthData.transactions_rolled_back_since_stats_reset} icon="alert-circle" hint="Statistics reset-এর পর থেকে" />
+        </div>
+        {Array.isArray(databaseHealthData.top_tables) && databaseHealthData.top_tables.length>0 && <div className="platform-database-table-sizes"><div className="platform-phase3-list-heading"><h4>সবচেয়ে বড় Public Table</h4><small>মোট সর্বোচ্চ ১০টি</small></div><div className="platform-database-table-list">{databaseHealthData.top_tables.map((row)=> <div key={`${row.schema}.${row.table}`}><span>{row.schema}.{row.table}</span><strong>{formatBytes(row.total_bytes)}</strong></div>)}</div></div>}
+        <p className="platform-database-runtime-note"><Icon name="shield-check" size={15}/> এই তথ্যগুলো read-only PostgreSQL statistics। Transaction/Deadlock/Cache হিসাবের পরিসংখ্যান শেষ Reset থেকে; Reset: {databaseHealthData.statistics_reset_at ? formatPlatformDate(databaseHealthData.statistics_reset_at) : 'সময় অনুপলব্ধ'}। Supabase Plan quota, Network Egress, Edge Function invocation ও dashboard billing usage এখানে উপলভ্য নয়।</p>
+      </section>}
       {healthLoading ? <div className="platform-empty"><LoadingSpinner label="মেসের স্বাস্থ্য পরীক্ষা হচ্ছে..."/></div> : healthData ? <>
         <div className="platform-phase3-stat-grid">
           <Stat label="মোট মেস" value={healthData.totals?.hostel_count} icon="home" onClick={() => { setHealthSeverityFilter('all'); setHealthIssueFilter('all'); }} active={healthSeverityFilter === 'all' && healthIssueFilter === 'all'}/>
@@ -1728,7 +1964,7 @@ export function SuperAdminPage({ user }) {
       {reportError && <div className="inline-error platform-alert">{reportError}</div>}
       {reportLoading && <div className="platform-empty"><LoadingSpinner label="Aggregate রিপোর্ট তৈরি হচ্ছে..."/></div>}
       {reportData && !reportLoading && <>
-        <div className="platform-report-header"><div><span className="eyebrow">REPORT PERIOD</span><h4>{reportData.from_date} — {reportData.to_date}</h4><small>তৈরি: {formatPlatformDate(reportData.generated_at)}</small></div><button className="primary-button" type="button" onClick={downloadPlatformReport}><Icon name="download" size={16}/> CSV ডাউনলোড</button></div>
+        <div className="platform-report-header"><div><span className="eyebrow">REPORT PERIOD</span><h4>{reportData.from_date} — {reportData.to_date}</h4><small>তৈরি: {formatPlatformDate(reportData.generated_at)}</small></div><div className="platform-report-download-actions"><button className="primary-button" type="button" onClick={downloadPlatformReport}><Icon name="download" size={16}/> CSV ডাউনলোড</button><button className="secondary-button" type="button" onClick={downloadPlatformReportJson}><Icon name="file-text" size={16}/> JSON ডাউনলোড</button></div></div>
         {Number(reportData.totals?.snapshot_periods||0)>0 && <div className="platform-report-range-note"><Icon name="archive" size={16}/>{reportData.snapshot_note || 'সংরক্ষিত আর্কাইভ সামারি রিপোর্টে অন্তর্ভুক্ত।'} বাজার এন্ট্রি সংখ্যা ও চূড়ান্ত দিনের গণনা কেবল বিস্তারিত রেকর্ড থাকা মাসের জন্য।</div>}
         <div className="platform-phase3-stat-grid">
           <Stat label="মোট মেস" value={reportData.totals?.hostel_count} icon="home"/>
@@ -1758,6 +1994,17 @@ export function SuperAdminPage({ user }) {
         <span className="platform-backup-shield"><Icon name="shield-check" size={25}/></span>
       </div>
       <div className="platform-backup-notice"><Icon name="lock" size={18}/><div><strong>Secret Browser-এ ব্যবহার করবেন না</strong><p>Database Password, Service Role Key বা Encryption Password এই Web Page-এ দিতে হবে না। এগুলো শুধু আলাদা Windows Backup Assistant-এ স্থানীয়ভাবে দিতে হবে; Utility-ও এগুলো Backup History বা Log-এ সংরক্ষণ করে না।</p></div></div>
+      <div className="platform-backup-runbook">
+        <div><span className="eyebrow">SAFE RECOVERY SEQUENCE</span><h4>Backup ও Restore-এর নিরাপদ ধাপ</h4><p>Backup তৈরি হওয়া মানেই Restore প্রস্তুত নয়। Restore-এর আগে প্রতিটি ধাপ সম্পন্ন করুন।</p></div>
+        <ol>
+          <li><strong>Backup তৈরি করুন</strong><span>Migration বা বড় পরিবর্তনের আগে Master Backup নিন; প্রয়োজনে আলাদা Hostel Backup রাখুন।</span></li>
+          <li><strong>Integrity যাচাই করুন</strong><span>Verify Backup চালিয়ে AES-GCM Authentication ও SHA-256 Manifest মিলিয়ে নিন।</span></li>
+          <li><strong>Dry Run করুন</strong><span>Master Restore শুধু নতুন/খালি Target Project-এ। Source Project-এ Restore করবেন না।</span></li>
+          <li><strong>Test Project-এ Restore পরীক্ষা</strong><span>Production-এ ব্যবহারের আগে আলাদা Test Project-এ Database, Auth ও Storage যাচাই করুন।</span></li>
+        </ol>
+        <p className="platform-backup-runbook-warning"><Icon name="alert-triangle" size={15}/> Auth Provider, SMTP, Secrets, Realtime, Edge Function Deploy, Vercel Environment ও Active Session আলাদাভাবে পুনরায় কনফিগার/যাচাই করতে হবে। Active Session Restore হয় না।</p>
+      </div>
+      <div className="platform-backup-scope-note"><strong>কোন তথ্য Restore হবে, আর কোনগুলো আলাদা করতে হবে</strong><div><span><Icon name="check-circle" size={15}/> Database schema/data, Auth User ও Identity snapshot, Storage files, SQL ও Edge Function source archive-এর অংশ।</span><span><Icon name="alert-circle" size={15}/> Active Session/Refresh Token, Supabase Auth Provider/SMTP, Project Secret, Edge Function deploy/secret, Vercel Environment/Domain, Realtime publication ও Cron Job স্বয়ংক্রিয়ভাবে পুনরুদ্ধার হয় না।</span></div></div>
       <div className="platform-backup-options">
         <article className="platform-backup-option">
           <span className="platform-backup-option-icon"><Icon name="database" size={22}/></span>
@@ -1861,11 +2108,12 @@ export function SuperAdminPage({ user }) {
       {recoveryResult && <div className="platform-generated-code"><strong>একবার দেখানো অস্থায়ী পাসওয়ার্ড</strong><code>{recoveryResult}</code><p>এটি নিরাপদ মাধ্যমে শুধু সংশ্লিষ্ট ব্যবহারকারীকে দিন। এখানে বা নোটিফিকেশনে সংরক্ষণ করবেন না। ব্যবহারকারী লগইন করলে পাসওয়ার্ড পরিবর্তন বাধ্যতামূলক।</p><button type="button" className="secondary-button" onClick={()=>setRecoveryResult('')}>পাসওয়ার্ড স্ক্রিন থেকে সরান</button></div>}
     </section>}
     {tab === 'hostels' && <section className="card platform-panel" aria-label="মেস-বিহীন Auth account">
-      <div className="platform-panel-heading"><div><h3>মেস-বিহীন Auth account</h3><p>প্রতি ধাপে সর্বোচ্চ ৫০০টি Auth account পরীক্ষা হয়। কোনো account-এর যেকোনো membership row থাকলে নিরাপত্তার জন্য সেটি এখানে দেখানো হবে না।</p></div><button className="secondary-button compact" disabled={orphanBusy} type="button" onClick={()=>loadOrphanAccounts(1)}>তালিকা রিফ্রেশ</button></div>
+      <div className="platform-panel-heading"><div><h3>মেস-বিহীন Auth account</h3><p>প্রতি ধাপে সর্বোচ্চ ৫০০টি Auth account পরীক্ষা হয়। কোনো account-এর যেকোনো membership row থাকলে নিরাপত্তার জন্য সেটি এখানে দেখানো হবে না। প্রতি Bulk action-এ সর্বোচ্চ ২৫টি account নেওয়া হবে; সার্ভার প্রতিটি account আবার যাচাই করবে।</p></div><button className="secondary-button compact" disabled={orphanBusy} type="button" onClick={()=>loadOrphanAccounts(1)}>তালিকা রিফ্রেশ</button></div>
+      <div className="platform-action-row"><label className="platform-select-all"><input type="checkbox" checked={orphanAccounts.length>0 && orphanSelectedIds.length===Math.min(25,orphanAccounts.length)} disabled={orphanBusy||!orphanAccounts.length} onChange={(event)=>setOrphanSelectedIds(event.target.checked ? orphanAccounts.slice(0,25).map((row)=>row.id) : [])}/> এই ধাপের প্রথম ২৫টি নির্বাচন</label><span>{orphanSelectedIds.length.toLocaleString('bn-BD')} / ২৫ নির্বাচিত</span><button type="button" className="danger-button" disabled={orphanBusy||orphanSelectedIds.length===0||orphanSelectedIds.length>25} onClick={removeSelectedOrphanAccounts}>নির্বাচিতগুলো মুছুন</button></div>
       {orphanError && <p role="alert" className="inline-error">{orphanError}</p>}
       {orphanScanInfo && <p className="platform-retention-hint">{orphanScanInfo.message} {orphanScanInfo.scannedUsers ? `· ${orphanScanInfo.scannedUsers.toLocaleString('en-US')}টি account পরীক্ষা · Auth পৃষ্ঠা ${orphanScanInfo.authPageStart}–${orphanScanInfo.authPageEnd}` : ''}{orphanScanInfo.requestId ? ` · Request ID: ${orphanScanInfo.requestId}` : ''}</p>}
       {orphanAccounts.length===0 && <p className="platform-empty">{orphanScanInfo ? (orphanMore ? 'এই ধাপে মেস-বিহীন account পাওয়া যায়নি। আরও Auth account পরীক্ষা করতে “পরের ধাপ” চাপুন।' : 'Auth তালিকার শেষ পর্যন্ত পরীক্ষা হয়েছে। এই পরীক্ষিত account-গুলোর মধ্যে নিরাপদে মুছে ফেলার যোগ্য মেস-বিহীন account পাওয়া যায়নি।') : 'তালিকা দেখতে “তালিকা রিফ্রেশ” চাপুন।'}</p>}
-      <div className="platform-retention-list">{orphanAccounts.map(account=><div className="platform-retention-row" key={account.id}><div><strong>{account.email || 'ইমেইল নেই'}</strong><small>{account.id}</small></div><button type="button" className="danger-button" disabled={orphanBusy} onClick={()=>removeOrphanAccount(account)}>Auth স্থায়ী ডিলিট</button></div>)}</div>
+      <div className="platform-retention-list">{orphanAccounts.map(account=><div className="platform-retention-row" key={account.id}><label className="platform-orphan-select"><input type="checkbox" checked={orphanSelectedIds.includes(account.id)} disabled={orphanBusy||(!orphanSelectedIds.includes(account.id)&&orphanSelectedIds.length>=25)} onChange={(event)=>setOrphanSelectedIds((old)=>event.target.checked ? [...old,account.id] : old.filter((id)=>id!==account.id))}/><span><strong>{account.email || 'ইমেইল নেই'}</strong><small>{account.id}</small></span></label><button type="button" className="danger-button" disabled={orphanBusy} onClick={()=>removeOrphanAccount(account)}>Auth স্থায়ী ডিলিট</button></div>)}</div>
       <div className="platform-action-row"><button type="button" className="secondary-button compact" disabled={orphanBusy || orphanPage===1} onClick={()=>loadOrphanAccounts(orphanPage-1)}>আগের পৃষ্ঠা</button><span>ধাপ {orphanPage} · প্রতিটি ধাপে সর্বোচ্চ ৫০০ account</span><button type="button" className="secondary-button compact" disabled={orphanBusy || !orphanMore} onClick={()=>loadOrphanAccounts(orphanPage+1)}>পরের ধাপ</button></div>
       <p className="platform-retention-hint">মেস থেকে সরানোর পর Auth মুছতে এই অপশন। যাচাই না করে ডিলিট করবেন না; নতুন নিবন্ধিত কিন্তু এখনও মেসে যোগ না দেওয়া account-ও এখানে থাকতে পারে।</p>
     </section>}
@@ -1874,7 +2122,7 @@ export function SuperAdminPage({ user }) {
       <form className="platform-settings-grid platform-message-compose" onSubmit={sendPlatformMessage}>
         <section className="card platform-panel">
           <div className="platform-panel-heading"><div><h3>প্রাপক নির্বাচন</h3><p>প্রাপকের ইনবক্সে বার্তা যাবে; কোনো Auth/Supabase Push Notification ব্যবহার করা হচ্ছে না।</p></div></div>
-          <label className="field-label"><span>মেস নির্বাচন</span><select required value={messageHostelId} onChange={(event) => setMessageHostelId(event.target.value)}><option value="">মেস নির্বাচন করুন</option>{hostels.filter((row) => row.platform_status !== 'soft_deleted').map((row) => <option key={row.hostel_id} value={row.hostel_id}>{row.name} · {Number(row.member_count || 0).toLocaleString('bn-BD')} জন</option>)}</select></label>
+          <label className="field-label"><span>মেস নির্বাচন</span><SearchableSelect value={messageHostelId} onChange={(value)=>setMessageHostelId(value)} options={hostels.filter((row)=>row.platform_status!=='soft_deleted').map((row)=>({value:row.hostel_id,label:`${row.name} · ${Number(row.member_count||0).toLocaleString('bn-BD')} জন`}))} placeholder="মেস নির্বাচন করুন" ariaLabel="বার্তা পাঠানোর মেস নির্বাচন"/></label>
           <div className="platform-message-recipient-mode"><label className="platform-radio-card"><input type="radio" name="platform-message-recipients" value="all" checked={messageRecipientMode === 'all'} onChange={() => setMessageRecipientMode('all')}/><span><strong>সব সক্রিয় সদস্য</strong><small>নির্বাচিত মেসের সবাই</small></span></label><label className="platform-radio-card"><input type="radio" name="platform-message-recipients" value="selected" checked={messageRecipientMode === 'selected'} onChange={() => setMessageRecipientMode('selected')}/><span><strong>নির্দিষ্ট সদস্য</strong><small>এক বা একাধিক ব্যক্তি</small></span></label></div>
           {messageRecipientMode === 'selected' && <div className="platform-message-member-picker">
             <div className="platform-panel-heading"><div><h4>সক্রিয় সদস্য</h4><p>{messageSelectedUsers.length.toLocaleString('bn-BD')} জন নির্বাচিত</p></div><button type="button" className="text-button" disabled={messageMembersLoading || !messageMembers.length} onClick={() => setMessageSelectedUsers(messageSelectedUsers.length === messageMembers.length ? [] : messageMembers.map((row) => row.user_id))}>{messageSelectedUsers.length === messageMembers.length ? 'সব বাদ' : 'সব নির্বাচন'}</button></div>
@@ -1973,6 +2221,13 @@ export function SuperAdminPage({ user }) {
           {telegramDeliveryTotal > 10 && <div className="platform-history-pager"><span>পৃষ্ঠা {telegramDeliveryPage + 1} / {Math.ceil(telegramDeliveryTotal / 10)}</span><div><button type="button" className="secondary-button compact" disabled={telegramDeliveryLoading || telegramDeliveryPage === 0} onClick={() => setTelegramDeliveryPage((page) => Math.max(0, page - 1))}>আগের</button><button type="button" className="secondary-button compact" disabled={telegramDeliveryLoading || (telegramDeliveryPage + 1) * 10 >= telegramDeliveryTotal} onClick={() => setTelegramDeliveryPage((page) => page + 1)}>পরের</button></div></div>}
         </section>
       </div>
+      <section className="card platform-panel platform-telegram-connections-panel">
+        <div className="platform-panel-heading"><div><span className="eyebrow">LINKED TELEGRAM ACCOUNTS</span><h3>সংযুক্ত ব্যবহারকারীর তালিকা</h3><p>কার Telegram account যুক্ত, Telegram User ID ও সংশ্লিষ্ট সক্রিয় মেস দেখা যাবে। Disconnect করলে শুধু Telegram channel এবং pending link token মুছবে—Hostel Life account নয়।</p></div><button type="button" className="secondary-button compact" disabled={telegramConnectionLoading} onClick={loadTelegramConnections}>রিফ্রেশ</button></div>
+        <form className="platform-activity-filters" onSubmit={(event)=>{event.preventDefault();setTelegramConnectionSearch(telegramConnectionSearchDraft.trim());setTelegramConnectionPage(0);}}><label className="field-label"><span>নাম, Email, Telegram ID বা Username</span><input value={telegramConnectionSearchDraft} maxLength={120} onChange={(event)=>setTelegramConnectionSearchDraft(event.target.value)} placeholder="Search connection"/></label><button type="submit" className="primary-button" disabled={telegramConnectionLoading}>খুঁজুন</button><button type="button" className="secondary-button" onClick={()=>{setTelegramConnectionSearchDraft('');setTelegramConnectionSearch('');setTelegramConnectionPage(0);}}>মুছুন</button></form>
+        {telegramConnectionError && <div className="inline-error platform-alert" role="alert">{telegramConnectionError}</div>}
+        {telegramConnectionLoading ? <div className="platform-empty"><LoadingSpinner label="Telegram সংযোগ লোড হচ্ছে..."/></div> : telegramConnections.length===0 ? <p className="platform-empty">কোনো সক্রিয় Telegram সংযোগ পাওয়া যায়নি।</p> : <div className="platform-retention-list">{telegramConnections.map((connection)=><article className="platform-retention-row platform-telegram-connection-row" key={connection.user_id}><div><strong>{connection.full_name || 'নাম নেই'} · {connection.email || 'Email নেই'}</strong><small>Telegram ID: {connection.telegram_user_id || 'পাওয়া যায়নি'} · Username: {connection.telegram_username ? `@${connection.telegram_username}` : 'সেট করা নেই'}</small><small>সক্রিয় মেস: {connection.hostel_names || 'কোনো সক্রিয় মেস নেই'}</small><small>সংযুক্ত: {formatPlatformDate(connection.connected_at)}</small></div><button type="button" className="danger-button" disabled={telegramConnectionBusyUserId===connection.user_id} onClick={()=>disconnectTelegramConnection(connection)}>{telegramConnectionBusyUserId===connection.user_id?'বিচ্ছিন্ন হচ্ছে...':'Disconnect'}</button></article>)}</div>}
+        <div className="platform-history-pager"><span>{telegramConnectionTotal.toLocaleString('bn-BD')}টি সংযোগ · পৃষ্ঠা {telegramConnectionTotal?telegramConnectionPage+1:0} / {Math.max(1,Math.ceil(telegramConnectionTotal/pageSize))}</span><div><button type="button" className="secondary-button compact" disabled={telegramConnectionLoading||telegramConnectionPage===0} onClick={()=>setTelegramConnectionPage((value)=>Math.max(0,value-1))}>আগের</button><button type="button" className="secondary-button compact" disabled={telegramConnectionLoading||(telegramConnectionPage+1)*pageSize>=telegramConnectionTotal} onClick={()=>setTelegramConnectionPage((value)=>value+1)}>পরের</button></div></div>
+      </section>
     </>}
 
     {tab === 'settings' && <>
@@ -2087,7 +2342,7 @@ export function SuperAdminPage({ user }) {
     </>}
 
     {tab === 'sessions' && <>
-      <div className="platform-settings-intro"><span className="eyebrow">ACCOUNT SECURITY</span><h2>Session নিরাপত্তা</h2><p>একটি অ্যাকাউন্টে কতগুলো Login এবং কতক্ষণ সক্রিয় থাকবে তা নিয়ন্ত্রণ করুন।</p></div>
+      <div className="platform-settings-intro"><span className="eyebrow">ACCOUNT SECURITY</span><h2>Session নিরাপত্তা</h2><p>একটি অ্যাকাউন্টে কতগুলো Login একসঙ্গে সক্রিয় থাকবে এবং Session কতক্ষণ চলবে তা নিয়ন্ত্রণ করুন। সদস্যের আলাদা Login History মেসের সদস্য তালিকা থেকে দেখা যায়।</p></div>
       {!sessionPolicyLoaded ? <section className="card platform-panel platform-settings-load-state" role="status">
         {busy ? <LoadingSpinner label="Session Policy লোড হচ্ছে..."/> : <><strong>Session Policy লোড হয়নি</strong><p>সর্বশেষ সংরক্ষিত Session সীমা না পাওয়া পর্যন্ত পরিবর্তন সেভ করা যাবে না।</p><button type="button" className="secondary-button" onClick={refresh} disabled={busy}>আবার লোড করুন</button></>}
       </section> : <section className="platform-settings-grid">
@@ -2099,11 +2354,19 @@ export function SuperAdminPage({ user }) {
         <button type="button" className="primary-button" disabled={deviceLimitBusy||!sessionPolicyLoaded} onClick={saveDeviceLimit}>{deviceLimitBusy ? 'সংরক্ষণ হচ্ছে...' : 'Session Policy সংরক্ষণ করুন'}</button>
       </div>
       </section>}
+      <section className="card platform-panel platform-active-session-panel">
+        <div className="platform-panel-heading"><div><span className="eyebrow">ACTIVE DEVICE INVENTORY</span><h3>সক্রিয় Device Session</h3><p>এখানে বর্তমানে Supabase Auth ও Hostel Life registry—দুই জায়গাতেই সক্রিয় হিসেবে থাকা Session দেখানো হয়। প্রকৃত Session ID প্রকাশ করা হয় না।</p><p className="platform-activity-history-note">Admin দিয়ে Session বন্ধ করলে পরবর্তী Refresh Token ব্যবহার বন্ধ হয়; আগে ইস্যু হওয়া Access Token তার নির্ধারিত মেয়াদ শেষ হওয়া পর্যন্ত কার্যকর থাকতে পারে।</p></div><button type="button" className="secondary-button compact" onClick={loadActiveSessions} disabled={activeSessionLoading}>রিফ্রেশ</button></div>
+        <form className="platform-activity-filters" onSubmit={(event)=>{event.preventDefault();setActiveSessionSearch(activeSessionSearchDraft.trim());setActiveSessionPage(0);}}><label className="field-label"><span>ব্যবহারকারী খুঁজুন</span><input value={activeSessionSearchDraft} maxLength={120} onChange={(event)=>setActiveSessionSearchDraft(event.target.value)} placeholder="নাম বা Email"/></label><button type="submit" className="primary-button" disabled={activeSessionLoading}>খুঁজুন</button><button type="button" className="secondary-button" onClick={()=>{setActiveSessionSearchDraft('');setActiveSessionSearch('');setActiveSessionPage(0);}}>মুছুন</button></form>
+        {activeSessionError && <div className="inline-error platform-alert" role="alert">{activeSessionError}</div>}
+        {activeSessionLoading ? <div className="platform-empty"><LoadingSpinner label="সক্রিয় Session লোড হচ্ছে..."/></div> : activeSessions.length===0 ? <p className="platform-empty">সক্রিয় Session পাওয়া যায়নি।</p> : <div className="platform-retention-list">{activeSessions.map((session)=><article className="platform-retention-row platform-active-session-row" key={`${session.user_id}:${session.session_ref}`}><div><strong>{session.full_name || 'নাম নেই'} · {session.email || 'Email নেই'}</strong><small>মেস: {session.hostel_names || 'কোনো সক্রিয় মেস নেই'}</small><small>IP: {session.ip_address || 'তথ্য নেই'} · সর্বশেষ ব্যবহার: {formatPlatformDate(session.last_seen_at)}</small><small>নিবন্ধিত: {formatPlatformDate(session.registered_at)} · মেয়াদ: {session.expires_at ? formatPlatformDate(session.expires_at) : 'নির্ধারিত নয়'}</small><small className="platform-active-session-agent">{session.user_agent || 'Device / Browser তথ্য পাওয়া যায়নি'}</small><small>Session Ref: {String(session.session_ref).slice(0,16)}…</small></div><button type="button" className="danger-button" disabled={activeSessionBusyRef===session.session_ref} onClick={()=>revokeActiveSession(session)}>{activeSessionBusyRef===session.session_ref?'বন্ধ হচ্ছে...':'এই Session বন্ধ করুন'}</button></article>)}</div>}
+        <div className="platform-history-pager"><span>{activeSessionTotal.toLocaleString('bn-BD')}টি Session · পৃষ্ঠা {activeSessionTotal?activeSessionPage+1:0} / {Math.max(1,Math.ceil(activeSessionTotal/pageSize))}</span><div><button type="button" className="secondary-button compact" disabled={activeSessionLoading||activeSessionPage===0} onClick={()=>setActiveSessionPage((value)=>Math.max(0,value-1))}>আগের</button><button type="button" className="secondary-button compact" disabled={activeSessionLoading||(activeSessionPage+1)*pageSize>=activeSessionTotal} onClick={()=>setActiveSessionPage((value)=>value+1)}>পরের</button></div></div>
+      </section>
     </>}
 
     {tab === 'retention' && <section className="platform-settings-grid" aria-label="ডেটা সংরক্ষণ নীতি">
       <div className="card platform-panel">
-        <div className="platform-panel-heading"><div><h3>ডেটা সংরক্ষণ নীতি</h3><p>সব মেসের জন্য একই নীতি। এই পৃষ্ঠা নিজে কোনো আর্কাইভ স্বয়ংক্রিয়ভাবে মুছে দেয় না।</p></div><button type="button" className="secondary-button compact" disabled={retentionLoading} onClick={loadRetention}>তালিকা রিফ্রেশ</button></div>
+        <div className="platform-panel-heading"><div><h3>ডেটা সংরক্ষণ নীতি</h3><p>সব মেসের জন্য একই নীতি। সময়সীমা পেরোলেই ব্যবসায়িক ডেটা নিজে থেকে মুছে যায় না; সার্ভারের যোগ্যতা যাচাই, সামারি সংরক্ষণ ও আপনার নিশ্চিতকরণের পরেই বিস্তারিত ডেটা স্থায়ীভাবে অপসারণ হয়।</p></div><button type="button" className="secondary-button compact" disabled={retentionLoading} onClick={loadRetention}>তালিকা রিফ্রেশ</button></div>
+        <div className="platform-retention-hint"><Icon name="shield-check" size={15}/> Activity ও Security operational log-এর লক্ষ্য ৩০ দিন। Run35 cleanup নতুন Activity/Security Event এলে চলে—Supabase-এ scheduler/cron সেটআপ করা না থাকায় নির্দিষ্ট সময়ে cleanup হওয়ার নিশ্চয়তা নেই। Super Admin-এর Platform Audit Log আলাদা accountability record হিসেবে এই ৩০ দিনের purge-এর আওতায় নেই। Password Reset quota হিসাবের HMAC-only row ৩৫ দিন থাকে, যাতে মাসভিত্তিক সীমা সঠিকভাবে গণনা করা যায়। ব্যবহারকারীর আর্থিক/মাসিক archive detail এই ৩০ দিনের log rule দিয়ে মুছে ফেলা হয় না; সেগুলোর আলাদা Summary ও typed-confirmation policy আছে।</div>
         {retentionError && <div className="inline-error" role="alert">{retentionError}</div>}
         {retentionLoading && <LoadingSpinner label="সংরক্ষণ নীতি লোড হচ্ছে..."/>}
         {retention && <form className="form-stack" onSubmit={saveRetention}>
@@ -2116,10 +2379,10 @@ export function SuperAdminPage({ user }) {
       <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>সব বন্ধ মাস ({closedPeriods.length})</h3><p>এখানে বন্ধ হওয়া সব মাস দেখাবে, মেয়াদ শেষ না হলেও। ১–২ দিনের মাসও থাকবে। এই তালিকা থেকে মুছে ফেলার অনুমতি নেই।</p></div></div>
         {closedPeriods.length===0 ? <p className="platform-empty">বন্ধ মাস নেই অথবা তালিকা লোড হয়নি।</p> : <div className="platform-retention-list">{closedPeriods.map(row=><div className="platform-retention-row" key={row.period_id}><div><strong>{row.hostel_name} · {row.period_label}</strong><small>{row.start_date} — {row.end_date}</small><small>বিস্তারিত সংরক্ষণ: {row.detail_until} পর্যন্ত · ডিলিটের যোগ্যতা: {row.delete_eligible_after}-এর পর</small></div><span className="platform-status">শুধু দেখুন</span></div>)}</div>}
       </div>
-      <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>সংরক্ষিত চূড়ান্ত সামারি</h3><p>ডিলিটের আগে সামারি সংরক্ষণ ও তুলনা করতে হবে। মেয়াদ পার হলেও কোনো মাস স্বয়ংক্রিয়ভাবে মুছবে না।</p></div></div>
+      <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>সংরক্ষিত চূড়ান্ত সামারি</h3><p>Delete-এর আগে Final Summary সংরক্ষণ ও যাচাই করতে হবে। সময়সীমা পেরোলেও কোনো মাস স্বয়ংক্রিয়ভাবে মুছে যায় না; সফল Purge-এর পর বিস্তারিত হিসাব বাদ যাবে, যাচাইকৃত Summary থাকবে।</p></div></div>
         {savedSummaries.length === 0 ? <p className="platform-empty">এখনো কোনো চূড়ান্ত সামারি নেই, অথবা তালিকা লোড করা যায়নি।</p> : <div className="platform-retention-list">{savedSummaries.map(row => <div className="platform-retention-row" key={`${row.hostel_id}-${row.period_id}`}><div><strong>{row.hostel_name ? `${row.hostel_name} · ` : ''}{row.period_label || row.period_id}</strong><small>{row.purged_at ? 'বিস্তারিত মুছে ফেলা হয়েছে; সামারি সংরক্ষিত' : 'বিস্তারিত এখনো রয়েছে'} · {row.end_date || ''} · {row.verified_at ? 'যাচাইকৃত' : 'যাচাই বাকি'}</small></div></div>)}</div>}
       </div>
-      <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>মেয়াদোত্তীর্ণ আর্কাইভ ({expiredArchives.length})</h3><p>সংরক্ষণ নীতির বিস্তারিত ও সামারি—দুই মেয়াদ শেষ হওয়ার পর মাস এখানে আসবে। সার্ভার যাচাই, সামারি সংরক্ষণ ও ম্যানুয়াল যাচাই ছাড়া কোনো মাস স্থায়ীভাবে মোছা যাবে না।</p></div><button type="button" className="secondary-button compact" disabled={retentionLoading} onClick={loadRetention}>তালিকা রিফ্রেশ</button></div>
+      <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>মেয়াদোত্তীর্ণ আর্কাইভ ({expiredArchives.length})</h3><p>এখানে থাকা প্রতিটি মাসের জন্য সার্ভার প্রথমে মেয়াদ ও ডেটার অবস্থা যাচাই করে। সামারি সংরক্ষণ ও যাচাই সম্পন্ন না হলে Delete নিষ্ক্রিয় থাকবে। Delete সফল হলে বিস্তারিত রেকর্ড মুছবে; যাচাইকৃত Final Summary থাকবে।</p></div><button type="button" className="secondary-button compact" disabled={retentionLoading} onClick={loadRetention}>তালিকা রিফ্রেশ</button></div>
         {!expiredArchivesLoaded && !retentionLoading ? <p className="platform-empty">মেয়াদোত্তীর্ণ আর্কাইভের সার্ভার তালিকা লোড হয়নি। উপরের রিফ্রেশ ব্যবহার করে আবার চেষ্টা করুন।</p> :
           expiredArchivesLoaded && expiredArchives.length === 0 ? <p className="platform-empty">অপসারণের অপেক্ষায় কোনো আর্কাইভ নেই।</p> :
           <div className="platform-retention-list">{expiredArchives.map(entry => <div className="platform-retention-row" key={`${entry.hostel_id}-${entry.period_id}`}><div><strong>{entry.hostel_name || 'মেস'} · {entry.period_label || 'মাস'}</strong><small>মেয়াদ শেষ: {entry.expired_at || 'সার্ভার যাচাইকৃত'}</small></div><div className="platform-archive-actions"><button className="secondary-button compact" type="button" disabled={retentionLoading} onClick={() => prepareArchiveSummary(entry)}>সামারি সংরক্ষণ</button><button className="secondary-button compact" type="button" disabled={retentionLoading || !savedSummaries.some(row => row.period_id === entry.period_id && !row.purged_at) || savedSummaries.some(row => row.period_id === entry.period_id && Boolean(row.verified_at))} onClick={() => verifyArchiveSummary(entry)}>{savedSummaries.some(row => row.period_id === entry.period_id && row.verified_at) ? 'সামারি যাচাইকৃত' : 'সামারি যাচাই'}</button><button className="danger-button" type="button" disabled={retentionLoading || !savedSummaries.some(row => row.period_id === entry.period_id && !row.purged_at && row.verified_at)} onClick={() => deleteExpiredArchive(entry)}>স্থায়ীভাবে মুছুন</button></div></div>)}</div>}
@@ -2138,7 +2401,6 @@ export function SuperAdminPage({ user }) {
           <div className="platform-code-buttons"><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('registration')}>Registration code তৈরি</button><button className="secondary-button" disabled={busy} type="button" onClick={()=>generateCode('hostel_creation')}>Hostel creation code তৈরি</button></div>
           {generated&&<div className="platform-generated-code"><small>{generated.purpose==='registration'?'Registration':'Hostel creation'} · মেয়াদ {formatPlatformDate(generated.expires_at)}</small><code>{generated.code}</code><button className="primary-button" type="button" onClick={async()=>{try{await navigator.clipboard.writeText(generated.code);setNotice('কোড কপি হয়েছে।');}catch{setNotice('কপি করা যায়নি—কোডটি হাতে কপি করুন।');}}}>কোড কপি করুন</button><p>এটি এখন একবারই দেখানো হয়েছে। নিরাপদ স্থানে রাখুন এবং সাধারণ নোটিশে প্রকাশ করবেন না।</p></div>}
         </div>
-        <div className="card platform-panel"><div className="platform-panel-heading"><div><h3>Security rules</h3><p>Role ও অ্যাক্সেস কোড</p></div></div><ul className="platform-security-list"><li>সাধারণ সাইন-আপের role সবসময় <code>user</code> হবে।</li><li>Super Admin role শুধু project owner Supabase SQL Editor থেকে সেট করবেন।</li><li>প্রতিটি admin RPC ডাটাবেজেই Super Admin role যাচাই করে।</li><li>কোডের আসল মান বা hash ইতিহাসে দেখানো হয় না।</li></ul></div>
       </section>
       <section className="card platform-panel platform-code-history-panel">
         <div className="platform-panel-heading"><div><h3>Access Code History</h3><p>আগে তৈরি হওয়া কোডের মেয়াদ, ব্যবহার ও বাতিলের অবস্থা। আসল কোড বা Hash কখনো দেখানো হয় না।</p></div><button type="button" className="secondary-button compact" disabled={codeHistoryLoading} onClick={loadCodeHistory}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>

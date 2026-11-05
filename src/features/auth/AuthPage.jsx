@@ -330,7 +330,7 @@ function ForgotPasswordForm() {
         </label>
         <aside className="password-reset-policy" role="note" aria-label="পাসওয়ার্ড রিসেটের সীমা">
           <div className="password-reset-policy-title"><Icon name="info" size={17} /><strong>পাসওয়ার্ড রিসেটের নিয়ম</strong></div>
-          <p>নিরাপত্তার জন্য একটি ইমেইল থেকে দিনে সর্বোচ্চ ১ বার এবং প্রতি ক্যালেন্ডার মাসে সর্বোচ্চ ৩ বার রিসেটের অনুরোধ করা যাবে।</p>
+          <p>নিরাপত্তার জন্য একটি ইমেইল থেকে দিনে সর্বোচ্চ ২ বার এবং প্রতি ক্যালেন্ডার মাসে সর্বোচ্চ ৫ বার রিসেটের অনুরোধ করা যাবে।</p>
           <p>মাসিক সীমা পূর্ণ হলে Help Section থেকে Hostel Life Support এ যোগাযোগ করুন। পরিচয় যাচাইয়ের পর Admin প্রয়োজনে Temporary Password দেবেন। সেটি দিয়ে লগইন করে বাধ্যতামূলকভাবে নতুন পাসওয়ার্ড তৈরি করতে হবে।</p>
         </aside>
         {limitMessage && <div className="inline-error" role="alert"><Icon name="warning" size={17} /><span>{limitMessage}</span></div>}

@@ -79,10 +79,11 @@ test('login and registration pages expose public legal links before sign-in', ()
   assert.match(auth, /href="\/about"/);
 });
 
-test('stage-one guide explicitly prohibits publishing OAuth client secrets', () => {
-  const guide = read('GOOGLE_OAUTH_STAGE1_SETUP_BN.md');
-  assert.match(guide, /Client Secret কখনো GitHub/);
-  assert.match(guide, /এই ধাপে.*OAuth code/);
-  assert.match(guide, /domain ownership/);
-  assert.match(guide, /Google Authenticator/);
+test('stage-one guide accurately documents public identity preparation without activating OAuth', () => {
+  const guide = read('README_GOOGLE_OAUTH_STAGE1_BN.md');
+  assert.match(guide, /OAuth button\/code বা কোনো credential এখনো যোগ হয়নি/);
+  assert.match(guide, /Google Client Secret শুধু Supabase Dashboard-এর Google Provider-এ রাখুন/);
+  assert.match(guide, /shared subdomain/);
+  assert.match(guide, /Privacy Policy ও Terms/);
+  assert.match(guide, /guardian-consent/);
 });

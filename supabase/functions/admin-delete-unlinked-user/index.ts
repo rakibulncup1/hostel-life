@@ -1,7 +1,7 @@
 // Deploy with JWT verification enabled. Never expose the service role key in the browser.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const FUNCTION_VERSION = '2026-10-29-final-repair-1';
+const FUNCTION_VERSION = '2026-11-06-orphan-bulk-delete-2';
 const AUTH_PAGE_SIZE = 50;
 const AUTH_PAGES_PER_BATCH = 10; // up to 500 Auth users per visible batch
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Vary': 'Origin' };
@@ -32,7 +32,7 @@ Deno.serve(async (request) => {
     }
     if (!profile || profile.role !== 'super_admin' || profile.is_blocked) return reply({ error: 'SUPER_ADMIN_ONLY', message: 'সক্রিয় Super Admin অনুমতি প্রয়োজন।', request_id: requestId }, 403);
 
-    let body: { action?: string; page?: number; user_id?: string; confirmation?: string };
+    let body: { action?: string; page?: number; user_id?: string; user_ids?: string[]; confirmation?: string };
     try { body = await request.json(); } catch { return reply({ error: 'INVALID_REQUEST', message: 'Request body পড়া যায়নি।', request_id: requestId }, 400); }
 
     if (body.action === 'healthcheck') {
@@ -90,6 +90,55 @@ Deno.serve(async (request) => {
         message: items.length ? `${items.length}টি মেস-বিহীন Auth account পাওয়া গেছে।` : `${scannedUsers.length}টি Auth account পরীক্ষা করে এই ধাপে মেস-বিহীন account পাওয়া যায়নি।`,
         request_id: requestId,
       });
+    }
+
+    if (body.action === 'delete_many') {
+      const rawIds = Array.isArray(body.user_ids) ? body.user_ids : [];
+      const ids = [...new Set(rawIds)];
+      if (rawIds.length < 1 || rawIds.length > 25 || ids.length !== rawIds.length || ids.some((id) => !isUuid(id))) {
+        return reply({ error: 'INVALID_BULK_SELECTION', message: 'একবারে ১–২৫টি ভিন্ন ও বৈধ Auth account নির্বাচন করতে হবে।', request_id: requestId }, 400);
+      }
+      const expected = `DELETE ${ids.length} ORPHAN AUTH ACCOUNTS`;
+      if (body.confirmation !== expected || ids.includes(identity.user.id)) {
+        return reply({ error: 'CONFIRMATION_MISMATCH', message: 'Bulk deletion-এর নিশ্চিতকরণ মেলেনি অথবা নিজের Admin account নির্বাচন করা হয়েছে। কোনো পরিবর্তন করা হয়নি।', request_id: requestId }, 400);
+      }
+
+      // Auth Admin deletion is not part of a Postgres transaction. Recheck each
+      // account immediately before deletion and return per-account outcomes;
+      // one unsafe/failed account never causes the remaining checks to be skipped.
+      const results: Array<{ user_id: string; deleted: boolean; code?: string; message?: string; audit_warning?: boolean }> = [];
+      for (const targetId of ids) {
+        const { count, error: memberError } = await admin.from('hostel_memberships')
+          .select('id', { count: 'exact', head: true }).eq('user_id', targetId);
+        if (memberError) {
+          results.push({ user_id: targetId, deleted: false, code: 'MEMBERSHIP_CHECK_FAILED', message: 'সদস্যপদ যাচাই ব্যর্থ; account রাখা হয়েছে।' });
+          continue;
+        }
+        if ((count ?? 0) > 0) {
+          results.push({ user_id: targetId, deleted: false, code: 'ACCOUNT_STILL_LINKED', message: 'এই account এখনও একটি বা একাধিক মেসের membership-এ যুক্ত।' });
+          continue;
+        }
+        const { data: target, error: targetError } = await admin.from('profiles').select('role').eq('id', targetId).maybeSingle();
+        if (targetError || target?.role === 'super_admin') {
+          results.push({ user_id: targetId, deleted: false, code: 'ACCOUNT_PROTECTED', message: 'Super Admin পরিচয় যাচাই হয়নি অথবা account সুরক্ষিত।' });
+          continue;
+        }
+        const { error: deleteError } = await admin.auth.admin.deleteUser(targetId);
+        if (deleteError) {
+          console.error('admin-delete-unlinked-user bulk delete failed', { request_id: requestId, target_id: targetId, code: deleteError.code, status: deleteError.status });
+          results.push({ user_id: targetId, deleted: false, code: 'AUTH_ACCOUNT_DELETE_FAILED', message: 'Supabase Auth account মুছে ফেলা যায়নি।' });
+          continue;
+        }
+        const { error: auditError } = await admin.from('platform_audit_log').insert({
+          actor_user_id: identity.user.id, action: 'admin_delete_unlinked_auth', target_type: 'user', target_id: targetId,
+          reason: 'Super Admin কর্তৃক নির্বাচিত orphan Auth account bulk deletion',
+          details: { source: 'super_admin_panel_bulk', request_id: requestId, selection_size: ids.length },
+        });
+        if (auditError) console.error('admin-delete-unlinked-user bulk audit insert failed after deletion', { request_id: requestId, target_id: targetId, code: auditError.code });
+        results.push({ user_id: targetId, deleted: true, audit_warning: Boolean(auditError) });
+      }
+      const deletedCount = results.filter((item) => item.deleted).length;
+      return reply({ success: true, requested: ids.length, deleted_count: deletedCount, failed_count: ids.length - deletedCount, results, request_id: requestId });
     }
 
     const id = body.user_id || '';
