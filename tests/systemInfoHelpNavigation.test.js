@@ -17,11 +17,12 @@ test('privacy policy describes Hostel Life user data without exposing implementa
   assert.doesNotMatch(privacy, /Supabase|PostgreSQL|database|ডাটাবেজ|SQL|RPC|API|Edge Function|hosting/i);
 });
 
-test('terms prohibit public sharing of the app URL and allow action against fake accounts', async () => {
+test('terms protect private invitation links while allowing public sharing of the app URL', async () => {
   const menu = await source('src/features/menu/MenuPages.jsx');
   const terms = menu.split('export function TermsPage() {')[1]?.split('const HOW_TO_USE_GROUPS')[0] || '';
-  assert.match(terms, /ওয়েবসাইটের লিংক প্রকাশ্যে শেয়ার নিষিদ্ধ/);
-  assert.match(terms, /সামাজিক যোগাযোগমাধ্যম, পাবলিক গ্রুপ/);
+  assert.match(terms, /ব্যক্তিগত আমন্ত্রণ ও Join Code সুরক্ষিত রাখুন/);
+  assert.match(terms, /ব্যক্তিগত Invitation Link, Join Code/);
+  assert.match(terms, /সাধারণ ওয়েবসাইটের ঠিকানা প্রকাশ্যে শেয়ার করা যায়/);
   assert.match(terms, /ভুয়া.*অ্যাকাউন্ট/);
   assert.match(terms, /যেকোনো সময়/);
 });

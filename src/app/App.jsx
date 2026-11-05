@@ -23,6 +23,9 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { useAuth } from '../contexts/AuthContext';
 
+const SUPER_ADMIN_RETURN_KEY = 'hostel-life-super-admin-return-v1';
+const SUPER_ADMIN_RETURN_TTL_MS = 10 * 60 * 1000;
+
 function getPath() {
   const pathname = window.location.pathname || '/app/dashboard';
   // New invitation links keep the bearer token in the URL fragment. Fragments
@@ -99,7 +102,13 @@ export function App() {
   useEffect(() => {
     if (auth.authLoading || auth.user?.app_metadata?.must_change_password) return;
     if (pathname === '/super-admin') {
-      if (!auth.isAuthenticated) navigateTo('/auth/login', true);
+      if (!auth.isAuthenticated) {
+        // Remember the requested protected route so a Super Admin who signs in
+        // from localhost can return here. This does not grant or bypass access.
+        try { window.sessionStorage.setItem(SUPER_ADMIN_RETURN_KEY, JSON.stringify({ path: '/super-admin', savedAt: Date.now() })); }
+        catch { /* Session storage is optional; users can revisit the route manually. */ }
+        navigateTo('/auth/login', true);
+      }
       return;
     }
 
@@ -119,6 +128,21 @@ export function App() {
           return;
         }
       } catch { /* Local storage is optional; continue with normal routing. */ }
+
+      // Return to Super Admin only when the user explicitly requested that route
+      // before login. The Super Admin page still performs its own role check and
+      // mandatory password re-authentication after this navigation.
+      if (inAuth && pathname !== '/auth/reset-password') {
+        try {
+          const saved = JSON.parse(window.sessionStorage.getItem(SUPER_ADMIN_RETURN_KEY) || 'null');
+          window.sessionStorage.removeItem(SUPER_ADMIN_RETURN_KEY);
+          if (saved?.path === '/super-admin' && Number.isFinite(saved.savedAt)
+            && Date.now() - saved.savedAt >= 0 && Date.now() - saved.savedAt <= SUPER_ADMIN_RETURN_TTL_MS) {
+            navigateTo('/super-admin', true);
+            return;
+          }
+        } catch { /* Ignore malformed or unavailable session state. */ }
+      }
     }
 
     if (!auth.isAuthenticated) {

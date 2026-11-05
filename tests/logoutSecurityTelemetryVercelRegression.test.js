@@ -50,6 +50,6 @@ test('Edge Function can use Supabase-provided secret keys and a server-only HMAC
 test('Vercel supports the exact onboarding route and the standard Vite SPA fallback', () => {
   assert.ok(vercel.rewrites.some((route) => route.source === '/onboarding' && route.destination === '/index.html'));
   assert.ok(vercel.rewrites.some((route) => route.source === '/(.*)' && route.destination === '/index.html'));
-  assert.match(sw, /hostel-life-shell-v17/);
+  assert.match(sw, /hostel-life-shell-v19/);
   assert.match(sw, /const cached = await cache\.match\(cacheKey\);\n    return cached \|\| response;/);
 });

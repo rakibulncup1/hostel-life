@@ -44,7 +44,10 @@ export async function verifyPassword({ email, password }) {
   return signIn({ email, password });
 }
 
-export async function signUp({ fullName, phone, email, password, permissionCode = '' }) {
+export async function signUp({ fullName, phone, email, password, permissionCode = '', age18PlusConfirmed = false, ageConfirmationAt = null, termsAcceptedAt = null, privacyPolicyAcceptedAt = null, legalPolicyVersion = '' }) {
+  if (age18PlusConfirmed !== true || !ageConfirmationAt || !termsAcceptedAt || !privacyPolicyAcceptedAt || !legalPolicyVersion) {
+    return { data: null, error: new Error('রেজিস্ট্রেশনের আগে ১৮+ বয়স নিশ্চিত করে ব্যবহারের শর্তাবলী ও গোপনীয়তা নীতিতে সম্মতি দিতে হবে।') };
+  }
   const normalizedEmail = email.trim().toLowerCase();
   const result = await supabase.auth.signUp({
     email: normalizedEmail,
@@ -54,6 +57,11 @@ export async function signUp({ fullName, phone, email, password, permissionCode 
         full_name: fullName.trim(),
         phone: phone.trim() || null,
         ...(permissionCode.trim() ? { permission_code: permissionCode.trim().toUpperCase() } : {}),
+        age_18_plus_confirmed: age18PlusConfirmed === true,
+        age_confirmation_at: ageConfirmationAt,
+        terms_accepted_at: termsAcceptedAt,
+        privacy_policy_accepted_at: privacyPolicyAcceptedAt,
+        legal_policy_version: legalPolicyVersion,
       },
     },
   });

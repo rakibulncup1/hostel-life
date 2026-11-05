@@ -63,6 +63,11 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
             </div>
           </div>
           {children}
+          <nav className="auth-legal-links" aria-label="আইনি তথ্য ও পরিচিতি">
+            <a href="/about">Hostel Life সম্পর্কে</a>
+            <a href="/privacy-policy">গোপনীয়তা</a>
+            <a href="/terms-of-service">ব্যবহারের শর্ত</a>
+          </nav>
         </div>
       </section>
     </main>
@@ -158,6 +163,7 @@ function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [permissionCode, setPermissionCode] = useState('');
   const [registrationCodeRequired, setRegistrationCodeRequired] = useState(false);
+  const [eligibilityAccepted, setEligibilityAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -172,6 +178,10 @@ function RegisterForm() {
     event.preventDefault();
     if (!online) {
       toast.warning('রেজিস্ট্রেশন করতে ইন্টারনেট সংযোগ প্রয়োজন।');
+      return;
+    }
+    if (!eligibilityAccepted) {
+      toast.error('রেজিস্ট্রেশনের আগে বয়স ও নীতিমালায় সম্মতি নিশ্চিত করুন।');
       return;
     }
     if (name.trim().length < 2) {
@@ -195,7 +205,15 @@ function RegisterForm() {
 
     setSubmitting(true);
     try {
-      const { data, error } = await signUp({ fullName: name, phone, email, password, permissionCode });
+      const acceptedAt = new Date().toISOString();
+      const { data, error } = await signUp({
+        fullName: name, phone, email, password, permissionCode,
+        age18PlusConfirmed: true,
+        ageConfirmationAt: acceptedAt,
+        termsAcceptedAt: acceptedAt,
+        privacyPolicyAcceptedAt: acceptedAt,
+        legalPolicyVersion: '2026-11-04',
+      });
       if (error) throw error;
 
       if (data.session) {
@@ -238,7 +256,11 @@ function RegisterForm() {
           <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
         </label>
         {registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
-        <button className="primary-button large" type="submit" disabled={submitting || !online}>
+        <label className="auth-legal-consent auth-combined-consent">
+          <input type="checkbox" checked={eligibilityAccepted} onChange={(event) => setEligibilityAccepted(event.target.checked)} required />
+          <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
+        </label>
+        <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted}>
           {submitting ? 'অ্যাকাউন্ট তৈরি হচ্ছে...' : 'রেজিস্ট্রেশন করুন'}
         </button>
       </form>

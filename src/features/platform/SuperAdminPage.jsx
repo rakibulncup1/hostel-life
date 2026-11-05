@@ -762,11 +762,12 @@ export function SuperAdminPage({ user }) {
     (async () => {
       if (!supabase || !user?.id) { if (live) { setGateError('বৈধ লগইন সেশন পাওয়া যায়নি।'); setChecking(false); } return; }
       try {
-        const { data, error: queryError } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+        const { data, error: queryError } = await supabase.from('profiles').select('role,is_blocked').eq('id', user.id).maybeSingle();
         if (queryError) throw queryError;
         if (!live) return;
-        setAllowed(data?.role === 'super_admin');
-        if (data?.role !== 'super_admin') setGateError('এই পৃষ্ঠাটি খোলা যাচ্ছে না।');
+        const canOpen = data?.role === 'super_admin' && data?.is_blocked !== true;
+        setAllowed(canOpen);
+        if (!canOpen) setGateError('এই পৃষ্ঠাটি খোলা যাচ্ছে না।');
       } catch (cause) { if (live) setGateError('এই পৃষ্ঠাটি খোলা যাচ্ছে না।'); }
       finally { if (live) setChecking(false); }
     })();

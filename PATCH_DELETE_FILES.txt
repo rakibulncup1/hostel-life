@@ -1,0 +1,5 @@
+Delete these obsolete files after applying this follow-up patch:
+public/landing-assets/public-language.js
+tests/publicLanguageSwitch.test.js
+
+These were introduced by the previous Public Experience patch and are intentionally removed now.

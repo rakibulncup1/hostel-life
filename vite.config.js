@@ -7,6 +7,31 @@ function readGitValue(args) {
   catch { return ''; }
 }
 
+
+function publicDocumentAliases() {
+  const aliases = new Map([
+    ['/', '/about.html'],
+    ['/about', '/about.html'],
+    ['/privacy-policy', '/privacy-policy.html'],
+    ['/terms-of-service', '/terms-of-service.html'],
+  ]);
+  const rewriteRequest = (req, _res, next) => {
+    if (typeof req.url === 'string') {
+      const queryIndex = req.url.indexOf('?');
+      const pathname = queryIndex >= 0 ? req.url.slice(0, queryIndex) : req.url;
+      const query = queryIndex >= 0 ? req.url.slice(queryIndex) : '';
+      const target = aliases.get(pathname);
+      if (target) req.url = `${target}${query}`;
+    }
+    next();
+  };
+  return {
+    name: 'hostel-life-public-document-aliases',
+    configureServer(server) { server.middlewares.use(rewriteRequest); },
+    configurePreviewServer(server) { server.middlewares.use(rewriteRequest); },
+  };
+}
+
 // Release metadata is embedded at build time. It costs no runtime/API request
 // and changes on every production build, including redeploys of the same commit.
 const builtAt = new Date().toISOString();
@@ -14,7 +39,7 @@ const commit = process.env.VERCEL_GIT_COMMIT_SHA || readGitValue(['rev-parse', '
 const releaseId = `${commit.slice(0, 12)}-${builtAt}`;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [publicDocumentAliases(), react()],
   define: {
     __HOSTEL_LIFE_RELEASE__: JSON.stringify({ id: releaseId, builtAt, commit: commit.slice(0, 40) }),
   },

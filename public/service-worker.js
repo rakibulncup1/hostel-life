@@ -1,7 +1,6 @@
 // Bump this cache name when changing the cached app-shell contract.
-const CACHE_NAME = 'hostel-life-shell-v17';
+const CACHE_NAME = 'hostel-life-shell-v19';
 const APP_SHELL = [
-  '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
@@ -71,6 +70,17 @@ self.addEventListener('fetch', (event) => {
     // Invitation tokens are bearer credentials. Never cache an invitation
     // navigation request/response; the app shell may be fetched network-only.
     if (url.pathname === '/invite' || url.pathname.startsWith('/invite/')) {
+      event.respondWith(fetch(request, { cache: 'no-store' }));
+      return;
+    }
+    // Public legal/about pages are standalone HTML documents, not the React SPA.
+    // Keep them network-only so they are never cached under the /index.html app-shell key.
+    const publicDocumentPaths = new Set([
+      '/', '/about', '/about.html',
+      '/privacy-policy', '/privacy-policy.html',
+      '/terms-of-service', '/terms-of-service.html',
+    ]);
+    if (publicDocumentPaths.has(url.pathname)) {
       event.respondWith(fetch(request, { cache: 'no-store' }));
       return;
     }

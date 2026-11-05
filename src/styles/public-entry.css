@@ -518,3 +518,61 @@
 .auth-session-dialog p { max-width:36ch; margin:0; color:var(--muted); font-size:14px; line-height:1.8; }
 .auth-session-dialog .primary-button { width:100%; margin-top:5px; }
 @media (prefers-reduced-motion:no-preference) { .auth-session-dialog { animation:auth-session-dialog-in .18s ease-out; } @keyframes auth-session-dialog-in { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } } }
+
+
+/* Public policy links remain visible before authentication without competing with the form. */
+.auth-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.auth-legal-links a { color: var(--muted); text-decoration: none; font-weight: 700; }
+.auth-legal-links a:hover { color: var(--primary-strong); text-decoration: underline; }
+.auth-legal-links a:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
+@media (max-width: 420px) {
+  .auth-legal-links { gap: 8px 12px; margin-top: 17px; padding-top: 13px; font-size: 11px; }
+}
+
+.policy-public-full-link { margin: -8px 0 0; font-size: 13px; font-weight: 750; }
+.policy-public-full-link a { color: var(--primary-strong); text-decoration: none; }
+.policy-public-full-link a:hover { text-decoration: underline; }
+
+/* Single, compact age and policy confirmation for registration. */
+.auth-legal-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+  cursor: pointer;
+}
+.auth-legal-consent input {
+  flex: 0 0 18px;
+  width: 18px !important;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px !important;
+  margin: 3px 0 0;
+  padding: 0 !important;
+  accent-color: var(--primary);
+}
+.auth-legal-consent a {
+  color: var(--primary-strong);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-legal-consent a:hover { opacity: .86; }
