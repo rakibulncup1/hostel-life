@@ -7,11 +7,20 @@ const DIGIT_MAP = Object.freeze({
 });
 
 export function sanitizeMarketInput(value) {
-  return String(value ?? '').normalize('NFC').replace(CONTROL_CHARS, '');
+  return String(value ?? '').normalize('NFC').replace(/\r\n?/gu, '\n').replace(CONTROL_CHARS, '');
 }
 
 function cleanCell(value) {
   return sanitizeMarketInput(value).replace(/\s+/gu, ' ').trim();
+}
+
+function cleanMultilineCell(value) {
+  return sanitizeMarketInput(value)
+    .split('\n')
+    .map((line) => line.replace(/[\t ]+/gu, ' ').trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim();
 }
 
 function normalizeAmount(value) {
@@ -47,18 +56,19 @@ function isSerialCell(value) {
 
 /**
  * Parses clipboard text pasted into a market item-name field.
- * - Single line: preserve it as one item name.
- * - Multi-line plain list: one item name per line.
+ * - Plain text (including line breaks): one item name/description, preserving newlines.
  * - Spreadsheet/TSV: item name, quantity, amount (optional leading serial column).
- * Returns null for a normal single-line paste, or an error/result object.
+ * Returns a single item or a spreadsheet row collection.
  */
+
 export function parseMarketPaste(clipboardText) {
-  const raw = String(clipboardText ?? '').replace(/\r\n?/gu, '\n');
-  if (!raw.includes('\n') && !raw.includes('\t')) {
-    const itemName = cleanCell(raw);
+  const raw = sanitizeMarketInput(clipboardText);
+  const hasTabs = raw.includes('\t');
+  if (!hasTabs) {
+    const itemName = cleanMultilineCell(raw);
     if (!itemName) return { error: 'খালি আইটেম পেস্ট করা যাবে না।' };
     if (Array.from(itemName).length > 160) {
-      return { error: 'একটি আইটেমের নাম সর্বোচ্চ ১৬০ অক্ষরের হতে পারবে। একাধিক আইটেম হলে আলাদা লাইনে পেস্ট করুন।' };
+      return { error: 'একটি আইটেমের নাম সর্বোচ্চ ১৬০ অক্ষরের হতে পারবে।' };
     }
     return { mode: 'single', itemName };
   }
@@ -66,20 +76,9 @@ export function parseMarketPaste(clipboardText) {
   const lines = raw.split('\n').map((line) => line.replace(/\s+$/u, '')).filter((line) => line.trim());
   if (!lines.length) return { error: 'পেস্ট করা লেখায় কোনো আইটেম পাওয়া যায়নি।' };
 
-  const hasTabs = raw.includes('\t');
   const items = [];
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
     const line = lines[lineIndex];
-    if (!hasTabs) {
-      const item_name = cleanCell(line);
-      if (!item_name) continue;
-      if (Array.from(item_name).length > 160) {
-        return { error: `লাইন ${lineIndex + 1}: আইটেমের নাম ১৬০ অক্ষরের বেশি।` };
-      }
-      items.push({ item_name, quantity: '', amount: '' });
-      continue;
-    }
-
     const cells = line.split('\t').map(cleanCell);
     const headerOffset = cells.length >= 4 && (isSerialCell(cells[0]) || /^(ক্রম|sl|s\.?no\.?|no\.?)$/iu.test(cells[0])) ? 1 : 0;
     if (lineIndex === 0 && isHeaderRow(cells.slice(headerOffset))) continue;

@@ -11,6 +11,7 @@ const css = read('src/styles/production-flow-finishing.css');
 const main = read('src/main.jsx');
 const vite = read('vite.config.js');
 const notice = read('src/components/SystemNoticeDialog.jsx');
+const marketShare = read('src/utils/marketShare.js');
 const campaigns = read('src/components/PlatformCommunicationOverlays.jsx');
 const admin = read('src/features/platform/SuperAdminPage.jsx');
 const migration = read('supabase/migrations/Run33_platform_communications_release_and_public_notices.sql');
@@ -24,19 +25,22 @@ test('mobile market input updates do not programmatically steal focus on every k
   assert.match(market, /enterKeyHint="next"/);
 });
 
-test('short share includes date, buyer, serial, item, quantity and amount, then invokes native share with clipboard fallback', () => {
-  assert.match(market, /const handleShortShare = async/);
-  assert.match(market, /navigator\.share\(\{ title: 'Hostel Life · বাজারের তালিকা', text: shareText \}\)/);
-  assert.match(market, /navigator\.clipboard\?\.writeText/);
-  assert.match(market, /navigator\.clipboard\.writeText\(shareText\)/);
-  assert.match(market, /বাজারকারী: \$\{buyerName\}/);
-  assert.match(market, /তারিখ: \$\{dateLabel\}/);
-  assert.match(market, /\$\{index \+ 1\}\. \$\{item\.item_name\}/);
-  assert.match(market, /পরিমাণ: \$\{item\.quantity \|\| '—'\}/);
-  assert.match(market, /সর্বমোট: \$\{formatCurrency/);
-  assert.match(market, /market-short-share/);
+test('short share is generated only after a successful market save and persists while the native share sheet is open', () => {
   const marketForm = market.slice(market.indexOf('function MarketEntryForm('), market.indexOf('function ManagerMealEntry('));
-  assert.ok(marketForm.indexOf('market-short-share') < marketForm.indexOf('বাজার সংরক্ষণ হচ্ছে'));
+  const submit = marketForm.slice(marketForm.indexOf('const submit = async'), marketForm.indexOf('return ('));
+  assert.match(submit, /await createMarketEntry\(/);
+  assert.match(submit, /setShareSummary\(nextShareSummary\)/);
+  assert.match(submit, /sessionStorage\.setItem\(marketShareStorageKey/);
+  assert.ok(submit.indexOf('await createMarketEntry(') < submit.indexOf('setShareSummary(nextShareSummary)'));
+  assert.match(marketForm, /navigator\.share\(\{ title: 'Hostel Life · বাজারের তালিকা', text: shareSummary\.text \}\)/);
+  assert.match(marketForm, /navigator\.clipboard\.writeText\(shareSummary\.text\)/);
+  assert.match(marketForm, /buildMarketShareText\(\{/);
+  assert.match(marketShare, /`তারিখ : \${dateLabel}`/);
+  assert.match(marketShare, /`বাজারকারী: \${getMarketBuyerFirstName\(buyerName\)}`/);
+  assert.match(marketShare, /`টোটাল বাজার = \${formatNumber/);
+  assert.match(marketForm, /<SystemNoticeDialog/);
+  assert.match(marketForm, /শেয়ার করুন/);
+  assert.doesNotMatch(marketForm, /market-short-share/);
 });
 
 test('auth and onboarding late overrides use selected theme tokens for light, blue and dark themes', () => {

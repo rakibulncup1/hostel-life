@@ -13,14 +13,10 @@ test('market paste keeps Unicode symbols and punctuation in a single item name',
   assert.equal(parsed.itemName, 'রুই মাছ — ১.৫ কেজি 🐟 / Fresh!');
 });
 
-test('market paste turns a plain multi-line list into separate item rows', () => {
-  const parsed = parseMarketPaste('চাল\nডাল\nআলু-পেঁয়াজ');
-  assert.equal(parsed.mode, 'rows');
-  assert.deepEqual(parsed.items, [
-    { item_name: 'চাল', quantity: '', amount: '' },
-    { item_name: 'ডাল', quantity: '', amount: '' },
-    { item_name: 'আলু-পেঁয়াজ', quantity: '', amount: '' },
-  ]);
+test('plain multi-line paste remains one market item description and preserves line breaks', () => {
+  const parsed = parseMarketPaste('আগে কেনা বাজারের তালিকা\nচাল, ডাল ও আলু\nমোট বাজার একসঙ্গে');
+  assert.equal(parsed.mode, 'single');
+  assert.equal(parsed.itemName, 'আগে কেনা বাজারের তালিকা\nচাল, ডাল ও আলু\nমোট বাজার একসঙ্গে');
 });
 
 test('market paste imports tab-separated item, quantity and Bengali currency values', () => {
@@ -88,7 +84,7 @@ test('pinned manager notice is loaded by current hostel rather than recipient in
   assert.match(appShell, /মেসের ম্যানেজারের বার্তা/);
 });
 
-test('bulk market import caps a paste at 100 rows before creating inputs', () => {
-  const paste = Array.from({ length: 101 }, (_, i) => `আইটেম ${i + 1}`).join('\n');
+test('bulk spreadsheet import caps a paste at 100 rows before creating inputs', () => {
+  const paste = Array.from({ length: 101 }, (_, i) => `আইটেম ${i + 1}\t১ কেজি\t১০`).join('\n');
   assert.match(parseMarketPaste(paste).error, /১০০টি/);
 });

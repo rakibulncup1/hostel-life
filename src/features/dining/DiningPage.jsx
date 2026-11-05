@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { SystemNoticeDialog } from '../../components/SystemNoticeDialog';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { OfflineState } from '../../components/OfflineState';
 import { useAuth } from '../../contexts/AuthContext';
@@ -39,6 +40,7 @@ import { canSubmitMealDay, getMealDayStatusText, isDhakaFinalizationDue } from '
 import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
 import { parseMarketPaste, sanitizeMarketInput } from '../../utils/marketPaste';
+import { buildMarketShareText, readMarketShareSummary } from '../../utils/marketShare';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -793,6 +795,21 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
   const [credit, setCredit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState([{ item_name: '', quantity: '', amount: '' }]);
+  const marketShareStorageKey = `hostel-life:market-share-summary:${ownMembershipId || 'self'}`;
+  const [shareSummary, setShareSummary] = useState(() => {
+    try {
+      if (typeof window === 'undefined' || !window.sessionStorage) return null;
+      const navigationType = window.performance?.getEntriesByType?.('navigation')?.[0]?.type
+        || (window.performance?.navigation?.type === 1 ? 'reload' : 'navigate');
+      return readMarketShareSummary({
+        storage: window.sessionStorage,
+        storageKey: marketShareStorageKey,
+        navigationType,
+      });
+    } catch {
+      return null;
+    }
+  });
   const marketInputRefs = useRef(new Map());
   const pendingMarketFocusIndexRef = useRef(null);
   const periodStartNotice = getPeriodStartNotice(period, 'বাজার এন্ট্রি');
@@ -826,7 +843,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
   };
 
   const moveToNextMarketField = (event, index, field) => {
-    if (event.key !== 'Enter' || event.nativeEvent?.isComposing || event.nativeEvent?.keyCode === 229) return;
+    if (event.key !== 'Enter' || (field === 'item_name' && event.shiftKey) || event.nativeEvent?.isComposing || event.nativeEvent?.keyCode === 229) return;
     event.preventDefault();
     if (field === 'item_name') return focusMarketField(index, 'quantity');
     if (field === 'quantity') return focusMarketField(index, 'amount');
@@ -879,58 +896,49 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
   };
   const removeItem = (index) => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index));
 
-  const handleShortShare = async () => {
-    const shareItems = items
-      .map((item) => ({
-        item_name: String(item.item_name || '').trim(),
-        quantity: String(item.quantity || '').trim(),
-        amount: Number(item.amount),
-      }))
-      .filter((item) => item.item_name);
-    if (!shareItems.length) {
-      toast.warning('শেয়ার করার আগে অন্তত একটি আইটেমের নাম লিখুন।');
-      return;
-    }
-    const selectedBuyer = members.find((member) => member.membership_id === buyerId);
-    const buyerName = selectedBuyer?.member_name || (buyerId === ownMembershipId ? 'নিজের নামে' : 'নির্বাচিত সদস্য');
-    const dateLabel = entryDate
-      ? new Intl.DateTimeFormat('bn-BD', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Dhaka' })
-        .format(new Date(`${entryDate}T00:00:00+06:00`))
-      : 'তারিখ নির্ধারিত নয়';
-    const rows = shareItems.map((item, index) => `${index + 1}. ${item.item_name}\n   পরিমাণ: ${item.quantity || '—'} · টাকা: ${formatCurrency(Number.isFinite(item.amount) ? item.amount : 0)}`);
-    const shareText = [
-      '🛒 HOSTEL LIFE · বাজারের তালিকা',
-      `তারিখ: ${dateLabel}`,
-      `বাজারকারী: ${buyerName}`,
-      '',
-      ...rows,
-      '',
-      `সর্বমোট: ${formatCurrency(shareItems.reduce((sum, item) => sum + (Number.isFinite(item.amount) && item.amount > 0 ? item.amount : 0), 0))}`,
-    ].join('\n');
+  const closeShareSummary = () => {
+    setShareSummary(null);
+    try { window.sessionStorage.removeItem(marketShareStorageKey); } catch { /* session storage may be unavailable */ }
+  };
 
-    // Start clipboard access synchronously in the click handler, then invoke the
-    // native share sheet without losing the browser's user-activation context.
-    let clipboardTask = null;
+  const copyShareSummary = async () => {
+    if (!shareSummary?.text) return;
     try {
-      if (navigator.clipboard?.writeText) clipboardTask = navigator.clipboard.writeText(shareText).then(() => true).catch(() => false);
-    } catch { clipboardTask = Promise.resolve(false); }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareSummary.text);
+        toast.success('বাজারের তালিকা কপি হয়েছে।');
+        return;
+      }
+      const temporary = document.createElement('textarea');
+      temporary.value = shareSummary.text;
+      temporary.setAttribute('readonly', '');
+      temporary.style.position = 'fixed';
+      temporary.style.opacity = '0';
+      document.body.appendChild(temporary);
+      temporary.select();
+      const copied = document.execCommand('copy');
+      temporary.remove();
+      if (copied) toast.success('বাজারের তালিকা কপি হয়েছে।');
+      else throw new Error('Clipboard copy was not available.');
+    } catch (error) {
+      toast.error('তালিকাটি কপি করা যায়নি। ব্রাউজারের Clipboard অনুমতি পরীক্ষা করুন।');
+    }
+  };
 
+  const shareSavedMarket = async () => {
+    if (!shareSummary?.text) return;
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'Hostel Life · বাজারের তালিকা', text: shareText });
-        toast.success('বাজারের তালিকা শেয়ার করার জন্য প্রস্তুত।');
-        return;
+        await navigator.share({ title: 'Hostel Life · বাজারের তালিকা', text: shareSummary.text });
+        toast.success('বাজারের তালিকা শেয়ার করা হয়েছে।');
       } catch (error) {
-        if (error?.name === 'AbortError') {
-          const copied = clipboardTask ? await clipboardTask : false;
-          if (copied) toast.info('শেয়ার বাতিল হয়েছে। তালিকাটি ক্লিপবোর্ডে কপি করা হয়েছে।');
-          return;
+        if (error?.name !== 'AbortError') {
+          toast.info('সরাসরি শেয়ার করা যায়নি। তালিকাটি কপি করে পাঠাতে পারেন।');
         }
       }
+      return;
     }
-    const copied = clipboardTask ? await clipboardTask : false;
-    if (copied) toast.success('বাজারের তালিকা কপি হয়েছে। এখন পছন্দের অ্যাপে পেস্ট করে পাঠাতে পারবেন।');
-    else toast.error('শেয়ার বা কপি করা যায়নি। ব্রাউজারের Clipboard অনুমতি পরীক্ষা করুন।');
+    await copyShareSummary();
   };
 
   const submit = async (event) => {
@@ -958,7 +966,19 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         items: cleaned,
         creditToBuyer: credit,
       });
-      toast.success(`বাজার সফলভাবে সংরক্ষণ হয়েছে — ${formatCurrency(result?.total_amount ?? total)}।`);
+      const selectedBuyer = members.find((member) => member.membership_id === buyerId);
+      const fullBuyerName = String(selectedBuyer?.member_name || (buyerId === ownMembershipId ? 'নিজের নামে' : 'নির্বাচিত সদস্য')).trim();
+      const submittedTotal = Number(result?.total_amount ?? cleaned.reduce((sum, item) => sum + item.amount, 0));
+      const shareText = buildMarketShareText({
+        entryDate,
+        buyerName: fullBuyerName,
+        items: cleaned,
+        total: submittedTotal,
+      });
+      const nextShareSummary = { text: shareText, savedAt: Date.now() };
+      try { window.sessionStorage.setItem(marketShareStorageKey, JSON.stringify(nextShareSummary)); } catch { /* modal remains available in memory */ }
+      setShareSummary(nextShareSummary);
+      toast.success(`বাজার সফলভাবে সংরক্ষণ হয়েছে — ${formatCurrency(submittedTotal)}।`);
       onSaved?.(result);
       setItems([{ item_name: '', quantity: '', amount: '' }]);
       setCredit(false);
@@ -1006,7 +1026,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       )}
 
       <div className="market-table-card">
-        <div className="market-paste-hint"><Icon name="file-text" size={15} /><span>একাধিক আইটেম একসঙ্গে যোগ করতে তালিকা আলাদা লাইনে, অথবা Excel/Sheets থেকে <strong>আইটেম · পরিমাণ · টাকা</strong>—এই ৩ কলাম কপি করে প্রথম আইটেমের ঘরে পেস্ট করুন। বাংলা সংখ্যা, একক ও সাধারণ প্রতীক সমর্থিত।</span></div>
+        <div className="market-paste-hint"><Icon name="file-text" size={15} /><span>Excel/Sheets থেকে <strong>আইটেম · পরিমাণ · টাকা</strong>—এই ৩ কলাম কপি করে প্রথম আইটেমের ঘরে পেস্ট করলে সারিগুলো একসঙ্গে যোগ হবে।</span></div>
         <div className="market-table-head">
           <span>ক্রম</span><span>আইটেমের নাম</span><span>পরিমাণ</span><span>টাকার পরিমাণ</span><span aria-hidden="true" />
         </div>
@@ -1014,15 +1034,15 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
           {items.map((item, index) => (
             <div className="market-item-row" key={`item-${index}`}>
               <span className="market-serial">{formatNumber(index + 1, { maximumFractionDigits: 0 })}</span>
-              <input
+              <textarea
                 ref={(node) => { const key = `${index}:item_name`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
                 data-market-input-key={`${index}:item_name`}
-                className="market-input-item" value={item.item_name}
+                className="market-input-item" value={item.item_name} rows={2}
                 onChange={(e) => updateItem(index, { item_name: sanitizeMarketInput(e.target.value) })}
                 onPaste={(e) => handleMarketItemPaste(e, index)}
                 onKeyDown={(e) => moveToNextMarketField(e, index, 'item_name')}
                 enterKeyHint="next" autoComplete="off" spellCheck={false} maxLength={160}
-                placeholder="নাম" aria-label="আইটেমের নাম" />
+                placeholder="আইটেমের নাম" aria-label="আইটেমের নাম" />
               <input
                 ref={(node) => { const key = `${index}:quantity`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
                 data-market-input-key={`${index}:quantity`}
@@ -1060,12 +1080,21 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         )}
       </div>
 
-      <button className="secondary-button large market-short-share" type="button" disabled={busy || periodNotStarted || !items.some((item) => item.item_name.trim())} onClick={handleShortShare}>
-        <Icon name="share-2" size={17} /> শর্ট শেয়ার
-      </button>
       <button className="primary-button large dining-submit" type="button" disabled={busy || periodNotStarted} onClick={submit}>
         {busy ? 'বাজার সংরক্ষণ হচ্ছে...' : 'বাজার সংরক্ষণ করুন'}
       </button>
+      {shareSummary?.text && <SystemNoticeDialog
+        kicker="বাজার সংরক্ষণ সম্পন্ন"
+        icon="check-circle"
+        title="বাজারের তালিকা প্রস্তুত"
+        onClose={closeShareSummary}
+        actions={<>
+          <button className="primary-button" type="button" onClick={shareSavedMarket}><Icon name="share-2" size={16}/> শেয়ার করুন</button>
+          <button className="secondary-button" type="button" onClick={copyShareSummary}><Icon name="copy" size={16}/> কপি করুন</button>
+        </>}
+      >
+        <pre className="market-share-preview">{shareSummary.text}</pre>
+      </SystemNoticeDialog>}
     </section>
   );
 }

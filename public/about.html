@@ -30,7 +30,7 @@
       <div class="nav-actions" aria-label="অ্যাকাউন্ট">
         <a class="btn btn-secondary" href="/auth/login">অ্যাকাউন্টে প্রবেশ করুন</a>
         <a class="btn btn-primary" href="/auth/register">অ্যাকাউন্ট তৈরি করুন <span aria-hidden="true">↗</span></a>
-        <a class="btn btn-download" href="/app/menu/app-download"><span aria-hidden="true">↓</span> অ্যাপ ডাউনলোড</a>
+        <a class="btn btn-download" href="/app/menu/app-download" data-pwa-install-link><span aria-hidden="true">↓</span> অ্যাপ ডাউনলোড</a>
       </div>
       <details class="mobile-menu">
         <summary aria-label="মেনু খুলুন">
@@ -42,7 +42,7 @@
           <a href="/privacy-policy">গোপনীয়তা নীতি</a>
           <a href="/terms-of-service">ব্যবহারের শর্তাবলী</a>
           <a href="/auth/login">অ্যাকাউন্টে প্রবেশ করুন</a>
-          <a href="/app/menu/app-download">অ্যাপ ডাউনলোড ↓</a>
+          <a href="/app/menu/app-download" data-pwa-install-link>অ্যাপ ডাউনলোড ↓</a>
           <a class="menu-register" href="/auth/register">অ্যাকাউন্ট তৈরি করুন ↗</a>
         </nav>
       </details>
@@ -59,7 +59,7 @@
           <div class="hero-actions">
             <a class="btn btn-primary" href="/auth/register">অ্যাকাউন্ট তৈরি করুন <span aria-hidden="true">↗</span></a>
             <a class="btn btn-secondary" href="/auth/login">অ্যাকাউন্টে প্রবেশ করুন</a>
-            <a class="btn btn-download" href="/app/menu/app-download">অ্যাপ ডাউনলোড ↓</a>
+            <a class="btn btn-download" href="/app/menu/app-download" data-pwa-install-link>অ্যাপ ডাউনলোড ↓</a>
           </div>
           <div class="hero-points" aria-label="প্রধান কাজের ক্ষেত্র">
             <span><i class="tick">✓</i> মিল ও অনুরোধ</span>
@@ -213,7 +213,7 @@
     <section class="closing">
       <div class="wrap closing-inner">
         <div class="closing-copy"><h2>মেসের ব্যবস্থাপনা শুরু হোক গুছিয়ে</h2><p>আপনার মেসের দৈনন্দিন রেকর্ড এক জায়গায় পরিচালনা করুন।</p></div>
-        <div class="closing-actions"><a class="btn btn-primary" href="/auth/register">অ্যাকাউন্ট তৈরি করুন ↗</a><a class="btn btn-secondary" href="/auth/login">অ্যাকাউন্টে প্রবেশ করুন</a><a class="btn btn-download" href="/app/menu/app-download">অ্যাপ ডাউনলোড ↓</a></div>
+        <div class="closing-actions"><a class="btn btn-primary" href="/auth/register">অ্যাকাউন্ট তৈরি করুন ↗</a><a class="btn btn-secondary" href="/auth/login">অ্যাকাউন্টে প্রবেশ করুন</a><a class="btn btn-download" href="/app/menu/app-download" data-pwa-install-link>অ্যাপ ডাউনলোড ↓</a></div>
       </div>
     </section>
   </main>
@@ -241,5 +241,6 @@
       document.addEventListener('click', (event) => { if (menu.open && !menu.contains(event.target)) menu.open = false; });
     })();
   </script>
+  <script src="/landing-assets/public-install.js" defer></script>
 </body>
 </html>

@@ -67,9 +67,6 @@
 }
 .market-paste-hint svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary); }
 .market-paste-hint strong { color: var(--text); font-weight: 850; }
-.market-short-share { width: 100%; min-height: 48px; justify-content: center; gap: 8px; margin: 14px 0 9px; border: 1px solid color-mix(in srgb, var(--primary) 38%, var(--line)); background: var(--primary-soft); color: var(--primary-strong); font-weight: 850; }
-.market-short-share:hover { background: color-mix(in srgb, var(--primary-soft) 68%, var(--primary)); border-color: var(--primary); color: var(--primary-strong); }
-.market-short-share:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 2px; }
 
 /* Shared accessible window shell for release, priority and scheduled notices. */
 .system-notice-backdrop {
@@ -129,3 +126,54 @@
 .platform-datetime-control .secondary-button { min-height: 42px; padding-inline: 13px; }
 .platform-datetime-clear { min-height: 40px; padding-inline: 7px; }
 @media (max-width: 640px) { .platform-datetime-control { grid-template-columns: minmax(0,1fr) auto; } .platform-datetime-clear { grid-column: 1 / -1; justify-self: end; min-height: 30px; } }
+
+
+/* Multi-line market item descriptions remain one saved database row. */
+.market-item-row textarea.market-input-item {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px;
+  outline: none;
+  font-size: 12px;
+  max-height: 132px;
+  resize: vertical;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+  font: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.market-item-row textarea.market-input-item:focus,
+.market-item-row textarea.market-input-item:focus-visible {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--line));
+  outline: 3px solid color-mix(in srgb, var(--primary) 14%, transparent);
+  outline-offset: 0;
+}
+.market-share-preview {
+  max-height: min(42svh, 360px);
+  overflow: auto;
+  margin: 0;
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface-2);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.85;
+}
+@media (max-width: 560px) {
+  .market-item-row textarea.market-input-item { grid-column: 1 / -1; min-height: 62px; }
+  .market-share-preview { max-height: min(45svh, 330px); padding: 13px; font-size: 13px; }
+}

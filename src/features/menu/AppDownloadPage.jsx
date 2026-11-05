@@ -12,15 +12,15 @@ function getManualInstallGuide() {
   const isAndroid = /Android/i.test(ua);
   if (isIOS) return {
     title: 'iPhone বা iPad-এ ইনস্টল',
-    steps: ['Safari-তে Hostel Life খুলুন।', 'নিচের Share বোতাম চাপুন।', 'Add to Home Screen নির্বাচন করে Add চাপুন।'],
+    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। iOS সরাসরি ওয়েবসাইট থেকে ইনস্টল প্রম্পট চালাতে দেয় না—Safari-এর Share মেনু থেকে “Add to Home Screen” নির্বাচন করুন।',
   };
   if (isAndroid) return {
     title: 'Android-এ ইনস্টল',
-    steps: ['Chrome-এ Hostel Life খুলুন।', 'উপরের ⋮ মেনু চাপুন।', 'Install app অথবা Add to Home screen নির্বাচন করুন।'],
+    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome-এ খুললে সমর্থিত হলে একটি ইনস্টল বোতাম দেখাবে।',
   };
   return {
     title: 'কম্পিউটারে ইনস্টল',
-    steps: ['Chrome বা Edge-এ Hostel Life খুলুন।', 'Address bar-এর Install আইকন থাকলে সেটি চাপুন।', 'অথবা ব্রাউজারের মেনু থেকে Install app নির্বাচন করুন।'],
+    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome বা Edge-এ খুললে সমর্থিত হলে ইনস্টল বোতাম দেখাবে।',
   };
 }
 
@@ -61,8 +61,7 @@ export function AppDownloadPage() {
         ) : (
           <div className="app-download-manual-guide">
             <div className="app-download-manual-heading"><Icon name="info" size={18}/><strong>{guide.title}</strong></div>
-            <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-            <p>এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। সমর্থিত ব্রাউজারের মেনু থেকে ইনস্টল করতে পারবেন।</p>
+            <p>{guide.message}</p>
           </div>
         )}
       </section>
