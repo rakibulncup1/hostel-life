@@ -20,6 +20,23 @@ test('market share is no longer available before saving and opens only after cre
   assert.match(form, /বাজারের তালিকা প্রস্তুত/);
 });
 
+test('successful market save refreshes member data quietly so the market form stays mounted for the share dialog', () => {
+  const marketPage = read('src/features/dining/DiningPage.jsx');
+  const marketFormStart = marketPage.indexOf("if (view === 'market')");
+  const marketFormEnd = marketPage.indexOf("if (view === 'admin-entry')", marketFormStart);
+  assert.ok(marketFormStart >= 0 && marketFormEnd > marketFormStart);
+  const marketFormRoute = marketPage.slice(marketFormStart, marketFormEnd);
+  assert.match(marketFormRoute, /onSaved=\{\(\) => loadMembers\(\{ quiet: true \}\)\}/);
+  assert.doesNotMatch(marketFormRoute, /onSaved=\{loadMembers\}/);
+
+  const loaderStart = marketPage.indexOf('const loadMembers = useCallback');
+  const loaderEnd = marketPage.indexOf('}, [canOperateDining, periodFallback, toast]);', loaderStart);
+  assert.ok(loaderStart >= 0 && loaderEnd > loaderStart);
+  const loader = marketPage.slice(loaderStart, loaderEnd);
+  assert.match(loader, /if \(!quiet\) setLoadingMembers\(true\)/);
+  assert.match(loader, /if \(!quiet\) setLoadingMembers\(false\)/);
+});
+
 test('saved market summary uses the requested concise Bengali-only format and first buyer name', () => {
   const output = buildMarketShareText({
     entryDate: '2026-11-05',

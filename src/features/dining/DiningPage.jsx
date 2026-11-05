@@ -2128,7 +2128,7 @@ export function DiningPage() {
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
         {periodLoadError && <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError} সার্ভারের validation-ই চূড়ান্ত; তারিখ/মাস নিশ্চিত না হলে এন্ট্রি দেবেন না।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
         {memberDirectoryError && canOperateDining && <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>সদস্য তালিকা সম্পূর্ণ লোড হয়নি</strong><p>{memberDirectoryError} নিজের নামে এন্ট্রি দেওয়ার জন্য fallback দেখানো হতে পারে; অন্য সদস্যের নামে এন্ট্রির আগে তালিকা পুনরায় লোড করুন।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
-        <MarketEntryForm isManager={canOperateDining} members={marketMembers} ownMembershipId={membership?.membership_id} period={runningPeriod} onSaved={loadMembers} onCancel={backToHome} />
+        <MarketEntryForm isManager={canOperateDining} members={marketMembers} ownMembershipId={membership?.membership_id} period={runningPeriod} onSaved={() => loadMembers({ quiet: true })} onCancel={backToHome} />
       </div>
     );
   }
