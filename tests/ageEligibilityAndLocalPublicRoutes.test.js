@@ -49,8 +49,9 @@ test('About is the default document on Vite dev, preview and Vercel root', () =>
   for (const route of ['/', '/about', '/privacy-policy', '/terms-of-service']) {
     assert.ok(config.includes(`['${route}', '${route === '/' ? '/about' : route}.html']`), `${route} should map to a public HTML document`);
   }
-  assert.ok(vercel.rewrites.some((row) => row.source === '/' && row.destination === '/about.html'));
-  assert.match(read('public/about.html'), /মেসের সব হিসাব/);
+  assert.ok(vercel.redirects.some((row) => row.source === '/' && row.destination === '/about' && row.permanent === true));
+  assert.equal(vercel.rewrites.some((row) => row.source === '/' && row.destination === '/about.html'), false);
+  assert.match(read('public/about.html'), /মিল, বাজারের খরচ ও সদস্যদের জমা/);
   assert.match(read('public/about.html'), /\/auth\/login/);
   assert.match(read('public/about.html'), /\/auth\/register/);
 });

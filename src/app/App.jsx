@@ -100,6 +100,9 @@ export function App() {
   const withPublicCommunications = (content) => <>{content}<PlatformCommunicationOverlays communications={publicSettings?.communications} /></>;
 
   useEffect(() => {
+    // The install guide contains no member data and is intentionally public.
+    // Keep every other /app/* route behind the existing authentication guard.
+    if (pathname === '/app/menu/app-download') return;
     if (auth.authLoading || auth.user?.app_metadata?.must_change_password) return;
     if (pathname === '/super-admin') {
       if (!auth.isAuthenticated) {
@@ -205,6 +208,7 @@ export function App() {
     else if (pathname.includes('/menu/khala-money')) title = 'Hostel Life — খালার টাকা';
     else if (pathname.includes('/menu/member-management')) title = 'Hostel Life — সদস্য ব্যবস্থাপনা';
     else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
+    else if (pathname === '/app/menu/app-download') title = 'Hostel Life — অ্যাপ ডাউনলোড';
     else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
     else if (pathname.includes('/onboarding')) title = 'Hostel Life — মেস সেটআপ';
     else if (pathname === '/super-admin') title = 'Hostel Life — Super Admin';
@@ -212,6 +216,9 @@ export function App() {
   }, [pathname]);
 
   if (!auth.authLoading && auth.isAuthenticated && auth.user?.app_metadata?.must_change_password) return withPublicCommunications(<ForcedPasswordChange />);
+
+  // Public, informational PWA install page; no authenticated data or AppShell.
+  if (pathname === '/app/menu/app-download') return withPublicCommunications(<AppDownloadPage />);
 
   if (pathname.startsWith('/auth/') || pathname === '/auth') {
     if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.authLoading) {

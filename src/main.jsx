@@ -14,6 +14,7 @@ import './styles/invitation-experience.css';
 import './styles/notification-center.css';
 import './styles/super-admin-experience.css';
 import './styles/experience-polish-v6.css';
+import './styles/production-flow-finishing.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();

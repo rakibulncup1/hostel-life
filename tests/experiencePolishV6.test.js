@@ -55,8 +55,9 @@ test('Telegram connection page centers its own recognizable logo without changin
 });
 
 test('release feature modal displays Hostel Life brand mark instead of generic Gemini-like sparkle', () => {
-  assert.match(shell, /<BrandMark size=\{42\}\/>/);
-  assert.doesNotMatch(shell, /release-notice-icon"><Icon name="sparkles"/);
+  assert.match(shell, /<SystemNoticeDialog/);
+  assert.match(shell, /system-notice-feature-list/);
+  assert.doesNotMatch(shell, /release-features-dialog|release-features-trigger/);
 });
 
 test('install prompt is captured before React effects and app download page has platform-specific manual steps', () => {

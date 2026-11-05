@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Icon } from './Icon';
+import { SystemNoticeDialog } from './SystemNoticeDialog';
 
 function dhakaDayKey() {
   try {
@@ -52,8 +52,6 @@ function markShown(campaign) {
 export function PlatformCommunicationOverlays({ communications, blocked = false }) {
   const [clock, setClock] = useState(() => Date.now());
   const [activeCampaign, setActiveCampaign] = useState(null);
-  const closeButtonRef = useRef(null);
-  const dialogRef = useRef(null);
   const shownThisRender = useRef(new Set());
 
   const campaigns = useMemo(() => {
@@ -63,7 +61,8 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
     // Maintenance/site notices take priority, followed by a general window notice.
     if (site) rows.push({ ...site, kind: 'site', frequency: site.frequency || 'once_per_device' });
     if (windowNotice) rows.push({ ...windowNotice, kind: 'window', frequency: windowNotice.frequency || 'once_per_device' });
-    return rows.filter((campaign) => campaignIsActive(campaign, clock));
+    return rows.filter((campaign) => campaignIsActive(campaign, clock)
+      && !(campaign.kind === 'site' && campaign.mode === 'image' && !campaign.image_url));
   }, [communications, clock]);
 
   // A single timeout activates scheduled notices without polling or repeated API calls.
@@ -102,41 +101,6 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
     else if (campaignStorageKey(latest) !== campaignStorageKey(activeCampaign)) setActiveCampaign(latest);
   }, [campaigns, activeCampaign]);
 
-  // Keep the page from scrolling behind the notice and support keyboard dismissal.
-  useEffect(() => {
-    if (!activeCampaign || blocked) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    const previousFocus = document.activeElement;
-    document.body.style.overflow = 'hidden';
-    closeButtonRef.current?.focus();
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeActiveCampaign();
-        return;
-      }
-      if (event.key === 'Tab') {
-        const focusable = dialogRef.current?.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-        if (!focusable?.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault(); last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault(); first.focus();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = previousOverflow;
-      if (previousFocus && typeof previousFocus.focus === 'function' && document.contains(previousFocus)) {
-        previousFocus.focus();
-      }
-    };
-  }, [activeCampaign, blocked]);
-
   const closeActiveCampaign = () => {
     if (activeCampaign) {
       const key = campaignStorageKey(activeCampaign);
@@ -147,24 +111,19 @@ export function PlatformCommunicationOverlays({ communications, blocked = false 
   };
 
   if (!activeCampaign || blocked) return null;
-  const close = closeActiveCampaign;
-  const isImage = activeCampaign.kind === 'site' && activeCampaign.mode === 'image' && activeCampaign.image_url;
+  const isImage = activeCampaign.kind === 'site' && activeCampaign.mode === 'image';
+  if (isImage) {
+    return <SystemNoticeDialog imageOnly imageUrl={activeCampaign.image_url} onClose={closeActiveCampaign} />;
+  }
 
   return (
-    <div className="platform-communication-backdrop" role="presentation">
-      <section ref={dialogRef} className="platform-communication-dialog" role="dialog" aria-modal="true" aria-labelledby="platform-communication-title" tabIndex={-1}>
-        <button ref={closeButtonRef} type="button" className="platform-communication-close" onClick={close} aria-label="বন্ধ করুন">×</button>
-        <span className={`platform-communication-icon ${activeCampaign.kind === 'site' ? 'is-maintenance' : ''}`}>
-          <Icon name={activeCampaign.kind === 'site' ? 'wrench' : 'bell'} size={22} />
-        </span>
-        <span className="eyebrow">{activeCampaign.kind === 'site' ? 'HOSTEL LIFE · বিজ্ঞপ্তি' : 'HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা'}</span>
-        <h2 id="platform-communication-title">{activeCampaign.title || (activeCampaign.kind === 'site' ? 'সাময়িক বিজ্ঞপ্তি' : 'আপনার জন্য একটি বার্তা')}</h2>
-        {isImage && <img className="platform-communication-image" src={activeCampaign.image_url} alt={activeCampaign.title || 'Hostel Life বিজ্ঞপ্তি'} loading="eager" />}
-        {activeCampaign.body && <p>{activeCampaign.body}</p>}
-        <div className="platform-communication-actions">
-          <button type="button" className="primary-button" onClick={close}>বুঝেছি</button>
-        </div>
-      </section>
-    </div>
+    <SystemNoticeDialog
+      kicker={activeCampaign.kind === 'site' ? 'HOSTEL LIFE · বিজ্ঞপ্তি' : 'HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা'}
+      icon={activeCampaign.kind === 'site' ? 'wrench' : 'bell'}
+      title={activeCampaign.title || (activeCampaign.kind === 'site' ? 'সাময়িক বিজ্ঞপ্তি' : 'আপনার জন্য একটি বার্তা')}
+      description={activeCampaign.body || ''}
+      onClose={closeActiveCampaign}
+      actions={<button type="button" className="primary-button" onClick={closeActiveCampaign}>বুঝেছি</button>}
+    />
   );
 }

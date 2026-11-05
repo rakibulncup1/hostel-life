@@ -32,11 +32,11 @@ function publicDocumentAliases() {
   };
 }
 
-// Release metadata is embedded at build time. It costs no runtime/API request
-// and changes on every production build, including redeploys of the same commit.
+// Release metadata is embedded at build time. A commit is one release even when
+// Vercel rebuilds/redeploys it; manual builds retain a timestamp fallback.
 const builtAt = new Date().toISOString();
 const commit = process.env.VERCEL_GIT_COMMIT_SHA || readGitValue(['rev-parse', 'HEAD']) || 'manual-build';
-const releaseId = `${commit.slice(0, 12)}-${builtAt}`;
+const releaseId = commit === 'manual-build' ? `manual-${builtAt}` : commit.slice(0, 12);
 
 export default defineConfig({
   plugins: [publicDocumentAliases(), react()],

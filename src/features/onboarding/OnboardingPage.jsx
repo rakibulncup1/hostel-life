@@ -443,7 +443,7 @@ export function OnboardingPage() {
             </button>
             <button type="button" className={`onboarding-mode-option ${mode === 'create' ? 'active' : ''}`} onClick={() => setMode((current) => current === 'create' ? '' : 'create')} aria-pressed={mode === 'create'} aria-expanded={mode === 'create'} aria-controls="onboarding-action-panel">
               <span className="onboarding-mode-icon"><Icon name="plus-circle" size={20} /></span>
-              <span className="onboarding-mode-copy"><strong>নতুন মেস তৈরি</strong><small>নিজের মেস পরিচালনা শুরু</small></span>
+              <span className="onboarding-mode-copy"><strong>নতুন মেস তৈরি</strong><small>নতুন মেস খুলুন</small></span>
               <span className="onboarding-mode-check">{mode === 'create' && <Icon name="check-circle" size={18} />}</span>
             </button>
           </div>
@@ -452,7 +452,7 @@ export function OnboardingPage() {
             <div className="onboarding-action-heading">
               <span className="eyebrow">{mode === 'join' ? 'আগে থেকে থাকা মেসে যোগ দিন' : 'নতুন মেস তৈরি'}</span>
               <h3>{mode === 'join' ? 'কোড দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'}</h3>
-              <p>{mode === 'join' ? 'ম্যানেজারের দেওয়া কোড লিখুন।' : 'মেসের একটি নাম দিন।'}</p>
+              <p>{mode === 'join' ? 'মেসের ১২ অক্ষরের কোড দিন।' : 'আপনার মেসের নাম লিখুন।'}</p>
             </div>
             {mode === 'join' ? (
               <form className="form-stack onboarding-entry-form" onSubmit={join}>
@@ -484,7 +484,7 @@ export function OnboardingPage() {
                   <label className="field-label">
                     <span>মেস তৈরির অনুমতি কোড</span>
                     <input value={hostelPermissionCode} onChange={(e) => setHostelPermissionCode(e.target.value.toUpperCase())} maxLength={20} autoCapitalize="characters" required placeholder="অ্যাডমিনের দেওয়া কোড" />
-                    <small className="platform-form-help">কোডটি সার্ভারে যাচাই হবে এবং নির্দিষ্ট ব্যবহারের পর শেষ হবে।</small>
+                    <small className="platform-form-help">সুপার অ্যাডমিনের দেওয়া অনুমতি কোড লিখুন।</small>
                   </label>
                 )}
                 <button type="submit" className="primary-button large" disabled={submitting || !online}>
@@ -502,7 +502,7 @@ export function OnboardingPage() {
 
           <div className="onboarding-note">
             <Icon name="shield" size={17} />
-            <span>একটি অ্যাকাউন্ট একসাথে শুধু একটি মেসের সঙ্গে যুক্ত থাকতে পারবে।</span>
+            <span>একটি অ্যাকাউন্ট একবারে একটি মেসের সঙ্গে যুক্ত থাকে।</span>
           </div>
         </div>
       </section>

@@ -815,23 +815,10 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
 
   const total = useMemo(() => items.reduce((sum, item) => sum + (Number(item.amount) > 0 ? Number(item.amount) : 0), 0), [items]);
 
-  const updateItem = (index, patch, inputEvent = null) => {
-    const input = inputEvent?.currentTarget;
-    const inputKey = input?.dataset?.marketInputKey;
-    const selectionStart = input && typeof input.selectionStart === 'number' ? input.selectionStart : null;
+  // Keep ordinary keystrokes entirely native: restoring focus after every
+  // controlled input update can dismiss the virtual keyboard on mobile browsers.
+  const updateItem = (index, patch) => {
     setItems((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
-    // Some mobile IMEs briefly drop focus after a controlled-list update. Restore
-    // it only when the browser actually returned focus to <body>; never steal it
-    // from a different field the user deliberately selected.
-    if (inputKey) requestAnimationFrame(() => {
-      const target = marketInputRefs.current.get(inputKey);
-      if (target && document.activeElement === document.body) {
-        target.focus({ preventScroll: true });
-        if (selectionStart !== null && typeof target.setSelectionRange === 'function') {
-          try { target.setSelectionRange(selectionStart, selectionStart); } catch { /* Number inputs do not expose a text selection range. */ }
-        }
-      }
-    });
   };
 
   const focusMarketField = (index, field) => {
@@ -864,7 +851,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
     event.preventDefault();
     if (parsed.mode === 'single') {
       const target = event.currentTarget;
-      updateItem(index, { item_name: parsed.itemName }, event);
+      updateItem(index, { item_name: parsed.itemName });
       requestAnimationFrame(() => {
         const input = marketInputRefs.current.get(`${index}:item_name`) || target;
         input?.focus({ preventScroll: true });
@@ -891,6 +878,60 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
     setItems((current) => [...current, { item_name: '', quantity: '', amount: '' }]);
   };
   const removeItem = (index) => setItems((current) => current.length === 1 ? current : current.filter((_, i) => i !== index));
+
+  const handleShortShare = async () => {
+    const shareItems = items
+      .map((item) => ({
+        item_name: String(item.item_name || '').trim(),
+        quantity: String(item.quantity || '').trim(),
+        amount: Number(item.amount),
+      }))
+      .filter((item) => item.item_name);
+    if (!shareItems.length) {
+      toast.warning('শেয়ার করার আগে অন্তত একটি আইটেমের নাম লিখুন।');
+      return;
+    }
+    const selectedBuyer = members.find((member) => member.membership_id === buyerId);
+    const buyerName = selectedBuyer?.member_name || (buyerId === ownMembershipId ? 'নিজের নামে' : 'নির্বাচিত সদস্য');
+    const dateLabel = entryDate
+      ? new Intl.DateTimeFormat('bn-BD', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Dhaka' })
+        .format(new Date(`${entryDate}T00:00:00+06:00`))
+      : 'তারিখ নির্ধারিত নয়';
+    const rows = shareItems.map((item, index) => `${index + 1}. ${item.item_name}\n   পরিমাণ: ${item.quantity || '—'} · টাকা: ${formatCurrency(Number.isFinite(item.amount) ? item.amount : 0)}`);
+    const shareText = [
+      '🛒 HOSTEL LIFE · বাজারের তালিকা',
+      `তারিখ: ${dateLabel}`,
+      `বাজারকারী: ${buyerName}`,
+      '',
+      ...rows,
+      '',
+      `সর্বমোট: ${formatCurrency(shareItems.reduce((sum, item) => sum + (Number.isFinite(item.amount) && item.amount > 0 ? item.amount : 0), 0))}`,
+    ].join('\n');
+
+    // Start clipboard access synchronously in the click handler, then invoke the
+    // native share sheet without losing the browser's user-activation context.
+    let clipboardTask = null;
+    try {
+      if (navigator.clipboard?.writeText) clipboardTask = navigator.clipboard.writeText(shareText).then(() => true).catch(() => false);
+    } catch { clipboardTask = Promise.resolve(false); }
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: 'Hostel Life · বাজারের তালিকা', text: shareText });
+        toast.success('বাজারের তালিকা শেয়ার করার জন্য প্রস্তুত।');
+        return;
+      } catch (error) {
+        if (error?.name === 'AbortError') {
+          const copied = clipboardTask ? await clipboardTask : false;
+          if (copied) toast.info('শেয়ার বাতিল হয়েছে। তালিকাটি ক্লিপবোর্ডে কপি করা হয়েছে।');
+          return;
+        }
+      }
+    }
+    const copied = clipboardTask ? await clipboardTask : false;
+    if (copied) toast.success('বাজারের তালিকা কপি হয়েছে। এখন পছন্দের অ্যাপে পেস্ট করে পাঠাতে পারবেন।');
+    else toast.error('শেয়ার বা কপি করা যায়নি। ব্রাউজারের Clipboard অনুমতি পরীক্ষা করুন।');
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -977,7 +1018,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
                 ref={(node) => { const key = `${index}:item_name`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
                 data-market-input-key={`${index}:item_name`}
                 className="market-input-item" value={item.item_name}
-                onChange={(e) => updateItem(index, { item_name: sanitizeMarketInput(e.target.value) }, e)}
+                onChange={(e) => updateItem(index, { item_name: sanitizeMarketInput(e.target.value) })}
                 onPaste={(e) => handleMarketItemPaste(e, index)}
                 onKeyDown={(e) => moveToNextMarketField(e, index, 'item_name')}
                 enterKeyHint="next" autoComplete="off" spellCheck={false} maxLength={160}
@@ -986,7 +1027,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
                 ref={(node) => { const key = `${index}:quantity`; if (node) marketInputRefs.current.set(key, node); else marketInputRefs.current.delete(key); }}
                 data-market-input-key={`${index}:quantity`}
                 className="market-input-quantity" value={item.quantity}
-                onChange={(e) => updateItem(index, { quantity: e.target.value }, e)}
+                onChange={(e) => updateItem(index, { quantity: e.target.value })}
                 onKeyDown={(e) => moveToNextMarketField(e, index, 'quantity')}
                 enterKeyHint="next" autoComplete="off"
                 placeholder="পরিমাণ" aria-label="পরিমাণ" />
@@ -995,7 +1036,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
                 data-market-input-key={`${index}:amount`}
                 type="number" min="0" step="0.01" inputMode="decimal" enterKeyHint="next"
                 className="market-input-amount" value={item.amount}
-                onChange={(e) => updateItem(index, { amount: e.target.value }, e)}
+                onChange={(e) => updateItem(index, { amount: e.target.value })}
                 onKeyDown={(e) => moveToNextMarketField(e, index, 'amount')}
                 placeholder="Amount" aria-label="টাকার পরিমাণ" />
               <button className="icon-button compact-icon" type="button" onClick={() => removeItem(index)} disabled={items.length === 1} aria-label="আইটেম মুছুন"><Icon name="x" size={15} /></button>
@@ -1019,6 +1060,9 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         )}
       </div>
 
+      <button className="secondary-button large market-short-share" type="button" disabled={busy || periodNotStarted || !items.some((item) => item.item_name.trim())} onClick={handleShortShare}>
+        <Icon name="share-2" size={17} /> শর্ট শেয়ার
+      </button>
       <button className="primary-button large dining-submit" type="button" disabled={busy || periodNotStarted} onClick={submit}>
         {busy ? 'বাজার সংরক্ষণ হচ্ছে...' : 'বাজার সংরক্ষণ করুন'}
       </button>

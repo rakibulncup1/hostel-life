@@ -50,7 +50,8 @@ test('market-entry inputs expose a stable focus path and keyboard Next navigatio
   assert.match(dining, /marketInputRefs = useRef\(new Map\(\)\)/);
   assert.match(dining, /enterKeyHint="next"/);
   assert.match(dining, /moveToNextMarketField/);
-  assert.match(dining, /document\.activeElement === document\.body/);
+  assert.doesNotMatch(dining, /document\.activeElement === document\.body|target\.focus\(\{ preventScroll: true \}\)/);
+  assert.match(dining, /const updateItem = \(index, patch\) =>/);
   assert.match(dining, /pendingMarketFocusIndexRef/);
 });
 

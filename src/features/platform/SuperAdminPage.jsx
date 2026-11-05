@@ -78,7 +78,7 @@ function DateTimeField({ id, label, value, onChange, min }) {
   const setCurrentTime = () => onChange(toDhakaDateTimeInput(new Date()));
   return (
     <div className="field-label platform-field platform-datetime-field">
-      <label htmlFor={id}>{label}</label>
+      <div className="platform-datetime-label-row"><label htmlFor={id}>{label}</label><small>বাংলাদেশ সময় · UTC+06:00</small></div>
       <div className="platform-datetime-control">
         <input id={id} type="datetime-local" step="60" value={value || ''} min={min || undefined} onChange={(event) => onChange(event.target.value)} />
         <button type="button" className="secondary-button compact" onClick={setCurrentTime} title="বর্তমান বাংলাদেশ সময় বসান">এখন</button>
@@ -2027,7 +2027,7 @@ export function SuperAdminPage({ user }) {
             <DateTimeField id="window-notice-starts-at" label="শুরুর সময় · বাংলাদেশ" value={communicationsDraft.window_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,starts_at:value}}))}/>
             <DateTimeField id="window-notice-ends-at" label="শেষের সময় · বাংলাদেশ" min={communicationsDraft.window_notice.starts_at || undefined} value={communicationsDraft.window_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,ends_at:value}}))}/>
           </div>
-          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.window_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
+          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.window_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,window_notice:{...current.window_notice,frequency:event.target.value}}))}><option value="once_per_device">এই ব্রাউজার/ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
           {windowNoticeInvalid && <p className="platform-communications-inline-error" role="alert">চালু নোটিশে শিরোনাম/বার্তা দিন এবং শেষের সময় শুরুর পরে রাখুন।</p>}
           <div className="platform-communications-card-footer"><small>শুধু এই Popup-এর তথ্য ও সময়সূচি সংরক্ষিত হবে।</small><button type="button" className="primary-button" onClick={()=>saveCommunicationSection('window_notice')} disabled={communicationsBusy||!communicationsLoaded||Boolean(windowNoticeInvalid)}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'বার্তা সংরক্ষণ করুন'}</button></div>
         </section>
@@ -2047,9 +2047,9 @@ export function SuperAdminPage({ user }) {
             <DateTimeField id="site-notice-starts-at" label="শুরুর সময় · বাংলাদেশ" value={communicationsDraft.site_notice.starts_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,starts_at:value}}))}/>
             <DateTimeField id="site-notice-ends-at" label="শেষের সময় · বাংলাদেশ" min={communicationsDraft.site_notice.starts_at || undefined} value={communicationsDraft.site_notice.ends_at} onChange={(value)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,ends_at:value}}))}/>
           </div>
-          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.site_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,frequency:event.target.value}}))}><option value="once_per_device">প্রতি ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
+          <label className="field-label"><span>কতবার দেখাবে</span><select value={communicationsDraft.site_notice.frequency} onChange={(event)=>setCommunicationsDraft((current)=>({...current,site_notice:{...current.site_notice,frequency:event.target.value}}))}><option value="once_per_device">এই ব্রাউজার/ডিভাইসে একবার</option><option value="once_per_day">প্রতিদিন একবার</option><option value="once_per_app_open">প্রতি ব্রাউজার সেশনে একবার</option></select></label>
           {siteNoticeInvalid && <p className="platform-communications-inline-error" role="alert">বিজ্ঞপ্তির ধরন অনুযায়ী লেখা/ছবি দিন এবং শেষের সময় শুরুর পরে রাখুন।</p>}
-          <div className="platform-communications-card-footer"><small>শুধু এই ওয়েবসাইট বিজ্ঞপ্তি/ব্যানার সংরক্ষিত হবে।</small><button type="button" className="primary-button" onClick={()=>saveCommunicationSection('site_notice')} disabled={communicationsBusy||communicationsImageBusy||!communicationsLoaded||Boolean(siteNoticeInvalid)}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'বিজ্ঞপ্তি সংরক্ষণ করুন'}</button></div>
+          <div className="platform-communications-card-footer"><small>দেখানোর সীমা এই ব্রাউজারের সংরক্ষিত তথ্য দিয়ে নিয়ন্ত্রিত হয়; সার্ভারে ব্যক্তিগত প্রদর্শন-গণনা রাখা হয় না।</small><button type="button" className="primary-button" onClick={()=>saveCommunicationSection('site_notice')} disabled={communicationsBusy||communicationsImageBusy||!communicationsLoaded||Boolean(siteNoticeInvalid)}>{communicationsBusy?'সংরক্ষণ হচ্ছে...':'বিজ্ঞপ্তি সংরক্ষণ করুন'}</button></div>
         </section>
       </div>}
     </>}

@@ -1,0 +1,131 @@
+/* Hostel Life internal experience polish: theme-safe entry, market and notices. */
+
+/* Auth and onboarding surfaces follow the selected application theme. */
+.auth-page .auth-form-panel .auth-header,
+.auth-page .auth-form-panel .auth-header > div,
+.auth-page .auth-form-intro,
+.onboarding-page .onboarding-brand-header,
+.onboarding-page .onboarding-choice-intro,
+.onboarding-page .onboarding-action-heading,
+.onboarding-page .onboarding-note,
+.onboarding-page .onboarding-action-panel,
+.onboarding-page .onboarding-mode-option,
+.onboarding-page .onboarding-account-switch-row {
+  color: var(--text);
+}
+.auth-page .auth-form-panel .auth-header .eyebrow,
+.auth-page .auth-form-panel .auth-header h2,
+.auth-page .auth-form-panel .auth-form-intro,
+.onboarding-page .onboarding-brand-header h1,
+.onboarding-page .onboarding-choice-intro h2,
+.onboarding-page .onboarding-action-heading h3 { color: var(--text) !important; }
+.auth-page .auth-form-panel .auth-header p,
+.auth-page .auth-form-intro span,
+.onboarding-page .onboarding-brand-header p,
+.onboarding-page .onboarding-choice-intro p,
+.onboarding-page .onboarding-action-heading p,
+.onboarding-page .onboarding-note { color: var(--muted) !important; }
+.auth-page .auth-form-intro { background: var(--surface-2) !important; border-color: var(--line) !important; }
+.auth-page .auth-form-panel .auth-header { background: transparent !important; }
+.auth-page .register-email-hint,
+.auth-page .register-email-note { color: var(--muted) !important; }
+.auth-page .auth-form-panel .auth-header h2 { line-height: 1.32; }
+@media (max-width: 700px) {
+  .auth-page { padding-inline: 12px; }
+  .auth-page .auth-shell,
+  .auth-page .auth-shell:not(.auth-shell-compact) { width: min(520px, 100%); }
+  .auth-page .auth-brand-panel { padding: 18px 18px 15px; }
+  .auth-page .auth-brand-mark { width: 48px; height: 48px; }
+  .auth-page .auth-brand-panel h1 { margin-top: 7px; font-size: clamp(18px, 5vw, 22px); }
+  .auth-page .auth-brand-panel p { margin-top: 5px; font-size: 11px; line-height: 1.5; }
+  .auth-page .auth-form-panel { padding: 18px 18px 22px; }
+  .auth-page .auth-form-panel .auth-header { margin-bottom: 15px; }
+  .auth-page .auth-form-panel .auth-header p { margin-top: 5px; line-height: 1.55; }
+}
+
+/* Onboarding success and inline states are also theme-token based. */
+.onboarding-main-card .creation-success-card .success-panel-icon { background: var(--primary-soft) !important; color: var(--primary-strong) !important; }
+.onboarding-main-card .creation-success-card .eyebrow { color: var(--primary-strong) !important; }
+.onboarding-main-card .creation-success-card h2 { color: var(--text) !important; }
+.onboarding-main-card .creation-success-card p { color: var(--muted) !important; }
+.onboarding-main-card .join-code-box { border: 1px dashed color-mix(in srgb, var(--primary) 48%, var(--line)) !important; background: var(--surface-2) !important; color: var(--text) !important; }
+.onboarding-main-card .join-code-box > span { color: var(--muted) !important; }
+.onboarding-main-card .join-code-box strong { color: var(--primary-strong) !important; }
+.onboarding-main-card .join-code-box .secondary-button { border-color: var(--line) !important; background: var(--surface) !important; color: var(--primary-strong) !important; }
+.onboarding-main-card .inline-success { border-color: color-mix(in srgb, var(--primary) 34%, var(--line)) !important; background: var(--primary-soft) !important; color: var(--primary-strong) !important; }
+.onboarding-main-card .state-card-warning { border-color: color-mix(in srgb, var(--warning) 32%, var(--line)) !important; background: var(--warning-soft) !important; color: var(--text) !important; }
+.onboarding-entry-form .field-label input { background: var(--surface) !important; color: var(--text) !important; border-color: var(--line) !important; }
+
+/* Excel/Sheets helper gets a consistent panel in light, blue and dark themes. */
+.market-paste-hint {
+  display: flex; align-items: flex-start; gap: 9px; min-width: 0;
+  margin: 0 0 12px; padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary-soft) 72%, var(--surface));
+  color: var(--muted); font-size: 12px; line-height: 1.65;
+}
+.market-paste-hint svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary); }
+.market-paste-hint strong { color: var(--text); font-weight: 850; }
+.market-short-share { width: 100%; min-height: 48px; justify-content: center; gap: 8px; margin: 14px 0 9px; border: 1px solid color-mix(in srgb, var(--primary) 38%, var(--line)); background: var(--primary-soft); color: var(--primary-strong); font-weight: 850; }
+.market-short-share:hover { background: color-mix(in srgb, var(--primary-soft) 68%, var(--primary)); border-color: var(--primary); color: var(--primary-strong); }
+.market-short-share:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 2px; }
+
+/* Shared accessible window shell for release, priority and scheduled notices. */
+.system-notice-backdrop {
+  position: fixed; inset: 0; z-index: 160; display: grid; place-items: center;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
+  background: rgba(5, 15, 10, .56); backdrop-filter: blur(7px);
+}
+.system-notice-dialog {
+  position: relative; display: grid; gap: 12px; width: min(100%, 500px);
+  max-height: min(86svh, 760px); overflow: auto; overscroll-behavior: contain;
+  padding: clamp(22px, 4vw, 30px); border: 1px solid var(--line); border-radius: 24px;
+  background: var(--surface); color: var(--text); box-shadow: 0 28px 80px rgba(0,0,0,.28);
+}
+.system-notice-close {
+  position: absolute; z-index: 2; top: 12px; right: 12px; display: grid; place-items: center;
+  width: 38px; height: 38px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface-2); color: var(--text); cursor: pointer;
+}
+.system-notice-close:hover { background: var(--primary-soft); color: var(--primary-strong); }
+.system-notice-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; background: var(--primary-soft); color: var(--primary-strong); }
+.system-notice-kicker { color: var(--primary-strong); font-size: 10px; font-weight: 900; letter-spacing: .08em; }
+.system-notice-dialog h2 { margin: 0; padding-right: 36px; color: var(--text); font-size: clamp(20px, 4.8vw, 25px); line-height: 1.35; font-weight: 900; overflow-wrap: anywhere; }
+.system-notice-description { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.system-notice-meta { color: var(--muted); font-size: 11px; }
+.system-notice-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 4px; }
+.system-notice-actions > .primary-button,
+.system-notice-actions > .secondary-button { flex: 1 1 155px; justify-content: center; min-height: 44px; }
+.system-notice-feature-list { display: grid; gap: 8px; max-height: min(38svh, 300px); overflow: auto; padding: 11px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-2); }
+.system-notice-feature { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 9px; align-items: start; padding: 9px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); }
+.system-notice-feature > span { display: grid; place-items: center; color: var(--primary-strong); }
+.system-notice-feature p { margin: 0; color: var(--text); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.system-notice-image-backdrop { padding: 12px; }
+.system-notice-image-dialog { position: relative; display: grid; place-items: center; width: min(100%, 1080px); max-height: 94svh; }
+.system-notice-image-dialog img { display: block; width: auto; max-width: 100%; max-height: 94svh; object-fit: contain; border-radius: 16px; box-shadow: 0 26px 90px rgba(0,0,0,.38); }
+.system-notice-image-dialog .system-notice-close { top: 10px; right: 10px; border-color: rgba(255,255,255,.42); background: rgba(8,18,14,.72); color: #fff; }
+@media (max-width: 560px) {
+  .system-notice-backdrop { padding: 12px; }
+  .system-notice-dialog { width: 100%; max-height: min(88svh, 760px); padding: 22px 17px 18px; border-radius: 20px; }
+  .system-notice-dialog h2 { font-size: 21px; }
+  .system-notice-description { font-size: 12px; }
+  .system-notice-feature-list { max-height: min(42svh, 320px); }
+  .system-notice-actions { display: grid; grid-template-columns: 1fr; }
+  .system-notice-actions > button { width: 100%; }
+  .system-notice-image-backdrop { padding: 8px; }
+  .system-notice-image-dialog img { max-height: 96svh; border-radius: 10px; }
+}
+
+/* Scheduling controls use Bangladesh wall-clock time explicitly, independent of
+   the administrator's computer timezone; the existing conversion remains intact. */
+.platform-datetime-label-row { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 5px 10px; }
+.platform-datetime-label-row > small { color: var(--muted); font-size: 10px; font-weight: 650; }
+.platform-datetime-control { display: grid !important; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 7px !important; }
+.platform-datetime-control input { min-width: 0; min-height: 44px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface) !important; color: var(--text) !important; padding: 9px 10px; font-size: 13px; color-scheme: light; }
+:root[data-theme="dark"] .platform-datetime-control input { color-scheme: dark; }
+:root[data-theme="blue"] .platform-datetime-control input { color-scheme: light; }
+.platform-datetime-control input:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 25%, transparent); border-color: var(--primary); }
+.platform-datetime-control .secondary-button { min-height: 42px; padding-inline: 13px; }
+.platform-datetime-clear { min-height: 40px; padding-inline: 7px; }
+@media (max-width: 640px) { .platform-datetime-control { grid-template-columns: minmax(0,1fr) auto; } .platform-datetime-clear { grid-column: 1 / -1; justify-self: end; min-height: 30px; } }

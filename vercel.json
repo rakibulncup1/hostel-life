@@ -2,10 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/",
-      "destination": "/about.html"
-    },
-    {
       "source": "/super-admin",
       "destination": "/index.html"
     },
@@ -241,6 +237,13 @@
           "value": "strict-origin-when-cross-origin"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/about",
+      "permanent": true
     }
   ]
 }

@@ -27,7 +27,7 @@ test('landing screenshots represent existing app flows without invented UI', () 
     assert.ok(dining.includes(phrase), `Dining module should include ${phrase}`);
   }
   assert.ok(history.includes('বাজার ইতিহাস') || history.includes('হিসাব ইতিহাস'));
-  assert.equal((html.match(/<img[^>]+src="\/landing-assets\//g) || []).length, 6);
+  assert.equal((html.match(/<img[^>]+src="\/landing-assets\//g) || []).length, 9);
   assert.doesNotMatch(html, /mock-sidebar|কৃত্রিম ডেমো ড্যাশবোর্ড/);
 });
 
@@ -76,7 +76,8 @@ test('public pages retain clean document routing and shared stylesheet paths', (
   const vite = read('vite.config.js');
   const vercel = JSON.parse(read('vercel.json'));
   assert.match(vite, /hostel-life-public-document-aliases/);
-  assert.ok(vercel.rewrites.some((row) => row.source === '/' && row.destination === '/about.html'));
+  assert.ok(vercel.redirects.some((row) => row.source === '/' && row.destination === '/about' && row.permanent === true));
+  assert.equal(vercel.rewrites.some((row) => row.source === '/' && row.destination === '/about.html'), false);
   for (const route of ['/about', '/privacy-policy', '/terms-of-service']) {
     assert.ok(vercel.rewrites.some((row) => row.source === route));
   }

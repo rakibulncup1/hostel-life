@@ -32,11 +32,12 @@ test('communication windows are not marked as seen until the user dismisses them
 });
 
 test('communication dialog remains keyboard dismissible and traps focus accessibly', () => {
-  assert.match(overlay, /event\.key === 'Escape'/);
-  assert.match(overlay, /event\.key === 'Tab'/);
-  assert.match(overlay, /dialogRef\.current\?\.querySelectorAll/);
-  assert.match(overlay, /className="platform-communication-close"/);
-  assert.match(overlay, /aria-modal="true"/);
+  const dialog = read('src/components/SystemNoticeDialog.jsx');
+  assert.match(dialog, /event\.key === 'Escape'/);
+  assert.match(dialog, /event\.key !== 'Tab'/);
+  assert.match(dialog, /dialogRef\.current\?\.querySelectorAll/);
+  assert.match(dialog, /aria-modal="true"/);
+  assert.match(overlay, /<SystemNoticeDialog/);
 });
 
 test('global system banner stays pinned for every user until Super Admin disables it', () => {
@@ -48,7 +49,8 @@ test('global system banner stays pinned for every user until Super Admin disable
 });
 
 test('priority system messages also have a visible close control connected to acknowledgement', () => {
-  assert.match(shell, /className="release-notice-close" onClick=\{dismissPriorityMessage\}/);
+  assert.match(shell, /onClose=\{dismissPriorityMessage\}/);
+  assert.match(shell, /actions=\{<button type="button" className="primary-button" onClick=\{dismissPriorityMessage\}/);
 });
 
 test('communications editor explains scheduling, previews release notes and fails closed on every reload error', () => {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '../components/Header';
 import { Icon } from '../components/Icon';
-import { BrandMark } from '../components/BrandMark';
 import { BottomNav } from '../components/BottomNav';
 import { MenuDrawer } from '../components/MenuDrawer';
 import { NotificationsPopover } from '../components/NotificationsPopover';
@@ -19,6 +18,7 @@ import { fetchPlatformPublicSettings, PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT } f
 import { getMyTelegramNotificationStatus } from '../services/telegramService';
 import { TelegramLogo } from '../components/TelegramLogo';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
+import { SystemNoticeDialog } from '../components/SystemNoticeDialog';
 
 export function keyToPath(key) {
   return `/app/${key}`;
@@ -62,12 +62,12 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [unreadCount, setUnreadCount] = useState(0);
   const [pinnedManagerNotice, setPinnedManagerNotice] = useState(null);
   const [platformSettings, setPlatformSettings] = useState(null);
+  const [platformSettingsReadyForUser, setPlatformSettingsReadyForUser] = useState('');
   const unreadFetchInFlightRef = useRef(null);
   const platformSettingsRefreshAtRef = useRef(0);
   const [theme, setTheme] = useState(() => getThemePreference());
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
   const [releaseNoticeOpen, setReleaseNoticeOpen] = useState(false);
-  const [releaseFeaturesOpen, setReleaseFeaturesOpen] = useState(false);
   const [telegramNudgeOpen, setTelegramNudgeOpen] = useState(false);
   const [priorityMessages, setPriorityMessages] = useState([]);
   const priorityMessageIdsRef = useRef(new Set());
@@ -81,9 +81,16 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   useEffect(() => {
     let active = true;
     const loadSettings = (force = false) => fetchPlatformPublicSettings({ force }).then((settings) => {
-      if (active) setPlatformSettings(settings || null);
-    }).catch(() => { /* Older database deployments have no platform settings endpoint yet. */ });
-    loadSettings();
+      if (active) {
+        setPlatformSettings(settings || null);
+        setPlatformSettingsReadyForUser(user?.id || '');
+      }
+    }).catch(() => {
+      // Release prompting may proceed with a compact notice if the public settings
+      // endpoint is unavailable; never wait indefinitely or show stale feature text.
+      if (active) { setPlatformSettings(null); setPlatformSettingsReadyForUser(user?.id || ''); }
+    });
+    loadSettings(true);
     const refreshLocal = () => { loadSettings(true); };
     const refreshWhenVisible = () => {
       const now = Date.now();
@@ -125,7 +132,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   }, [theme]);
 
   useEffect(() => {
-    if (!user?.id || !APP_RELEASE?.id) return;
+    if (!user?.id || !APP_RELEASE?.id || platformSettingsReadyForUser !== user.id) return;
     const deviceKey = 'hostel-life-device-last-seen-release-v2';
     const legacyUserKey = `hostel-life-last-seen-release-v1:${user.id}`;
     let lastDeviceRelease = '';
@@ -147,14 +154,13 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       return;
     }
     if (lastDeviceRelease !== APP_RELEASE.id) setReleaseNoticeOpen(true);
-  }, [user?.id]);
+  }, [user?.id, platformSettingsReadyForUser]);
 
   const markReleaseSeen = () => {
     const key = 'hostel-life-device-last-seen-release-v2';
     try { localStorage.setItem(key, APP_RELEASE.id); }
     catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* no persistent storage available */ } }
     setReleaseNoticeOpen(false);
-    setReleaseFeaturesOpen(false);
   };
 
   const dismissReleaseNotice = markReleaseSeen;
@@ -486,44 +492,40 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         </section>
       </div>}
 
-      {releaseNoticeOpen && <div className="release-notice-backdrop" role="presentation">
-        <section className="release-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="release-notice-title">
-          <button type="button" className="release-notice-close" onClick={dismissReleaseNotice} aria-label="বন্ধ করুন">×</button>
-          <span className="release-notice-icon"><Icon name="refresh-cw" size={20}/></span>
-          <span className="eyebrow">HOSTEL LIFE · নতুন সংস্করণ</span>
-          <h2 id="release-notice-title">সিস্টেম আপডেট হয়েছে</h2>
-          <p>নতুন সংস্করণ ব্যবহার করতে একবার রিফ্রেশ করুন।</p>
-          <small>আপডেটের সময়: {new Date(APP_RELEASE.builtAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small>
-          <div className="release-notice-actions"><button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button>{platformSettings?.communications?.release_notes_published && (platformSettings?.communications?.release_notes || []).length > 0 && <button type="button" className="secondary-button release-features-trigger" onClick={() => setReleaseFeaturesOpen(true)}>নতুন ফিচারসমূহ</button>}<button type="button" className="text-button release-dismiss" onClick={dismissReleaseNotice}>পরে করব</button></div>
-        </section>
-      </div>}
+      {releaseNoticeOpen && (() => {
+        const communications = platformSettings?.communications;
+        const releaseNotes = communications?.release_notes_published === true && Array.isArray(communications?.release_notes)
+          ? communications.release_notes.filter((line) => String(line || '').trim()) : [];
+        const hasPublishedNotes = releaseNotes.length > 0;
+        return <SystemNoticeDialog
+          kicker="HOSTEL LIFE · নতুন সংস্করণ"
+          icon="refresh-cw"
+          title={hasPublishedNotes ? 'এই আপডেটে যা নতুন' : 'সিস্টেম আপডেট হয়েছে'}
+          description={hasPublishedNotes ? 'আপনার ব্যবহারের সুবিধায় নতুন পরিবর্তনগুলো দেখে নিন।' : 'নতুন সংস্করণ ব্যবহার করতে একবার রিফ্রেশ করুন।'}
+          meta={`সংস্করণ প্রকাশ: ${new Date(APP_RELEASE.builtAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}`}
+          onClose={dismissReleaseNotice}
+          actions={<>
+            <button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button>
+            <button type="button" className="secondary-button" onClick={dismissReleaseNotice}>পরে করব</button>
+          </>}
+        >
+          {hasPublishedNotes && <div className="system-notice-feature-list">{releaseNotes.map((feature, index) => <article className="system-notice-feature" key={`${index}-${feature}`}><span><Icon name="check-circle" size={17}/></span><p>{feature}</p></article>)}</div>}
+        </SystemNoticeDialog>;
+      })()}
 
-      {priorityMessages.length > 0 && !releaseNoticeOpen && !installNudgeOpen && <div className="priority-message-backdrop" role="presentation">
-        <section className="priority-message-dialog" role="dialog" aria-modal="true" aria-labelledby="priority-message-title">
-          <button type="button" className="release-notice-close" onClick={dismissPriorityMessage} aria-label="বার্তা বন্ধ করুন" title="বন্ধ করুন"><Icon name="x" size={18}/></button>
-          <span className="priority-message-icon"><Icon name="bell" size={21}/></span>
-          <span className="eyebrow">HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা</span>
-          <h2 id="priority-message-title">{priorityMessages[0].title || 'আপনার জন্য একটি বার্তা'}</h2>
-          <p>{priorityMessages[0].body}</p>
-          <small>{new Date(priorityMessages[0].created_at).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small>
-          <div className="priority-message-actions"><button type="button" className="primary-button" onClick={dismissPriorityMessage}>বুঝেছি</button></div>
-        </section>
-      </div>}
-
-      {releaseFeaturesOpen && <div className="release-features-backdrop" role="presentation">
-        <section className="release-features-dialog" role="dialog" aria-modal="true" aria-labelledby="release-features-title">
-          <button type="button" className="release-notice-close" onClick={() => setReleaseFeaturesOpen(false)} aria-label="বন্ধ করুন">×</button>
-          <span className="release-notice-icon release-brand-icon"><BrandMark size={42}/></span>
-          <span className="eyebrow">HOSTEL LIFE · আপডেট</span>
-          <h2 id="release-features-title">নতুন ফিচারসমূহ</h2>
-          <div className="release-features-list">{(platformSettings?.communications?.release_notes || []).map((feature, index) => <article className="release-feature-row" key={`${index}-${feature}`}><span><Icon name="check-circle" size={17}/></span><p>{feature}</p></article>)}</div>
-          <div className="release-notice-actions"><button type="button" className="primary-button" onClick={() => setReleaseFeaturesOpen(false)}>ফিরে যান</button></div>
-        </section>
-      </div>}
+      {priorityMessages.length > 0 && !releaseNoticeOpen && !installNudgeOpen && <SystemNoticeDialog
+        kicker="HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা"
+        icon="bell"
+        title={priorityMessages[0].title || 'আপনার জন্য একটি বার্তা'}
+        description={priorityMessages[0].body}
+        meta={new Date(priorityMessages[0].created_at).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}
+        onClose={dismissPriorityMessage}
+        actions={<button type="button" className="primary-button" onClick={dismissPriorityMessage}>বুঝেছি</button>}
+      />}
 
       <PlatformCommunicationOverlays
         communications={platformSettings?.communications}
-        blocked={releaseNoticeOpen || releaseFeaturesOpen || installNudgeOpen || telegramNudgeOpen || priorityMessages.length > 0}
+        blocked={releaseNoticeOpen || installNudgeOpen || telegramNudgeOpen || priorityMessages.length > 0}
       />
     </div>
   );
