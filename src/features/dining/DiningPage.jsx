@@ -901,44 +901,66 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
     try { window.sessionStorage.removeItem(marketShareStorageKey); } catch { /* session storage may be unavailable */ }
   };
 
-  const copyShareSummary = async () => {
+  const copyAndShareSavedMarket = async () => {
     if (!shareSummary?.text) return;
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareSummary.text);
-        toast.success('বাজারের তালিকা কপি হয়েছে।');
-        return;
-      }
-      const temporary = document.createElement('textarea');
-      temporary.value = shareSummary.text;
-      temporary.setAttribute('readonly', '');
-      temporary.style.position = 'fixed';
-      temporary.style.opacity = '0';
-      document.body.appendChild(temporary);
-      temporary.select();
-      const copied = document.execCommand('copy');
-      temporary.remove();
-      if (copied) toast.success('বাজারের তালিকা কপি হয়েছে।');
-      else throw new Error('Clipboard copy was not available.');
-    } catch (error) {
-      toast.error('তালিকাটি কপি করা যায়নি। ব্রাউজারের Clipboard অনুমতি পরীক্ষা করুন।');
-    }
-  };
 
-  const shareSavedMarket = async () => {
-    if (!shareSummary?.text) return;
+    // Start clipboard writing immediately in the click gesture, before opening
+    // the native share sheet. Some browsers require transient user activation.
+    let copyPromise;
+    if (navigator.clipboard?.writeText) {
+      copyPromise = navigator.clipboard.writeText(shareSummary.text).then(
+        () => true,
+        () => false,
+      );
+    } else {
+      let copied = false;
+      try {
+        const temporary = document.createElement('textarea');
+        temporary.value = shareSummary.text;
+        temporary.setAttribute('readonly', '');
+        temporary.style.position = 'fixed';
+        temporary.style.opacity = '0';
+        document.body.appendChild(temporary);
+        temporary.select();
+        copied = document.execCommand('copy');
+        temporary.remove();
+      } catch {
+        copied = false;
+      }
+      copyPromise = Promise.resolve(copied);
+    }
+
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'Hostel Life · বাজারের তালিকা', text: shareSummary.text });
-        toast.success('বাজারের তালিকা শেয়ার করা হয়েছে।');
+        // Invoke share before awaiting clipboard completion so the browser's
+        // user-activation requirement is preserved for the native share sheet.
+        const sharePromise = navigator.share({
+          title: 'Hostel Life · বাজারের তালিকা',
+          text: shareSummary.text,
+        });
+        await sharePromise;
+        const copied = await copyPromise;
+        toast.success(copied
+          ? 'বাজারের তালিকা কপি ও শেয়ার করা হয়েছে।'
+          : 'বাজারের তালিকা শেয়ার করা হয়েছে।');
       } catch (error) {
-        if (error?.name !== 'AbortError') {
-          toast.info('সরাসরি শেয়ার করা যায়নি। তালিকাটি কপি করে পাঠাতে পারেন।');
+        const copied = await copyPromise;
+        if (error?.name === 'AbortError') {
+          if (copied) toast.success('বাজারের তালিকা কপি হয়েছে।');
+          return;
+        }
+        if (copied) {
+          toast.info('তালিকা কপি হয়েছে। চাইলে অন্য মাধ্যমে পাঠাতে পারেন।');
+        } else {
+          toast.error('তালিকাটি কপি বা শেয়ার করা যায়নি। আবার চেষ্টা করুন।');
         }
       }
       return;
     }
-    await copyShareSummary();
+
+    const copied = await copyPromise;
+    if (copied) toast.success('বাজারের তালিকা কপি হয়েছে।');
+    else toast.error('তালিকাটি কপি করা যায়নি। ব্রাউজারের Clipboard অনুমতি পরীক্ষা করুন।');
   };
 
   const submit = async (event) => {
@@ -1088,10 +1110,11 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         icon="check-circle"
         title="বাজারের তালিকা প্রস্তুত"
         onClose={closeShareSummary}
-        actions={<>
-          <button className="primary-button" type="button" onClick={shareSavedMarket}><Icon name="share-2" size={16}/> শেয়ার করুন</button>
-          <button className="secondary-button" type="button" onClick={copyShareSummary}><Icon name="copy" size={16}/> কপি করুন</button>
-        </>}
+        actions={
+          <button className="primary-button" type="button" onClick={copyAndShareSavedMarket}>
+            <Icon name="copy" size={16}/> কপি এন্ড শেয়ার
+          </button>
+        }
       >
         <pre className="market-share-preview">{shareSummary.text}</pre>
       </SystemNoticeDialog>}

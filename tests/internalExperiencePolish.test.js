@@ -32,14 +32,16 @@ test('short share is generated only after a successful market save and persists 
   assert.match(submit, /setShareSummary\(nextShareSummary\)/);
   assert.match(submit, /sessionStorage\.setItem\(marketShareStorageKey/);
   assert.ok(submit.indexOf('await createMarketEntry(') < submit.indexOf('setShareSummary(nextShareSummary)'));
-  assert.match(marketForm, /navigator\.share\(\{ title: 'Hostel Life · বাজারের তালিকা', text: shareSummary\.text \}\)/);
+  assert.match(marketForm, /navigator\.share\(\{[\s\S]*?title: 'Hostel Life · বাজারের তালিকা',[\s\S]*?text: shareSummary\.text/);
   assert.match(marketForm, /navigator\.clipboard\.writeText\(shareSummary\.text\)/);
+  assert.match(marketForm, /const copyAndShareSavedMarket = async/);
   assert.match(marketForm, /buildMarketShareText\(\{/);
   assert.match(marketShare, /`তারিখ : \${dateLabel}`/);
   assert.match(marketShare, /`বাজারকারী: \${getMarketBuyerFirstName\(buyerName\)}`/);
   assert.match(marketShare, /`টোটাল বাজার = \${formatNumber/);
   assert.match(marketForm, /<SystemNoticeDialog/);
-  assert.match(marketForm, /শেয়ার করুন/);
+  assert.match(marketForm, /কপি এন্ড শেয়ার/);
+  assert.match(marketForm, /onClick=\{copyAndShareSavedMarket\}/);
   assert.doesNotMatch(marketForm, /market-short-share/);
 });
 

@@ -62,8 +62,8 @@ test('summary survives returning from native share but is cleared on a browser r
   assert.match(form, /sessionStorage\.setItem\(marketShareStorageKey/);
   assert.match(form, /sessionStorage\.removeItem\(marketShareStorageKey\)/);
   assert.match(form, /getEntriesByType\?\.\('navigation'\)/);
-  assert.match(form, /await navigator\.share\(\{ title: 'Hostel Life · বাজারের তালিকা', text: shareSummary\.text \}\)/);
-  assert.match(form, /if \(error\?\.name !== 'AbortError'\)/);
+  assert.match(form, /navigator\.share\(\{[\s\S]*?title: 'Hostel Life · বাজারের তালিকা',[\s\S]*?text: shareSummary\.text/);
+  assert.match(form, /if \(error\?\.name === 'AbortError'\)/);
 
   const values = new Map();
   const storage = {
@@ -92,8 +92,20 @@ test('market entry drafts remain memory-only and the share dialog uses only its 
   assert.match(dialog, /onClose=\{closeShareSummary\}/);
   assert.doesNotMatch(dialog, /description=/);
   assert.doesNotMatch(dialog, /বন্ধ করুন/);
-  assert.match(dialog, /শেয়ার করুন/);
-  assert.match(dialog, /কপি করুন/);
+  assert.match(dialog, /কপি এন্ড শেয়ার/);
+  assert.match(dialog, /onClick=\{copyAndShareSavedMarket\}/);
+  assert.equal((dialog.match(/<button\b/g) || []).length, 1, 'share dialog has one combined action button');
+  assert.doesNotMatch(dialog, /শেয়ার করুন|কপি করুন/);
+
+  const actionStart = form.indexOf('const copyAndShareSavedMarket = async');
+  const actionEnd = form.indexOf('const submit = async', actionStart);
+  assert.ok(actionStart >= 0 && actionEnd > actionStart);
+  const action = form.slice(actionStart, actionEnd);
+  assert.match(action, /if \(navigator\.clipboard\?\.writeText\)/);
+  assert.match(action, /navigator\.clipboard\.writeText\(shareSummary\.text\)/);
+  assert.match(action, /navigator\.share\(\{/);
+  assert.ok(action.indexOf('navigator.share({') < action.indexOf('await copyPromise'), 'native share is invoked before awaiting clipboard write');
+  assert.match(action, /কপি ও শেয়ার করা হয়েছে/);
 });
 
 test('plain multiline item-name paste is preserved as one item, while TSV still imports multiple rows', () => {
