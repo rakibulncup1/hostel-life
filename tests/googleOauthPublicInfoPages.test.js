@@ -48,13 +48,13 @@ test('terms allow public app URL sharing while protecting private Join Codes and
   assert.doesNotMatch(appTerms, /ওয়েবসাইটের লিংক প্রকাশ্যে শেয়ার নিষিদ্ধ/);
 });
 
-test('Vercel redirects the root to the public About page before SPA rewrites', () => {
+test('Vercel serves the public About document at the root before SPA rewrites', () => {
   const config = JSON.parse(read('vercel.json'));
   const rewrites = config.rewrites;
   const catchAll = rewrites.findIndex((rule) => rule.source === '/(.*)');
   assert.notEqual(catchAll, -1);
-  assert.ok(config.redirects.some((rule) => rule.source === '/' && rule.destination === '/about' && rule.permanent === true));
-  assert.equal(rewrites.some((rule) => rule.source === '/' && rule.destination === '/about.html'), false);
+  assert.ok(rewrites.some((rule) => rule.source === '/' && rule.destination === '/about.html'));
+  assert.equal((config.redirects || []).some((rule) => rule.source === '/' && rule.destination === '/about'), false);
   for (const route of ['/about', '/privacy-policy', '/terms-of-service']) {
     const index = rewrites.findIndex((rule) => rule.source === route);
     assert.notEqual(index, -1, `${route} rewrite should exist`);

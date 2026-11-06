@@ -520,12 +520,13 @@ export async function platformAdminGetSecurityOverviewV2() {
   return firstRow(data) || data || {};
 }
 
-export async function platformAdminListSecurityEventsV2({ eventType = null, ipSearch = null, countryCode = null, from = null, to = null, limit = 30, offset = 0 } = {}) {
+export async function platformAdminListSecurityEventsV3({ eventType = null, ipSearch = null, countryCode = null, locationSearch = null, from = null, to = null, limit = 30, offset = 0 } = {}) {
   assertSupabase();
-  const { data, error } = await supabase.rpc('platform_admin_list_security_events_v2', {
+  const { data, error } = await supabase.rpc('platform_admin_list_security_events_v3', {
     p_event_type: eventType || null,
     p_ip_search: ipSearch || null,
     p_country_code: countryCode || null,
+    p_location_search: locationSearch || null,
     p_from: from || null,
     p_to: to || null,
     p_limit: Number(limit) || 30,
@@ -534,6 +535,9 @@ export async function platformAdminListSecurityEventsV2({ eventType = null, ipSe
   if (error) throw error;
   return firstRow(data) || data || { items: [], total_count: 0 };
 }
+
+// Retain the old export as a compatibility alias for any remaining callers.
+export const platformAdminListSecurityEventsV2 = platformAdminListSecurityEventsV3;
 
 export async function platformAdminListSecurityIpBlocks({ scope = null, limit = 30, offset = 0 } = {}) {
   assertSupabase();

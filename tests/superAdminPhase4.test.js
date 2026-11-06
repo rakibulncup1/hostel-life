@@ -6,6 +6,7 @@ import path from 'node:path';
 const root = process.cwd();
 const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 const sql = read('supabase/migrations/Run35_super_admin_security_retention_telegram_sessions.sql');
+const geoSql = read('supabase/migrations/Run36_security_geo_location_and_localhost_diagnostics.sql');
 const page = read('src/features/platform/SuperAdminPage.jsx');
 const service = read('src/services/platformService.js');
 const auth = read('src/services/authService.js');
@@ -105,9 +106,10 @@ test('Activity date filters convert Bangladesh-local boundaries and distinguish 
 
 test('Country attribution uses only trusted Cloudflare country header and only two-letter ISO-like codes', () => {
   assert.match(telemetry, /cf-ipcountry/);
-  assert.match(telemetry, /p_country_code: countryCode/);
+  assert.match(telemetry, /countryCode: \/\^\[A-Z\]\{2\}\$\/.test\(countryHeader\)/);
+  assert.match(telemetry, /p_country_code: location\.countryCode/);
   assert.doesNotMatch(telemetry, /x-forwarded-for/i);
-  assert.match(sql, /country_code ~ '\^\[A-Z\]\{2\}\$'/);
+  assert.match(geoSql, /v_country !~ '\^\[A-Z\]\{2\}\$'/);
 });
 
 test('Auth app gate checks trusted Cloudflare IP and refuses to trust arbitrary forwarding headers', () => {

@@ -3,7 +3,7 @@
 // Deploy with verify_jwt=false; service-role access remains server-only.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = '2026-11-06-auth-security-telemetry-3';
+const VERSION = '2026-11-06-auth-security-telemetry-4-geo';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
@@ -96,6 +96,25 @@ function normalizeEmail(value: unknown): string | null {
     ? email : null;
 }
 
+function safeLocationHeader(request: Request, name: string, maxLength: number): string | null {
+  const raw = request.headers.get(name)?.trim() ?? '';
+  if (!raw || raw.length > maxLength * 2) return null;
+  const value = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength);
+  return value || null;
+}
+
+// Optional location labels are display-only. Do not use them for security decisions
+// unless a separately authenticated proxy has cryptographically verified them.
+function visitorLocation(request: Request) {
+  const countryHeader = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
+  return {
+    countryCode: /^[A-Z]{2}$/.test(countryHeader) && countryHeader !== 'XX' ? countryHeader : null,
+    city: safeLocationHeader(request, 'cf-ipcity', 100),
+    region: safeLocationHeader(request, 'cf-region', 100),
+    regionCode: safeLocationHeader(request, 'cf-region-code', 20),
+  };
+}
+
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin') ?? '';
@@ -144,11 +163,12 @@ Deno.serve(async (request) => {
   });
 
   // Read-only health check. The deliberately invalid event type is rejected
-  // by Run35 with SQLSTATE 22023 before any insert; that proves the v2 RPC exists
+  // by Run36 with SQLSTATE 22023 before any insert; that proves the geo-aware v3 RPC exists
   // and is callable without creating a synthetic Security Event.
   if (request.method === 'GET') {
     try {
-      const { error } = await admin.rpc('hl_record_public_security_event_v2', {
+      const location = visitorLocation(request);
+      const { error } = await admin.rpc('hl_record_public_security_event_v3', {
         p_event_type: '__hostel_life_health_check__',
         p_identity_fingerprint: null,
         p_ip_fingerprint: null,
@@ -156,9 +176,13 @@ Deno.serve(async (request) => {
         p_failure_code: null,
         p_user_agent: null,
         p_request_origin: normalizedOrigin,
+        p_country_code: location.countryCode,
+        p_city: location.city,
+        p_region: location.region,
+        p_region_code: location.regionCode,
       });
       if (error?.code === '22023') {
-        return response({ ready: true, database_rpc_ready: true, version: VERSION }, 200, origin, origins);
+        return response({ ready: true, database_rpc_ready: true, city_header_available: Boolean(location.city), region_header_available: Boolean(location.region), country_header_available: Boolean(location.countryCode), version: VERSION }, 200, origin, origins);
       }
       const rpcMissing = error?.code === '42883' || error?.code === 'PGRST202' || /could not find the function|function .* does not exist/i.test(error?.message ?? '');
       const code = rpcMissing ? 'TELEMETRY_RPC_MISSING' : 'TELEMETRY_DATABASE_UNAVAILABLE';
@@ -192,11 +216,10 @@ Deno.serve(async (request) => {
   const ipFingerprint = ip ? await hmacFingerprint(`ip:${ip}`, hmacSecret) : null;
   const failureCode = typeof body.failure_code === 'string' && ALLOWED_FAILURE_CODES.has(body.failure_code)
     ? body.failure_code : null;
-  const countryHeader = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
-  const countryCode = /^[A-Z]{2}$/.test(countryHeader) && countryHeader !== 'XX' ? countryHeader : null;
+  const location = visitorLocation(request);
 
   try {
-    const { data, error } = await admin.rpc('hl_record_public_security_event_v2', {
+    const { data, error } = await admin.rpc('hl_record_public_security_event_v3', {
       p_event_type: eventType,
       p_identity_fingerprint: identityFingerprint,
       p_ip_fingerprint: ipFingerprint,
@@ -204,7 +227,10 @@ Deno.serve(async (request) => {
       p_failure_code: failureCode,
       p_user_agent: request.headers.get('user-agent')?.slice(0, 512) ?? null,
       p_request_origin: normalizedOrigin,
-      p_country_code: countryCode,
+      p_country_code: location.countryCode,
+      p_city: location.city,
+      p_region: location.region,
+      p_region_code: location.regionCode,
     });
     if (error) {
       console.error('record-auth-event database write failed', {

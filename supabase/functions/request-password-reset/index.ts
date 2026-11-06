@@ -4,7 +4,7 @@
 // Never expose SUPABASE_SERVICE_ROLE_KEY or PASSWORD_RESET_HMAC_SECRET to clients.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const FUNCTION_VERSION = '2026-11-06-password-reset-quota-and-ip-gate-2';
+const FUNCTION_VERSION = '2026-11-06-password-reset-quota-and-ip-gate-3-geo';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'http://localhost:5173',
@@ -100,9 +100,23 @@ function trustedProxyIp(request: Request): string | null {
   const ip = request.headers.get('cf-connecting-ip')?.trim() ?? '';
   return (validIpv4(ip) || validIpv6(ip)) ? ip : null;
 }
-function trustedCountryCode(request: Request): string | null {
+function safeLocationHeader(request: Request, name: string, maxLength: number): string | null {
+  const raw = request.headers.get(name)?.trim() ?? '';
+  if (!raw || raw.length > maxLength * 2) return null;
+  const value = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength);
+  return value || null;
+}
+
+// City/region are optional display metadata from request headers; they are not
+// cryptographically authenticated and must never influence the IP security gate.
+function visitorLocationMetadata(request: Request) {
   const country = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
-  return /^[A-Z]{2}$/.test(country) && country !== 'XX' ? country : null;
+  return {
+    countryCode: /^[A-Z]{2}$/.test(country) && country !== 'XX' ? country : null,
+    city: safeLocationHeader(request, 'cf-ipcity', 100),
+    region: safeLocationHeader(request, 'cf-region', 100),
+    regionCode: safeLocationHeader(request, 'cf-region-code', 20),
+  };
 }
 
 function isValidEmail(value: unknown): value is string {
@@ -179,7 +193,7 @@ Deno.serve(async (request) => {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   const requestIp = trustedProxyIp(request);
-  const countryCode = trustedCountryCode(request);
+  const location = visitorLocationMetadata(request);
   if (!requestIp) {
     return jsonResponse({ code: 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
   }
@@ -187,9 +201,12 @@ Deno.serve(async (request) => {
   try {
     // Network-level app protection is independent of the per-email quota. The
     // third request from a trusted IP in one hour starts a one-hour IP block.
-    const { data: ipGateData, error: ipGateError } = await admin.rpc('hl_consume_password_reset_ip_request', {
+    const { data: ipGateData, error: ipGateError } = await admin.rpc('hl_consume_password_reset_ip_request_v2', {
       p_request_ip: requestIp,
-      p_country_code: countryCode,
+      p_country_code: location.countryCode,
+      p_city: location.city,
+      p_region: location.region,
+      p_region_code: location.regionCode,
     });
     if (ipGateError) {
       console.error('request-password-reset IP gate failed', { request_id: requestId, code: ipGateError.code, message: ipGateError.message });
@@ -278,8 +295,9 @@ Deno.serve(async (request) => {
     }
 
     // Do not place the email or password in Security Log. The event only records
-    // that the Auth email request was accepted, with trusted network metadata.
-    const { error: securityLogError } = await admin.rpc('hl_record_public_security_event_v2', {
+    // that the Auth email request was accepted, with trusted ingress IP and optional
+    // unverified display-only location metadata.
+    const { error: securityLogError } = await admin.rpc('hl_record_public_security_event_v3', {
       p_event_type: 'password_reset_requested',
       p_identity_fingerprint: null,
       p_ip_fingerprint: null,
@@ -287,7 +305,10 @@ Deno.serve(async (request) => {
       p_failure_code: null,
       p_user_agent: request.headers.get('user-agent')?.slice(0, 512) ?? null,
       p_request_origin: normalizedOrigin,
-      p_country_code: countryCode,
+      p_country_code: location.countryCode,
+      p_city: location.city,
+      p_region: location.region,
+      p_region_code: location.regionCode,
     });
     if (securityLogError) console.error('password reset success telemetry failed', { request_id: requestId, code: securityLogError.code });
 

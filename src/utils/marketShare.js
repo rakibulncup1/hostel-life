@@ -32,35 +32,32 @@ export function buildMarketShareText({ entryDate, buyerName, items = [], total =
   ].join('\n');
 }
 
+/**
+ * Restore a just-saved market share summary while navigating within the same
+ * tab. A browser refresh intentionally clears it, matching the form UX contract.
+ */
+export function readMarketShareSummary({ storage, storageKey, navigationType } = {}) {
+  if (!storage || typeof storage.getItem !== 'function' || typeof storageKey !== 'string' || !storageKey) return null;
 
-// Preserve a completed market summary while the user briefly switches to a
-// native share target, but do not resurrect it after an explicit page reload.
-export function readMarketShareSummary({
-  storage,
-  storageKey,
-  navigationType = 'navigate',
-  now = Date.now(),
-  maxAgeMs = 12 * 60 * 60 * 1000,
-} = {}) {
-  if (!storage || !storageKey) return null;
+  if (navigationType === 'reload') {
+    try { storage.removeItem(storageKey); } catch { /* storage may be unavailable */ }
+    return null;
+  }
 
   try {
-    if (navigationType === 'reload') {
+    const raw = storage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed.text !== 'string' || !parsed.text.trim()) {
       storage.removeItem(storageKey);
       return null;
     }
-
-    const saved = storage.getItem(storageKey);
-    if (!saved) return null;
-
-    const parsed = JSON.parse(saved);
-    const savedAt = Number(parsed?.savedAt);
-    if (typeof parsed?.text !== 'string' || !parsed.text || !Number.isFinite(savedAt) || savedAt > now || now - savedAt > maxAgeMs) {
+    const savedAt = Number(parsed.savedAt);
+    if (!Number.isFinite(savedAt) || savedAt <= 0) {
       storage.removeItem(storageKey);
       return null;
     }
-
-    return parsed;
+    return { text: parsed.text.slice(0, 12000), savedAt };
   } catch {
     try { storage.removeItem(storageKey); } catch { /* storage may be unavailable */ }
     return null;
