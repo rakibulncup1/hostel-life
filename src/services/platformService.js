@@ -563,6 +563,8 @@ export async function platformAdminCheckSecurityTelemetry() {
     ...telemetry,
     auth_gate_ready: authGate?.ready === true && authGate?.protection_available === true,
     auth_gate_ip_available: authGate?.client_ip_available === true,
+    auth_gate_geo_proxy_verified: authGate?.geo_proxy_verified === true,
+    auth_gate_geo_source: authGate?.geo_source || null,
     auth_gate_version: authGate?.version || null,
     auth_gate_code: authGate?.code || (authGateResult.status === 'rejected' ? 'AUTH_GATE_UNAVAILABLE' : null),
   };

@@ -1,12 +1,24 @@
 // Deploy with JWT verification enabled. Never expose the service role key in the browser.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const FUNCTION_VERSION = '2026-11-06-orphan-bulk-delete-2';
+const FUNCTION_VERSION = '2026-11-06-orphan-bulk-delete-3-api-keys';
 const AUTH_PAGE_SIZE = 50;
 const AUTH_PAGES_PER_BATCH = 10; // up to 500 Auth users per visible batch
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Vary': 'Origin' };
 const reply = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: cors });
 const isUuid = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
+
+function defaultApiKey(mapName: string): string {
+  const raw = Deno.env.get(mapName)?.trim() ?? '';
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw);
+    const value = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>).default : null;
+    return typeof value === 'string' ? value.trim() : '';
+  } catch { return ''; }
+}
+const publishableKey = () => defaultApiKey('SUPABASE_PUBLISHABLE_KEYS') || Deno.env.get('SUPABASE_ANON_KEY')?.trim() || '';
+const secretKey = () => defaultApiKey('SUPABASE_SECRET_KEYS') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() || '';
 
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
@@ -16,8 +28,8 @@ Deno.serve(async (request) => {
   try {
     const jwt = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
     const url = Deno.env.get('SUPABASE_URL') || '';
-    const anon = Deno.env.get('SUPABASE_ANON_KEY') || '';
-    const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+    const anon = publishableKey();
+    const service = secretKey();
     if (!jwt || !url || !anon || !service) {
       return reply({ error: 'AUTH_OR_CONFIG_UNAVAILABLE', message: 'লগইন সেশন অথবা Edge Function-এর server configuration অনুপস্থিত।', request_id: requestId }, 401);
     }

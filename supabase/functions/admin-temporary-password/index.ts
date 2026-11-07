@@ -1,7 +1,20 @@
 // Deploy with JWT verification enabled. Never expose SUPABASE_SERVICE_ROLE_KEY to the browser.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const FUNCTION_VERSION = '2026-10-29-final-repair-1';
+
+function defaultApiKey(mapName: string): string {
+  const raw = Deno.env.get(mapName)?.trim() ?? '';
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw);
+    const value = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>).default : null;
+    return typeof value === 'string' ? value.trim() : '';
+  } catch { return ''; }
+}
+const publishableKey = () => defaultApiKey('SUPABASE_PUBLISHABLE_KEYS') || Deno.env.get('SUPABASE_ANON_KEY')?.trim() || '';
+const secretKey = () => defaultApiKey('SUPABASE_SECRET_KEYS') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() || '';
+
+const FUNCTION_VERSION = '2026-11-06-admin-temporary-password-2-api-keys';
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -23,12 +36,12 @@ Deno.serve(async (req) => {
   try {
     const jwt = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') ?? '';
     const url = Deno.env.get('SUPABASE_URL') ?? '';
-    const anon = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-    const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const anon = publishableKey();
+    const service = secretKey();
     if (!jwt) return json({ error: 'AUTH_REQUIRED', message: 'Super Admin সেশন পাওয়া যায়নি। পুনরায় লগইন করুন।', request_id: requestId }, 401);
     if (!url || !anon || !service) {
       console.error('admin-temporary-password configuration missing', { request_id: requestId, has_url: Boolean(url), has_anon_key: Boolean(anon), has_service_role_key: Boolean(service) });
-      return json({ error: 'SERVER_CONFIG_MISSING', message: 'Edge Function-এর SUPABASE_URL, SUPABASE_ANON_KEY বা SUPABASE_SERVICE_ROLE_KEY কনফিগারেশন অনুপস্থিত।', request_id: requestId }, 503);
+      return json({ error: 'SERVER_CONFIG_MISSING', message: 'Edge Function-এর Supabase URL বা publishable/secret key configuration অনুপস্থিত।', request_id: requestId }, 503);
     }
 
     const caller = createClient(url, anon, {

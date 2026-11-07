@@ -53,8 +53,8 @@ test('Vercel serves the public About document at the root before SPA rewrites', 
   const rewrites = config.rewrites;
   const catchAll = rewrites.findIndex((rule) => rule.source === '/(.*)');
   assert.notEqual(catchAll, -1);
-  assert.ok(rewrites.some((rule) => rule.source === '/' && rule.destination === '/about.html'));
-  assert.equal((config.redirects || []).some((rule) => rule.source === '/' && rule.destination === '/about'), false);
+  assert.ok((config.redirects || []).some((rule) => rule.source === '/' && rule.destination === '/about' && rule.permanent === true));
+  assert.ok(rewrites.some((rule) => rule.source === '/about' && rule.destination === '/about.html' && rewrites.indexOf(rule) < catchAll));
   for (const route of ['/about', '/privacy-policy', '/terms-of-service']) {
     const index = rewrites.findIndex((rule) => rule.source === route);
     assert.notEqual(index, -1, `${route} rewrite should exist`);

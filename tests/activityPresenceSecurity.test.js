@@ -14,6 +14,7 @@ const platformService = fs.readFileSync(path.join(root, 'src/services/platformSe
 const adminPage = fs.readFileSync(path.join(root, 'src/features/platform/SuperAdminPage.jsx'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase/functions/record-auth-event/index.ts'), 'utf8');
 const edgeConfig = fs.readFileSync(path.join(root, 'supabase/config.toml'), 'utf8');
+const geoProxy = fs.readFileSync(path.join(root, 'supabase/functions/_shared/geoProxy.ts'), 'utf8');
 
 test('Run27 is additive, bounded and avoids destructive business-data operations', () => {
   assert.match(migration, /BEGIN;/);
@@ -39,7 +40,7 @@ test('Presence records real login/logout separately from throttled Last Seen', (
   assert.match(migration, /FROM private\.hl_login_sessions WHERE user_id=v_user_id/);
   assert.match(authContext, /event === 'SIGNED_IN'/);
   assert.match(authContext, /hl_record_my_login/);
-  assert.match(authContext, /60 \* 1000/);
+  assert.match(authContext, /5 \* 60 \* 1000/);
   assert.match(authContext, /hl_touch_my_presence/);
   assert.match(authContext, /hl_record_my_logout/);
 });
@@ -81,7 +82,10 @@ test('Public auth telemetry is origin-limited, event-allowlisted and cannot bloc
   assert.match(edgeConfig, /\[functions\.record-auth-event\][\s\S]*?verify_jwt = false/);
   assert.match(edge, /ALLOWED_EVENTS/);
   assert.match(edge, /ORIGIN_NOT_ALLOWED/);
-  assert.match(edge, /trustedProxyIp/);
+  assert.match(edge, /resolveTrustedVisitor/);
+  assert.match(edge, /resolveTrustedVisitor\(request, 'record-auth-event'\)/);
+  assert.match(geoProxy, /request\.headers\.get\('cf-connecting-ip'\)/);
+  assert.match(geoProxy, /HMAC/);
   assert.match(edge, /Telemetry failure must never interfere with the actual Supabase Auth flow/);
   assert.match(migration, /v_ip_count >= 60/);
   assert.match(migration, /Some gateway\/auth flows may not expose a trustworthy client IP/);
@@ -108,7 +112,7 @@ test('Run27 preserves legacy private-schema access while keeping telemetry table
 test('Presence is interaction-based, throttled heartbeat, and logout-aware', () => {
   assert.match(authContext, /lastInteractionAt/);
   assert.match(authContext, /pointerdown/);
-  assert.match(authContext, /visibilityState === 'hidden'/);
+  assert.match(authContext, /visibilityState !== 'hidden'/);
   assert.match(migration, /ls\.last_logout_at IS NULL AND ls\.last_seen_at>=now\(\)-interval '20 minutes'/);
   assert.match(migration, /interval '20 minutes'/);
 });
@@ -149,8 +153,9 @@ test('Telemetry has both per-IP and global ingestion caps', () => {
   assert.match(migration, /global_telemetry_rate_limited/);
   assert.match(migration, />= 1000/);
   assert.match(migration, /v_ip_count >= 60/);
-  assert.match(edge, /cf-connecting-ip/);
-  assert.doesNotMatch(edge, /x-forwarded-for/);
+  assert.match(edge, /resolveTrustedVisitor/);
+  assert.match(geoProxy, /cf-connecting-ip/);
+  assert.doesNotMatch(geoProxy, /x-forwarded-for/i);
   assert.doesNotMatch(migration, /x-forwarded-for/);
 });
 
@@ -201,7 +206,8 @@ test('All interactive password verification flows use monitored sign-in service'
 test('Presence heartbeat resumes immediately after a prolonged idle period', () => {
   assert.match(authContext, /const wasIdle = now - lastInteractionAt > 20 \* 60 \* 1000/);
   assert.match(authContext, /if \(wasIdle\) heartbeat\(\)/);
-  assert.match(authContext, /setInterval\(heartbeat, 60 \* 1000\)/);
+  assert.match(authContext, /setInterval\(verifySessionPolicy, 60 \* 1000\)/);
+  assert.match(authContext, /setInterval\(touchPresence, 5 \* 60 \* 1000\)/);
 });
 
 test('Security event retention notice matches event-triggered cleanup behavior', () => {

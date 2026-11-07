@@ -2,8 +2,9 @@
 // attempts. It never authenticates a user, blocks login, or receives a password.
 // Deploy with verify_jwt=false; service-role access remains server-only.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const VERSION = '2026-11-06-auth-security-telemetry-4-geo';
+const VERSION = '2026-11-06-auth-security-telemetry-6-signed-geo';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
@@ -25,15 +26,12 @@ function allowedOrigins(): string[] {
 }
 
 function serviceRoleKey(): string {
-  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
-  if (legacy) return legacy;
-  // Supabase is introducing SUPABASE_SECRET_KEYS while retaining legacy keys.
+  // Prefer Supabase's current named secret key; retain legacy fallback during transition.
   try {
     const parsed = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
-    return typeof parsed?.default === 'string' ? parsed.default.trim() : '';
-  } catch {
-    return '';
-  }
+    if (typeof parsed?.default === 'string' && parsed.default.trim()) return parsed.default.trim();
+  } catch { /* Fall through to the legacy key. */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
 }
 
 function response(body: Record<string, unknown>, status: number, origin: string, origins: string[]): Response {
@@ -50,36 +48,6 @@ function response(body: Record<string, unknown>, status: number, origin: string,
   return new Response(JSON.stringify(body), { status, headers });
 }
 
-function isIpv4(value: string): boolean {
-  const pieces = value.split('.');
-  return pieces.length === 4 && pieces.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
-}
-
-function isIpv6(value: string): boolean {
-  if (!value.includes(':') || !/^[0-9a-fA-F:.]+$/.test(value)) return false;
-  if (value.includes(':::')) return false;
-  const doubleColonCount = (value.match(/::/g) ?? []).length;
-  if (doubleColonCount > 1) return false;
-  const doubleColon = doubleColonCount === 1;
-  const pieces = value.split(':');
-  const nonEmpty = pieces.filter(Boolean);
-  const ipv4Tail = nonEmpty.length > 0 && nonEmpty[nonEmpty.length - 1].includes('.');
-  if (ipv4Tail) {
-    if (!isIpv4(nonEmpty[nonEmpty.length - 1])) return false;
-    nonEmpty[nonEmpty.length - 1] = 'ipv4';
-  }
-  const groups = nonEmpty.reduce((count, item) => count + (item === 'ipv4' ? 2 : 1), 0);
-  return doubleColon ? groups < 8 : groups === 8;
-}
-
-function trustedProxyIp(request: Request): string | null {
-  // Supabase Edge Functions run behind Cloudflare. Use only its ingress header;
-  // generic forwarding headers may be supplied by a caller and are not trusted.
-  const ip = request.headers.get('cf-connecting-ip')?.trim() ?? '';
-  if (!ip || ip.length > 45 || !(isIpv4(ip) || isIpv6(ip))) return null;
-  return ip;
-}
-
 async function hmacFingerprint(value: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -94,25 +62,6 @@ function normalizeEmail(value: unknown): string | null {
   const email = value.trim().toLowerCase();
   return email.length >= 5 && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
     ? email : null;
-}
-
-function safeLocationHeader(request: Request, name: string, maxLength: number): string | null {
-  const raw = request.headers.get(name)?.trim() ?? '';
-  if (!raw || raw.length > maxLength * 2) return null;
-  const value = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength);
-  return value || null;
-}
-
-// Optional location labels are display-only. Do not use them for security decisions
-// unless a separately authenticated proxy has cryptographically verified them.
-function visitorLocation(request: Request) {
-  const countryHeader = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
-  return {
-    countryCode: /^[A-Z]{2}$/.test(countryHeader) && countryHeader !== 'XX' ? countryHeader : null,
-    city: safeLocationHeader(request, 'cf-ipcity', 100),
-    region: safeLocationHeader(request, 'cf-region', 100),
-    regionCode: safeLocationHeader(request, 'cf-region-code', 20),
-  };
 }
 
 Deno.serve(async (request) => {
@@ -161,18 +110,22 @@ Deno.serve(async (request) => {
   const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
+  const visitor = await resolveTrustedVisitor(request, 'record-auth-event');
+  if (!visitor.ok) {
+    return response({ accepted: false, ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
+  }
 
   // Read-only health check. The deliberately invalid event type is rejected
   // by Run36 with SQLSTATE 22023 before any insert; that proves the geo-aware v3 RPC exists
   // and is callable without creating a synthetic Security Event.
   if (request.method === 'GET') {
     try {
-      const location = visitorLocation(request);
+      const location = visitor.location;
       const { error } = await admin.rpc('hl_record_public_security_event_v3', {
         p_event_type: '__hostel_life_health_check__',
         p_identity_fingerprint: null,
         p_ip_fingerprint: null,
-        p_request_ip: null,
+        p_request_ip: visitor.ip,
         p_failure_code: null,
         p_user_agent: null,
         p_request_origin: normalizedOrigin,
@@ -182,7 +135,7 @@ Deno.serve(async (request) => {
         p_region_code: location.regionCode,
       });
       if (error?.code === '22023') {
-        return response({ ready: true, database_rpc_ready: true, city_header_available: Boolean(location.city), region_header_available: Boolean(location.region), country_header_available: Boolean(location.countryCode), version: VERSION }, 200, origin, origins);
+        return response({ ready: true, database_rpc_ready: true, client_ip_available: Boolean(visitor.ip), geo_proxy_verified: visitor.proxyVerified, geo_source: visitor.source, city_header_available: Boolean(location.city), region_header_available: Boolean(location.region), country_header_available: Boolean(location.countryCode), version: VERSION }, 200, origin, origins);
       }
       const rpcMissing = error?.code === '42883' || error?.code === 'PGRST202' || /could not find the function|function .* does not exist/i.test(error?.message ?? '');
       const code = rpcMissing ? 'TELEMETRY_RPC_MISSING' : 'TELEMETRY_DATABASE_UNAVAILABLE';
@@ -212,11 +165,11 @@ Deno.serve(async (request) => {
   }
   const email = normalizeEmail(body.email);
   const identityFingerprint = email ? await hmacFingerprint(`identity:${email}`, hmacSecret) : null;
-  const ip = trustedProxyIp(request);
+  const ip = visitor.ip;
   const ipFingerprint = ip ? await hmacFingerprint(`ip:${ip}`, hmacSecret) : null;
   const failureCode = typeof body.failure_code === 'string' && ALLOWED_FAILURE_CODES.has(body.failure_code)
     ? body.failure_code : null;
-  const location = visitorLocation(request);
+  const location = visitor.location;
 
   try {
     const { data, error } = await admin.rpc('hl_record_public_security_event_v3', {

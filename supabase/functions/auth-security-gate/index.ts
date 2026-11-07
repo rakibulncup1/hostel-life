@@ -2,8 +2,9 @@
 // This checks the trusted Cloudflare ingress IP before calling Supabase Auth.
 // It does not proxy GoTrue; direct requests to the public Auth endpoint may bypass it.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const VERSION = '2026-11-06-auth-security-gate-1';
+const VERSION = '2026-11-06-auth-security-gate-3-signed-geo';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
@@ -16,49 +17,12 @@ function allowedOrigins(): string[] {
   return [...new Set(values.map((value) => value.replace(/\/$/, '')))];
 }
 function serverKey(): string {
-  const legacy = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
-  if (legacy) return legacy;
+  // Prefer the current named secret key; keep legacy compatibility during migration.
   try {
     const parsed = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
-    return typeof parsed?.default === 'string' ? parsed.default.trim() : '';
-  } catch { return ''; }
-}
-function validIpv4(value: string): boolean {
-  const parts = value.split('.');
-  return parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
-}
-function validIpv6(value: string): boolean {
-  if (!value.includes(':') || value.length > 45 || value.includes(':::')) return false;
-  let normalized = value;
-  if (value.includes('.')) {
-    const separator = value.lastIndexOf(':');
-    if (separator < 0 || !validIpv4(value.slice(separator + 1))) return false;
-    normalized = `${value.slice(0, separator)}:ipv4`;
-  }
-  if (!/^[0-9a-fA-F:]+$/.test(normalized.replace('ipv4', 'a'))) return false;
-  const compressedParts = normalized.split('::');
-  if (compressedParts.length > 2) return false;
-  const parseSide = (side: string): number | null => {
-    if (!side) return 0;
-    const groups = side.split(':');
-    let count = 0;
-    for (const group of groups) {
-      if (group === 'ipv4') count += 2;
-      else if (/^[0-9a-fA-F]{1,4}$/.test(group)) count += 1;
-      else return null;
-    }
-    return count;
-  };
-  const left = parseSide(compressedParts[0]);
-  const right = compressedParts.length === 2 ? parseSide(compressedParts[1]) : 0;
-  if (left === null || right === null) return false;
-  const groups = left + right;
-  return compressedParts.length === 2 ? groups < 8 : groups === 8;
-}
-function trustedProxyIp(request: Request): string | null {
-  // Never trust X-Forwarded-For or a browser-supplied IP field.
-  const ip = request.headers.get('cf-connecting-ip')?.trim() ?? '';
-  return (validIpv4(ip) || validIpv6(ip)) ? ip : null;
+    if (typeof parsed?.default === 'string' && parsed.default.trim()) return parsed.default.trim();
+  } catch { /* Fall through to the legacy key. */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() ?? '';
 }
 function respond(body: Record<string, unknown>, status: number, origin: string, origins: string[]): Response {
   const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', Vary: 'Origin' });
@@ -93,10 +57,13 @@ Deno.serve(async (request) => {
     // Check this request's trusted ingress IP. A NULL probe deliberately reports
     // protection_available=false, so using it here would make every healthy gate
     // appear unavailable in the Super Admin health panel.
-    const healthIp = trustedProxyIp(request);
-    const { data, error } = await admin.rpc('hl_check_auth_ip_block', { p_request_ip: healthIp });
+    const visitor = await resolveTrustedVisitor(request, 'auth-security-gate');
+    if (!visitor.ok || !visitor.ip) {
+      return respond({ ready: false, database_rpc_ready: false, client_ip_available: false, protection_available: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', geo_proxy_verified: false, request_id: requestId, version: VERSION }, 503, origin, origins);
+    }
+    const { data, error } = await admin.rpc('hl_check_auth_ip_block', { p_request_ip: visitor.ip });
     if (error) return respond({ ready: false, database_rpc_ready: false, code: 'AUTH_GATE_RPC_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
-    const clientIpAvailable = Boolean(healthIp);
+    const clientIpAvailable = Boolean(visitor.ip);
     const protectionAvailable = clientIpAvailable && data?.protection_available === true;
     return respond({
       ready: true,
@@ -105,11 +72,17 @@ Deno.serve(async (request) => {
       protection_available: protectionAvailable,
       blocked: data?.blocked === true,
       retry_at: data?.blocked_until || null,
+      geo_proxy_verified: visitor.proxyVerified,
+      geo_source: visitor.source,
+      city_header_available: Boolean(visitor.location.city),
+      region_header_available: Boolean(visitor.location.region),
+      country_header_available: Boolean(visitor.location.countryCode),
       version: VERSION,
     }, 200, origin, origins);
   }
-  const ip = trustedProxyIp(request);
-  if (!ip) return respond({ allowed: false, protection_available: false, code: 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তা যাচাইয়ের জন্য নির্ভরযোগ্য Client IP পাওয়া যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId, version: VERSION }, 503, origin, origins);
+  const visitor = await resolveTrustedVisitor(request, 'auth-security-gate');
+  const ip = visitor.ip;
+  if (!visitor.ok || !ip) return respond({ allowed: false, protection_available: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তা যাচাইয়ের জন্য নির্ভরযোগ্য Client IP পাওয়া যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId, version: VERSION }, 503, origin, origins);
   const { data, error } = await admin.rpc('hl_check_auth_ip_block', { p_request_ip: ip });
   if (error) {
     console.error('auth-security-gate database lookup failed', { request_id: requestId, code: error.code, message: error.message });

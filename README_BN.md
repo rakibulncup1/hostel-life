@@ -1,138 +1,163 @@
-# Hostel Life — Notification Hub, Release Notice & Telegram Patch V9
+# Hostel Life — Final Database & Frontend Completion Package
 
-এই প্যাচটি বর্তমান V8 কোডের ওপর Incremental Patch। এটি সম্পূর্ণ Project ZIP নয়।
+এই প্যাকেজটি তোমার ইতিমধ্যে প্রয়োগ করা **Baseline + পূর্বের Feature Patch + Super Admin Phase 1 + Phase 2 + Run36**-এর ওপর incremental overlay। এটি পুরো Project ZIP নয়। Run34, Run35 বা Run36 আবার চালানোর প্রয়োজন নেই। এই ZIP-এ একটিমাত্র নতুন Database migration আছে: **Run37**। Run38-এর Worker/Frontend/Edge Function অংশে কোনো SQL নেই।
 
-## ১. প্যাচের ভিত্তি ও ক্রম
+## ১. প্রথমে নিরাপত্তা
 
-প্রয়োগের ভিত্তি:
+1. বর্তমান Production project ও Database backup নাও। Backup file তৈরি হলেই যথেষ্ট নয়—SHA/manifest যাচাই এবং সম্ভব হলে আলাদা Staging Project-এ restore rehearsal করো।
+2. Supabase Dashboard → Integrations → Cron-এ `pg_cron` Enable আছে কি না দেখো। 2026-11-05 snapshot-এ এটি enabled ছিল না। Migration extension নিজে install করে না; Enable না থাকলে preflight-এ থেমে যাবে এবং transaction rollback হবে।
+3. ZIP Extract করে Project Root-এ Overlay করো। কোনো `.env`, `node_modules`, `dist` বা user file replace করবে না।
+4. নিচের dependency order মেনে চলো।
 
-`Hostel Life(2).zip → V1 → V2 → V3 → V4 → V5 → V6 → V7 → V8 → V9`
+## ২. একটিমাত্র নতুন SQL Migration — Run37
 
-V9-এর নতুন Database Migration হলো `supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql`। এটি Run30-এর পরে প্রয়োগ করতে হবে। আগের প্রয়োজনীয় Migration/patch এখনো প্রয়োগ না করা থাকলে সরাসরি Run31 চালাবেন না।
+File: `supabase/migrations/Run37_final_operational_database_completion.sql`
 
-## ২. কী যুক্ত হয়েছে
+এই Final package-এর **একমাত্র নতুন SQL migration**। এটি একবার Supabase SQL Editor-এ Project Owner/postgres role দিয়ে চালাবে। Run34, Run35, Run36 বা পুরোনো split Run37 SQL/setup file আবার চালাবে না। 2026-11-05-এর Database snapshot-এ `supabase_migrations.schema_migrations` history table ছিল না; তাই এই project-এ migration history reconcile না করে `supabase db push` চালাবে না—এই নির্দিষ্ট SQL Supabase SQL Editor-এ চালাবে।
 
-### Release Update Notice
+Run37 preflight পরীক্ষা করবে:
+- `pg_cron`-এর `cron.job`, `cron.job_run_details` ও `cron.schedule(text,text,text)` আছে কি না।
+- Run35 retention tables এবং প্রতিটি timestamp column সঠিক type-এ আছে কি না।
 
-- Build সময় ও Commit ID Vite build-এর সময় অ্যাপের মধ্যে embed হয়।
-- ব্যবহারকারী প্রতি নতুন Build-এ একবার ছোট Update Dialog দেখেন।
-- সময় Asia/Dhaka অনুযায়ী দেখা যায়; Refresh অথবা পরে করার সুযোগ থাকে।
-- এ জন্য কোনো নতুন Database table, API request, polling বা log নেই।
+এরপর একই transaction-এ private maintenance function তৈরি ও দুটি নির্দিষ্ট Cron job schedule/update করে:
 
-### Super Admin বার্তা
+| Job | UTC schedule | বাংলাদেশ সময় |
+|---|---:|---:|
+| `hostel-life-platform-log-retention-30d` | `15 21 * * *` | প্রতিদিন 03:15 |
+| `hostel-life-cron-history-retention-7d` | `45 21 * * *` | প্রতিদিন 03:45 |
 
-- Super Admin একটি নির্দিষ্ট মেসের সব সক্রিয় সদস্য অথবা ওই মেসের নির্বাচিত সদস্যদের বার্তা দিতে পারবেন।
-- Database আগে যাচাই করে নির্বাচিত প্রত্যেক প্রাপক ওই মেসের সক্রিয় ও Block না হওয়া সদস্য কি না; একটি ID-ও ভুল হলে কোনো বার্তা insert হবে না।
-- বার্তা বিদ্যমান `notifications` Inbox-এ সংরক্ষিত হয় এবং অ্যাপে লগইন/পরবর্তী refresh-এ অগ্রাধিকার Popup দেখায়।
-- Global Platform Notice আপডেট হলে সেটিও বিদ্যমান Inbox-এ system notice হিসেবে যায়। Manager Notice-এর বর্তমান pinned আচরণ বজায় থাকে।
+একই exact job name-এ pg_cron পুনরায় schedule করলে বিদ্যমান job update হয়; duplicate job তৈরি করার উদ্দেশ্য নেই। তবুও migration একবার চালাও। Supabase Cron Dashboard-এ Job ও Run History দেখা যাবে।
 
-### Telegram Notification Provider
+### Run37 ঠিক কী মুছবে
 
-- Telegram সম্পূর্ণ ঐচ্ছিক। ব্যবহারকারী নিজে সংযোগ না করলে তার কাছে Telegram বার্তা যাবে না।
-- Notification-এর জন্য একটি কেন্দ্রীয় Database hook আছে; ভবিষ্যতের নতুন `notifications` INSERT-ও একই Delivery Layer-এ যাবে। আলাদা আলাদা feature-এ Telegram কোড যোগ করতে হবে না।
-- Telegram Chat ID, Telegram User ID ও ঐচ্ছিক Username Server-side private table-এ থাকে। Browser-এ Bot Token/Webhook Secret আসে না।
-- সংযোগ Token ৩২ random byte (৬৪ hex character); Database-এ raw token নয়, শুধু SHA-256 hash রাখা হয়; ১০ মিনিটে মেয়াদ শেষ এবং একবার ব্যবহারের পর বাতিল।
-- Delivery Outbox-এ শুধু notification ID, recipient ID, status, attempt ও সীমিত error code থাকে—message body, Chat ID বা Bot Token নয়। Outbox/Batch metadata ৭ দিন পর প্রথম দৈনিক Notification INSERT-এর সময় পরিষ্কার হয়। কোনো Cron/Polling দরকার নেই।
-- একটি Database INSERT-এ সর্বোচ্চ ১০০ প্রাপকের ID নিয়ে একটি batch হয়; বড় insert একাধিক batch-এ ভাগ হয়। প্রতিটি batch-এ একটি Edge Function invocation লাগে। Telegram API-তে অবশ্য প্রত্যেক opt-in ব্যবহারকারীর জন্য আলাদা `sendMessage` request লাগে।
-- Provider setting `disabled` থাকলে নতুন Telegram outbox/batch তৈরি হয় না। In-App Notification স্বাভাবিকভাবে কাজ করে।
-- Provider architecture কেন্দ্রীয়; ভবিষ্যতে অন্য Provider যোগ করতে নতুন backend adapter/permission/migration লাগবে—শুধু UI থেকে নাম পাল্টালেই হবে না।
+- `private.hl_activity_events`: ৩০ দিনের বেশি পুরোনো row
+- `private.hl_security_events`: ৩০ দিনের বেশি পুরোনো row
+- `private.hl_security_ip_blocks`: block শেষ হওয়ার ৩০ দিনেরও বেশি পরে থাকা row
+- `private.hl_password_reset_ip_attempts`: ৪৮ ঘণ্টার বেশি পুরোনো row
+- `private.password_reset_request_log`: ৩৫ দিনের বেশি পুরোনো HMAC quota row (৫টি/ক্যালেন্ডার-মাস quota ধরে রাখার জন্য)
+- `cron.job_run_details`: কেবল এই দুইটি Hostel Life job-এর ৭ দিনের বেশি পুরোনো history
 
-## ৩. Run31 Migration
+**মুছবে না:** `public.platform_audit_log`, Hostel/Member/Market/Meal/Financial records, Auth users, session/device history, Storage objects। Canonical Super Admin audit log ইচ্ছাকৃতভাবে আলাদা রাখা হয়েছে; Run27-এর DELETE-to-Activity mirror trigger-এর কারণে এই সংস্করণে সেটি স্বয়ংক্রিয়ভাবে delete করা নিরাপদ নয়।
 
-ফাইল:
+Run37-এর insert-trigger cleanup এবং দৈনিক cleanup একই advisory lock `728194650175` নেয়; overlapping cleanup এড়ানোর জন্য এটি ইচ্ছাকৃত।
 
-`supabase/migrations/Run31_notification_hub_and_telegram_delivery.sql`
+## ৩. একটিমাত্র Final Database Verification SQL
 
-এটি নতুন Provider/Channel/Link Token/Outbox/Batch টেবিল, `notifications.notification_kind`, প্রয়োজনীয় RPC, বিদ্যমান notification RPC-এর compatibility update এবং statement-level delivery trigger তৈরি করে। কোনো পুরোনো ব্যবসায়িক হিসাব, মিল, বাজার, সদস্যপদ বা Notification row মুছে ফেলে না। শুধু মেয়াদোত্তীর্ণ একবারের Telegram link token এবং ৭ দিনের বেশি পুরোনো delivery metadata পরিষ্কার হয়।
+File: `supabase/verify/Verify_Final_Database_Clearance.sql`
 
-**Production-এ চালানোর আগে:**
+Run37 সফল হওয়ার পরে একবার চালাও। এটি Read-only; DDL/DML/GRANT/REVOKE, cron schedule বা data পরিবর্তন করে না। Run34, Run35, Run36, Run37-এর গুরুত্বপূর্ণ object, permission, RLS, geo columns ও দুই Cron job পরীক্ষা করে। প্রত্যাশিত Summary: `0 failed` এবং `PASS`।
 
-1. তোমার সম্পূর্ণ Database Backup নাও।
-2. আলাদা Staging Supabase Project-এ Baseline থেকে প্রয়োজনীয় আগের Migration (বিশেষ করে Run28, Run29, Run30) এবং Run31 ক্রমানুসারে প্রয়োগ করে পরীক্ষা করো।
-3. Run31-এর SQL Editor output-এ Error নেই নিশ্চিত করো। এই প্যাচ তৈরির পরিবেশে Postgres Runtime/`psql` ছিল না; SQL Static Review ও Contract Tests হয়েছে, Live DB-তে Run31 execute করা হয়নি।
-4. Staging পরীক্ষা সফল হলে Production-এ Run31 একবার চালাও। কোনো Error হলে output দেখে কারণ নির্ণয় না করে একই Migration বারবার চালিও না।
+কোনো `FAIL` এলে SQL আবার চালিও না। Output CSV/text সংরক্ষণ করো এবং কারণ যাচাই না করে পরবর্তী ধাপে যেও না।
 
-## ৪. Telegram হাতে সেটআপ — একবারের কাজ
+## ৪. Edge Function — একবার deploy
 
-Telegram ব্যবহার করতে না চাইলে এই অংশ বাদ দিতে পারো। Telegram Provider ডিফল্টভাবে `disabled`; সেটি চালু না করলে কোনো Telegram Delivery হবে না।
+এই package-এ পরিবর্তিত Function source:
+- `auth-security-gate`
+- `record-auth-event`
+- `request-password-reset`
+- `admin-delete-unlinked-user`
+- `admin-temporary-password`
+- `complete-temporary-password`
 
-### ধাপ A — Bot তৈরি ও Secret প্রস্তুত
-
-1. Telegram-এর BotFather দিয়ে একটি Bot তৈরি করো এবং Bot Token সংগ্রহ করো।
-2. দুটি আলাদা ৩২-byte random hexadecimal secret তৈরি করো:
-   - `TELEGRAM_WEBHOOK_SECRET` — Telegram থেকে আসা Bot update যাচাইয়ের জন্য।
-   - `NOTIFICATION_DISPATCH_WEBHOOK_SECRET` — Database Webhook থেকে Dispatcher Function-এ অনুরোধ যাচাইয়ের জন্য।
-3. এগুলো Supabase Project-এর Edge Function Secrets-এ রাখো:
-   - `TELEGRAM_BOT_TOKEN`
-   - `TELEGRAM_WEBHOOK_SECRET`
-   - `NOTIFICATION_DISPATCH_WEBHOOK_SECRET`
-
-**কোনো Token/Secret Frontend `.env`, GitHub, SQL Migration, বা Browser-এ রাখবে না।** আলাদা দুটি Secret একই মানের হবে না।
-
-### ধাপ B — Edge Function Deploy
-
-Project root থেকে PowerShell-এ (নিজের Project Ref বসিয়ে):
+Project root থেকে:
 
 ```powershell
-npx supabase functions deploy telegram-bot-webhook --project-ref <PROJECT_REF> --no-verify-jwt
-npx supabase functions deploy telegram-notification-dispatch --project-ref <PROJECT_REF> --no-verify-jwt
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy auth-security-gate --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy record-auth-event --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy request-password-reset --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy admin-delete-unlinked-user --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy admin-temporary-password --project-ref YOUR_PROJECT_REF
+npx supabase functions deploy complete-temporary-password --project-ref YOUR_PROJECT_REF
 ```
 
-Functions-এর `verify_jwt=false`; তার বদলে প্রত্যেক Function নিজস্ব Secret Header যাচাই করে।
+JWT Verification (`supabase/config.toml`-এও একই):
 
-### ধাপ C — Telegram Webhook সেট
+| Function | `verify_jwt` |
+|---|---|
+| `auth-security-gate` | `false` |
+| `record-auth-event` | `false` |
+| `request-password-reset` | `false` |
+| `admin-delete-unlinked-user` | `true` |
+| `admin-temporary-password` | `true` |
+| `complete-temporary-password` | `true` |
+| `telegram-bot-webhook` | `false` — অপরিবর্তিত |
+| `telegram-notification-dispatch` | `false` — অপরিবর্তিত |
 
-Telegram Bot API-এর `setWebhook`-এ এই URL দেবে:
+প্রথম তিনটি pre-auth/public endpoint; তাদের নিজস্ব Origin, quota, trusted ingress ও server-side validation থাকে। Admin Functions-এ JWT এবং Function-এর নিজস্ব Super Admin/user authorization—দুটিই থাকবে। `verify_jwt=false`-কে একা নিরাপত্তা ব্যবস্থা মনে করবে না।
 
-`https://<PROJECT_REF>.supabase.co/functions/v1/telegram-bot-webhook`
+Supabase Edge Runtime built-in secret map (`SUPABASE_SECRET_KEYS`, `SUPABASE_PUBLISHABLE_KEYS`) থাকলে code সেটি আগে নেয় এবং legacy env fallback রাখে। এগুলো custom Secret হিসেবে নিজে বানাবে না। Service-role/Secret Key কখনো Frontend/Vercel `VITE_` variable-এ দেবে না।
 
-প্যারামিটার:
+## ৫. Supabase Edge Function Secrets
 
-- `secret_token`: Supabase Secret-এ রাখা `TELEGRAM_WEBHOOK_SECRET`-এর একই মান। Telegram এই মান `X-Telegram-Bot-Api-Secret-Token` Header-এ পাঠায়।
-- `allowed_updates`: শুধু `message`।
+আগে থেকে তৈরি Secret-গুলো অক্ষত রাখবে:
+- `PASSWORD_RESET_HMAC_SECRET`
+- `HOSTEL_SECURITY_HMAC_SECRET`
+- `HOSTEL_SECURITY_ALLOWED_ORIGINS`
+- `PASSWORD_RESET_ALLOWED_ORIGINS`
 
-Telegram-এর নিয়মে `secret_token` ১–২৫৬ অক্ষরের এবং `A-Z`, `a-z`, `0-9`, `_`, `-` অক্ষর ব্যবহার করতে হয়। সংযোগ Token ৬৪ অক্ষরের হওয়ায় Bot Deep Link-এর Start Parameter সীমার মধ্যে থাকে।
+Run38-এর জন্য নতুন:
+- `HOSTEL_GEO_PROXY_HMAC_SECRET`
 
-### ধাপ D — Supabase Database Webhook সেট
+Windows PowerShell-এ 32-byte random value তৈরি করতে:
 
-Supabase Dashboard → Database → Webhooks থেকে নতুন Webhook তৈরি করো:
+```powershell
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$bytes = New-Object byte[] 32
+$rng.GetBytes($bytes)
+$secret = [Convert]::ToBase64String($bytes)
+$rng.Dispose()
+$secret
+```
 
-- Name: `hostel-life-telegram-delivery`
-- Table: `public.notification_delivery_batches`
-- Event: `INSERT`
-- Method: `POST`
-- URL: `https://<PROJECT_REF>.supabase.co/functions/v1/telegram-notification-dispatch`
-- Header `Content-Type`: `application/json`
-- Header `x-hostel-delivery-secret`: `NOTIFICATION_DISPATCH_WEBHOOK_SECRET`-এর একই মান
+Output-টি নিরাপদ password manager-এ রাখবে। একই exact value Supabase Edge Secret এবং Cloudflare Worker Secret—দুই জায়গায় দিতে হবে। `.env`, source code, GitHub বা chat-এ Secret লিখবে না। Secret change করলে দুই পাশে একসঙ্গে rotate ও deploy করতে হবে।
 
-Supabase Database Webhooks `pg_net`-ভিত্তিক asynchronous request ব্যবহার করে; বাহ্যিক HTTP request-এর জন্য মূল Database transaction দীর্ঘক্ষণ আটকে থাকে না। Project-এ Database Webhook/`pg_net` উপলভ্য ও সক্রিয় আছে কি না Dashboard-এ যাচাই করবে।
+Allowed Origins-এ শুধু বাস্তবে ব্যবহৃত exact Origin রাখবে, comma-separated; trailing slash/path/wildcard নয়। উদাহরণ:
 
-### ধাপ E — Super Admin থেকে চালু
+```text
+https://YOUR_PRODUCTION_DOMAIN,http://localhost:5173,http://127.0.0.1:5173
+```
 
-1. Super Admin → System Settings → Telegram Setup-এ যাও।
-2. Bot Username (`@` ছাড়া) লিখো।
-3. Secrets, দুইটি Function ও উভয় Webhook সফলভাবে পরীক্ষা করার পর Telegram Delivery চালু করো।
-4. Provider বন্ধ করলে নতুন Telegram Delivery বন্ধ হবে; ব্যবহারকারীর পুরোনো সংযোগ মুছে যাবে না।
+এই list একইভাবে `HOSTEL_SECURITY_ALLOWED_ORIGINS`, `PASSWORD_RESET_ALLOWED_ORIGINS` এবং Worker `ALLOWED_ORIGINS`-এ মিলতে হবে। Vite port অন্য হলে সেটি ব্যবহার করবে। Vercel Preview ব্যবহার করলে exact Preview Origin আলাদা যোগ করবে।
 
-### ধাপ F — প্রত্যেক ব্যবহারকারীর নিজস্ব সম্মতি
+## ৬. Cloudflare Worker — একবার deploy
 
-1. ব্যবহারকারী Menu → Telegram সংযোগ খুলবেন, অথবা প্রথমবারের ঐচ্ছিক Prompt থেকে যাবেন।
-2. সংযোগ লিংক তৈরি করে Telegram Bot খুলবেন এবং Private Chat-এ **Start** চাপবেন।
-3. Hostel Life-এ ফিরে **সংযোগ যাচাই** করবেন।
-4. চাইলে একই পেজ থেকে যেকোনো সময় সংযোগ বিচ্ছিন্ন করতে পারবেন।
+Source: `cloudflare/hostel-life-security-proxy/src/index.js`
 
-Telegram Bot আগে থেকে Start না করা ব্যক্তিকে নিজে থেকে প্রথম বার্তা শুরু করতে পারে না। ব্যবহারকারীকে Bot-এর সঙ্গে Private Chat শুরু করতে হবে।
+Config example: `cloudflare/hostel-life-security-proxy/wrangler.toml.example`
 
-## ৫. Free Plan, সীমা ও খরচ
+Cloudflare Dashboard → Workers & Pages → Create Worker → Edit Code-এ `src/index.js` বসিয়ে Deploy করো। Worker Settings → Variables-এ:
 
-- Release Popup build-time metadata ব্যবহার করে; কোনো runtime request/log নেই।
-- বিদ্যমান Notification Inbox এবং Realtime refresh পুনর্ব্যবহার করা হয়েছে; নতুন polling/Push Service নেই। Telegram Nudge-এর জন্য Provider সক্রিয় থাকলে সংযুক্তি পরীক্ষা করতে একবার authenticated status RPC হয়; এটি polling নয়।
-- Telegram সংযোগ না থাকলে Delivery Batch তৈরি হয় না।
-- Supabase-এর Free plan-এ Edge Function invocation-এর মাসিক quota বর্তমানে ৫০০,০০০; এটি পুরো Organization-এর সব Project মিলিয়ে usage হতে পারে। নিজের Dashboard-এর Usage পেজে প্রকৃত consumption দেখবে।
-- Telegram-এর বিনামূল্যের Bot broadcast সীমা প্রায় ৩০ message/second; একটি chat-এ সাধারণত ১ message/second-এর বেশি না পাঠানোর সুপারিশ আছে। Dispatcher sequential pacing ও HTTP 429 retry ব্যবহার করে; খুব বড়/একসঙ্গে অনেক broadcast হলে Telegram rate-limit-এর কারণে কিছু Delivery দেরি বা ব্যর্থ হতে পারে। Paid Broadcast চালু করা হয়নি।
-- In-App notification insert সফল হলেও Telegram Delivery ব্যর্থ হতে পারে; এতে মূল Hostel Life কাজ বা In-App Inbox ব্যাহত হওয়ার কথা নয়।
+`SUPABASE_FUNCTIONS_ORIGIN`
 
-## ৬. যাচাই কমান্ড
+```text
+https://YOUR_PROJECT_REF.supabase.co
+```
+
+`ALLOWED_ORIGINS`: উপরের exact Origin list।
+
+Worker Settings → Secrets-এ `HOSTEL_GEO_PROXY_HMAC_SECRET` যোগ করো—Supabase-এর সঙ্গে একই value। Secret সাধারণ Variable হিসেবে নয়, Secret হিসেবে রাখবে।
+
+Worker URL হবে, উদাহরণ:
+
+```text
+https://hostel-life-security-proxy.YOUR_WORKERS_SUBDOMAIN.workers.dev
+```
+
+## ৭. Frontend / Vercel / Localhost
+
+Vercel → Project → Settings → Environment Variables-এ:
+
+`VITE_HOSTEL_SECURITY_WORKER_URL` = Worker origin (শুধু URL; `/functions/v1` যোগ করবে না)। Production ও Preview environment যেগুলো ব্যবহার করবে সেগুলোতে যোগ করে redeploy করো।
+
+Local `.env.local`-এ একই Variable রাখো। Supabase URL ও Publishable/Anon Key আগের মতো থাকবে। Vite server restart করতে হবে। `http://localhost:5173` exact origin তিনটি allowlist-এ থাকতে হবে। Browser CSP থাকলে `connect-src`-এ Worker origin অনুমোদিত থাকতে হবে।
+
+Run36-এর Localhost diagnostics-ও থাকবে; `super_admin` role-সহ ঠিক সেই Auth UID দিয়ে login হচ্ছে কি না নিশ্চিত করবে।
+
+## ৮. Build & test — deploy-এর আগে
+
+Project root:
 
 ```powershell
 npm ci
@@ -140,11 +165,60 @@ npm test
 npm run build
 ```
 
-এই প্যাচ তৈরির পরিবেশে `vite` executable অনুপস্থিত থাকায় `npm run build` সফলভাবে যাচাই করা যায়নি। তাই স্থানীয়/ Staging Build সফল না হওয়া পর্যন্ত Production Deploy করবে না।
+সব test pass এবং Vite build সফল না হলে Vercel-এ deploy করবে না। এই audit environment-এ `npm ci` শেষ হয়নি (`vite` অনুপস্থিত ছিল), তাই Vite Build pass হিসেবে দাবি করা হচ্ছে না। তোমার Windows project-এ build-টি করা আবশ্যক।
 
-## ৭. এই প্যাচে যা করা হয়নি
+## ৯. End-to-End acceptance test
 
-- কোনো Live Supabase Database/Function/Vercel Deploy করা হয়নি।
-- Telegram Bot তৈরি, Secret বসানো বা Webhook সেট করা হয়নি; এগুলো Project Owner-কে একবার হাতে করতে হবে।
-- Public/Anonymous Hostel Dashboard বা অননুমোদিত ডেটা পড়ার কোনো পথ যোগ করা হয়নি।
-- Telegram-এ পুরোনো Notification backfill করা হয় না; সংযোগের পর নতুন Notification পাঠানো হবে।
+প্রথমে normal/low-risk tests:
+1. Worker Health: `record-auth-event` এবং `auth-security-gate` endpoint থেকে `ready`, `database_rpc_ready`, `client_ip_available`, `protection_available`, `geo_proxy_verified` যাচাই।
+2. Production ও Localhost Super Admin access; role, correct Supabase project, CSP/CORS যাচাই।
+3. একটি normal সফল Login → Security Monitor-এ `login_success`।
+4. একটি Test Account-এ একবার wrong password → `login_failed`। Production-এ threshold অতিক্রম করার চেষ্টা নয়।
+5. একটি Password Reset → Email, redirect `/auth/reset-password`, নতুন Password দিয়ে login।
+6. Telegram directory read ও disposable test account disconnect; orphan list read-only; অন্য Test User-এর device session revoke।
+7. Activity/Security date filters, Country/City/Region (Cloudflare location না দিলে blank স্বাভাবিক), report export, health metrics।
+8. Supabase Cron Dashboard → Jobs-এ দুই job Active এবং History-তে first successful run নিশ্চিত করো।
+
+Production-এ ইচ্ছাকৃতভাবে বারবার ভুল Login, Reset IP threshold, bulk account delete বা বাস্তব ব্যবহারকারীর Session revoke test করবে না। Rate-limit threshold ও destructive flow আলাদা Staging Project-এ পরীক্ষা করবে।
+
+## ১০. 6 GB Logs Query বনাম Logs Ingest বনাম Database size
+
+এই তিনটি আলাদা metric:
+
+- **Logs Query:** Dashboard/Logs Explorer/Management API/CLI দিয়ে logs খোঁজার সময় যত log data scan হয়। এটি Database storage নয় এবং সরাসরি GB-ভিত্তিক bill নয়। Supabase-এর 2026-09-24 documentation অনুযায়ী Free plan-এর documented query allowance 100 GB প্রতি billing month (1 GB included Logs Ingest-এর 100×); Query enforcement এখনও “Not yet enforced”। 6 GB যদি মাসের মোট Query হয়, allowance-এর তুলনায় কম। 6 GB যদি প্রতিদিন হয় ও পুরো মাস চলতে থাকে, আনুমানিক 180 GB/month—allowance ছাড়াতে পারে, যদিও বর্তমানে enforcement চালু নয়। Usage Dashboard-এ নির্দিষ্ট Project ও time period নির্বাচন করো; Organization view সব project একত্রে দেখাতে পারে।
+- **Logs Ingest:** Supabase service-গুলো যে log bytes গ্রহণ করে। Free included quota 1 GB/month; Supabase documentation অনুযায়ী Logs Ingest billing শুরু হওয়ার আগে 2027-এর শুরু পর্যন্ত grace period রয়েছে। এটি বেশি হলে কোন source (`postgres_logs`, `edge_logs`, `auth_logs`, `function_logs` ইত্যাদি) বেশি log তৈরি করছে তা দেখো।
+- **Database size:** PostgreSQL database/schema/table/index-এর প্রকৃত disk footprint। এটি Logs Query metric নয়।
+
+Project source-এ Logs Explorer বা Supabase Management Logs API query করার app code পাওয়া যায়নি। Active tab-এ session-policy check প্রতি মিনিটে থাকে; Presence RPC network touch পাঁচ মিনিটে একবার করা হয়েছে, while session-revocation check প্রতি মিনিটেই থাকে। এই optimization redundant Presence requests কমায়; Logs Query 6 GB-এর root cause বলে প্রমাণ করে না।
+
+### Diagnostic-এর নিরাপদ ক্রম
+
+1. Supabase SQL Editor-এ Database source বেছে `supabase/diagnostics/Diagnose_database_storage_and_postgres_logging.sql` একবার চালাও। এটি read-only: actual DB size, largest relations/index, `pg_stat_statements`-এর expensive query, logging settings, dead tuples, active query দেখায়।
+2. Usage Dashboard-এ metric যদি **Logs Query** হয়, প্রথমে শুধু `LogsExplorer_24h_source_summary.sql` Logs source (ClickHouse) ও 24h window-এ একবার চালাও—এটি scanned source breakdown।
+3. শুধু summary-তে `postgres_logs` বেশি হলে `LogsExplorer_24h_postgres_signals.sql`; শুধু `edge_logs` বেশি হলে `LogsExplorer_24h_gateway_requests.sql` চালাও। এগুলো আবার scan করে, তাই বারবার চালাবে না।
+4. `log_statement`, `log_min_duration_statement`, `pgaudit`, `log_min_messages` ইত্যাদি না দেখে পরিবর্তন করবে না। `log_statement=all` থাকলে statement text ingest বাড়াতে পারে; credentials/PII logs-এ চলে যাওয়ার ঝুঁকিও আছে। Logs source evidence না পাওয়া পর্যন্ত security/audit logging বন্ধ করবে না।
+5. Diagnostic output শেয়ার করার আগে Email, UUID, IP, SQL text-এর private values, token/secret বা অন্য ব্যক্তিগত তথ্য redact করবে।
+
+## ১১. Retention boundary
+
+Run37 operational Activity/Security Events 30 দিন, expired IP block 30 দিন অতিরিক্ত, reset IP attempt 48 ঘণ্টা এবং reset quota fingerprint 35 দিন রাখে। Canonical `public.platform_audit_log` ও user/session/activity mirror এখনো 30-day cleanup-এর আওতায় নয়। কারণ existing trigger-এর সঙ্গে deletion loop হতে পারে; নিরাপদ archive design ছাড়া সেটি মুছবে না। `cron.job_run_details` cleanup কেবল দুইটি নামযুক্ত Hostel Life Job-এর 7 দিনের বেশি পুরোনো history মুছে।
+
+## ১২. Rollback / recovery
+
+- Run37 SQL একটি transaction। Migration-এর ভিতরে preflight/statement error হলে rollback হবে। সফল হলে migration committed থাকবে; automatic destructive rollback নেই। Cron Dashboard থেকে এই দুই named job pause/unschedule করা যায়; routine delete/replace করার আগে backup ও dependency review দরকার।
+- Run38 Worker issue হলে `VITE_HOSTEL_SECURITY_WORKER_URL` সরিয়ে Frontend redeploy করে direct Supabase mode-এ ফেরা যায়। এতে signed City/Region proxy বন্ধ হয়; IP gate direct-mode সীমার মধ্যে থাকে। Worker failure হলে configured proxy mode fail-closed; direct fallback হয় না।
+- Function rollback করতে আগের known-good Function source redeploy করতে হবে। Secret rotate করলে Worker এবং Supabase-এ একই সময়ে update/deploy করতে হবে।
+- কোনো অবস্থাতেই Run34/35/36 বা পুরোনো all-in-one Core migration পুনরায় চালাবে না।
+
+## ১৩. যেগুলো তোমার Account-এ Manual Setup
+
+- Supabase Dashboard-এ backup/export ও restore-readiness যাচাই।
+- `pg_cron` Enable ও Run37 SQL একবার চালানো।
+- একটিমাত্র Final Database Verification SQL চালানো।
+- Supabase Edge Secrets, ছয়টি Function deploy এবং JWT setting যাচাই।
+- Cloudflare Worker deploy, Worker Secret, exact Origin allowlist।
+- Vercel env var, redeploy, Local `.env.local`।
+- Custom SMTP ও Auth Redirect URL সত্যিই configured কি না যাচাই।
+- Live Health JSON, Cron run history ও diagnostic output দেখা।
+
+এই package তৈরির সময় কোনো Live Database, Edge Function, Cloudflare Worker বা Vercel project পরিবর্তন করা হয়নি। Public logo Storage bucket স্পর্শ করা হয়নি।

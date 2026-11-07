@@ -300,19 +300,34 @@ export function AuthProvider({ children }) {
     if (!session?.user?.id || !supabase) return undefined;
     let active = true;
     let lastInteractionAt = Date.now();
-    const heartbeat = async () => {
-      if (!active || !navigator.onLine || document.visibilityState === 'hidden') return;
-      // An idle tab is not a reliable signal that a person is still using the app.
-      if (Date.now() - lastInteractionAt > 20 * 60 * 1000) return;
+    const heartbeatAllowed = () => active
+      && navigator.onLine
+      && document.visibilityState !== 'hidden'
+      && Date.now() - lastInteractionAt <= 20 * 60 * 1000;
+    const verifySessionPolicy = async () => {
+      if (!heartbeatAllowed()) return;
       try {
         await enforceSessionLimit(session);
-        const { error } = await supabase.rpc('hl_touch_my_presence');
-        if (error && active) console.warn('Hostel Life presence heartbeat could not be recorded:', error.message);
       } catch (error) {
         if (active && error?.code !== 'SESSION_LIMIT_EXCEEDED') {
           console.warn('Hostel Life session heartbeat could not verify policy:', error?.message || 'unknown_error');
         }
       }
+    };
+    const touchPresence = async () => {
+      if (!heartbeatAllowed()) return;
+      try {
+        const { error } = await supabase.rpc('hl_touch_my_presence');
+        if (error && active) console.warn('Hostel Life presence heartbeat could not be recorded:', error.message);
+      } catch (error) {
+        if (active) console.warn('Hostel Life presence heartbeat could not be recorded:', error?.message || 'unknown_error');
+      }
+    };
+    // Keep the security/session-revocation check at one minute. Presence has a
+    // server-side ten-minute write throttle, so its network touch runs every five.
+    const heartbeat = async () => {
+      await verifySessionPolicy();
+      await touchPresence();
     };
     // Resume presence immediately on the first real interaction after an idle
     // period; the server still throttles database writes to one per 10 minutes.
@@ -327,12 +342,14 @@ export function AuthProvider({ children }) {
     const interactionEvents = ['pointerdown', 'pointermove', 'keydown', 'touchstart', 'scroll'];
     interactionEvents.forEach((eventName) => window.addEventListener(eventName, markInteraction, { passive: true }));
     heartbeat();
-    const interval = window.setInterval(heartbeat, 60 * 1000);
+    const sessionInterval = window.setInterval(verifySessionPolicy, 60 * 1000);
+    const presenceInterval = window.setInterval(touchPresence, 5 * 60 * 1000);
     window.addEventListener('focus', onInteraction);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       active = false;
-      window.clearInterval(interval);
+      window.clearInterval(sessionInterval);
+      window.clearInterval(presenceInterval);
       interactionEvents.forEach((eventName) => window.removeEventListener(eventName, markInteraction));
       window.removeEventListener('focus', onInteraction);
       document.removeEventListener('visibilitychange', onVisible);

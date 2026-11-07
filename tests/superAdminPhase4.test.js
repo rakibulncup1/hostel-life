@@ -11,6 +11,7 @@ const page = read('src/features/platform/SuperAdminPage.jsx');
 const service = read('src/services/platformService.js');
 const auth = read('src/services/authService.js');
 const gate = read('supabase/functions/auth-security-gate/index.ts');
+const geoProxy = read('supabase/functions/_shared/geoProxy.ts');
 const telemetry = read('supabase/functions/record-auth-event/index.ts');
 const reset = read('supabase/functions/request-password-reset/index.ts');
 const orphan = read('supabase/functions/admin-delete-unlinked-user/index.ts');
@@ -53,7 +54,8 @@ test('password reset IP gate accepts two requests/hour and blocks the third for 
   assert.match(sql, /v_now\+interval '1 hour'/);
   assert.match(reset, /hl_consume_password_reset_ip_request/);
   assert.match(reset, /PASSWORD_RESET_IP_TEMPORARILY_BLOCKED/);
-  assert.match(reset, /if \(!requestIp\)/);
+  assert.match(reset, /const visitor = await resolveTrustedVisitor\(request, 'request-password-reset'\)/);
+  assert.match(reset, /if \(!visitor\.ok \|\| !requestIp\)/);
   assert.match(sql, /'reason','client_ip_unavailable'/);
   const config = read('supabase/config.toml');
   assert.match(config, /\[functions\.request-password-reset\][\s\S]*?verify_jwt = false/);
@@ -105,15 +107,17 @@ test('Activity date filters convert Bangladesh-local boundaries and distinguish 
 });
 
 test('Country attribution uses only trusted Cloudflare country header and only two-letter ISO-like codes', () => {
-  assert.match(telemetry, /cf-ipcountry/);
-  assert.match(telemetry, /countryCode: \/\^\[A-Z\]\{2\}\$\/.test\(countryHeader\)/);
+  assert.match(telemetry, /resolveTrustedVisitor/);
+  assert.match(geoProxy, /cf-ipcountry/);
+  assert.match(geoProxy, /countryCode/);
   assert.match(telemetry, /p_country_code: location\.countryCode/);
-  assert.doesNotMatch(telemetry, /x-forwarded-for/i);
+  assert.doesNotMatch(geoProxy, /x-forwarded-for/i);
   assert.match(geoSql, /v_country !~ '\^\[A-Z\]\{2\}\$'/);
 });
 
 test('Auth app gate checks trusted Cloudflare IP and refuses to trust arbitrary forwarding headers', () => {
-  assert.match(gate, /cf-connecting-ip/);
+  assert.match(gate, /resolveTrustedVisitor/);
+  assert.match(geoProxy, /cf-connecting-ip/);
   assert.match(gate, /hl_check_auth_ip_block/);
   assert.doesNotMatch(gate, /headers\.get\(['"]x-forwarded-for/i);
   assert.match(auth, /checkAppAuthGate\(\)/);
@@ -125,7 +129,10 @@ test('Auth app gate checks trusted Cloudflare IP and refuses to trust arbitrary 
   assert.match(gate, /direct requests to the public Auth endpoint may bypass it/i);
   assert.match(gate, /CLIENT_IP_UNAVAILABLE/);
   assert.match(auth, /details\?\.code === 'CLIENT_IP_UNAVAILABLE'/);
-  assert.match(gate, /const healthIp = trustedProxyIp\(request\)/);
+  assert.match(gate, /const visitor = await resolveTrustedVisitor\(request, 'auth-security-gate'\)/);
+  assert.match(gate, /if \(!visitor\.ok \|\| !visitor\.ip\)/);
+  assert.match(gate, /const clientIpAvailable = Boolean\(visitor\.ip\)/);
+  assert.match(gate, /const ip = visitor\.ip/);
   assert.match(gate, /protection_available: protectionAvailable/);
   assert.doesNotMatch(gate, /hl_check_auth_ip_block', \{ p_request_ip: null \}\);[\s\S]{0,300}protection_available: clientIpAvailable/);
 });

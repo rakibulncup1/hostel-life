@@ -3,8 +3,9 @@
 // The function itself enforces an HMAC-keyed email quota before calling Auth.
 // Never expose SUPABASE_SERVICE_ROLE_KEY or PASSWORD_RESET_HMAC_SECRET to clients.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const FUNCTION_VERSION = '2026-11-06-password-reset-quota-and-ip-gate-3-geo';
+const FUNCTION_VERSION = '2026-11-06-password-reset-quota-and-ip-gate-5-signed-geo';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'http://localhost:5173',
@@ -20,6 +21,28 @@ type QuotaResult = {
   daily_remaining?: number;
   monthly_remaining?: number;
 };
+
+function defaultApiKey(mapName: string): string {
+  const raw = Deno.env.get(mapName)?.trim() ?? '';
+  if (!raw) return '';
+  try {
+    const parsed = JSON.parse(raw);
+    const value = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>).default : null;
+    return typeof value === 'string' ? value.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+function publishableKey(): string {
+  // Prefer the current named publishable key; retain the legacy fallback during migration.
+  return defaultApiKey('SUPABASE_PUBLISHABLE_KEYS') || Deno.env.get('SUPABASE_ANON_KEY')?.trim() || '';
+}
+
+function secretKey(): string {
+  // Secret keys bypass RLS and must remain inside this Edge Function only.
+  return defaultApiKey('SUPABASE_SECRET_KEYS') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim() || '';
+}
 
 function getAllowedOrigins(): string[] {
   const configured = Deno.env.get('PASSWORD_RESET_ALLOWED_ORIGINS');
@@ -62,69 +85,6 @@ async function fingerprintEmail(email: string, secret: string): Promise<string> 
 }
 
 
-function validIpv4(value: string): boolean {
-  const parts = value.split('.');
-  return parts.length === 4 && parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
-}
-function validIpv6(value: string): boolean {
-  if (!value.includes(':') || value.length > 45 || value.includes(':::')) return false;
-  let normalized = value;
-  if (value.includes('.')) {
-    const separator = value.lastIndexOf(':');
-    if (separator < 0 || !validIpv4(value.slice(separator + 1))) return false;
-    normalized = `${value.slice(0, separator)}:ipv4`;
-  }
-  if (!/^[0-9a-fA-F:]+$/.test(normalized.replace('ipv4', 'a'))) return false;
-  const compressedParts = normalized.split('::');
-  if (compressedParts.length > 2) return false;
-  const parseSide = (side: string): number | null => {
-    if (!side) return 0;
-    const groups = side.split(':');
-    let count = 0;
-    for (const group of groups) {
-      if (group === 'ipv4') count += 2;
-      else if (/^[0-9a-fA-F]{1,4}$/.test(group)) count += 1;
-      else return null;
-    }
-    return count;
-  };
-  const left = parseSide(compressedParts[0]);
-  const right = compressedParts.length === 2 ? parseSide(compressedParts[1]) : 0;
-  if (left === null || right === null) return false;
-  const groups = left + right;
-  return compressedParts.length === 2 ? groups < 8 : groups === 8;
-}
-function trustedProxyIp(request: Request): string | null {
-  // This value is set by Supabase's Cloudflare ingress. Never trust a caller's
-  // X-Forwarded-For header or an IP supplied in the JSON request body.
-  const ip = request.headers.get('cf-connecting-ip')?.trim() ?? '';
-  return (validIpv4(ip) || validIpv6(ip)) ? ip : null;
-}
-function safeLocationHeader(request: Request, name: string, maxLength: number): string | null {
-  const raw = request.headers.get(name)?.trim() ?? '';
-  if (!raw || raw.length > maxLength * 2) return null;
-  const value = raw.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength);
-  return value || null;
-}
-
-// City/region are optional display metadata from request headers; they are not
-// cryptographically authenticated and must never influence the IP security gate.
-function visitorLocationMetadata(request: Request) {
-  const country = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
-  return {
-    countryCode: /^[A-Z]{2}$/.test(country) && country !== 'XX' ? country : null,
-    city: safeLocationHeader(request, 'cf-ipcity', 100),
-    region: safeLocationHeader(request, 'cf-region', 100),
-    regionCode: safeLocationHeader(request, 'cf-region-code', 20),
-  };
-}
-
-function isValidEmail(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  const email = value.trim();
-  return email.length >= 5 && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin') ?? '';
@@ -153,9 +113,18 @@ Deno.serve(async (request) => {
     return jsonResponse({ code: 'ORIGIN_NOT_ALLOWED', message: 'এই ওয়েব ঠিকানা থেকে অনুরোধ গ্রহণ করা হচ্ছে না।', request_id: requestId }, 403, origin, allowedOrigins);
   }
 
+  // Verify the Worker's body-bound HMAC before reading request.text(). The
+  // shared verifier hashes a clone so the original body remains available.
+  const visitor = await resolveTrustedVisitor(request, 'request-password-reset');
+  const requestIp = visitor.ip;
+  const location = visitor.location;
+  if (!visitor.ok || !requestIp) {
+    return jsonResponse({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const anonKey = publishableKey();
+  const serviceRoleKey = secretKey();
   const hmacSecret = Deno.env.get('PASSWORD_RESET_HMAC_SECRET') ?? '';
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey || hmacSecret.length < 32) {
@@ -192,12 +161,6 @@ Deno.serve(async (request) => {
   const authClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const requestIp = trustedProxyIp(request);
-  const location = visitorLocationMetadata(request);
-  if (!requestIp) {
-    return jsonResponse({ code: 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
-  }
-
   try {
     // Network-level app protection is independent of the per-email quota. The
     // third request from a trusted IP in one hour starts a one-hour IP block.

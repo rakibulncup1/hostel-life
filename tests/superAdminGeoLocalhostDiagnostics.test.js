@@ -10,6 +10,7 @@ const migration = read('supabase/migrations/Run36_security_geo_location_and_loca
 const verify = read('supabase/verify/Verify_Run36_security_geo_localhost.sql');
 const config = read('supabase/config.toml');
 const telemetry = read('supabase/functions/record-auth-event/index.ts');
+const geoProxy = read('supabase/functions/_shared/geoProxy.ts');
 const reset = read('supabase/functions/request-password-reset/index.ts');
 const service = read('src/services/platformService.js');
 const page = read('src/features/platform/SuperAdminPage.jsx');
@@ -27,9 +28,11 @@ test('Run36 event writer validates event type and stores only bounded optional g
   assert.match(migration, /hl_security_events\(\s*event_type,ip_address,ip_fingerprint,identity_fingerprint,[\s\S]*?country_code,city,region,region_code/);
   assert.match(migration, /city text/);
   assert.match(telemetry, /hl_record_public_security_event_v3/);
-  assert.match(telemetry, /cf-ipcity/);
-  assert.match(telemetry, /cf-region-code/);
-  assert.match(telemetry, /display-only/);
+  assert.match(telemetry, /resolveTrustedVisitor/);
+  assert.match(geoProxy, /cf-ipcity/);
+  assert.match(geoProxy, /cf-region-code/);
+  assert.match(geoProxy, /HMAC/);
+  assert.match(geoProxy, /display-only/);
 });
 
 test('Password reset Edge Function sends optional display-only location fields to new limiter and event writer', () => {
@@ -57,7 +60,8 @@ test('Super Admin uses geo-aware event RPC and exposes city, region and request 
   assert.match(page, /top_origins/);
   assert.match(read('src/styles/ui-refresh.css'), /platform-monitor-country-list/);
   assert.match(page, /Request Origin:/);
-  assert.match(page, /unverified display/);
+  assert.match(page, /Direct Supabase path/);
+  assert.match(page, /লোকেশন তথ্য অনুপস্থিত বা unverified হতে পারে/);
 });
 
 test('Security health reports if upstream Cloudflare city and region headers are absent', () => {
@@ -65,7 +69,8 @@ test('Security health reports if upstream Cloudflare city and region headers are
   assert.match(telemetry, /region_header_available: Boolean\(location\.region\)/);
   assert.match(page, /securityTelemetryStatus\.city_header_available/);
   assert.match(page, /securityTelemetryStatus\.region_header_available/);
-  assert.match(page, /Website-এর Cloudflare zone transform এখানে স্বয়ংক্রিয়ভাবে প্রয়োগ হয় না/);
+  assert.match(page, /Cloudflare Worker Proxy deploy/);
+  assert.match(page, /Worker signature যাচাই হয়নি \/ Direct Supabase path/);
 });
 
 test('Local Super Admin denial explains project, blocked-profile, and role causes', () => {

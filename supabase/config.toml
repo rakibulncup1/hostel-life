@@ -15,3 +15,10 @@ verify_jwt = false
 
 [functions.admin-delete-unlinked-user]
 verify_jwt = true
+
+# Explicitly require authenticated JWTs for password-recovery administration.
+[functions.admin-temporary-password]
+verify_jwt = true
+
+[functions.complete-temporary-password]
+verify_jwt = true

@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase, securityGeoProxyEnabled } from '../lib/supabase';
 
 async function responseDetails(error) {
   const response = error?.context;
@@ -26,9 +26,16 @@ async function checkAppAuthGate() {
         unavailable.status = 503;
         return unavailable;
       }
-      // The Auth service remains available if the optional gate function is not
-      // deployed/temporarily unavailable. This is a documented fail-open path;
-      // the application must deploy the gate function to enable this control.
+      // With the signed Cloudflare Worker enabled, a gate failure must not
+      // silently fall through to direct Supabase Auth (which would skip the
+      // app-level IP check). Remove VITE_HOSTEL_SECURITY_WORKER_URL to return
+      // deliberately to the documented direct-Supabase/fail-open mode.
+      if (securityGeoProxyEnabled) {
+        const unavailable = new Error(details?.message || 'নিরাপত্তা যাচাই সেবা অনুপলব্ধ। কিছুক্ষণ পরে আবার চেষ্টা করুন।');
+        unavailable.code = details?.code || 'SECURITY_GATE_UNAVAILABLE';
+        unavailable.status = status || 503;
+        return unavailable;
+      }
       console.warn('[Hostel Life] Auth security gate unavailable:', details?.code || error.message || error.name || 'unknown_error');
       return null;
     }
@@ -40,11 +47,24 @@ async function checkAppAuthGate() {
       return blocked;
     }
     if (data?.protection_available === false) {
+      if (securityGeoProxyEnabled) {
+        const unavailable = new Error('নিরাপত্তা যাচাইয়ের জন্য Visitor IP পাওয়া যায়নি। পরে আবার চেষ্টা করুন।');
+        unavailable.code = 'CLIENT_IP_UNAVAILABLE';
+        unavailable.status = 503;
+        return unavailable;
+      }
       console.warn('[Hostel Life] Auth gate received no trusted client IP; IP protection is unavailable for this request.');
     }
     return null;
   } catch (error) {
-    // Preserve availability during edge/network outages; never invent a block.
+    // A configured Worker is part of the required IP-gate path. Do not fall
+    // through to Supabase Auth if that signed proxy cannot be reached.
+    if (securityGeoProxyEnabled) {
+      const unavailable = new Error('নিরাপত্তা যাচাই সেবা পাওয়া যাচ্ছে না। সংযোগ ঠিক করে আবার চেষ্টা করুন।');
+      unavailable.code = 'SECURITY_GATE_UNAVAILABLE';
+      unavailable.status = 503;
+      return unavailable;
+    }
     console.warn('[Hostel Life] Auth security gate request failed:', error?.message || 'network_error');
     return null;
   }
