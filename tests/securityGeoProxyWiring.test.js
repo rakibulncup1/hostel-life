@@ -30,14 +30,18 @@ test('Worker proxy mode fails closed when the pre-auth IP gate cannot be reached
 test('All three Edge Functions require HMAC verification when a Worker marker is present', () => {
   for (const name of ['auth-security-gate', 'record-auth-event', 'request-password-reset']) {
     const source = read(`supabase/functions/${name}/index.ts`);
-    assert.match(source, /resolveTrustedVisitor\(request, ['"](?:auth-security-gate|record-auth-event|request-password-reset)['"]\)/);
+    assert.match(source, /resolveTrustedVisitor\(request, ['"](?:auth-security-gate|record-auth-event|request-password-reset)['"], consumeGeoNonce\)/);
     assert.match(source, /visitor\.ok/);
   }
   const helper = read('supabase/functions/_shared/geoProxy.ts');
   assert.match(helper, /HOSTEL_GEO_PROXY_HMAC_SECRET/);
   assert.match(helper, /crypto\.subtle\.verify\('HMAC'/);
   assert.match(helper, /GEO_PROXY_SIGNATURE_INVALID/);
-  assert.match(helper, /request\.headers\.get\('x-hostel-geo-proxy'\) === 'v1'/);
+  assert.match(helper, /GEO_PROXY_NONCE_REPLAYED_OR_EXPIRED/);
+  assert.match(helper, /consumeNonce\(nonce, timestamp\)/);
+  assert.match(helper, /proxyMarker === 'v1'/);
+  assert.match(helper, /HOSTEL_GEO_PROXY_REQUIRED/);
+  assert.match(helper, /GEO_PROXY_REQUIRED/);
 });
 
 test('Worker CORS and upstream proxy whitelist exclude administrative Functions and Auth API paths', () => {
@@ -53,7 +57,7 @@ test('Worker CORS and upstream proxy whitelist exclude administrative Functions 
 
 test('Password reset validates the signed body hash before consuming the original request body', () => {
   const reset = read('supabase/functions/request-password-reset/index.ts');
-  const verified = reset.indexOf("const visitor = await resolveTrustedVisitor(request, 'request-password-reset')");
+  const verified = reset.indexOf("const visitor = await resolveTrustedVisitor(request, 'request-password-reset', consumeGeoNonce)");
   const consumed = reset.indexOf('request.text();');
   assert.ok(verified >= 0 && consumed > verified, 'HMAC body clone must run before request.text()');
 });

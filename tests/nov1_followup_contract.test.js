@@ -50,7 +50,12 @@ test('market-entry inputs expose a stable focus path and keyboard Next navigatio
   assert.match(dining, /marketInputRefs = useRef\(new Map\(\)\)/);
   assert.match(dining, /enterKeyHint="next"/);
   assert.match(dining, /moveToNextMarketField/);
-  assert.doesNotMatch(dining, /document\.activeElement === document\.body|target\.focus\(\{ preventScroll: true \}\)/);
+  const updateItem = dining.slice(dining.indexOf('const updateItem ='), dining.indexOf('const focusMarketField ='));
+  const moveToNext = dining.slice(dining.indexOf('const moveToNextMarketField ='), dining.indexOf('const handleMarketItemPaste ='));
+  assert.doesNotMatch(updateItem, /focus\(|requestAnimationFrame/);
+  assert.match(moveToNext, /event\.key !== 'Enter'/);
+  assert.match(moveToNext, /focusMarketField\(index, 'quantity'\)/);
+  assert.match(moveToNext, /focusMarketField\(index, 'amount'\)/);
   assert.match(dining, /const updateItem = \(index, patch\) =>/);
   assert.match(dining, /pendingMarketFocusIndexRef/);
 });

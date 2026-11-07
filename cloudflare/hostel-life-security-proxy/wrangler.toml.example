@@ -7,4 +7,4 @@ workers_dev = true
 # before `wrangler deploy`. Do NOT put HOSTEL_GEO_PROXY_HMAC_SECRET here.
 [vars]
 SUPABASE_FUNCTIONS_ORIGIN = "https://YOUR_PROJECT_REF.supabase.co"
-ALLOWED_ORIGINS = "https://your-production-domain.example,http://localhost:5173"
+ALLOWED_ORIGINS = "https://your-production-domain.example,http://localhost:5173,http://127.0.0.1:5173"

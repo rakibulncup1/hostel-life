@@ -1,4 +1,4 @@
--- READ ONLY — Hostel Life final database clearance: Run34 + Run35 + Run36 + Run37.
+-- READ ONLY — Hostel Life final database clearance: Run34 + Run35 + Run36 + Run37 security hardening.
 -- Run only AFTER Run37_final_operational_database_completion.sql succeeds.
 -- No DDL, DML, GRANT/REVOKE, extension changes, job changes, or data updates.
 WITH checks(section, item, passed, detail) AS (
@@ -55,10 +55,10 @@ WITH checks(section, item, passed, detail) AS (
          to_regprocedure('public.platform_admin_list_active_sessions(text,integer,integer)') IS NOT NULL
          AND to_regprocedure('public.platform_admin_revoke_active_session(uuid,text,text)') IS NOT NULL,
          'session inventory and targeted revoke'
-  UNION ALL SELECT 'Run35','both 30-day insert cleanup triggers enabled',
-         (SELECT count(*)=2 FROM pg_trigger WHERE NOT tgisinternal AND tgenabled<>'D'
-           AND tgname IN ('hl_activity_log_retention_30d','hl_security_log_retention_30d')),
-         'activity + security events'
+  UNION ALL SELECT 'Run35/37','per-insert cleanup triggers removed after scheduling',
+         NOT EXISTS (SELECT 1 FROM pg_trigger WHERE NOT tgisinternal AND tgname IN ('hl_activity_log_retention_30d','hl_security_log_retention_30d'))
+         AND to_regprocedure('private.hl_prune_platform_logs_on_insert()') IS NULL,
+         'daily Cron now performs cleanup; event writes no longer launch full-table DELETE sweeps'
 
   -- Run36 geo columns and RPCs
   UNION ALL SELECT 'Run36','City/Region columns on all three tables',
@@ -99,15 +99,42 @@ WITH checks(section, item, passed, detail) AS (
                    FROM pg_proc WHERE oid=to_regprocedure('private.hl_prune_platform_logs()')::oid),false),
          'search_path is pinned empty'
   UNION ALL SELECT 'Run37','daily 30-day operational cleanup job active',
-         EXISTS(SELECT 1 FROM cron.job WHERE jobname='hostel-life-platform-log-retention-30d' AND active AND schedule='15 21 * * *'),
-         '03:15 Asia/Dhaka daily'
+         EXISTS(SELECT 1 FROM cron.job WHERE jobname='hostel-life-platform-log-retention-30d' AND active
+           AND schedule=CASE WHEN lower(coalesce(nullif(current_setting('cron.timezone',true),''),'GMT')) IN ('utc','gmt','etc/utc','etc/gmt') THEN '15 21 * * *'
+                             WHEN lower(coalesce(nullif(current_setting('cron.timezone',true),''),'GMT')) IN ('asia/dhaka','asia/dacca') THEN '15 3 * * *' ELSE '' END),
+         '03:15 Asia/Dhaka daily; checks the active cron.timezone'
   UNION ALL SELECT 'Run37','daily 7-day Cron history cleanup job active',
-         EXISTS(SELECT 1 FROM cron.job WHERE jobname='hostel-life-cron-history-retention-7d' AND active AND schedule='45 21 * * *'),
-         '03:45 Asia/Dhaka daily'
-  UNION ALL SELECT 'Run37','insert and Cron cleanup share advisory lock',
-         COALESCE((SELECT position('728194650175' in pg_get_functiondef(oid))>0 FROM pg_proc WHERE oid=to_regprocedure('private.hl_prune_platform_logs()')::oid),false)
-         AND EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='private' AND p.proname='hl_prune_platform_logs_on_insert' AND position('728194650175' in pg_get_functiondef(p.oid))>0),
-         'prevents overlapping cleanup runs'
+         EXISTS(SELECT 1 FROM cron.job WHERE jobname='hostel-life-cron-history-retention-7d' AND active
+           AND schedule=CASE WHEN lower(coalesce(nullif(current_setting('cron.timezone',true),''),'GMT')) IN ('utc','gmt','etc/utc','etc/gmt') THEN '45 21 * * *'
+                             WHEN lower(coalesce(nullif(current_setting('cron.timezone',true),''),'GMT')) IN ('asia/dhaka','asia/dacca') THEN '45 3 * * *' ELSE '' END),
+         '03:45 Asia/Dhaka daily; checks the active cron.timezone'
+  UNION ALL SELECT 'Run37','cleanup function uses one global advisory lock',
+         COALESCE((SELECT position('728194650175' in pg_get_functiondef(oid))>0 FROM pg_proc WHERE oid=to_regprocedure('private.hl_prune_platform_logs()')::oid),false),
+         'prevents overlapping scheduled maintenance runs'
+  UNION ALL SELECT 'Run37','expired signed-Worker nonces are pruned',
+         COALESCE((SELECT position('hl_geo_proxy_nonces' in pg_get_functiondef(oid))>0 FROM pg_proc WHERE oid=to_regprocedure('private.hl_prune_platform_logs()')::oid),false),
+         'daily cleanup deletes expired replay-protection nonces'
+  UNION ALL SELECT 'Run37','geo nonce table exists with RLS and no client grants',
+         to_regclass('private.hl_geo_proxy_nonces') IS NOT NULL
+         AND COALESCE((SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass('private.hl_geo_proxy_nonces')),false)
+         AND NOT has_table_privilege('anon','private.hl_geo_proxy_nonces','SELECT')
+         AND NOT has_table_privilege('authenticated','private.hl_geo_proxy_nonces','SELECT')
+         AND NOT has_table_privilege('service_role','private.hl_geo_proxy_nonces','SELECT'),
+         'private nonce storage is inaccessible to API roles'
+  UNION ALL SELECT 'Run37','geo nonce RPC is service-role-only',
+         COALESCE((SELECT prosecdef AND has_function_privilege('service_role',oid,'EXECUTE')
+                    AND NOT has_function_privilege('authenticated',oid,'EXECUTE')
+                    AND NOT has_function_privilege('anon',oid,'EXECUTE')
+                    AND NOT EXISTS (SELECT 1 FROM pg_catalog.aclexplode(COALESCE(proacl,pg_catalog.acldefault('f',proowner))) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE')
+                   FROM pg_proc WHERE oid=to_regprocedure('public.hl_consume_geo_proxy_nonce(uuid,timestamptz)')::oid),false),
+         'atomic single-use nonce insert; service role only'
+  UNION ALL SELECT 'Run37','active Auth session validator is service-role-only',
+         COALESCE((SELECT prosecdef AND has_function_privilege('service_role',oid,'EXECUTE')
+                    AND NOT has_function_privilege('authenticated',oid,'EXECUTE')
+                    AND NOT has_function_privilege('anon',oid,'EXECUTE')
+                    AND NOT EXISTS (SELECT 1 FROM pg_catalog.aclexplode(COALESCE(proacl,pg_catalog.acldefault('f',proowner))) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE')
+                   FROM pg_proc WHERE oid=to_regprocedure('public.hl_is_auth_session_active_for_security_event(uuid,uuid)')::oid),false),
+         'verified login_success telemetry checks auth.sessions id/user/not_after'
   UNION ALL SELECT 'Run37','cleanup function cannot execute from client roles',
          COALESCE((SELECT NOT has_function_privilege('anon',oid,'EXECUTE')
                     AND NOT has_function_privilege('authenticated',oid,'EXECUTE')
@@ -122,7 +149,7 @@ WITH checks(section, item, passed, detail) AS (
   SELECT 'SUMMARY',
          count(*) FILTER (WHERE passed)::text||' passed / '||count(*) FILTER (WHERE NOT passed)::text||' failed',
          CASE WHEN count(*) FILTER (WHERE NOT passed)=0 THEN 'PASS' ELSE 'CHECK REQUIRED' END,
-         'Read-only only. No database objects or records changed.'
+         'Read-only only. No database objects or records changed. Review each failure before release.'
   FROM checks
 )
 SELECT * FROM result_rows ORDER BY section,item;

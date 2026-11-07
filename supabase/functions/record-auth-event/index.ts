@@ -4,15 +4,17 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const VERSION = '2026-11-06-auth-security-telemetry-6-signed-geo';
+const VERSION = '2026-11-07-auth-security-telemetry-7-authenticated-success-nonce';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
 ];
-const ALLOWED_EVENTS = new Set([
-  'login_failed', 'login_success', 'signup_failed', 'signup_submitted', 'password_reset_failed', 'password_reset_requested',
+const PUBLIC_EVENT_TYPES = new Set([
+  'login_failed', 'signup_failed', 'signup_submitted', 'password_reset_failed',
 ]);
+const AUTHENTICATED_EVENT_TYPES = new Set(['login_success']);
 const ALLOWED_FAILURE_CODES = new Set([
   'invalid_credentials', 'rate_limited', 'account_exists', 'signup_disabled', 'other',
 ]);
@@ -64,6 +66,21 @@ function normalizeEmail(value: unknown): string | null {
     ? email : null;
 }
 
+function sessionIdFromJwtPayload(jwt: string): string | null {
+  try {
+    const parts = jwt.split('.');
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(parts[1].length / 4) * 4, '=');
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const claims = JSON.parse(new TextDecoder().decode(bytes)) as { session_id?: unknown };
+    const sessionId = typeof claims.session_id === 'string' ? claims.session_id.toLowerCase() : '';
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(sessionId) ? sessionId : null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin') ?? '';
@@ -110,7 +127,17 @@ Deno.serve(async (request) => {
   const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const visitor = await resolveTrustedVisitor(request, 'record-auth-event');
+  const consumeGeoNonce = async (nonce: string, timestamp: string): Promise<boolean> => {
+    const { data, error } = await admin.rpc('hl_consume_geo_proxy_nonce', {
+      p_nonce: nonce, p_issued_at: new Date(Number(timestamp)).toISOString(),
+    });
+    if (error) {
+      console.error('record-auth-event geo nonce store failed', { request_id: requestId, code: error.code });
+      return false;
+    }
+    return data === true;
+  };
+  const visitor = await resolveTrustedVisitor(request, 'record-auth-event', consumeGeoNonce);
   if (!visitor.ok) {
     return response({ accepted: false, ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
   }
@@ -160,10 +187,35 @@ Deno.serve(async (request) => {
   }
 
   const eventType = typeof body.event_type === 'string' ? body.event_type : '';
-  if (!ALLOWED_EVENTS.has(eventType)) {
+  let trustedEmail: string | null = null;
+  if (AUTHENTICATED_EVENT_TYPES.has(eventType)) {
+    // This endpoint stays verify_jwt=false so failed/pre-auth events can arrive.
+    // Success events are separately bound to a verified active Supabase session.
+    const jwt = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim() ?? '';
+    if (!jwt) return response({ accepted: false, code: 'AUTHENTICATED_EVENT_REQUIRED', request_id: requestId }, 401, origin, origins);
+    const { data: authData, error: authError } = await admin.auth.getUser(jwt);
+    const sessionId = sessionIdFromJwtPayload(jwt);
+    if (authError || !authData?.user?.id || !sessionId) {
+      return response({ accepted: false, code: 'AUTH_SESSION_INVALID', request_id: requestId }, 401, origin, origins);
+    }
+    const { data: sessionActive, error: sessionError } = await admin.rpc('hl_is_auth_session_active_for_security_event', {
+      p_user_id: authData.user.id,
+      p_session_id: sessionId,
+    });
+    if (sessionError) {
+      console.error('record-auth-event session validation failed', { request_id: requestId, code: sessionError.code });
+      return response({ accepted: false, code: 'AUTH_SESSION_VALIDATION_UNAVAILABLE', request_id: requestId }, 503, origin, origins);
+    }
+    if (sessionActive !== true) {
+      return response({ accepted: false, code: 'AUTH_SESSION_NOT_ACTIVE', request_id: requestId }, 401, origin, origins);
+    }
+    trustedEmail = normalizeEmail(authData.user.email);
+  } else if (!PUBLIC_EVENT_TYPES.has(eventType)) {
+    // password_reset_requested is written only by request-password-reset after
+    // Supabase accepts the reset-email request; browser clients cannot forge it.
     return response({ accepted: false, code: 'EVENT_NOT_ALLOWED', request_id: requestId }, 400, origin, origins);
   }
-  const email = normalizeEmail(body.email);
+  const email = AUTHENTICATED_EVENT_TYPES.has(eventType) ? trustedEmail : normalizeEmail(body.email);
   const identityFingerprint = email ? await hmacFingerprint(`identity:${email}`, hmacSecret) : null;
   const ip = visitor.ip;
   const ipFingerprint = ip ? await hmacFingerprint(`ip:${ip}`, hmacSecret) : null;

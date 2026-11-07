@@ -20,3 +20,6 @@ tools/backup_assistant/dist/
 tools/backup_assistant/__pycache__/
 tools/backup_assistant/tests/__pycache__/
 .hl_verify_*.zip
+
+.vercel
+.env*

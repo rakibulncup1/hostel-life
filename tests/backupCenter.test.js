@@ -12,6 +12,11 @@ test('Super Admin exposes a local encrypted Backup Center without cloud upload c
   assert.match(page, /Backup কোনো Supabase Bucket-এ পাঠানো হয় না/);
   assert.match(page, /এই Web Panel আপনার কম্পিউটারের Local Folder বা Backup History পড়তে পারে না/);
   assert.match(page, /Hostel_Life_Backup_Assistant_Windows_Package\.zip/);
+  assert.match(page, /এই বোতামটি শুধু Assistant-এর ZIP ডাউনলোড করে/);
+  assert.match(page, /প্রকৃত `\.hlbackup` তৈরি হবে Assistant-এর `Master Backup` Tab-এ/);
+  assert.match(page, /ডাউনলোড করা `\.hlbackup` এই Web Panel-এ Upload হবে না/);
+  assert.match(page, /Restore & Recovery/);
+  assert.match(page, /RUN_BACKUP_ASSISTANT\.bat/);
 });
 
 test('Portable Backup Assistant includes encryption, verification and separated backup modes', () => {
@@ -39,6 +44,8 @@ test('Restore & Recovery is delivered in the local assistant with dry-run and ty
   assert.match(gui, /Restore & Recovery/);
   assert.match(gui, /প্রথমে Dry Run \/ Target Check/);
   assert.match(gui, /RESTORE \{ref\}/);
+  assert.match(gui, /\.hlbackup নির্বাচন করুন/);
+  assert.match(gui, /filedialog\.askopenfilename/);
   assert.match(core, /def dry_run_restore/);
   assert.match(core, /def restore_backup/);
   assert.match(core, /No reset\/drop\/truncate commands are used/);

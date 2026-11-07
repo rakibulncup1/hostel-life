@@ -1,2 +1,1 @@
-এই Finalization Patch প্রয়োগ করতে কোনো ফাইল delete করতে হবে না।
-তবে আগের Public Experience Refinement Patch-এর PATCH_DELETE_FILES.txt-এ থাকা cleanup যদি এখনো না করে থাকো, আগের নির্দেশনা অনুযায়ী তা সম্পন্ন করো।
+public/landing-assets/public-language.js

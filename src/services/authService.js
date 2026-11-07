@@ -26,11 +26,11 @@ async function checkAppAuthGate() {
         unavailable.status = 503;
         return unavailable;
       }
-      // With the signed Cloudflare Worker enabled, a gate failure must not
-      // silently fall through to direct Supabase Auth (which would skip the
-      // app-level IP check). Remove VITE_HOSTEL_SECURITY_WORKER_URL to return
-      // deliberately to the documented direct-Supabase/fail-open mode.
-      if (securityGeoProxyEnabled) {
+      // A configured Worker is fail-closed. The server may also require the
+      // Worker even when this frontend build forgot its URL; never bypass that
+      // explicit server policy by falling through to direct Supabase Auth.
+      const proxyRequiredByServer = details?.code === 'GEO_PROXY_REQUIRED';
+      if (securityGeoProxyEnabled || proxyRequiredByServer) {
         const unavailable = new Error(details?.message || 'নিরাপত্তা যাচাই সেবা অনুপলব্ধ। কিছুক্ষণ পরে আবার চেষ্টা করুন।');
         unavailable.code = details?.code || 'SECURITY_GATE_UNAVAILABLE';
         unavailable.status = status || 503;
@@ -102,14 +102,14 @@ function classifyAuthFailure(error, eventType) {
   return 'other';
 }
 
-export async function signIn({ email, password }) {
+export async function signIn({ email, password, recordLoginSuccess = true }) {
   const normalizedEmail = email.trim().toLowerCase();
   const gateError = await checkAppAuthGate();
   if (gateError) return { data: null, error: gateError };
   const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
   if (result.error) {
     await recordAuthTelemetry('login_failed', normalizedEmail, classifyAuthFailure(result.error, 'login_failed'));
-  } else if (result.data?.user) {
+  } else if (result.data?.user && recordLoginSuccess) {
     await recordAuthTelemetry('login_success', normalizedEmail, 'other');
   }
   return result;
@@ -118,7 +118,9 @@ export async function signIn({ email, password }) {
 // Re-authentication prompts (profile password change / Super Admin confirmation)
 // use the same gate and monitoring path as the main login form.
 export async function verifyPassword({ email, password }) {
-  return signIn({ email, password });
+  // Re-authentication protects a sensitive action; it is not a new app login.
+  // Failed checks still flow through login_failed telemetry/rate protection.
+  return signIn({ email, password, recordLoginSuccess: false });
 }
 
 export async function signUp({ fullName, phone, email, password, permissionCode = '', age18PlusConfirmed = false, ageConfirmationAt = null, termsAcceptedAt = null, privacyPolicyAcceptedAt = null, legalPolicyVersion = '' }) {

@@ -66,6 +66,8 @@ Source `.env`, `.env.local`, Database Password, API Key ও CLI Access Token ক
 
 ### Restore-এর আগে
 
+**Web Panel থেকে `.hlbackup` Upload করা হয় না।** Web Panel-এর Backup & Recovery Center থেকে শুধু Windows Assistant ZIP ডাউনলোড হবে। ZIP Extract করে `RUN_BACKUP_ASSISTANT.bat` চালান; তারপর এই Utility-র `Restore & Recovery` Tab-এ `\.hlbackup নির্বাচন করুন` বোতামে চাপ দিয়ে আগে ডাউনলোড করা Backup File নির্বাচন করুন। File-টি Browser বা Supabase Storage-এ Upload করার দরকার নেই—Restore-এর সময় এটি আপনার কম্পিউটার থেকেই পড়া হয়।
+
 - প্রথমে Backup `Verify` করুন।
 - Source Project-এর `.hlbackup` ফাইলটিই ব্যবহার করছেন কি না নিশ্চিত করুন।
 - Encryption Password ছাড়া Restore সম্ভব নয়।

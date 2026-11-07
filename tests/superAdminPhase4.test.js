@@ -52,9 +52,9 @@ test('password reset IP gate accepts two requests/hour and blocks the third for 
   assert.match(sql, /requested_at>v_now-interval '1 hour'/);
   assert.match(sql, /IF v_count>2 THEN/);
   assert.match(sql, /v_now\+interval '1 hour'/);
-  assert.match(reset, /hl_consume_password_reset_ip_request/);
+  assert.match(reset, /hl_consume_password_reset_ip_request_v2/);
   assert.match(reset, /PASSWORD_RESET_IP_TEMPORARILY_BLOCKED/);
-  assert.match(reset, /const visitor = await resolveTrustedVisitor\(request, 'request-password-reset'\)/);
+  assert.match(reset, /const visitor = await resolveTrustedVisitor\(request, 'request-password-reset', consumeGeoNonce\)/);
   assert.match(reset, /if \(!visitor\.ok \|\| !requestIp\)/);
   assert.match(sql, /'reason','client_ip_unavailable'/);
   const config = read('supabase/config.toml');
@@ -129,7 +129,7 @@ test('Auth app gate checks trusted Cloudflare IP and refuses to trust arbitrary 
   assert.match(gate, /direct requests to the public Auth endpoint may bypass it/i);
   assert.match(gate, /CLIENT_IP_UNAVAILABLE/);
   assert.match(auth, /details\?\.code === 'CLIENT_IP_UNAVAILABLE'/);
-  assert.match(gate, /const visitor = await resolveTrustedVisitor\(request, 'auth-security-gate'\)/);
+  assert.match(gate, /const visitor = await resolveTrustedVisitor\(request, 'auth-security-gate', consumeGeoNonce\)/);
   assert.match(gate, /if \(!visitor\.ok \|\| !visitor\.ip\)/);
   assert.match(gate, /const clientIpAvailable = Boolean\(visitor\.ip\)/);
   assert.match(gate, /const ip = visitor\.ip/);
@@ -161,14 +161,14 @@ test('Session directory masks the raw Supabase session ID and revokes exactly on
   assert.match(page, /আগে ইস্যু হওয়া Access Token তার নির্ধারিত মেয়াদ শেষ হওয়া পর্যন্ত কার্যকর থাকতে পারে/);
 });
 
-test('30-day operational-log cleanup never targets business/archive data and documents scheduler limitation', () => {
+test('Run35 interim 30-day retention is superseded by Run37 scheduled cleanup without touching business data', () => {
   assert.match(sql, /DELETE FROM private\.hl_activity_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
   assert.match(sql, /DELETE FROM private\.hl_security_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
   assert.match(sql, /CREATE TRIGGER hl_activity_log_retention_30d/);
   assert.match(sql, /CREATE TRIGGER hl_security_log_retention_30d/);
   assert.match(sql, /opportunistic 30-day retention/i);
   assert.doesNotMatch(sql, /DELETE FROM public\.(market_entries|ledger_transactions|daily_meal_records|monthly_periods)/i);
-  assert.match(page, /Scheduler না থাকায়/);
+  assert.match(page, /Run37 সফলভাবে প্রয়োগ হলে দৈনিক Cron/);
   assert.match(page, /Platform Audit Log আলাদা accountability record/);
   assert.match(page, /Password Reset quota হিসাবের HMAC-only row ৩৫ দিন/);
 });

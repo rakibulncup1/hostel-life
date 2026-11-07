@@ -80,10 +80,10 @@ test('Auth telemetry sends no password or raw email to storage', () => {
 
 test('Public auth telemetry is origin-limited, event-allowlisted and cannot block Auth', () => {
   assert.match(edgeConfig, /\[functions\.record-auth-event\][\s\S]*?verify_jwt = false/);
-  assert.match(edge, /ALLOWED_EVENTS/);
+  assert.match(edge, /PUBLIC_EVENT_TYPES/);
   assert.match(edge, /ORIGIN_NOT_ALLOWED/);
   assert.match(edge, /resolveTrustedVisitor/);
-  assert.match(edge, /resolveTrustedVisitor\(request, 'record-auth-event'\)/);
+  assert.match(edge, /resolveTrustedVisitor\(request, 'record-auth-event', consumeGeoNonce\)/);
   assert.match(geoProxy, /request\.headers\.get\('cf-connecting-ip'\)/);
   assert.match(geoProxy, /HMAC/);
   assert.match(edge, /Telemetry failure must never interfere with the actual Supabase Auth flow/);
@@ -210,8 +210,8 @@ test('Presence heartbeat resumes immediately after a prolonged idle period', () 
   assert.match(authContext, /setInterval\(touchPresence, 5 \* 60 \* 1000\)/);
 });
 
-test('Security event retention notice matches event-triggered cleanup behavior', () => {
-  assert.match(adminPage, /৩০ দিনের বেশি Activity\/Security log নতুন Event এলে পরিষ্কার হয়/);
+test('Security event retention notice explains Run35 interim and Run37 scheduled cleanup', () => {
+  assert.match(adminPage, /Run37 সফলভাবে প্রয়োগ হলে দৈনিক Cron/);
   assert.match(retentionMigration, /DELETE FROM private\.hl_security_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
   assert.match(retentionMigration, /DELETE FROM private\.hl_activity_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
 });

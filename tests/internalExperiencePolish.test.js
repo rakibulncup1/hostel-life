@@ -10,6 +10,7 @@ const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
 const css = read('src/styles/production-flow-finishing.css');
 const main = read('src/main.jsx');
 const vite = read('vite.config.js');
+const releaseModule = read('src/app/release.js');
 const notice = read('src/components/SystemNoticeDialog.jsx');
 const marketShare = read('src/utils/marketShare.js');
 const campaigns = read('src/components/PlatformCommunicationOverlays.jsx');
@@ -67,8 +68,9 @@ test('release modal waits for a fresh server settings response and displays publ
   assert.match(shell, /communications\?\.release_notes_published === true/);
   assert.match(shell, /system-notice-feature-list/);
   assert.doesNotMatch(shell, /release-features-dialog|release-features-trigger|নতুন ফিচারসমূহ/);
-  assert.match(vite, /const releaseId = `\$\{commit\.slice\(0, 12\)\}-\$\{builtAt\}`/);
+  assert.match(vite, /const releaseId = commit === 'manual-build' \? `manual-\$\{builtAt\}` : commit\.slice\(0, 12\)/);
   assert.match(vite, /__HOSTEL_LIFE_RELEASE__/);
+  assert.match(releaseModule, /export const APP_RELEASE = __HOSTEL_LIFE_RELEASE__/);
 });
 
 test('release and priority modals share one accessible dialog component', () => {

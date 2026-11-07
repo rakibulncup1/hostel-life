@@ -40,10 +40,16 @@ test('Run37 cleans only aged operational/security metadata and retains canonical
   assert.doesNotMatch(migration, /DELETE FROM public\.(market_entries|ledger_transactions|daily_meal_records|monthly_periods)/i);
 });
 
-test('Run37 cleanup uses the same advisory lock as Run35 insert-trigger cleanup', () => {
+test('Run37 cleanup uses one advisory lock, prunes geo nonces, and removes the Run35 per-insert sweeps', () => {
   assert.match(migration, /SECURITY DEFINER[\s\S]*?SET search_path = ''/);
   assert.match(migration, /pg_try_advisory_xact_lock\(728194650175::bigint\)/);
   assert.match(migration, /REVOKE ALL ON FUNCTION private\.hl_prune_platform_logs\(\) FROM PUBLIC, anon, authenticated, service_role/);
+  assert.match(migration, /DELETE FROM private\.hl_geo_proxy_nonces[\s\S]*?expires_at < v_now/);
+  assert.match(migration, /DROP TRIGGER IF EXISTS hl_activity_log_retention_30d/);
+  assert.match(migration, /DROP TRIGGER IF EXISTS hl_security_log_retention_30d/);
+  assert.match(migration, /DROP FUNCTION IF EXISTS private\.hl_prune_platform_logs_on_insert/);
+  assert.match(migration, /public\.hl_consume_geo_proxy_nonce/);
+  assert.match(migration, /public\.hl_is_auth_session_active_for_security_event/);
 });
 
 test('Final verification covers Run34, Run35, Run36 and Run37 and is read-only', () => {
@@ -52,11 +58,14 @@ test('Final verification covers Run34, Run35, Run36 and Run37 and is read-only',
   assert.doesNotMatch(verify, /^\s*(INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|GRANT|REVOKE)\b/im);
 });
 
-test('Cron jobs are part of the only Run37 SQL, named idempotently and scheduled in UTC', () => {
+test('Cron jobs are named idempotently and scheduled for Dhaka time using the configured cron.timezone', () => {
   assert.match(migration, /hostel-life-platform-log-retention-30d/);
   assert.match(migration, /'15 21 \* \* \*'/);
+  assert.match(migration, /'15 3 \* \* \*'/);
+  assert.match(migration, /current_setting\('cron\.timezone'/);
   assert.match(migration, /hostel-life-cron-history-retention-7d/);
   assert.match(migration, /'45 21 \* \* \*'/);
+  assert.match(migration, /'45 3 \* \* \*'/);
   assert.match(migration, /cron\.job_run_details[\s\S]*?end_time < now\(\) - interval '7 days'/);
 });
 
@@ -82,7 +91,7 @@ test('All three admin recovery functions retain strong server-side authenticatio
 test('Public security gates remain pre-auth and continue to use shared signed visitor metadata', () => {
   for (const [fn,name] of [[authGate,'auth-security-gate'],[authTelemetry,'record-auth-event'],[reset,'request-password-reset']]) {
     assert.match(fn,/resolveTrustedVisitor/);
-    assert.match(fn,new RegExp(`resolveTrustedVisitor\\(request, '${name}'\\)`));
+    assert.match(fn,new RegExp(`resolveTrustedVisitor\\(request, '${name}', consumeGeoNonce\\)`));
   }
   assert.match(config,/\[functions\.auth-security-gate\]\s*verify_jwt = false/);
   assert.match(config,/\[functions\.record-auth-event\]\s*verify_jwt = false/);
@@ -105,4 +114,29 @@ test('Database and Logs diagnostics are read-only, time-bounded and distinguish 
   assert.match(logsSummary,/FROM logs/);
   assert.match(logsSummary,/INTERVAL 24 HOUR/);
   assert.doesNotMatch(logsSummary,/INSERT|UPDATE|DELETE|ALTER|CREATE|DROP/i);
+});
+
+
+test('Signed Cloudflare metadata is single-use and direct-path city/region is not persisted', () => {
+  const geo = read('supabase/functions/_shared/geoProxy.ts');
+  assert.match(geo, /GEO_PROXY_NONCE_CONSUMER_UNAVAILABLE/);
+  assert.match(geo, /GEO_PROXY_NONCE_REPLAYED_OR_EXPIRED/);
+  assert.match(geo, /consumeNonce\(nonce, timestamp\)/);
+  assert.match(geo, /city: null,[\s\S]*region: null,[\s\S]*regionCode: null/);
+});
+
+test('Login-success telemetry requires a verified, active Supabase Auth session', () => {
+  assert.match(authTelemetry, /AUTHENTICATED_EVENT_TYPES/);
+  assert.match(authTelemetry, /admin\.auth\.getUser\(jwt\)/);
+  assert.match(authTelemetry, /sessionIdFromJwtPayload/);
+  assert.match(authTelemetry, /hl_is_auth_session_active_for_security_event/);
+  assert.match(authTelemetry, /AUTH_SESSION_NOT_ACTIVE/);
+  const publicTypes = authTelemetry.match(/const PUBLIC_EVENT_TYPES = new Set\(\[([\s\S]*?)\]\);/)?.[1] || '';
+  assert.doesNotMatch(publicTypes, /login_success|password_reset_requested/);
+});
+
+test('Password-reset email validation helper is defined, type-safe, and bounded', () => {
+  assert.match(reset, /function isValidEmail\(value: unknown\): value is string/);
+  assert.match(reset, /email\.length >= 5 && email\.length <= 254/);
+  assert.match(reset, /resolveTrustedVisitor\(request, 'request-password-reset', consumeGeoNonce\)/);
 });

@@ -4,11 +4,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const VERSION = '2026-11-06-auth-security-gate-3-signed-geo';
+const VERSION = '2026-11-07-auth-security-gate-4-signed-geo-nonce';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
 ];
 
 function allowedOrigins(): string[] {
@@ -52,12 +53,22 @@ Deno.serve(async (request) => {
   const key = serverKey();
   if (!url || !key) return respond({ code: 'SERVER_CONFIGURATION_MISSING', request_id: requestId }, 503, origin, origins);
   const admin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  const consumeGeoNonce = async (nonce: string, timestamp: string): Promise<boolean> => {
+    const { data, error } = await admin.rpc('hl_consume_geo_proxy_nonce', {
+      p_nonce: nonce, p_issued_at: new Date(Number(timestamp)).toISOString(),
+    });
+    if (error) {
+      console.error('auth-security-gate geo nonce store failed', { request_id: requestId, code: error.code });
+      return false;
+    }
+    return data === true;
+  };
 
   if (request.method === 'GET') {
     // Check this request's trusted ingress IP. A NULL probe deliberately reports
     // protection_available=false, so using it here would make every healthy gate
     // appear unavailable in the Super Admin health panel.
-    const visitor = await resolveTrustedVisitor(request, 'auth-security-gate');
+    const visitor = await resolveTrustedVisitor(request, 'auth-security-gate', consumeGeoNonce);
     if (!visitor.ok || !visitor.ip) {
       return respond({ ready: false, database_rpc_ready: false, client_ip_available: false, protection_available: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', geo_proxy_verified: false, request_id: requestId, version: VERSION }, 503, origin, origins);
     }
@@ -80,7 +91,7 @@ Deno.serve(async (request) => {
       version: VERSION,
     }, 200, origin, origins);
   }
-  const visitor = await resolveTrustedVisitor(request, 'auth-security-gate');
+  const visitor = await resolveTrustedVisitor(request, 'auth-security-gate', consumeGeoNonce);
   const ip = visitor.ip;
   if (!visitor.ok || !ip) return respond({ allowed: false, protection_available: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তা যাচাইয়ের জন্য নির্ভরযোগ্য Client IP পাওয়া যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId, version: VERSION }, 503, origin, origins);
   const { data, error } = await admin.rpc('hl_check_auth_ip_block', { p_request_ip: ip });

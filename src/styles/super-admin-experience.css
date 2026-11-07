@@ -916,3 +916,70 @@
   .platform-active-session-row > button { width: 100%; }
   .platform-monitor-crosslink { align-items: flex-start; flex-direction: column; }
 }
+
+/* Backup & Recovery hand-off: make the separate local restore workflow explicit. */
+.platform-backup-restore-handoff {
+  display: grid;
+  gap: 13px;
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--primary-soft) 20%, var(--surface));
+  color: var(--text);
+}
+.platform-backup-restore-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+.platform-backup-restore-heading > div { min-width: 0; }
+.platform-backup-restore-heading h4 {
+  margin: 4px 0 5px;
+  color: var(--text);
+  font-size: 15px;
+}
+.platform-backup-restore-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.platform-backup-restore-handoff ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin: 0;
+  padding-left: 24px;
+}
+.platform-backup-restore-handoff li {
+  padding: 3px 4px 3px 1px;
+  color: var(--text);
+  font-size: 12px;
+}
+.platform-backup-restore-handoff li strong,
+.platform-backup-restore-handoff li span { display: block; }
+.platform-backup-restore-handoff li span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.platform-backup-restore-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.platform-backup-restore-warning svg { flex: 0 0 auto; margin-top: 2px; }
+@media (max-width: 600px) {
+  .platform-backup-restore-handoff ol { grid-template-columns: 1fr; }
+  .platform-backup-restore-heading { align-items: flex-start; }
+}

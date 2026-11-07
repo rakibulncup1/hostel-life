@@ -29,8 +29,10 @@ test('Run36 event writer validates event type and stores only bounded optional g
   assert.match(migration, /city text/);
   assert.match(telemetry, /hl_record_public_security_event_v3/);
   assert.match(telemetry, /resolveTrustedVisitor/);
-  assert.match(geoProxy, /cf-ipcity/);
-  assert.match(geoProxy, /cf-region-code/);
+  assert.match(geoProxy, /city: null,[\s\S]*region: null,[\s\S]*regionCode: null/);
+  assert.match(geoProxy, /x-hostel-geo-city/);
+  assert.match(geoProxy, /x-hostel-geo-region-code/);
+  assert.doesNotMatch(geoProxy, /headers\.get\('cf-ipcity'\)/);
   assert.match(geoProxy, /HMAC/);
   assert.match(geoProxy, /display-only/);
 });

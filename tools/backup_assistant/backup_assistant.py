@@ -206,7 +206,7 @@ class BackupAssistantApp(tk.Tk):
         self.verify_button.pack(anchor="e")
 
     def _build_restore(self, parent) -> None:
-        ttk.Label(parent, text="Restore & Disaster Recovery", font=("Segoe UI", 13, "bold")).pack(anchor="w")
+        ttk.Label(parent, text="Restore & Disaster Recovery — এখানে Backup File নির্বাচন করুন", font=("Segoe UI", 13, "bold")).pack(anchor="w")
         ttk.Label(
             parent,
             text="আগে Backup Verify হবে। Master Backup শুধুমাত্র নতুন/খালি Target Project-এ Restore করা যাবে। Hostel Backup সামঞ্জস্যপূর্ণ Schema-তে নতুন Hostel হিসেবে যোগ হবে; আগে থেকে থাকা Data Overwrite হবে না।",
@@ -215,11 +215,11 @@ class BackupAssistantApp(tk.Tk):
 
         backup_box = ttk.LabelFrame(parent, text="Encrypted Backup", padding=10)
         backup_box.pack(fill="x", pady=(0, 8))
-        ttk.Label(backup_box, text=".hlbackup File", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        ttk.Label(backup_box, text="ডাউনলোড করা Encrypted .hlbackup File নির্বাচন করুন", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         row = ttk.Frame(backup_box)
         row.pack(fill="x", pady=(3, 7))
         ttk.Entry(row, textvariable=self.restore_file).pack(side="left", fill="x", expand=True, padx=(0, 8))
-        ttk.Button(row, text="Backup File", command=self._choose_restore_file).pack(side="right")
+        ttk.Button(row, text=".hlbackup নির্বাচন করুন", command=self._choose_restore_file).pack(side="right")
         self._field(backup_box, "Backup Encryption Password", self.restore_password, row=1, column=0, width=70, show="•")
 
         target_box = ttk.LabelFrame(parent, text="Target Supabase Project (যেখানে Restore হবে)", padding=10)

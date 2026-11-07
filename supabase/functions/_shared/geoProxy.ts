@@ -121,7 +121,7 @@ function canonicalPayload(input: {
   ]);
 }
 
-async function verifyProxyRequest(request: Request, expectedRoute: string): Promise<TrustedVisitor> {
+async function verifyProxyRequest(request: Request, expectedRoute: string, consumeNonce?: GeoNonceConsumer): Promise<TrustedVisitor> {
   const fail = (code: string): TrustedVisitor => ({
     ok: false, ip: null, location: EMPTY_LOCATION, proxyVerified: false, source: 'unavailable', code,
   });
@@ -174,6 +174,17 @@ async function verifyProxyRequest(request: Request, expectedRoute: string): Prom
     return fail('GEO_PROXY_SIGNATURE_CHECK_FAILED');
   }
 
+  // A valid HMAC alone can be replayed inside the timestamp window. Consume
+  // the nonce atomically in PostgreSQL after signature verification. A missing
+  // or unavailable nonce store fails closed for every signed Worker request.
+  if (!consumeNonce) return fail('GEO_PROXY_NONCE_CONSUMER_UNAVAILABLE');
+  try {
+    const consumed = await consumeNonce(nonce, timestamp);
+    if (!consumed) return fail('GEO_PROXY_NONCE_REPLAYED_OR_EXPIRED');
+  } catch {
+    return fail('GEO_PROXY_NONCE_STORE_UNAVAILABLE');
+  }
+
   return {
     ok: true,
     ip,
@@ -192,13 +203,36 @@ async function verifyProxyRequest(request: Request, expectedRoute: string): Prom
  * Resolve a trusted visitor for a specific Worker route. The route binding
  * prevents a valid signature for one endpoint being reused at another.
  */
-export async function resolveTrustedVisitor(request: Request, expectedRoute: string): Promise<TrustedVisitor> {
-  if (request.headers.get('x-hostel-geo-proxy') === 'v1') {
-    return await verifyProxyRequest(request, expectedRoute);
+export type GeoNonceConsumer = (nonce: string, timestamp: string) => Promise<boolean>;
+
+export async function resolveTrustedVisitor(
+  request: Request,
+  expectedRoute: string,
+  consumeNonce?: GeoNonceConsumer,
+): Promise<TrustedVisitor> {
+  const proxyMarker = request.headers.get('x-hostel-geo-proxy');
+  if (proxyMarker === 'v1') {
+    return await verifyProxyRequest(request, expectedRoute, consumeNonce);
   }
 
-  // Direct-to-Supabase fallback. Cloudflare supplies this ingress IP. Location
-  // headers remain unverified/display-only until a signed Worker is configured.
+  // Once the operator enables this secret, direct-to-Supabase calls to these
+  // three protected Functions are rejected. This closes the deliberate
+  // transition fallback after the Cloudflare Worker has been deployed/tested.
+  const proxyRequired = Deno.env.get('HOSTEL_GEO_PROXY_REQUIRED')?.trim().toLowerCase() === 'true';
+  if (proxyRequired) {
+    return {
+      ok: false,
+      ip: null,
+      location: EMPTY_LOCATION,
+      proxyVerified: false,
+      source: 'unavailable',
+      code: 'GEO_PROXY_REQUIRED',
+    };
+  }
+
+  // Direct-to-Supabase fallback. Cloudflare supplies this ingress IP and its
+  // country header. City/Region are deliberately omitted: without the signed
+  // Worker they are not reliably attributable to the Cloudflare edge.
   const ip = validIp(request.headers.get('cf-connecting-ip'));
   const countryHeader = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
   return {
@@ -206,9 +240,9 @@ export async function resolveTrustedVisitor(request: Request, expectedRoute: str
     ip,
     location: {
       countryCode: /^[A-Z]{2}$/.test(countryHeader) && countryHeader !== 'XX' ? countryHeader : null,
-      city: clean(request.headers.get('cf-ipcity'), 100),
-      region: clean(request.headers.get('cf-region'), 100),
-      regionCode: clean(request.headers.get('cf-region-code'), 20),
+      city: null,
+      region: null,
+      regionCode: null,
     },
     proxyVerified: false,
     source: ip ? 'supabase-edge' : 'unavailable',

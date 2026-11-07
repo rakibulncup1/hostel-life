@@ -1,0 +1,4 @@
+Patch target: user-uploaded current project archive Hostel Life(4).zip
+SHA-256: 4469ba01da0b4be38812bce851bc418a7cb13f4323930bec1a615e1a47f22c92
+Patch type: incremental overlay; not a full project replacement.
+Apply inside the extracted Hostel Life project root only.
