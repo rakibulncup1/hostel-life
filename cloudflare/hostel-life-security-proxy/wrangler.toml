@@ -3,8 +3,8 @@ main = "src/index.js"
 compatibility_date = "2026-11-06"
 workers_dev = true
 
-# Set these in the Cloudflare Worker Dashboard or replace the example values
-# before `wrangler deploy`. Do NOT put HOSTEL_GEO_PROXY_HMAC_SECRET here.
+Set these in the Cloudflare Worker Dashboard or replace the example values
+before `wrangler deploy`. Do NOT put HOSTEL_GEO_PROXY_HMAC_SECRET here.
 [vars]
 SUPABASE_FUNCTIONS_ORIGIN = "https://pqnffnyfnkrmycxmcbhf.supabase.co"
 ALLOWED_ORIGINS = "https://hostellife-bd.vercel.app,http://localhost:5173,https://easy-hostellife.vercel.app"
