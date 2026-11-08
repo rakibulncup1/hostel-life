@@ -77,7 +77,6 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
 function LoginForm() {
   const toast = useToast();
   const online = useOnlineStatus();
-  const { refreshIdentity } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -113,12 +112,9 @@ function LoginForm() {
     try {
       const { error } = await signIn({ email, password });
       if (error) throw error;
-      try {
-        await refreshIdentity();
-      } catch (identityError) {
-        if (identityError?.code === 'SESSION_LIMIT_EXCEEDED' || identityError?.code === 'SESSION_LIMIT_SIGNOUT_FAILED') throw identityError;
-        // A temporary profile fetch failure is handled by the existing identity recovery screen.
-      }
+      // Do not call refreshIdentity from this LoginForm render: its callback can
+      // still close over the pre-login (null) session. AuthProvider observes the
+      // SIGNED_IN event and performs exactly one identity load for that session.
       toast.success('সফলভাবে লগইন হয়েছে।');
     } catch (error) {
       if (error?.code === 'SESSION_LIMIT_EXCEEDED' || error?.code === 'SESSION_LIMIT_SIGNOUT_FAILED') {

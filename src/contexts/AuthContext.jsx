@@ -120,6 +120,9 @@ export function AuthProvider({ children }) {
 
   const sessionPolicyCacheRef = useRef(new Map());
   const sessionPolicyInFlightRef = useRef(new Map());
+  // Prevent a slow initial getSession() snapshot from overwriting a newer
+  // SIGNED_IN / SIGNED_OUT event emitted while initialization is in flight.
+  const authEventRevisionRef = useRef(0);
 
   const endCurrentSessionWithNotice = useCallback(async (message) => {
     try { window.sessionStorage.setItem(SESSION_LIMIT_NOTICE_KEY, message); } catch { /* best-effort notice */ }
@@ -235,8 +238,13 @@ export function AuthProvider({ children }) {
         return;
       }
 
+      const revisionAtStart = authEventRevisionRef.current;
       const { data, error } = await supabase.auth.getSession();
       if (!mounted) return;
+      // The auth listener is the source of truth once it has emitted any
+      // post-initialization event. Never replace a newer signed-in session with
+      // a stale null/old result from this initial storage read.
+      if (authEventRevisionRef.current !== revisionAtStart) return;
 
       if (error) {
         setIdentityError(getFriendlySupabaseError(error, 'লগইন সেশন যাচাই করা যায়নি।'));
@@ -261,7 +269,10 @@ export function AuthProvider({ children }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       // Token rotation is not a new login and must not inflate login counts.
+      // It also does not change the identity snapshot, so it need not invalidate
+      // the initial getSession() read.
       if (event === 'TOKEN_REFRESHED') return;
+      authEventRevisionRef.current += 1;
       // Leave the Supabase auth callback lock before making an RPC request.
       if (event === 'SIGNED_IN' && nextSession?.user?.id) {
         setSessionExpiryAt(null);

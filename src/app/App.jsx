@@ -125,9 +125,19 @@ export function App() {
     // A momentarily-null membership is not evidence that the account is unlinked.
     if (auth.isAuthenticated && !auth.identityReady && pathname !== '/auth/reset-password') return;
 
+    if (auth.isAuthenticated && auth.identityReady && auth.membership?.status === 'active'
+      && (inAuth || inOnboarding || pathname === '/')) {
+      // An existing active membership is authoritative. Do not let a stale
+      // invitation token stored from an earlier visit send an existing member
+      // back to Join/Onboarding immediately after login.
+      navigateTo('/app/dashboard', true);
+      return;
+    }
+
     if (auth.isAuthenticated && (inAuth || inOnboarding || pathname === '/')) {
       try {
-        // Preserve a pending invitation through registration/email confirmation.
+        // Preserve a pending invitation through registration/email confirmation
+        // only for accounts that do not already have an active membership.
         // It is only an authenticated Join Request flow; it never opens dashboard data.
         const pendingToken = getPendingHostelLinkToken();
         if (pendingToken) {

@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { supabase, securityGeoProxyEnabled } from '../lib/supabase';
 
 async function responseDetails(error) {
@@ -118,13 +119,60 @@ export async function signIn({ email, password, trackSuccessfulLogin = true }) {
   return result;
 }
 
-// Re-authentication prompts (profile password change / Super Admin confirmation)
-// use the same IP gate; failed confirmations are logged, successful re-checks are not counted as new logins.
+// Verify the current account password without replacing the application's
+// active Supabase session. Calling signIn() on the main client created a second
+// Auth session, fired SIGNED_IN, re-ran the device-limit policy and could revoke
+// the very session being used to open Super Admin. It also ran the pre-auth IP
+// gate for an already-authenticated step-up check.
 export async function verifyPassword({ email, password }) {
-  // A password re-check inside an existing session is not a new user login.
-  // Failed re-auth is still recorded; a successful confirmation is not counted
-  // as another login in Security Monitor.
-  return signIn({ email, password, trackSuccessfulLogin: false });
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const suppliedPassword = typeof password === 'string' ? password : '';
+  const projectUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || '';
+  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || '';
+
+  if (!supabase || !projectUrl || !publishableKey || !normalizedEmail || !suppliedPassword) {
+    return { data: null, error: new Error('বর্তমান অ্যাকাউন্ট যাচাই করা যাচ্ছে না। আবার চেষ্টা করুন।') };
+  }
+
+  // Bind the password check to the already-authenticated account. A caller
+  // cannot use the re-authentication form to verify a different account.
+  const { data: currentResult, error: currentError } = await supabase.auth.getUser();
+  const currentUser = currentResult?.user;
+  if (currentError || !currentUser?.id) {
+    return { data: null, error: currentError || new Error('আগে আপনার অ্যাকাউন্টে লগইন করুন।') };
+  }
+  if (String(currentUser.email || '').trim().toLowerCase() !== normalizedEmail) {
+    return { data: null, error: new Error('যে অ্যাকাউন্টে লগইন করা আছে, সেই অ্যাকাউন্টের ইমেইল ব্যবহার করুন।') };
+  }
+
+  // This one-off client has memory-only auth state. It cannot overwrite the
+  // primary browser session or emit SIGNED_IN to AuthProvider. Supabase Auth's
+  // native password endpoint continues to apply its own rate limits.
+  const verifier = createClient(projectUrl, publishableKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  try {
+    const result = await verifier.auth.signInWithPassword({ email: normalizedEmail, password: suppliedPassword });
+    if (result.error) {
+      await recordAuthTelemetry('login_failed', normalizedEmail, classifyAuthFailure(result.error, 'login_failed'));
+      return { data: null, error: result.error };
+    }
+    if (result.data?.user?.id !== currentUser.id) {
+      return { data: null, error: new Error('পাসওয়ার্ডটি বর্তমানে লগইন করা অ্যাকাউন্টের সঙ্গে মেলেনি।') };
+    }
+    return { data: { user: currentUser }, error: null };
+  } catch (error) {
+    return { data: null, error };
+  } finally {
+    // Revoke the verifier's temporary refresh session; the main app session
+    // remains untouched because this is a different Supabase client instance.
+    try { await verifier.auth.signOut({ scope: 'local' }); } catch { /* best-effort cleanup */ }
+  }
 }
 
 export async function signUp({ fullName, phone, email, password, permissionCode = '', age18PlusConfirmed = false, ageConfirmationAt = null, termsAcceptedAt = null, privacyPolicyAcceptedAt = null, legalPolicyVersion = '' }) {

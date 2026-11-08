@@ -3,11 +3,16 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-test('forced password success uses the monitored fresh sign-in service instead of stale refreshSession', () => {
+test('forced password success verifies the current account without replacing the active session', () => {
   const source = read('src/features/auth/ForcedPasswordChange.jsx');
   const authService = read('src/services/authService.js');
   assert.match(source, /verifyPassword\(\{ email, password \}\)/);
-  assert.match(authService, /export async function verifyPassword\(\{ email, password \}\)[\s\S]*?return signIn\(\{ email, password, trackSuccessfulLogin: false \}\)/);
+  assert.match(authService, /export async function verifyPassword\(\{ email, password \}\)/);
+  assert.match(authService, /persistSession: false[\s\S]*?autoRefreshToken: false[\s\S]*?detectSessionInUrl: false/);
+  assert.match(authService, /await supabase\.auth\.getUser\(\)/);
+  assert.match(authService, /verifier\.auth\.signInWithPassword/);
+  assert.match(authService, /verifier\.auth\.signOut\(\{ scope: 'local' \}\)/);
+  assert.doesNotMatch(authService.slice(authService.indexOf('export async function verifyPassword'), authService.indexOf('export async function signUp')), /return signIn\(/);
   assert.doesNotMatch(source, /auth\.refreshSession\(/);
   assert.match(source, /reloginNeeded/);
   assert.match(source, /12000/);

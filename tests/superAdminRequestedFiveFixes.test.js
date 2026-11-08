@@ -76,3 +76,38 @@ test('Run38 identity migration is additive and keeps the writer service-role-onl
   assert.match(verify, /writer health function is executable by service_role/);
   assert.doesNotMatch(migration, /DELETE FROM public\.|UPDATE public\.|TRUNCATE|DROP TABLE|CASCADE/i);
 });
+
+
+test('LoginForm does not call a stale pre-login refreshIdentity callback', () => {
+  const authPage = read('src/features/auth/AuthPage.jsx');
+  const loginForm = authPage.slice(authPage.indexOf('function LoginForm()'), authPage.indexOf('function RegisterForm()'));
+  assert.doesNotMatch(loginForm, /refreshIdentity\s*\(/);
+  assert.match(loginForm, /AuthProvider observes the[\s\S]*SIGNED_IN event/);
+});
+
+test('Initial getSession snapshot cannot overwrite a newer Auth state event', () => {
+  assert.match(authContext, /authEventRevisionRef/);
+  assert.match(authContext, /revisionAtStart = authEventRevisionRef\.current/);
+  assert.match(authContext, /authEventRevisionRef\.current !== revisionAtStart/);
+  assert.match(authContext, /authEventRevisionRef\.current \+= 1/);
+});
+
+
+test('an active member returns to Dashboard before any stale pending invite is resumed', () => {
+  const activeCheck = app.indexOf("auth.membership?.status === 'active'");
+  const pendingCheck = app.indexOf('getPendingHostelLinkToken()');
+  assert.ok(activeCheck >= 0 && pendingCheck > activeCheck, 'active membership must take priority over a pending invitation');
+  assert.match(app, /An existing active membership is authoritative/);
+  assert.match(app, /navigateTo\('\/app\/dashboard', true\)/);
+});
+
+test('Super Admin password verification uses an isolated Auth client and does not create a second app session', () => {
+  const verifier = authService.slice(authService.indexOf('export async function verifyPassword'), authService.indexOf('export async function signUp'));
+  assert.match(verifier, /supabase\.auth\.getUser\(\)/);
+  assert.match(verifier, /currentUser\.id/);
+  assert.match(verifier, /createClient\(projectUrl, publishableKey/);
+  assert.match(verifier, /persistSession: false/);
+  assert.match(verifier, /verifier\.auth\.signInWithPassword/);
+  assert.match(verifier, /verifier\.auth\.signOut\(\{ scope: 'local' \}\)/);
+  assert.doesNotMatch(verifier, /checkAppAuthGate|return signIn\(/);
+});
