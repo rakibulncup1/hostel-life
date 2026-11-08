@@ -7,7 +7,9 @@ dist/
 Thumbs.db
 .vscode/
 *.log
+wrangler.toml
 npm-debug.log*
+
 
 # Hostel Life local backup artefacts (never commit backup data)
 *.hlbackup
