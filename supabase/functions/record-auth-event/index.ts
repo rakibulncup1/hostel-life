@@ -1,20 +1,19 @@
 // Public, telemetry-only endpoint for application-originated login/registration
-// attempts. It never authenticates a user, blocks login, or receives a password.
+// attempts. It never receives a password or enforces the Auth login. For a success event
+// it independently validates the caller JWT before attaching the account identity.
 // Deploy with verify_jwt=false; service-role access remains server-only.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const VERSION = '2026-11-07-auth-security-telemetry-7-authenticated-success-nonce';
+const VERSION = '2026-11-08-auth-security-telemetry-8-verified-login-identity';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
   'http://localhost:5173',
-  'http://127.0.0.1:5173',
 ];
-const PUBLIC_EVENT_TYPES = new Set([
-  'login_failed', 'signup_failed', 'signup_submitted', 'password_reset_failed',
+const ALLOWED_EVENTS = new Set([
+  'login_failed', 'signup_failed', 'signup_submitted', 'password_reset_failed', 'password_reset_requested',
 ]);
-const AUTHENTICATED_EVENT_TYPES = new Set(['login_success']);
 const ALLOWED_FAILURE_CODES = new Set([
   'invalid_credentials', 'rate_limited', 'account_exists', 'signup_disabled', 'other',
 ]);
@@ -66,21 +65,6 @@ function normalizeEmail(value: unknown): string | null {
     ? email : null;
 }
 
-function sessionIdFromJwtPayload(jwt: string): string | null {
-  try {
-    const parts = jwt.split('.');
-    if (parts.length !== 3) return null;
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(parts[1].length / 4) * 4, '=');
-    const binary = atob(base64);
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    const claims = JSON.parse(new TextDecoder().decode(bytes)) as { session_id?: unknown };
-    const sessionId = typeof claims.session_id === 'string' ? claims.session_id.toLowerCase() : '';
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(sessionId) ? sessionId : null;
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin') ?? '';
@@ -127,46 +111,39 @@ Deno.serve(async (request) => {
   const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const consumeGeoNonce = async (nonce: string, timestamp: string): Promise<boolean> => {
-    const { data, error } = await admin.rpc('hl_consume_geo_proxy_nonce', {
-      p_nonce: nonce, p_issued_at: new Date(Number(timestamp)).toISOString(),
-    });
-    if (error) {
-      console.error('record-auth-event geo nonce store failed', { request_id: requestId, code: error.code });
-      return false;
-    }
-    return data === true;
-  };
-  const visitor = await resolveTrustedVisitor(request, 'record-auth-event', consumeGeoNonce);
+  const visitor = await resolveTrustedVisitor(request, 'record-auth-event');
   if (!visitor.ok) {
     return response({ accepted: false, ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
   }
+  // Only signed Worker metadata may populate City/Region. Direct Supabase
+  // ingress can still provide a Cloudflare Country Code, but its geo labels
+  // are deliberately ignored because they are not cryptographically bound.
+  const location = visitor.proxyVerified
+    ? visitor.location
+    : { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null };
 
-  // Read-only health check. The deliberately invalid event type is rejected
-  // by Run36 with SQLSTATE 22023 before any insert; that proves the geo-aware v3 RPC exists
-  // and is callable without creating a synthetic Security Event.
+  // Read-only health RPC: no synthetic events and no intentional SQL errors
+  // are generated when the Super Admin opens the monitor.
   if (request.method === 'GET') {
     try {
-      const location = visitor.location;
-      const { error } = await admin.rpc('hl_record_public_security_event_v3', {
-        p_event_type: '__hostel_life_health_check__',
-        p_identity_fingerprint: null,
-        p_ip_fingerprint: null,
-        p_request_ip: visitor.ip,
-        p_failure_code: null,
-        p_user_agent: null,
-        p_request_origin: normalizedOrigin,
-        p_country_code: location.countryCode,
-        p_city: location.city,
-        p_region: location.region,
-        p_region_code: location.regionCode,
-      });
-      if (error?.code === '22023') {
-        return response({ ready: true, database_rpc_ready: true, client_ip_available: Boolean(visitor.ip), geo_proxy_verified: visitor.proxyVerified, geo_source: visitor.source, city_header_available: Boolean(location.city), region_header_available: Boolean(location.region), country_header_available: Boolean(location.countryCode), version: VERSION }, 200, origin, origins);
+      const { data: health, error } = await admin.rpc('hl_security_monitor_writer_health_v1');
+      if (error || !health?.telemetry_writer_ready || !health?.event_table_ready) {
+        const rpcMissing = error?.code === '42883' || error?.code === 'PGRST202' || /could not find the function|function .* does not exist/i.test(error?.message ?? '');
+        const code = rpcMissing ? 'TELEMETRY_HEALTH_RPC_MISSING' : 'TELEMETRY_DATABASE_UNAVAILABLE';
+        return response({ ready: false, code, authenticated_login_writer_ready: Boolean(health?.authenticated_login_writer_ready), version: VERSION }, 503, origin, origins);
       }
-      const rpcMissing = error?.code === '42883' || error?.code === 'PGRST202' || /could not find the function|function .* does not exist/i.test(error?.message ?? '');
-      const code = rpcMissing ? 'TELEMETRY_RPC_MISSING' : 'TELEMETRY_DATABASE_UNAVAILABLE';
-      return response({ ready: false, code, version: VERSION }, 503, origin, origins);
+      return response({
+        ready: true,
+        database_rpc_ready: true,
+        authenticated_login_writer_ready: Boolean(health?.authenticated_login_writer_ready && health?.actor_column_ready),
+        client_ip_available: Boolean(visitor.ip),
+        geo_proxy_verified: visitor.proxyVerified,
+        geo_source: visitor.source,
+        city_header_available: Boolean(location.city),
+        region_header_available: Boolean(location.region),
+        country_header_available: Boolean(location.countryCode),
+        version: VERSION,
+      }, 200, origin, origins);
     } catch (error) {
       console.error('record-auth-event health check failed', { request_id: requestId, message: String(error) });
       return response({ ready: false, code: 'TELEMETRY_HEALTH_CHECK_FAILED', version: VERSION }, 503, origin, origins);
@@ -187,41 +164,55 @@ Deno.serve(async (request) => {
   }
 
   const eventType = typeof body.event_type === 'string' ? body.event_type : '';
-  let trustedEmail: string | null = null;
-  if (AUTHENTICATED_EVENT_TYPES.has(eventType)) {
-    // This endpoint stays verify_jwt=false so failed/pre-auth events can arrive.
-    // Success events are separately bound to a verified active Supabase session.
-    const jwt = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '').trim() ?? '';
-    if (!jwt) return response({ accepted: false, code: 'AUTHENTICATED_EVENT_REQUIRED', request_id: requestId }, 401, origin, origins);
-    const { data: authData, error: authError } = await admin.auth.getUser(jwt);
-    const sessionId = sessionIdFromJwtPayload(jwt);
-    if (authError || !authData?.user?.id || !sessionId) {
-      return response({ accepted: false, code: 'AUTH_SESSION_INVALID', request_id: requestId }, 401, origin, origins);
-    }
-    const { data: sessionActive, error: sessionError } = await admin.rpc('hl_is_auth_session_active_for_security_event', {
-      p_user_id: authData.user.id,
-      p_session_id: sessionId,
-    });
-    if (sessionError) {
-      console.error('record-auth-event session validation failed', { request_id: requestId, code: sessionError.code });
-      return response({ accepted: false, code: 'AUTH_SESSION_VALIDATION_UNAVAILABLE', request_id: requestId }, 503, origin, origins);
-    }
-    if (sessionActive !== true) {
-      return response({ accepted: false, code: 'AUTH_SESSION_NOT_ACTIVE', request_id: requestId }, 401, origin, origins);
-    }
-    trustedEmail = normalizeEmail(authData.user.email);
-  } else if (!PUBLIC_EVENT_TYPES.has(eventType)) {
-    // password_reset_requested is written only by request-password-reset after
-    // Supabase accepts the reset-email request; browser clients cannot forge it.
-    return response({ accepted: false, code: 'EVENT_NOT_ALLOWED', request_id: requestId }, 400, origin, origins);
-  }
-  const email = AUTHENTICATED_EVENT_TYPES.has(eventType) ? trustedEmail : normalizeEmail(body.email);
-  const identityFingerprint = email ? await hmacFingerprint(`identity:${email}`, hmacSecret) : null;
   const ip = visitor.ip;
   const ipFingerprint = ip ? await hmacFingerprint(`ip:${ip}`, hmacSecret) : null;
+
+  // A successful login must be tied to a real Supabase Auth identity. The
+  // endpoint remains JWT-disabled for failed/pre-auth events, but this branch
+  // independently verifies the supplied access token with Supabase Auth.
+  if (eventType === 'login_success') {
+    const authorization = request.headers.get('authorization') ?? '';
+    const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
+    if (!tokenMatch?.[1]) {
+      return response({ accepted: false, code: 'AUTHENTICATED_LOGIN_TOKEN_REQUIRED', request_id: requestId, version: VERSION }, 401, origin, origins);
+    }
+    const { data: authData, error: authError } = await admin.auth.getUser(tokenMatch[1]);
+    const verifiedUser = authData?.user;
+    if (authError || !verifiedUser?.id || !verifiedUser.email) {
+      return response({ accepted: false, code: 'AUTHENTICATED_LOGIN_IDENTITY_INVALID', request_id: requestId, version: VERSION }, 401, origin, origins);
+    }
+    const identityFingerprint = await hmacFingerprint(`identity:${verifiedUser.email.trim().toLowerCase()}`, hmacSecret);
+    try {
+      const { data, error } = await admin.rpc('hl_record_authenticated_login_v1', {
+        p_actor_user_id: verifiedUser.id,
+        p_identity_fingerprint: identityFingerprint,
+        p_ip_fingerprint: ipFingerprint,
+        p_request_ip: ip,
+        p_user_agent: request.headers.get('user-agent')?.slice(0, 512) ?? null,
+        p_request_origin: normalizedOrigin,
+        p_country_code: location.countryCode,
+        p_city: location.city,
+        p_region: location.region,
+        p_region_code: location.regionCode,
+      });
+      if (error) {
+        console.error('record-auth-event verified login write failed', { request_id: requestId, code: error.code, message: error.message });
+        return response({ accepted: false, code: 'AUTHENTICATED_LOGIN_WRITE_FAILED', request_id: requestId, version: VERSION }, 503, origin, origins);
+      }
+      return response({ accepted: Boolean((data as { accepted?: boolean } | null)?.accepted), request_id: requestId, version: VERSION }, 200, origin, origins);
+    } catch (error) {
+      console.error('record-auth-event verified login unexpected error', { request_id: requestId, message: String(error) });
+      return response({ accepted: false, code: 'AUTHENTICATED_LOGIN_FAILED', request_id: requestId, version: VERSION }, 503, origin, origins);
+    }
+  }
+
+  if (!ALLOWED_EVENTS.has(eventType)) {
+    return response({ accepted: false, code: 'EVENT_NOT_ALLOWED', request_id: requestId }, 400, origin, origins);
+  }
+  const email = normalizeEmail(body.email);
+  const identityFingerprint = email ? await hmacFingerprint(`identity:${email}`, hmacSecret) : null;
   const failureCode = typeof body.failure_code === 'string' && ALLOWED_FAILURE_CODES.has(body.failure_code)
     ? body.failure_code : null;
-  const location = visitor.location;
 
   try {
     const { data, error } = await admin.rpc('hl_record_public_security_event_v3', {

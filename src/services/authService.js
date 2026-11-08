@@ -26,11 +26,11 @@ async function checkAppAuthGate() {
         unavailable.status = 503;
         return unavailable;
       }
-      // A configured Worker is fail-closed. The server may also require the
-      // Worker even when this frontend build forgot its URL; never bypass that
-      // explicit server policy by falling through to direct Supabase Auth.
-      const proxyRequiredByServer = details?.code === 'GEO_PROXY_REQUIRED';
-      if (securityGeoProxyEnabled || proxyRequiredByServer) {
+      // With the signed Cloudflare Worker enabled, a gate failure must not
+      // silently fall through to direct Supabase Auth (which would skip the
+      // app-level IP check). Remove VITE_HOSTEL_SECURITY_WORKER_URL to return
+      // deliberately to the documented direct-Supabase/fail-open mode.
+      if (securityGeoProxyEnabled) {
         const unavailable = new Error(details?.message || 'নিরাপত্তা যাচাই সেবা অনুপলব্ধ। কিছুক্ষণ পরে আবার চেষ্টা করুন।');
         unavailable.code = details?.code || 'SECURITY_GATE_UNAVAILABLE';
         unavailable.status = status || 503;
@@ -70,13 +70,14 @@ async function checkAppAuthGate() {
   }
 }
 
-async function recordAuthTelemetry(eventType, email, failureCode = 'other') {
+async function recordAuthTelemetry(eventType, email, failureCode = 'other', accessToken = null) {
   if (!supabase) return;
   // Await the best-effort write (bounded to 1.5s) so consecutive failed attempts
   // are more likely to be counted before a user immediately retries.
   try {
     const delivery = Promise.resolve(supabase.functions.invoke('record-auth-event', {
       body: { event_type: eventType, email: typeof email === 'string' ? email.trim().toLowerCase() : '', failure_code: failureCode },
+      ...(accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}),
     })).then(({ data, error }) => {
       if (error) {
         console.warn('[Hostel Life] Security telemetry delivery failed:', error.message || error.name || 'unknown_error');
@@ -102,25 +103,28 @@ function classifyAuthFailure(error, eventType) {
   return 'other';
 }
 
-export async function signIn({ email, password, recordLoginSuccess = true }) {
+export async function signIn({ email, password, trackSuccessfulLogin = true }) {
   const normalizedEmail = email.trim().toLowerCase();
   const gateError = await checkAppAuthGate();
   if (gateError) return { data: null, error: gateError };
   const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
   if (result.error) {
     await recordAuthTelemetry('login_failed', normalizedEmail, classifyAuthFailure(result.error, 'login_failed'));
-  } else if (result.data?.user && recordLoginSuccess) {
-    await recordAuthTelemetry('login_success', normalizedEmail, 'other');
+  } else if (result.data?.user && trackSuccessfulLogin) {
+    // Attach the access token returned by this exact sign-in. The telemetry Edge
+    // Function verifies it with Supabase Auth before storing the account identity.
+    await recordAuthTelemetry('login_success', normalizedEmail, 'other', result.data.session?.access_token || null);
   }
   return result;
 }
 
 // Re-authentication prompts (profile password change / Super Admin confirmation)
-// use the same gate and monitoring path as the main login form.
+// use the same IP gate; failed confirmations are logged, successful re-checks are not counted as new logins.
 export async function verifyPassword({ email, password }) {
-  // Re-authentication protects a sensitive action; it is not a new app login.
-  // Failed checks still flow through login_failed telemetry/rate protection.
-  return signIn({ email, password, recordLoginSuccess: false });
+  // A password re-check inside an existing session is not a new user login.
+  // Failed re-auth is still recorded; a successful confirmation is not counted
+  // as another login in Security Monitor.
+  return signIn({ email, password, trackSuccessfulLogin: false });
 }
 
 export async function signUp({ fullName, phone, email, password, permissionCode = '', age18PlusConfirmed = false, ageConfirmationAt = null, termsAcceptedAt = null, privacyPolicyAcceptedAt = null, legalPolicyVersion = '' }) {

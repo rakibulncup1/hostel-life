@@ -29,10 +29,8 @@ test('Run36 event writer validates event type and stores only bounded optional g
   assert.match(migration, /city text/);
   assert.match(telemetry, /hl_record_public_security_event_v3/);
   assert.match(telemetry, /resolveTrustedVisitor/);
-  assert.match(geoProxy, /city: null,[\s\S]*region: null,[\s\S]*regionCode: null/);
-  assert.match(geoProxy, /x-hostel-geo-city/);
-  assert.match(geoProxy, /x-hostel-geo-region-code/);
-  assert.doesNotMatch(geoProxy, /headers\.get\('cf-ipcity'\)/);
+  assert.match(geoProxy, /cf-ipcity/);
+  assert.match(geoProxy, /cf-region-code/);
   assert.match(geoProxy, /HMAC/);
   assert.match(geoProxy, /display-only/);
 });
@@ -42,6 +40,7 @@ test('Password reset Edge Function sends optional display-only location fields t
   assert.match(reset, /hl_record_public_security_event_v3/);
   assert.match(reset, /p_city: location\.city/);
   assert.match(reset, /p_region: location\.region/);
+  assert.match(reset, /visitor\.proxyVerified[\s\S]*?city: null, region: null/);
   assert.match(reset, /unverified display-only location metadata/);
 });
 

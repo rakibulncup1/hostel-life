@@ -177,3 +177,149 @@
   .market-item-row textarea.market-input-item { grid-column: 1 / -1; min-height: 62px; }
   .market-share-preview { max-height: min(45svh, 330px); padding: 13px; font-size: 13px; }
 }
+
+/* Targeted Super Admin refinements: readable date inputs, security detail cards and restore guide. */
+.platform-communications-card .platform-communications-date-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.platform-communications-card .platform-datetime-field,
+.platform-communications-card .platform-datetime-control {
+  min-width: 0;
+  width: 100%;
+}
+.platform-communications-card .platform-datetime-control {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 8px !important;
+}
+.platform-communications-card .platform-datetime-control input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  box-sizing: border-box;
+  font-size: 15px;
+}
+.platform-communications-card .platform-datetime-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.platform-communications-card .platform-datetime-clear {
+  min-height: 38px;
+  padding-inline: 10px;
+}
+
+.platform-security-explainer { display: grid; gap: 9px; min-width: 0; }
+.platform-security-help {
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.platform-security-help > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 28px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+  list-style-position: inside;
+}
+.platform-security-help > ul {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 2px;
+  padding-left: 22px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.platform-security-help > p {
+  margin: 9px 0 1px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.platform-security-diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+.platform-security-diagnostic-grid > span {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.platform-security-diagnostic-grid strong { color: var(--text); }
+.platform-security-actor {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 9px 0 7px;
+  color: var(--text);
+}
+.platform-security-actor > svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary-strong); }
+.platform-security-actor > div { display: grid; gap: 3px; min-width: 0; }
+.platform-security-actor strong { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.platform-security-actor small { color: var(--muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.platform-security-event-details {
+  margin-top: 9px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.platform-security-event-details > summary { cursor: pointer; color: var(--primary-strong); font-size: 11px; font-weight: 800; }
+.platform-security-event-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 10px;
+}
+.platform-security-event-details-grid > div { display: grid; gap: 3px; min-width: 0; }
+.platform-security-event-details-grid > div > span { color: var(--muted); font-size: 10px; }
+.platform-security-event-details-grid > div > strong { color: var(--text); font-size: 11px; line-height: 1.55; font-weight: 650; overflow-wrap: anywhere; }
+.platform-security-event-details-grid .platform-security-event-agent { grid-column: 1 / -1; }
+
+.platform-backup-restore-guide {
+  display: grid;
+  gap: 13px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface-2);
+}
+.platform-backup-restore-heading { display: flex; align-items: flex-start; gap: 11px; }
+.platform-backup-restore-heading > svg { flex: 0 0 auto; color: var(--primary-strong); margin-top: 2px; }
+.platform-backup-restore-heading h4 { margin: 0; color: var(--text); font-size: 14px; }
+.platform-backup-restore-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.platform-backup-restore-guide ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 13px; margin: 0; padding-left: 22px; }
+.platform-backup-restore-guide li { min-width: 0; padding: 2px 0 2px 3px; color: var(--text); }
+.platform-backup-restore-guide li strong,
+.platform-backup-restore-guide li span { display: block; }
+.platform-backup-restore-guide li strong { font-size: 12px; line-height: 1.5; }
+.platform-backup-restore-guide li span { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
+.platform-backup-restore-warning { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--warning, #a16207); font-size: 11px; line-height: 1.65; }
+.platform-backup-restore-warning svg { flex: 0 0 auto; margin-top: 2px; }
+
+@media (max-width: 640px) {
+  .platform-security-diagnostic-grid,
+  .platform-security-event-details-grid,
+  .platform-backup-restore-guide ol { grid-template-columns: minmax(0, 1fr); }
+}

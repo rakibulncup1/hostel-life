@@ -121,6 +121,10 @@ export function App() {
     const inSharedLink = pathname.startsWith('/invite/');
     if (inSharedLink) return;
 
+    // Wait for the first profile + membership read after a new login.
+    // A momentarily-null membership is not evidence that the account is unlinked.
+    if (auth.isAuthenticated && !auth.identityReady && pathname !== '/auth/reset-password') return;
+
     if (auth.isAuthenticated && (inAuth || inOnboarding || pathname === '/')) {
       try {
         // Preserve a pending invitation through registration/email confirmation.
@@ -177,7 +181,7 @@ export function App() {
     if (!inApp && !inAuth && !inOnboarding && !pathname.startsWith('/account/')) {
       navigateTo('/app/dashboard', true);
     }
-  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityError, auth.membership]);
+  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityReady, auth.identityError, auth.membership]);
 
   useEffect(() => {
     let title = 'Hostel Life';
@@ -222,12 +226,18 @@ export function App() {
 
   if (pathname.startsWith('/auth/') || pathname === '/auth') {
     if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.authLoading) {
-      if (auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="অ্যাকাউন্ট যাচাই হচ্ছে..." />);
+      if (!auth.identityReady || auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="অ্যাকাউন্ট ও মেসের সংযোগ যাচাই হচ্ছে..." />);
+      if (auth.identityError) return withPublicCommunications(<IdentityErrorPage />);
+      if (auth.membership?.status === 'inactive') return withPublicCommunications(<InactiveMembershipPage />);
+      // Let the route effect finish navigation instead of flashing the login or
+      // join form after the verified membership result has already arrived.
+      return withPublicCommunications(<LoadingSpinner label={auth.membership?.status === 'active' ? 'আপনাকে মেসের ড্যাশবোর্ডে নেওয়া হচ্ছে...' : 'মেস সেটআপ পেজে নেওয়া হচ্ছে...'} />);
     }
     return withPublicCommunications(<AuthPage pathname={pathname === '/auth' ? '/auth/login' : pathname} />);
   }
 
   if (auth.authLoading) return withPublicCommunications(<LoadingSpinner label="সেশন যাচাই হচ্ছে..." />);
+  if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.identityReady) return withPublicCommunications(<LoadingSpinner label="অ্যাকাউন্ট ও মেসের সংযোগ যাচাই হচ্ছে..." />);
 
   if (pathname.startsWith('/invite/')) {
     return withPublicCommunications(<HostelInvitePage pathname={pathname} />);
@@ -237,7 +247,7 @@ export function App() {
 
   if (pathname === '/super-admin') return withPublicCommunications(<SuperAdminPage user={auth.user} />);
 
-  if (auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="আপনার মেসের তথ্য লোড হচ্ছে..." />);
+  if (!auth.identityReady || auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="আপনার মেসের তথ্য লোড হচ্ছে..." />);
 
   if (auth.identityError) return withPublicCommunications(<IdentityErrorPage />);
 
@@ -247,6 +257,7 @@ export function App() {
 
   if (!auth.membership) return withPublicCommunications(<OnboardingPage />);
 
+  if (auth.membership.status === 'active' && pathname.startsWith('/onboarding')) return withPublicCommunications(<LoadingSpinner label="মেসের ড্যাশবোর্ডে নেওয়া হচ্ছে..." />);
   if (pathname.startsWith('/onboarding')) return withPublicCommunications(<OnboardingPage />);
 
   return (

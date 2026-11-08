@@ -1,0 +1,17 @@
+src/app/App.jsx
+src/contexts/AuthContext.jsx
+src/features/platform/SuperAdminPage.jsx
+src/services/authService.js
+src/styles/production-flow-finishing.css
+supabase/functions/record-auth-event/index.ts
+supabase/functions/request-password-reset/index.ts
+supabase/migrations/Run38_security_monitor_actor_identity.sql
+supabase/verify/Verify_Run38_security_monitor_actor_identity.sql
+tests/backupCenter.test.js
+tests/oct29UiAndPasswordContract.test.js
+tests/logoutSecurityTelemetryVercelRegression.test.js
+tests/superAdminGeoLocalhostDiagnostics.test.js
+tests/superAdminRequestedFiveFixes.test.js
+README_PATCH_BN.md
+AUDIT_REPORT_BN.md
+PATCH_FILE_LIST.txt

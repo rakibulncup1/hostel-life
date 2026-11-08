@@ -96,17 +96,26 @@ export function AuthProvider({ children }) {
   const [operationalRole, setOperationalRole] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [identityLoading, setIdentityLoading] = useState(false);
+  // True only after this authenticated session's profile + membership lookup has settled.
+  // App routing must not treat the initial empty membership state as onboarding.
+  const [identityReady, setIdentityReady] = useState(false);
   const [identityError, setIdentityError] = useState(null);
   const [offlineIdentity, setOfflineIdentity] = useState(false);
   const [sessionExpiryAt, setSessionExpiryAt] = useState(null);
+  const sessionUserIdRef = useRef(null);
+  const identityRequestSequenceRef = useRef(0);
 
   const clearIdentity = useCallback(() => {
+    identityRequestSequenceRef.current += 1;
+    sessionUserIdRef.current = null;
+    setIdentityLoading(false);
     invalidateRequestCache();
     setProfile(null);
     setMembership(null);
     setOperationalRole(null);
     setIdentityError(null);
     setOfflineIdentity(false);
+    setIdentityReady(true);
   }, []);
 
   const sessionPolicyCacheRef = useRef(new Map());
@@ -172,11 +181,15 @@ export function AuthProvider({ children }) {
       return null;
     }
 
+    const identityRequestSequence = ++identityRequestSequenceRef.current;
+    setIdentityReady(false);
     setIdentityLoading(true);
     setIdentityError(null);
     try {
       await enforceSessionLimit(session);
+      if (identityRequestSequenceRef.current !== identityRequestSequence) return null;
       const identity = await loadIdentity();
+      if (identityRequestSequenceRef.current !== identityRequestSequence) return null;
       setProfile(identity.profile);
       setMembership(identity.membership);
       setOperationalRole(identity.operationalRole || null);
@@ -184,12 +197,14 @@ export function AuthProvider({ children }) {
       saveIdentitySnapshot({ userId: session.user.id, identity }).catch(() => undefined);
       return identity;
     } catch (error) {
+      if (identityRequestSequenceRef.current !== identityRequestSequence) return null;
       if (error?.code === 'SESSION_LIMIT_EXCEEDED' || error?.code === 'SESSION_LIMIT_SIGNOUT_FAILED') {
         setIdentityError(error.message);
         throw error;
       }
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         const cached = await readIdentitySnapshot(session.user.id).catch(() => null);
+        if (identityRequestSequenceRef.current !== identityRequestSequence) return null;
         if (cached?.identity?.profile || cached?.identity?.membership) {
           setProfile(cached.identity.profile || null);
           setMembership(cached.identity.membership || null);
@@ -203,7 +218,10 @@ export function AuthProvider({ children }) {
       setIdentityError(friendly);
       throw error;
     } finally {
-      setIdentityLoading(false);
+      if (identityRequestSequenceRef.current === identityRequestSequence) {
+        setIdentityLoading(false);
+        setIdentityReady(true);
+      }
     }
   }, [session, clearIdentity, enforceSessionLimit]);
 
@@ -224,6 +242,12 @@ export function AuthProvider({ children }) {
         setIdentityError(getFriendlySupabaseError(error, 'লগইন সেশন যাচাই করা যায়নি।'));
       }
 
+      const initialUserId = data.session?.user?.id ?? null;
+      if (sessionUserIdRef.current !== initialUserId) {
+        sessionUserIdRef.current = initialUserId;
+        identityRequestSequenceRef.current += 1;
+        setIdentityReady(!data.session);
+      }
       setSession((current) => {
         if (current?.user?.id !== data.session?.user?.id) invalidateRequestCache();
         return current?.user?.id === data.session?.user?.id ? current : (data.session ?? null);
@@ -254,12 +278,21 @@ export function AuthProvider({ children }) {
         }, 0);
       }
       if (event === 'INITIAL_SESSION') {
+        const initialUserId = nextSession?.user?.id ?? null;
+        if (sessionUserIdRef.current !== initialUserId) {
+          sessionUserIdRef.current = initialUserId;
+          identityRequestSequenceRef.current += 1;
+          setIdentityReady(!nextSession);
+        }
         setSession((current) => {
           if (current?.user?.id !== nextSession?.user?.id) invalidateRequestCache();
           return current?.user?.id === nextSession?.user?.id ? current : (nextSession ?? null);
         });
       } else {
         invalidateRequestCache();
+        sessionUserIdRef.current = nextSession?.user?.id ?? null;
+        identityRequestSequenceRef.current += 1;
+        setIdentityReady(Boolean(!nextSession));
         setSession(nextSession ?? null);
       }
       setAuthLoading(false);
@@ -403,13 +436,14 @@ export function AuthProvider({ children }) {
     isActiveMember: membership?.status === 'active',
     authLoading,
     identityLoading,
+    identityReady,
     identityError,
     offlineIdentity,
     sessionExpiryAt,
     refreshIdentity,
     signOut,
     signOutLocal,
-  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityError, offlineIdentity, sessionExpiryAt, refreshIdentity, signOut, signOutLocal]);
+  }), [session, profile, membership, operationalRole, authLoading, identityLoading, identityReady, identityError, offlineIdentity, sessionExpiryAt, refreshIdentity, signOut, signOutLocal]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

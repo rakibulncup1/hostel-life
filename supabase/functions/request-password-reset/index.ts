@@ -5,12 +5,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const FUNCTION_VERSION = '2026-11-07-password-reset-quota-and-ip-gate-6-signed-geo-nonce';
+const FUNCTION_VERSION = '2026-11-08-password-reset-quota-and-ip-gate-6-signed-geo-only';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'http://localhost:5173',
   'https://easy-hostellife.vercel.app',
-  'http://127.0.0.1:5173',
+
 ];
 
 type QuotaResult = {
@@ -71,6 +71,19 @@ function jsonResponse(
   return new Response(JSON.stringify(body), { status, headers });
 }
 
+function isValidEmail(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const email = value.trim();
+  if (email.length < 5 || email.length > 254 || /\s|[\u0000-\u001f\u007f]/.test(email)) return false;
+  const separator = email.lastIndexOf('@');
+  if (separator < 1 || separator > 64 || separator === email.length - 1) return false;
+  const local = email.slice(0, separator);
+  const domain = email.slice(separator + 1);
+  if (!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(local) || local.startsWith('.') || local.endsWith('.') || local.includes('..')) return false;
+  return domain.length <= 253
+    && /^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$/.test(domain);
+}
+
 async function fingerprintEmail(email: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -84,11 +97,6 @@ async function fingerprintEmail(email: string, secret: string): Promise<string> 
   return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-function isValidEmail(value: unknown): value is string {
-  if (typeof value !== 'string') return false;
-  const email = value.trim();
-  return email.length >= 5 && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
 
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
@@ -118,6 +126,19 @@ Deno.serve(async (request) => {
     return jsonResponse({ code: 'ORIGIN_NOT_ALLOWED', message: 'এই ওয়েব ঠিকানা থেকে অনুরোধ গ্রহণ করা হচ্ছে না।', request_id: requestId }, 403, origin, allowedOrigins);
   }
 
+  // Verify the Worker's body-bound HMAC before reading request.text(). The
+  // shared verifier hashes a clone so the original body remains available.
+  const visitor = await resolveTrustedVisitor(request, 'request-password-reset');
+  const requestIp = visitor.ip;
+  // City/Region are stored only when bound to a verified Worker HMAC. The
+  // direct Supabase path may retain the Cloudflare Country Code only.
+  const location = visitor.proxyVerified
+    ? visitor.location
+    : { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null };
+  if (!visitor.ok || !requestIp) {
+    return jsonResponse({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
+  }
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey = publishableKey();
   const serviceRoleKey = secretKey();
@@ -132,29 +153,6 @@ Deno.serve(async (request) => {
       has_hmac_secret: hmacSecret.length >= 32,
     });
     return jsonResponse({ code: 'SERVER_CONFIGURATION_MISSING', message: 'পাসওয়ার্ড রিসেট সেবা এই মুহূর্তে প্রস্তুত নয়। পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
-  }
-
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
-  const consumeGeoNonce = async (nonce: string, timestamp: string): Promise<boolean> => {
-    const { data, error } = await admin.rpc('hl_consume_geo_proxy_nonce', {
-      p_nonce: nonce, p_issued_at: new Date(Number(timestamp)).toISOString(),
-    });
-    if (error) {
-      console.error('request-password-reset geo nonce store failed', { request_id: requestId, code: error.code });
-      return false;
-    }
-    return data === true;
-  };
-
-  // Verify the Worker's body-bound HMAC and consume its single-use nonce before
-  // reading request.text(). The shared verifier hashes a clone of the body.
-  const visitor = await resolveTrustedVisitor(request, 'request-password-reset', consumeGeoNonce);
-  const requestIp = visitor.ip;
-  const location = visitor.location;
-  if (!visitor.ok || !requestIp) {
-    return jsonResponse({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
   }
 
   let body: { email?: unknown };
@@ -174,6 +172,9 @@ Deno.serve(async (request) => {
 
   const email = body.email.trim().toLowerCase();
   const emailFingerprint = await fingerprintEmail(email, hmacSecret);
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
   const authClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });

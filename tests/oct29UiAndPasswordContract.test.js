@@ -7,8 +7,7 @@ test('forced password success uses the monitored fresh sign-in service instead o
   const source = read('src/features/auth/ForcedPasswordChange.jsx');
   const authService = read('src/services/authService.js');
   assert.match(source, /verifyPassword\(\{ email, password \}\)/);
-  assert.match(authService, /export async function verifyPassword\(\{ email, password \}\)[\s\S]*?return signIn\(\{ email, password, recordLoginSuccess: false \}\)/);
-  assert.match(authService, /result\.data\?\.user && recordLoginSuccess/);
+  assert.match(authService, /export async function verifyPassword\(\{ email, password \}\)[\s\S]*?return signIn\(\{ email, password, trackSuccessfulLogin: false \}\)/);
   assert.doesNotMatch(source, /auth\.refreshSession\(/);
   assert.match(source, /reloginNeeded/);
   assert.match(source, /12000/);

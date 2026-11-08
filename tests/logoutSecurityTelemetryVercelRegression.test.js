@@ -28,8 +28,9 @@ test('remote signout acknowledgement failures are distinguished from local logou
 
 test('security telemetry supports a read-only health probe that checks the Run27 RPC without inserting events', () => {
   assert.match(edge, /request\.method === 'GET'/);
-  assert.match(edge, /__hostel_life_health_check__/);
-  assert.match(edge, /error\?\.code === '22023'/);
+  assert.match(edge, /admin\.rpc\('hl_security_monitor_writer_health_v1'\)/);
+  assert.match(edge, /authenticated_login_writer_ready/);
+  assert.doesNotMatch(edge, /__hostel_life_health_check__/);
   assert.match(edge, /database_rpc_ready: true/);
   assert.match(admin, /platformAdminCheckSecurityTelemetry/);
   assert.match(service, /functions\.invoke\('record-auth-event', \{ method: 'GET' \}\)/);
