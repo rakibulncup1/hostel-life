@@ -536,6 +536,24 @@ export async function platformAdminListSecurityEventsV3({ eventType = null, ipSe
   return firstRow(data) || data || { items: [], total_count: 0 };
 }
 
+// V3 remains available for existing callers; the Super Admin monitor uses the email-enriched V4 reader.
+export async function platformAdminListSecurityEventsV4({ eventType = null, ipSearch = null, countryCode = null, locationSearch = null, from = null, to = null, limit = 30, offset = 0 } = {}) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_list_security_events_v4', {
+    p_event_type: eventType || null,
+    p_ip_search: ipSearch || null,
+    p_country_code: countryCode || null,
+    p_location_search: locationSearch || null,
+    p_from: from || null,
+    p_to: to || null,
+    p_limit: Number(limit) || 30,
+    p_offset: Number(offset) || 0,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || { items: [], total_count: 0 };
+}
+
+
 // Retain the old export as a compatibility alias for any remaining callers.
 export const platformAdminListSecurityEventsV2 = platformAdminListSecurityEventsV3;
 

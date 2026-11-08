@@ -17,7 +17,7 @@ const dateCss = read('src/styles/production-flow-finishing.css');
 test('Security Monitor now distinguishes verified successful account identity from failed-attempt fingerprint', () => {
   assert.match(page, /row\.actor_name/);
   assert.match(page, /row\.actor_user_id/);
-  assert.match(page, /Email-এর নিরাপদ HMAC reference/);
+  assert.match(page, /পরিচয়-রেফারেন্স/);
   assert.match(page, /Event-এর বিস্তারিত দেখুন/);
   assert.match(migration, /actor_user_id uuid/);
   assert.match(migration, /actor_name/);
@@ -26,9 +26,9 @@ test('Security Monitor now distinguishes verified successful account identity fr
 });
 
 test('successful login telemetry requires a Supabase Auth-verified bearer token', () => {
-  assert.match(telemetry, /eventType === 'login_success'/);
-  assert.match(telemetry, /admin\.auth\.getUser\(tokenMatch\[1\]\)/);
-  assert.match(telemetry, /hl_record_authenticated_login_v1/);
+  assert.match(telemetry, /AUTHENTICATED_EVENT_TYPES\.has\(eventType\)/);
+  assert.match(telemetry, /admin\.auth\.getUser\(jwt\)/);
+  assert.match(telemetry, /hl_record_authenticated_auth_event_v2/);
   assert.match(telemetry, /authenticated_login_writer_ready/);
   assert.match(telemetry, /hl_security_monitor_writer_health_v1/);
   assert.doesNotMatch(telemetry, /ALLOWED_EVENTS = new Set\(\[\s*'login_failed', 'login_success'/);

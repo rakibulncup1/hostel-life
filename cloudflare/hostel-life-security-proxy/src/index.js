@@ -1,19 +1,3 @@
-const express = require('express');
-const { checkCloudflareProxy } = require('./middleware'); // তৈরি করা ফাইলটি ইম্পোর্ট করলাম
-
-const app = express();
-
-// সমস্ত রিকোয়েস্টের শুরুতে প্রক্সি চেক করার জন্য মিডলওয়্যারটি বসিয়ে দিন
-app.use(checkCloudflareProxy);
-
-// আপনার বাকি রাউট বা কোডগুলো এখানে থাকবে
-app.get('/', (req, res) => {
-    res.send('Welcome to the secure application!');
-});
-
-module.exports = app;
-
-
 const ALLOWED_ROUTES = new Map([
   ['/functions/v1/auth-security-gate', new Set(['GET', 'POST'])],
   ['/functions/v1/record-auth-event', new Set(['GET', 'POST'])],

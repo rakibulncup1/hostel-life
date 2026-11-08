@@ -5,14 +5,16 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const VERSION = '2026-11-08-auth-security-telemetry-8-verified-login-identity';
+const VERSION = '2026-11-08-auth-security-telemetry-10-attempt-email-and-signup-verification';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'https://easy-hostellife.vercel.app',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
 ];
-const ALLOWED_EVENTS = new Set([
-  'login_failed', 'signup_failed', 'signup_submitted', 'password_reset_failed', 'password_reset_requested',
+const AUTHENTICATED_EVENT_TYPES = new Set(['login_success', 'signup_verified']);
+const PUBLIC_EVENT_TYPES = new Set([
+  'login_failed', 'signup_failed', 'signup_submitted', 'password_reset_failed',
 ]);
 const ALLOWED_FAILURE_CODES = new Set([
   'invalid_credentials', 'rate_limited', 'account_exists', 'signup_disabled', 'other',
@@ -65,6 +67,24 @@ function normalizeEmail(value: unknown): string | null {
     ? email : null;
 }
 
+// The bearer token is first verified with Supabase Auth below. Only then do we
+// read its signed session_id claim for the Run37 active-session guard.
+function sessionIdFromJwtPayload(jwt: string): string | null {
+  try {
+    const segment = jwt.split('.')[1];
+    if (!segment) return null;
+    const base64 = segment.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(segment.length / 4) * 4, '=');
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    const payload = JSON.parse(new TextDecoder().decode(bytes));
+    const sessionId = typeof payload?.session_id === 'string' ? payload.session_id : '';
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)
+      ? sessionId : null;
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin') ?? '';
@@ -111,7 +131,17 @@ Deno.serve(async (request) => {
   const admin = createClient(supabaseUrl, adminKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
-  const visitor = await resolveTrustedVisitor(request, 'record-auth-event');
+  const consumeGeoNonce = async (nonce: string, timestamp: string): Promise<boolean> => {
+    const { data, error } = await admin.rpc('hl_consume_geo_proxy_nonce', {
+      p_nonce: nonce, p_issued_at: new Date(Number(timestamp)).toISOString(),
+    });
+    if (error) {
+      console.error('record-auth-event geo nonce store failed', { request_id: requestId, code: error.code });
+      return false;
+    }
+    return data === true;
+  };
+  const visitor = await resolveTrustedVisitor(request, 'record-auth-event', consumeGeoNonce);
   if (!visitor.ok) {
     return response({ accepted: false, ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
   }
@@ -170,21 +200,36 @@ Deno.serve(async (request) => {
   // A successful login must be tied to a real Supabase Auth identity. The
   // endpoint remains JWT-disabled for failed/pre-auth events, but this branch
   // independently verifies the supplied access token with Supabase Auth.
-  if (eventType === 'login_success') {
+  if (AUTHENTICATED_EVENT_TYPES.has(eventType)) {
     const authorization = request.headers.get('authorization') ?? '';
     const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
     if (!tokenMatch?.[1]) {
       return response({ accepted: false, code: 'AUTHENTICATED_LOGIN_TOKEN_REQUIRED', request_id: requestId, version: VERSION }, 401, origin, origins);
     }
-    const { data: authData, error: authError } = await admin.auth.getUser(tokenMatch[1]);
+    const jwt = tokenMatch[1];
+    const { data: authData, error: authError } = await admin.auth.getUser(jwt);
     const verifiedUser = authData?.user;
-    if (authError || !verifiedUser?.id || !verifiedUser.email) {
+    const verifiedSessionId = !authError && verifiedUser?.id ? sessionIdFromJwtPayload(jwt) : null;
+    if (authError || !verifiedUser?.id || !verifiedUser.email || !verifiedSessionId || (eventType === 'signup_verified' && !verifiedUser.email_confirmed_at)) {
       return response({ accepted: false, code: 'AUTHENTICATED_LOGIN_IDENTITY_INVALID', request_id: requestId, version: VERSION }, 401, origin, origins);
+    }
+    // Defense in depth: explicitly check the signed session_id against the
+    // existing Run37 auth.sessions guard before writing the event. The SQL
+    // writer repeats this check in the same transaction to avoid a race.
+    const { data: activeSession, error: sessionCheckError } = await admin.rpc('hl_is_auth_session_active_for_security_event', {
+      p_user_id: verifiedUser.id,
+      p_session_id: verifiedSessionId,
+    });
+    if (sessionCheckError || activeSession !== true) {
+      return response({ accepted: false, code: 'AUTH_SESSION_NOT_ACTIVE', request_id: requestId, version: VERSION }, 401, origin, origins);
     }
     const identityFingerprint = await hmacFingerprint(`identity:${verifiedUser.email.trim().toLowerCase()}`, hmacSecret);
     try {
-      const { data, error } = await admin.rpc('hl_record_authenticated_login_v1', {
+      const { data, error } = await admin.rpc('hl_record_authenticated_auth_event_v2', {
+        p_event_type: eventType,
         p_actor_user_id: verifiedUser.id,
+        p_session_id: verifiedSessionId,
+        p_attempt_email: verifiedUser.email,
         p_identity_fingerprint: identityFingerprint,
         p_ip_fingerprint: ipFingerprint,
         p_request_ip: ip,
@@ -206,7 +251,7 @@ Deno.serve(async (request) => {
     }
   }
 
-  if (!ALLOWED_EVENTS.has(eventType)) {
+  if (!PUBLIC_EVENT_TYPES.has(eventType)) {
     return response({ accepted: false, code: 'EVENT_NOT_ALLOWED', request_id: requestId }, 400, origin, origins);
   }
   const email = normalizeEmail(body.email);
@@ -215,7 +260,7 @@ Deno.serve(async (request) => {
     ? body.failure_code : null;
 
   try {
-    const { data, error } = await admin.rpc('hl_record_public_security_event_v3', {
+    const { data, error } = await admin.rpc('hl_record_public_security_event_v4', {
       p_event_type: eventType,
       p_identity_fingerprint: identityFingerprint,
       p_ip_fingerprint: ipFingerprint,
@@ -227,6 +272,7 @@ Deno.serve(async (request) => {
       p_city: location.city,
       p_region: location.region,
       p_region_code: location.regionCode,
+      p_attempt_email: email,
     });
     if (error) {
       console.error('record-auth-event database write failed', {

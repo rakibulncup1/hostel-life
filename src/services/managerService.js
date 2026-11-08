@@ -56,6 +56,11 @@ export async function fetchKhalaPeriods() {
   return Array.isArray(data) ? data : [];
 }
 
+export async function fetchKhalaEntryMembers(periodId) {
+  const data = await rpc('get_khala_entry_members_v2', { p_period_id: periodId });
+  return Array.isArray(data) ? data : [];
+}
+
 export async function fetchPeriodAssistants(periodId = null) {
   const data = await rpc('get_period_assistants', { p_period_id: periodId });
   return Array.isArray(data) ? data : [];
@@ -168,6 +173,16 @@ export async function revokeArchiveEditPermission(permissionId) {
 export async function addKhalaMoney({ periodId, memberId, amount, paymentDate, description = null }) {
   return unwrap(await rpc('manager_add_khala_money_for_period', {
     p_period_id: periodId,
+    p_member_id: memberId,
+    p_amount: amount,
+    p_payment_date: paymentDate,
+    p_description: description || null,
+  }));
+}
+
+export async function updateKhalaMoney({ entryId, memberId, amount, paymentDate, description = null }) {
+  return unwrap(await rpc('manager_update_khala_money', {
+    p_entry_id: entryId,
     p_member_id: memberId,
     p_amount: amount,
     p_payment_date: paymentDate,

@@ -323,3 +323,34 @@
   .platform-security-event-details-grid,
   .platform-backup-restore-guide ol { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* OTP verification and activity attribution additions. */
+.auth-otp-field { gap: 9px; }
+.auth-otp-field > input {
+  min-height: 58px;
+  text-align: center;
+  font-size: 25px;
+  font-weight: 850;
+  letter-spacing: .42em;
+  font-variant-numeric: tabular-nums;
+  padding-inline: 16px;
+}
+.auth-otp-field > small { color: var(--muted); line-height: 1.6; overflow-wrap: anywhere; }
+.auth-otp-field .text-button { align-self: flex-end; min-height: 34px; }
+.platform-security-email {
+  display: flex; align-items: flex-start; gap: 7px; min-width: 0;
+  margin-top: 8px; padding: 8px 10px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--surface-2); color: var(--muted);
+  font-size: 11px; line-height: 1.6; overflow-wrap: anywhere;
+}
+.platform-security-email svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary-strong); }
+.platform-security-email strong { color: var(--text); font-weight: 800; overflow-wrap: anywhere; }
+.platform-security-match { display: grid; gap: 5px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.platform-security-match > strong { color: var(--text); font-size: 12px; }
+.platform-security-match > span { color: var(--muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.khala-row-actions { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.khala-row-actions .icon-button { width: 34px; height: 34px; }
+@media (max-width: 560px) {
+  .auth-otp-field > input { min-height: 54px; font-size: 23px; }
+  .khala-row-actions { grid-column: 1 / -1; justify-content: flex-end; }
+}

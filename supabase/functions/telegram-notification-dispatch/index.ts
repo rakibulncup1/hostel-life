@@ -2,7 +2,7 @@
 // 100 opted-in recipients from an existing inbox INSERT; there is no polling.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const VERSION = 'hostel-life-telegram-dispatch-3';
+const VERSION = 'hostel-life-telegram-dispatch-4';
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type DeliveryStatus = 'delivered' | 'failed' | 'skipped';
 type DeliveryResult = { id: string; status: DeliveryStatus; attempts: number; code: string | null; disableUser?: string };
@@ -25,9 +25,23 @@ function safeEqual(left: string, right: string): boolean {
   for (let i = 0; i < left.length; i += 1) diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
   return diff === 0;
 }
-function boundedTelegramText(title: unknown, body: unknown): string {
-  const text = `Hostel Life\n${String(title || 'নোটিফিকেশন')}\n\n${String(body || '')}`;
-  return Array.from(text).slice(0, 3900).join('');
+function boundedTelegramText(title: unknown, body: unknown, hostelName: unknown, kind: unknown): string {
+  const labels: Record<string, string> = {
+    market_entry: 'বাজারের হিসাব', deposit: 'সদস্যের জমা', other_expense: 'মেসের অন্যান্য খরচ',
+    ledger_adjustment: 'হিসাব সংশোধন', khala_money: 'খালার পারিশ্রমিক', month_closed: 'মাস বন্ধ',
+    new_month: 'নতুন মাস', manager_change: 'ম্যানেজার পরিবর্তন', membership_change: 'সদস্য আপডেট',
+    platform_message: 'Hostel Life বার্তা', system_notice: 'মেসের নোটিশ',
+    manager_message: 'ম্যানেজারের বার্তা', meal_request_approved: 'মিল অনুরোধ অনুমোদন',
+    meal_request_rejected: 'মিল অনুরোধ বাতিল', meal_request_update: 'মিল অনুরোধের আপডেট',
+    archive_correction: 'বন্ধ মাসের হিসাব সংশোধন', archive_deleted: 'মেসের আর্কাইভ আপডেট', retention_updated: 'মেসের আর্কাইভ নীতি আপডেট',
+  };
+  const lines = [
+    '🏠 Hostel Life',
+    `🏡 মেস: ${String(hostelName || 'আপনার মেস')}`,
+    `🔔 ${labels[String(kind || '')] || 'মেসের আপডেট'}`,
+    ...[title, body].flatMap((value) => String(value || '').split(/\r?\n/).map((line) => line.replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ').trim()).filter(Boolean)),
+  ].map((line) => line.trim()).filter(Boolean);
+  return Array.from(lines.join('\n')).slice(0, 3900).join('');
 }
 
 async function sendTelegram(botToken: string, chatId: string, text: string): Promise<{ ok: boolean; attempts: number; code: string | null; blocked: boolean }> {
@@ -125,10 +139,16 @@ Deno.serve(async (request) => {
     const notificationIds = [...new Set(rows.map((row: any) => row.notification_id).filter(Boolean))];
     const userIds = [...new Set(rows.map((row: any) => row.recipient_user_id).filter(Boolean))];
     const [{ data: notifications, error: notificationError }, { data: channels, error: channelError }] = await Promise.all([
-      notificationIds.length ? admin.from('notifications').select('id,title,body,recipient_user_id,deleted_at').in('id', notificationIds) : Promise.resolve({ data: [], error: null } as any),
+      notificationIds.length ? admin.from('notifications').select('id,title,body,recipient_user_id,deleted_at,hostel_id,notification_kind').in('id', notificationIds) : Promise.resolve({ data: [], error: null } as any),
       userIds.length ? admin.from('user_notification_channels').select('user_id,channel_address,enabled').eq('provider', 'telegram').in('user_id', userIds) : Promise.resolve({ data: [], error: null } as any),
     ]);
     if (notificationError || channelError) throw new Error('RECIPIENT_DATA_READ_FAILED');
+    const hostelIds = [...new Set((notifications || []).map((item: any) => item.hostel_id).filter(Boolean))];
+    const { data: hostels, error: hostelError } = hostelIds.length
+      ? await admin.from('hostels').select('id,name').in('id', hostelIds)
+      : { data: [], error: null } as any;
+    if (hostelError) throw new Error('HOSTEL_LABEL_READ_FAILED');
+    const hostelMap = new Map((hostels || []).map((item: any) => [item.id, item.name]));
     const notificationMap = new Map((notifications || []).map((item: any) => [item.id, item]));
     const channelMap = new Map((channels || []).map((item: any) => [item.user_id, item]));
     const results: DeliveryResult[] = [];
@@ -146,7 +166,7 @@ Deno.serve(async (request) => {
         results.push({ id: row.id, status: 'skipped', attempts: 0, code: 'RECIPIENT_OR_NOTIFICATION_UNAVAILABLE' });
         continue;
       }
-      const sent = await sendTelegram(botToken, channel.channel_address, boundedTelegramText(notification.title, notification.body));
+      const sent = await sendTelegram(botToken, channel.channel_address, boundedTelegramText(notification.title, notification.body, hostelMap.get(notification.hostel_id), notification.notification_kind));
       results.push({ id: row.id, status: sent.ok ? 'delivered' : 'failed', attempts: sent.attempts, code: sent.code, ...(sent.blocked ? { disableUser: row.recipient_user_id } : {}) });
       await delay(40);
     }

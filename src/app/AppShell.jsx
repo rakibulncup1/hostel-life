@@ -43,7 +43,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const isOnline = useOnlineStatus();
   const { canInstall, installed, install } = useInstallPromptContext();
   const { signOut } = useAuth();
-  const { context: managementContext, period, isPrimaryManager, isAssistantManager, isOperationalManager, refresh: refreshManagementContext } = useManagementContext();
+  const { context: managementContext, period, isPrimaryManager, isAssistantManager, isOperationalManager, hasClosedMonthAccess, refresh: refreshManagementContext } = useManagementContext();
   const hasRunningPeriod = Boolean(period?.period_id || period?.id);
   const effectivePrimaryManager = hasRunningPeriod ? Boolean(isPrimaryManager) : Boolean(isManager);
   const effectiveOperationalManager = Boolean(effectivePrimaryManager || isAssistantManager || (!hasRunningPeriod && isManager));
@@ -462,6 +462,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         isManager={effectivePrimaryManager}
         isPrimaryManager={effectivePrimaryManager}
         isOperationalManager={effectiveOperationalManager}
+        hasClosedMonthAccess={hasClosedMonthAccess}
         onAction={handleMenuAction}
         profile={profile}
         user={user}

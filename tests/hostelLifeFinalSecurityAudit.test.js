@@ -78,5 +78,6 @@ test('Password re-authentication does not inflate the fresh login-success metric
 
 test('server-required Geo Proxy cannot be bypassed by a frontend build missing the Worker URL', () => {
   assert.match(authService, /details\?\.code === 'GEO_PROXY_REQUIRED'/);
-  assert.match(authService, /securityGeoProxyEnabled \|\| proxyRequiredByServer/);
+  assert.match(authService, /details\?\.code === 'GEO_PROXY_REQUIRED'/);
+  assert.match(authService, /unavailable\.code = details\.code/);
 });

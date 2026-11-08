@@ -15,6 +15,7 @@ import {
   emergencyOverrideMyMeal,
   fetchArchiveManagementItems,
   fetchArchivePermissions,
+  fetchKhalaEntryMembers,
   fetchKhalaPeriods,
   fetchMealRequestOverlapDetails,
   fetchPeriodAssistants,
@@ -27,6 +28,7 @@ import {
   setPeriodAssistants,
   startNewMonth,
   updateHostel,
+  updateKhalaMoney,
   voidKhalaMoney,
 } from '../../services/managerService';
 import { fetchKhalaMoneyHistory, fetchPreviousMonths, fetchArchivedMonthDetail } from '../../services/historyService';
@@ -876,7 +878,7 @@ export function MemberManagementPage() {
 export function KhalaMoneyPage() {
   const toast = useToast();
   const online = useOnlineStatus();
-  const { context, isPrimaryManager, isOperationalManager } = useManagementContext();
+  const { context, isPrimaryManager, isOperationalManager, hasClosedMonthAccess } = useManagementContext();
   const [periods, setPeriods] = useState([]);
   const [rows, setRows] = useState([]);
   const [periodId, setPeriodId] = useState('');
@@ -885,34 +887,45 @@ export function KhalaMoneyPage() {
   const [busy, setBusy] = useState(false);
   const [voidTarget, setVoidTarget] = useState(null);
   const [voidReason, setVoidReason] = useState('');
+  const [editingTarget, setEditingTarget] = useState(null);
   const [eligibleMembers, setEligibleMembers] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const periodRows = await fetchKhalaPeriods();
-      // Separate optional directory lookup: a failure must not hide existing khala entries.
-      try {
-        const directory = await fetchManagerMemberDirectory();
-        setEligibleMembers((Array.isArray(directory) ? directory : []).filter((m) => m.member_status === 'active'));
-      } catch { setEligibleMembers([]); }
       const historyByPeriod = await Promise.all(periodRows.map((period) => fetchKhalaMoneyHistory({ periodId: period.period_id, limit: 300 })));
       const khalaRows = historyByPeriod.flat().sort((a, b) => String(b.entry_date || '').localeCompare(String(a.entry_date || '')) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
       setPeriods(periodRows);
       const currentPeriod = context?.period?.period_id;
-      setPeriodId((currentPeriod && periodRows.some((p) => p.period_id === currentPeriod)) ? currentPeriod : (periodRows[0]?.period_id || ''));
+      // Keep the user's selected historical period when refreshing after an edit.
+      // Fall back to the running period (or first available period) only when it disappeared.
+      setPeriodId((previous) => periodRows.some((p) => p.period_id === previous)
+        ? previous
+        : ((currentPeriod && periodRows.some((p) => p.period_id === currentPeriod))
+          ? currentPeriod
+          : (periodRows[0]?.period_id || '')));
       setRows(khalaRows);
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'খালার টাকার তথ্য লোড করা যায়নি।'));
     } finally { setLoading(false); }
   }, [context?.period?.period_id, toast]);
 
-  useEffect(() => { if (online && isOperationalManager) load(); }, [online, isOperationalManager, load]);
+  useEffect(() => { if (online && (isOperationalManager || hasClosedMonthAccess)) load(); }, [online, isOperationalManager, hasClosedMonthAccess, load]);
 
   const selectedPeriod = periods.find((p) => p.period_id === periodId) || null;
   const periodStartNotice = getPeriodStartNotice(selectedPeriod, 'খালার টাকার এন্ট্রি');
   const visibleRows = selectedPeriod ? rows.filter((row) => row.period_id === selectedPeriod.period_id) : rows;
   const total = visibleRows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+  useEffect(() => {
+    let active = true;
+    if (!online || !selectedPeriod?.period_id) { setEligibleMembers([]); return undefined; }
+    fetchKhalaEntryMembers(selectedPeriod.period_id)
+      .then((members) => { if (active) setEligibleMembers(Array.isArray(members) ? members : []); })
+      .catch((error) => { if (active) { setEligibleMembers([]); toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।')); } });
+    return () => { active = false; };
+  }, [online, selectedPeriod?.period_id, toast]);
 
   useEffect(() => {
     if (!selectedPeriod) return;
@@ -935,12 +948,36 @@ export function KhalaMoneyPage() {
     if (selectedPeriod?.end_date && form.paymentDate > selectedPeriod.end_date) return toast.warning('প্রদানের তারিখ নির্বাচিত মাসের শেষের পরের হতে পারবে না।');
     setBusy(true);
     try {
-      await addKhalaMoney({ periodId, memberId: form.memberId, amount, paymentDate: form.paymentDate, description: form.description.trim() || null });
-      toast.success('খালার টাকার এন্ট্রি আলাদা হিসাব হিসেবে সংরক্ষণ হয়েছে।');
+      const payload = { periodId, memberId: form.memberId, amount, paymentDate: form.paymentDate, description: form.description.trim() || null };
+      if (editingTarget?.entry_id) {
+        await updateKhalaMoney({ ...payload, entryId: editingTarget.entry_id });
+        toast.success('খালার টাকার এন্ট্রি সংশোধন হয়েছে।');
+      } else {
+        await addKhalaMoney(payload);
+        toast.success('খালার টাকার এন্ট্রি আলাদা হিসাব হিসেবে সংরক্ষণ হয়েছে।');
+      }
+      setEditingTarget(null);
       setForm((current) => ({ ...current, amount: '', description: '' }));
       await load();
-    } catch (error) { toast.error(getPeriodAwareError(error, 'খালার টাকার এন্ট্রি যোগ করা যায়নি।', selectedPeriod, 'খালার টাকার এন্ট্রি')); }
+    } catch (error) { toast.error(getPeriodAwareError(error, editingTarget ? 'খালার টাকার এন্ট্রি সংশোধন করা যায়নি।' : 'খালার টাকার এন্ট্রি যোগ করা যায়নি।', selectedPeriod, 'খালার টাকার এন্ট্রি')); }
     finally { setBusy(false); }
+  };
+
+  const startEdit = (row) => {
+    if (!row || row.status === 'void') return;
+    setEditingTarget(row);
+    setForm({
+      amount: String(row.amount ?? ''),
+      memberId: row.member_id || '',
+      paymentDate: String(row.payment_date || row.entry_date || '').slice(0, 10),
+      description: row.description || '',
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    setEditingTarget(null);
+    setForm({ amount: '', memberId: '', paymentDate: toDateInputValue(), description: '' });
   };
 
   const doVoid = async () => {
@@ -956,13 +993,12 @@ export function KhalaMoneyPage() {
   };
 
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="খালার টাকার তথ্য অনলাইনে দেখা ও যোগ করা যাবে।" />;
-  if (!isOperationalManager) return <AccessNotice title="অনুমতি নেই" text="খালার টাকার entry ম্যানেজার বা সহকারী ম্যানেজারের জন্য।" />;
+  if (!isOperationalManager && !hasClosedMonthAccess) return <AccessNotice title="অনুমতি নেই" text="খালার টাকার এই অংশটি শুধু অনুমোদিত মাসের দায়িত্বপ্রাপ্ত ম্যানেজার দেখতে পারবেন।" />;
   if (loading) return <LoadingSpinner label="খালার টাকার তথ্য লোড হচ্ছে..." />;
 
   return (
-    <ManagerGuard>
-      <div className="page-stack">
-        <PageHeader title="খালার টাকা" icon="wallet" description={isPrimaryManager ? 'মাসের বাজার বা সদস্যের ব্যক্তিগত খরচের সঙ্গে না মিশিয়ে খালার পারিশ্রমিক আলাদাভাবে লিখুন।' : 'অনুমোদিত কাজের মাসে খালার পারিশ্রমিকের আলাদা হিসাব যোগ করুন।'} />
+    <div className="page-stack">
+        <PageHeader title="খালার টাকা" icon="wallet" description={isOperationalManager ? 'প্রতিটি এন্ট্রি সংশ্লিষ্ট কাজের মাসের সঙ্গে সংযুক্ত থাকবে।' : 'আপনি যে মাসটি বন্ধ করেছিলেন, শুধু সেই মাসের খালার টাকার তথ্য দেখতে ও সংশোধন করতে পারবেন।'} />
         {periods.length === 0 ? (
           <div className="empty-state-card"><Icon name="wallet" size={26} /><strong>এখনো কোনো কাজের মাস পাওয়া যায়নি</strong><span>বর্তমান বা নির্ধারিত পুরোনো মাস থাকলে এখানে দেখা যাবে।</span></div>
         ) : (
@@ -970,7 +1006,7 @@ export function KhalaMoneyPage() {
             <form className="card manager-form-card khala-entry-form" onSubmit={save}>
               {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
               <div className="form-grid-2">
-                <label className="field-label"><span>কাজের মাস</span><select value={periodId} onChange={(e) => setPeriodId(e.target.value)}>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label}</option>)}</select></label>
+                <label className="field-label"><span>কাজের মাস</span><select value={periodId} onChange={(e) => setPeriodId(e.target.value)}>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label}{period.status !== 'running' ? ` · ${period.manager_at_close_name || 'বন্ধ মাস'}` : ' · চলমান'}</option>)}</select></label>
                 <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={toDateInputValue()} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} disabled={Boolean(periodStartNotice)} required /></label>
               </div>
               <label className="field-label"><span>যে সদস্যের নামে খালার পারিশ্রমিকটি নথিভুক্ত হবে</span>
@@ -985,7 +1021,7 @@ export function KhalaMoneyPage() {
                 <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => setForm((current) => ({ ...current, amount: e.target.value }))} placeholder="০" required /></label>
                 <label className="field-label"><span>বিবরণ <em>(ঐচ্ছিক)</em></span><input value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} placeholder="যেমন: মাসিক পারিশ্রমিক" /></label>
               </div>
-              <button className="primary-button large" type="submit" disabled={busy || Boolean(periodStartNotice)}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'খালার টাকা যোগ করুন'}</button>
+              <div className="form-actions-inline"><button className="primary-button large" type="submit" disabled={busy || Boolean(periodStartNotice) || !eligibleMembers.length}>{busy ? 'সংরক্ষণ হচ্ছে...' : editingTarget ? 'পরিবর্তন সংরক্ষণ করুন' : 'খালার টাকা যোগ করুন'}</button>{editingTarget && <button className="secondary-button" type="button" disabled={busy} onClick={cancelEdit}>সম্পাদনা বাতিল</button>}</div>
             </form>
 
             <section className="card manager-form-card">
@@ -994,14 +1030,15 @@ export function KhalaMoneyPage() {
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
                   <article className={`card manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
                     <div className="khala-ledger-copy">
-                      <div className="khala-ledger-recipient"><span>সদস্যের নাম</span><strong>{row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : row.recipient_name || 'সদস্যের নাম পাওয়া যায়নি'}</strong></div>
+                      <div className="khala-ledger-recipient"><span>সদস্যের নাম</span><strong>{row.recipient_name || (row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : 'সদস্যের নাম পাওয়া যায়নি')}</strong></div>
                       <span className="khala-entry-kind">খালার পারিশ্রমিক</span>
                       <small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small>
                       <span className="khala-ledger-description">{row.description || 'খালার টাকা'}</span>
                       <small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small>
+                      {row.updated_by_name && <small className="khala-entry-actor">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}
                     </div>
                     <strong>{formatCurrency(row.amount)}</strong>
-                    {row.status !== 'void' ? <button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button> : <span className="member-badge inactive">বাতিল</span>}
+                    {row.status !== 'void' ? <div className="khala-row-actions"><button className="icon-button compact-icon" type="button" disabled={busy} onClick={() => startEdit(row)} aria-label="এন্ট্রি সম্পাদনা করুন" title="সম্পাদনা"><Icon name="edit" size={15} /></button><button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button></div> : <span className="member-badge inactive">বাতিল</span>}
                   </article>
                 ))}
               </div>
@@ -1010,7 +1047,6 @@ export function KhalaMoneyPage() {
         )}
         {voidTarget && <ConfirmModal danger title="এই এন্ট্রি বাতিল করবেন?" description={`${formatCurrency(voidTarget.amount)} খালার পারিশ্রমিক কার্যকর হিসাব থেকে বাদ যাবে। ইতিহাসে বাতিলের রেকর্ড থাকবে।`} confirmLabel="এন্ট্রি বাতিল করুন" busy={busy} onClose={() => { setVoidTarget(null); setVoidReason(''); }} onConfirm={doVoid}><label className="field-label"><span>বাতিলের কারণ</span><textarea rows="3" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} placeholder="ভুল এন্ট্রি" /></label></ConfirmModal>}
       </div>
-    </ManagerGuard>
   );
 }
 

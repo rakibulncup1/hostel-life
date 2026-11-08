@@ -7,10 +7,12 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (name) => fs.readFileSync(path.join(root, name), 'utf8');
 const migration = read('supabase/migrations/Run36_security_geo_location_and_localhost_diagnostics.sql');
+const targetedMigration = read('supabase/migrations/Run39_targeted_hostel_life_improvements.sql');
 const verify = read('supabase/verify/Verify_Run36_security_geo_localhost.sql');
 const config = read('supabase/config.toml');
 const telemetry = read('supabase/functions/record-auth-event/index.ts');
 const geoProxy = read('supabase/functions/_shared/geoProxy.ts');
+const worker = read('cloudflare/hostel-life-security-proxy/src/index.js');
 const reset = read('supabase/functions/request-password-reset/index.ts');
 const service = read('src/services/platformService.js');
 const page = read('src/features/platform/SuperAdminPage.jsx');
@@ -23,25 +25,28 @@ const page = read('src/features/platform/SuperAdminPage.jsx');
   assert.match(migration, /Run35 security columns are missing/);
 });
 
-test('Run36 event writer validates event type and stores only bounded optional geo labels', () => {
+test('Run39 event writer preserves Run36 bounded geo handling and adds attempted-email storage', () => {
   assert.match(migration, /p_event_type IS NULL OR p_event_type NOT IN/);
   assert.match(migration, /hl_security_events\(\s*event_type,ip_address,ip_fingerprint,identity_fingerprint,[\s\S]*?country_code,city,region,region_code/);
   assert.match(migration, /city text/);
-  assert.match(telemetry, /hl_record_public_security_event_v3/);
+  assert.match(telemetry, /hl_record_public_security_event_v4/);
+  assert.match(targetedMigration, /hl_record_public_security_event_v4/);
   assert.match(telemetry, /resolveTrustedVisitor/);
-  assert.match(geoProxy, /cf-ipcity/);
-  assert.match(geoProxy, /cf-region-code/);
+  assert.match(worker, /request\.cf/);
+  assert.match(worker, /cf\.city/);
+  assert.match(worker, /cf\.region/);
+  assert.match(worker, /cf\.regionCode/);
   assert.match(geoProxy, /HMAC/);
   assert.match(geoProxy, /display-only/);
 });
 
 test('Password reset Edge Function sends optional display-only location fields to new limiter and event writer', () => {
   assert.match(reset, /hl_consume_password_reset_ip_request_v2/);
-  assert.match(reset, /hl_record_public_security_event_v3/);
+  assert.match(reset, /hl_record_public_security_event_v4/);
   assert.match(reset, /p_city: location\.city/);
   assert.match(reset, /p_region: location\.region/);
   assert.match(reset, /visitor\.proxyVerified[\s\S]*?city: null, region: null/);
-  assert.match(reset, /unverified display-only location metadata/);
+  assert.match(geoProxy, /proxyVerified: false/);
 });
 
 test('Geo-aware SQL writer and reset limiter remain service-role-only', () => {
@@ -53,9 +58,9 @@ test('Geo-aware SQL writer and reset limiter remain service-role-only', () => {
 });
 
 test('Super Admin uses geo-aware event RPC and exposes city, region and request origin', () => {
-  assert.match(service, /platform_admin_list_security_events_v3/);
+  assert.match(service, /platform_admin_list_security_events_v4/);
   assert.match(service, /p_location_search: locationSearch/);
-  assert.match(page, /platformAdminListSecurityEventsV3/);
+  assert.match(page, /platformAdminListSecurityEventsV4/);
   assert.match(page, /City \/ Region/);
   assert.match(page, /top_locations/);
   assert.match(page, /top_origins/);

@@ -21,6 +21,12 @@ async function checkAppAuthGate() {
         blocked.retryAt = details?.retry_at || null;
         return blocked;
       }
+      if (details?.code === 'GEO_PROXY_REQUIRED') {
+        const unavailable = new Error('এই সাইটে নিরাপত্তা যাচাইয়ের জন্য Cloudflare Worker সংযোগ বাধ্যতামূলক। অ্যাপটি সঠিক Worker URL দিয়ে প্রকাশ না হওয়া পর্যন্ত Login ও Registration বন্ধ থাকবে।');
+        unavailable.code = details.code;
+        unavailable.status = 503;
+        return unavailable;
+      }
       if (details?.code === 'CLIENT_IP_UNAVAILABLE') {
         const unavailable = new Error(details?.message || 'নিরাপত্তা যাচাই করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।');
         unavailable.code = details.code;
@@ -230,4 +236,30 @@ export async function requestPasswordReset(email) {
 
 export async function updatePassword(password) {
   return supabase.auth.updateUser({ password });
+}
+
+
+// Supabase Auth native Email OTP; no separate OTP table or third-party sender.
+export async function resendSignUpOtp(email) {
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!supabase || !normalizedEmail) return { data: null, error: new Error('সঠিক ইমেইল ঠিকানা দিন।') };
+  return supabase.auth.resend({ type: 'signup', email: normalizedEmail });
+}
+
+export async function verifySignUpOtp(email, token) {
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const code = typeof token === 'string' ? token.replace(/\D/g, '').slice(0, 6) : '';
+  if (!supabase || !normalizedEmail || !/^\d{6}$/.test(code)) {
+    return { data: null, error: new Error('ছয় সংখ্যার সঠিক ভেরিফিকেশন কোড দিন।') };
+  }
+  const result = await supabase.auth.verifyOtp({ email: normalizedEmail, token: code, type: 'signup' });
+  if (result.error) {
+    // Store only the attempted address + safe failure category; never the OTP or password.
+    await recordAuthTelemetry('signup_failed', normalizedEmail, classifyAuthFailure(result.error, 'signup_failed'));
+  }
+  if (!result.error && result.data?.user && result.data?.session?.access_token) {
+    // The Edge Function derives the verified email from this JWT, not from the client payload.
+    await recordAuthTelemetry('signup_verified', normalizedEmail, 'other', result.data.session.access_token);
+  }
+  return result;
 }

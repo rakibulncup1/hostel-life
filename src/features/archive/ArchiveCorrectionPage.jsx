@@ -6,7 +6,7 @@ import { useToast } from '../../components/Toast';
 import { Icon } from '../../components/Icon';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { fetchArchiveManagementItems, reopenArchivedPeriod } from '../../services/managerService';
-import { fetchArchivedMonthDetail, fetchPreviousMonths } from '../../services/historyService';
+import { fetchArchivedMonthDetail, fetchMyArchiveEditablePeriods, fetchPreviousMonths } from '../../services/historyService';
 import { getArchiveCorrectionBundle, applyArchiveCorrection, isCorrectionBackendMissing } from '../../services/archiveCorrectionService';
 import { navigateTo } from '../../app/AppShell';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
@@ -114,6 +114,7 @@ export function ArchiveCorrectionPage() {
   const { isPrimaryManager, period } = useManagementContext();
   const primary = period ? Boolean(isPrimaryManager) : Boolean(isManager);
   const [months, setMonths] = useState([]);
+  const [editablePeriods, setEditablePeriods] = useState([]);
   const [selectedPeriodId, setSelectedPeriodId] = useState('');
   const [loadingMonths, setLoadingMonths] = useState(true);
   const [detail, setDetail] = useState(null);
@@ -131,11 +132,21 @@ export function ArchiveCorrectionPage() {
   const reloadMonths = useCallback(async () => {
     setLoadingMonths(true);
     try {
-      const rows = primary ? await fetchArchiveManagementItems() : await fetchPreviousMonths();
+      const [rows, editableRows] = await Promise.all([
+        primary ? fetchArchiveManagementItems() : fetchPreviousMonths(),
+        fetchMyArchiveEditablePeriods().catch(() => []),
+      ]);
+      const editableIds = new Set((Array.isArray(editableRows) ? editableRows : [])
+        .map((row) => String(row?.period_id || row?.id || '')).filter(Boolean));
+      setEditablePeriods(Array.isArray(editableRows) ? editableRows : []);
       const unique = new Map();
-      for (const row of rows) {
+      for (const row of [...(Array.isArray(rows) ? rows : []), ...(Array.isArray(editableRows) ? editableRows : [])]) {
         const id = row?.period_id || row?.id;
-        if (id && ['closed', 'archived'].includes(row.status || 'closed')) unique.set(String(id), { ...row, period_id: id });
+        if (id && ['closed', 'archived'].includes(row.status || 'closed')) {
+          const key = String(id);
+          const previous = unique.get(key) || {};
+          unique.set(key, { ...previous, ...row, period_id: id, can_edit: Boolean(primary || editableIds.has(key)) });
+        }
       }
       const safe = [...unique.values()].sort((a, b) => String(b.start_date || '').localeCompare(String(a.start_date || '')));
       setMonths(safe);
@@ -155,7 +166,9 @@ export function ArchiveCorrectionPage() {
     setLoadingDetail(true);
     try {
       const reportPromise = fetchArchivedMonthDetail(id).then(value => ({ ok: true, value })).catch(error => ({ ok: false, error }));
-      const correctionPromise = primary
+      // Always ask the server for the exact period grant. Only the backend can
+      // decide whether this user is its recorded closer or an authorized manager.
+      const correctionPromise = (primary || editablePeriods.some((item) => String(item.period_id || item.id) === id))
         ? getArchiveCorrectionBundle(id).then(value => ({ ok: true, value })).catch(error => ({ ok: false, error }))
         : Promise.resolve({ ok: false, readonly: true });
       const [reportResult, correctionResult] = await Promise.all([reportPromise, correctionPromise]);
@@ -171,7 +184,7 @@ export function ArchiveCorrectionPage() {
         setReadOnlyReason('এই অ্যাকাউন্টে এই মাসের সংশোধন অনুমোদিত নয়। রিপোর্ট দেখা যাবে, কিন্তু পরিবর্তন করা যাবে না।');
       }
     } finally { setLoadingDetail(false); }
-  }, [primary, toast]);
+  }, [primary, editablePeriods, toast]);
 
   const restoreMonth = async () => {
     if (!selected?.can_reopen || busy) return;
@@ -193,6 +206,8 @@ export function ArchiveCorrectionPage() {
   });
   const correctionCounts = Object.fromEntries(EDIT_KINDS.map(([kind]) => [kind, arr(bundle?.[kind] || bundle?.[`${kind}_entries`]).length]));
   const correctionTotal = Object.values(correctionCounts).reduce((sum, value) => sum + value, 0);
+  const canEditSelected = Boolean(primary || editablePeriods.some((item) => String(item.period_id || item.id) === String(selectedPeriodId)));
+  const closerAccess = Boolean(editablePeriods.some((item) => String(item.period_id || item.id) === String(selectedPeriodId) && item.access_kind === 'closed_by'));
   const detailLabel = selected?.label || bundle?.period?.label || detail?.label || 'আর্কাইভ';
   const detailStart = selected?.start_date || detail?.start_date || bundle?.period?.start_date;
   const detailEnd = selected?.end_date || detail?.end_date || bundle?.period?.end_date;
@@ -203,7 +218,7 @@ export function ArchiveCorrectionPage() {
   };
   const save = async (event) => {
     event.preventDefault();
-    if (!editing || busy || !bundle || !primary) return;
+    if (!editing || busy || !bundle || !canEditSelected) return;
     if (editing.kind === 'market' && editing.itemCount !== 1) return toast.warning('এই বাজার এন্ট্রিতে আইটেমের সংখ্যা এক নয়। মোট টাকা বদলালে আইটেম/জমার হিসাব অসংগত হতে পারে; এটি এখানে সংশোধন করা যাবে না।');
     if (!FIELDS[editing.kind].every(([key]) => isFiniteNumber(values[key]))) return toast.warning('সব ঘরে সঠিক শূন্য বা ধনাত্মক সংখ্যা দিন।');
     if (reason.trim().length < 8 || reason.trim().length > MAX_REASON) return toast.warning('সংশোধনের কারণ ৮–৫০০ অক্ষরের হতে হবে।');
@@ -228,7 +243,7 @@ export function ArchiveCorrectionPage() {
         <div className="archive-hero-copy">
           <span className="archive-eyebrow">সংরক্ষিত হিসাব</span>
           <h1>আর্কাইভ</h1>
-          <p>বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। {primary ? 'প্রধান ম্যানেজারের জন্য অনুমোদিত হিসাব-সংশোধনও এখানে রয়েছে।' : 'আপনার অ্যাকাউন্টে রিপোর্ট দেখার অনুমতি রয়েছে।'}</p>
+          <p>বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। {primary ? 'প্রধান ম্যানেজারের জন্য অনুমোদিত হিসাব-সংশোধনও এখানে রয়েছে।' : 'আপনি যে মাসটি বন্ধ করেছেন, সেই নির্দিষ্ট মাসে অনুমোদিত সংশোধন করতে পারবেন; অন্য মাস শুধু দেখা যাবে।'}</p>
         </div>
       </div>
       <div className="archive-hero-actions">
@@ -238,7 +253,7 @@ export function ArchiveCorrectionPage() {
       <div className="archive-hero-stats">
         <div className="archive-hero-stat"><span>সংরক্ষিত মাস</span><strong>{formatNumber(months.length)}</strong><small>বন্ধ হিসাব</small></div>
         <div className="archive-hero-stat"><span>বর্তমান দৃশ্য</span><strong>{selectedPeriodId ? 'রিপোর্ট' : 'তালিকা'}</strong><small>{selectedPeriodId ? 'একটি মাস নির্বাচিত' : 'মাস বেছে নিন'}</small></div>
-        <div className="archive-hero-stat"><span>অ্যাক্সেস</span><strong>{primary ? 'সংশোধন' : 'শুধু দেখা'}</strong><small>{primary ? 'অনুমোদিত সীমার মধ্যে' : 'রিড-অনলি'}</small></div>
+        <div className="archive-hero-stat"><span>অ্যাক্সেস</span><strong>{primary ? 'সংশোধন' : editablePeriods.length ? 'সীমিত সংশোধন' : 'শুধু দেখা'}</strong><small>{primary ? 'অনুমোদিত সীমার মধ্যে' : editablePeriods.length ? 'নিজের বন্ধ করা মাসে' : 'রিড-অনলি'}</small></div>
       </div>
     </header>
 
@@ -266,7 +281,7 @@ export function ArchiveCorrectionPage() {
       {loadingDetail && <section className="card archive-correction-section"><LoadingSpinner label="নির্বাচিত মাসের তথ্য লোড হচ্ছে..."/></section>}
       {!loadingDetail && readOnlyReason && <div className="state-card state-card-warning archive-readonly-warning"><Icon name={backendMissing ? 'info' : 'shield'} size={20}/><div><strong>{backendMissing ? 'এখন শুধু রিপোর্ট দেখা যাবে' : 'সংশোধন বন্ধ আছে'}</strong><p>{readOnlyReason}</p></div></div>}
       {!loadingDetail && bundle && <>
-        <div className="archive-correction-access-note"><span className="archive-note-icon"><Icon name="shield" size={18}/></span><div><strong>{primary ? 'সংশোধন মোড প্রস্তুত' : 'রিড-অনলি রিপোর্ট'}</strong><p>সংশোধনের কারণ লিখতে হবে। প্রতিটি পরিবর্তনের আগের ও নতুন মান অডিট লগে থাকবে। মাসের তারিখ, স্ট্যাটাস ও ম্যানেজার ইতিহাস পরিবর্তন করা যাবে না।</p></div></div>
+        <div className="archive-correction-access-note"><span className="archive-note-icon"><Icon name="shield" size={18}/></span><div><strong>{canEditSelected ? (closerAccess && !primary ? 'আপনার বন্ধ করা মাস · সীমিত সংশোধন' : 'সংশোধন মোড প্রস্তুত') : 'রিড-অনলি রিপোর্ট'}</strong><p>সংশোধনের কারণ লিখতে হবে। প্রতিটি পরিবর্তনের আগের ও নতুন মান অডিট লগে থাকবে। মাসের তারিখ, স্ট্যাটাস ও ম্যানেজার ইতিহাস পরিবর্তন করা যাবে না।</p></div></div>
         <SummaryMetrics detail={detail}/>
         <nav className="archive-kind-tabs" aria-label="আর্কাইভ রিপোর্ট বিভাগ">
           <button type="button" className={activeKind === 'all' ? 'is-active' : ''} aria-pressed={activeKind === 'all'} onClick={() => setActiveKind('all')}><span>সব বিভাগ</span><b>{formatNumber(correctionTotal)}</b></button>
@@ -277,13 +292,13 @@ export function ArchiveCorrectionPage() {
           {EDIT_KINDS.filter(([kind]) => activeKind === 'all' || activeKind === kind).map(([kind, label]) => {
             const rows = arr(bundle[kind] || bundle[`${kind}_entries`]);
             return <Section key={kind} title={label} className="archive-kind-section">
-              <div className="archive-section-subhead"><span>{rows.length ? `${formatNumber(rows.length)}টি এন্ট্রি` : 'কোনো এন্ট্রি নেই'}</span>{primary && rows.length > 0 && <small>সংশোধন করতে এন্ট্রি নির্বাচন করুন</small>}</div>
+              <div className="archive-section-subhead"><span>{rows.length ? `${formatNumber(rows.length)}টি এন্ট্রি` : 'কোনো এন্ট্রি নেই'}</span>{canEditSelected && rows.length > 0 && <small>এই মাসে অনুমোদিত সংশোধন</small>}</div>
               {rows.length ? <div className="archive-correction-records">{rows.map((row, index) => {
                 const cannotEditMarket = kind === 'market' && Number(row.item_count ?? 0) !== 1;
                 return <article className="archive-correction-record" key={row.id || `${kind}-${index}`}>
                   <span className="archive-record-kind-icon"><Icon name={kind === 'final_meal' ? 'utensils' : kind === 'market' ? 'shopping-basket' : kind === 'deposit' ? 'wallet' : kind === 'khala' ? 'hand-coins' : 'receipt'} size={18}/></span>
                   <div className="archive-record-main"><strong>{rowTitle(row, kind)}</strong><small>{rowSubtitle(row, kind)}</small>{cannotEditMarket && <span className="archive-record-safety-note">একাধিক/শূন্য আইটেম থাকায় মোট টাকা পরিবর্তন বন্ধ</span>}</div>
-                  {primary && <button type="button" className="secondary-button compact archive-edit-button" onClick={() => beginEdit(kind, row)} disabled={busy || cannotEditMarket}><Icon name="pencil" size={14}/> সংশোধন</button>}
+                  {canEditSelected && <button type="button" className="secondary-button compact archive-edit-button" onClick={() => beginEdit(kind, row)} disabled={busy || cannotEditMarket}><Icon name="pencil" size={14}/> সংশোধন</button>}
                 </article>;
               })}</div> : <div className="archive-category-empty"><span><Icon name="check-circle" size={19}/></span><div><strong>এই বিভাগে এন্ট্রি নেই</strong><p>নির্বাচিত মাসে {label} বিভাগের কোনো সংশোধনযোগ্য এন্ট্রি সংরক্ষিত নেই।</p></div></div>}
             </Section>;

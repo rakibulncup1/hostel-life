@@ -9,15 +9,23 @@ import { getFriendlySupabaseError } from '../utils/supabaseErrors';
 
 function typeLabel(type) {
   if (type === 'manager_message') return 'ম্যানেজারের বার্তা';
-  if (type === 'platform_message') return 'Super Admin-এর বার্তা';
-  if (type === 'system_notice') return 'সিস্টেম ঘোষণা';
-  if (type === 'market_entry') return 'বাজার আপডেট';
-  if (['new_month', 'month_started', 'period_started'].includes(type)) return 'নতুন মাস';
-  if (['manager_change', 'manager_changed'].includes(type)) return 'ম্যানেজার পরিবর্তন';
-  if (['membership_change', 'member_added', 'member_status'].includes(type)) return 'সদস্য আপডেট';
-  if (['meal_request_approved', 'meal_request_rejected', 'meal_request_update'].includes(type)) return 'মিল অনুরোধ';
-  if (['archive_deleted', 'retention_updated'].includes(type)) return 'আর্কাইভ ও সংরক্ষণ নীতি';
-  return 'সিস্টেম নোটিফিকেশন';
+  if (type === 'platform_message') return 'Hostel Life থেকে বার্তা';
+  if (type === 'system_notice') return 'মেসের নোটিশ';
+  if (type === 'market_entry') return 'বাজারের হিসাব';
+  if (type === 'deposit') return 'সদস্যের জমা';
+  if (type === 'other_expense') return 'মেসের অন্যান্য খরচ';
+  if (type === 'ledger_adjustment') return 'হিসাব সংশোধন';
+  if (type === 'khala_money') return 'খালার পারিশ্রমিক';
+  if (type === 'month_closed') return 'মাসের হিসাব বন্ধ';
+  if (['new_month', 'month_started', 'period_started'].includes(type)) return 'নতুন মাসের হিসাব';
+  if (['manager_change', 'manager_changed'].includes(type)) return 'মেস ম্যানেজার পরিবর্তন';
+  if (['membership_change', 'member_added', 'member_status'].includes(type)) return 'মেসের সদস্য আপডেট';
+  if (type === 'meal_request_approved') return 'মিল অনুরোধ অনুমোদিত';
+  if (type === 'meal_request_rejected') return 'মিল অনুরোধ বাতিল';
+  if (type === 'meal_request_update') return 'মিল অনুরোধের আপডেট';
+  if (type === 'archive_correction') return 'বন্ধ মাসের হিসাব সংশোধন';
+  if (['archive_deleted', 'retention_updated'].includes(type)) return 'মেসের আর্কাইভ আপডেট';
+  return 'Hostel Life আপডেট';
 }
 
 export function NotificationsPopover({ isManager = false, onUnreadChange, onClose }) {
@@ -155,11 +163,11 @@ export function NotificationsPopover({ isManager = false, onUnreadChange, onClos
           {items.map((item) => (
             <article className={`notification-item ${item.is_seen ? 'seen' : 'unseen'}`} key={item.notification_id}>
               <button className="notification-main" type="button" onClick={() => seen(item)} disabled={Boolean(busyId)}>
-                <span className="notification-icon"><Icon name={item.is_pinned ? 'bell' : item.notification_type === 'market_entry' ? 'dining' : item.notification_type === 'manager_message' ? 'bell' : 'info'} size={17} /></span>
+                <span className="notification-icon"><Icon name={item.is_pinned ? 'bell' : ['market_entry','deposit','other_expense','ledger_adjustment','khala_money'].includes(item.notification_type) ? 'wallet' : item.notification_type === 'manager_message' ? 'bell' : 'info'} size={17} /></span>
                 <span className="notification-copy">
                   <strong>{item.title}</strong>
-                  <span className={`notification-source-badge ${item.is_pinned ? 'hostel' : item.notification_type === 'manager_message' ? 'manager' : 'system'}`}>
-                    {item.is_pinned ? 'মেসের নোটিশ' : item.notification_type === 'manager_message' ? 'ম্যানেজারের বার্তা' : typeLabel(item.notification_type)}
+                  <span className={`notification-source-badge ${item.is_pinned ? 'hostel' : 'system'}`}>
+                    {item.is_pinned ? 'মেসের নোটিশ' : typeLabel(item.notification_type)}
                   </span>
                   <small>{formatDateTime12(item.created_at)}</small>
                   <span>{item.body}</span>

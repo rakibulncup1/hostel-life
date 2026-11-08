@@ -3,7 +3,7 @@ import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { useToast } from '../../components/Toast';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
-import { signIn, signUp, requestPasswordReset, updatePassword } from '../../services/authService';
+import { signIn, signUp, resendSignUpOtp, verifySignUpOtp, requestPasswordReset, updatePassword } from '../../services/authService';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
@@ -161,6 +161,16 @@ function RegisterForm() {
   const [registrationCodeRequired, setRegistrationCodeRequired] = useState(false);
   const [eligibilityAccepted, setEligibilityAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [otpStep, setOtpStep] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [resendCount, setResendCount] = useState(0);
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return undefined;
+    const timer = window.setInterval(() => setResendCountdown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendCountdown > 0]);
 
   useEffect(() => {
     let active = true;
@@ -174,6 +184,20 @@ function RegisterForm() {
     event.preventDefault();
     if (!online) {
       toast.warning('রেজিস্ট্রেশন করতে ইন্টারনেট সংযোগ প্রয়োজন।');
+      return;
+    }
+    if (otpStep) {
+      const code = verificationCode.replace(/\D/g, '');
+      if (!/^\d{6}$/.test(code)) return toast.warning('ইমেইলে পাঠানো ছয় সংখ্যার কোডটি লিখুন।');
+      setSubmitting(true);
+      try {
+        const { data, error } = await verifySignUpOtp(email, code);
+        if (error) throw error;
+        if (data?.session) toast.success('ইমেইল যাচাই সম্পন্ন হয়েছে। আপনার অ্যাকাউন্ট প্রস্তুত।');
+        else { toast.success('ইমেইল যাচাই হয়েছে। এখন লগইন করুন।'); go('/auth/login'); }
+      } catch (error) {
+        toast.error(getFriendlySupabaseError(error, 'ভেরিফিকেশন কোড সঠিক নয় বা মেয়াদ শেষ হয়েছে। আবার চেষ্টা করুন।'));
+      } finally { setSubmitting(false); }
       return;
     }
     if (!eligibilityAccepted) {
@@ -214,9 +238,14 @@ function RegisterForm() {
 
       if (data.session) {
         toast.success('অ্যাকাউন্ট তৈরি হয়েছে। এখন মেসে যুক্ত হন।');
+      } else if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        throw new Error('এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট থাকতে পারে। লগইন বা পাসওয়ার্ড পুনরুদ্ধার ব্যবহার করুন।');
       } else {
-        toast.success('রেজিস্ট্রেশন সফল হয়েছে। ইমেইল ভেরিফাই করে আবার লগইন করুন।', { duration: 5600 });
-        go('/auth/login');
+        setOtpStep(true);
+        setVerificationCode('');
+        setResendCountdown(60);
+        setResendCount(0);
+        toast.success('ছয় সংখ্যার ভেরিফিকেশন কোড আপনার ইমেইলে পাঠানো হয়েছে।');
       }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'রেজিস্ট্রেশন করা যায়নি। আবার চেষ্টা করুন।'));
@@ -225,40 +254,57 @@ function RegisterForm() {
     }
   };
 
+  const resendCode = async () => {
+    if (!otpStep || resendCountdown > 0 || submitting) return;
+    if (resendCount >= 4) return toast.warning('নিরাপত্তার জন্য সর্বোচ্চ ৪ বার পুনরায় কোড পাঠানো যাবে। পরে আবার চেষ্টা করুন।');
+    setSubmitting(true);
+    try {
+      const { error } = await resendSignUpOtp(email);
+      if (error) throw error;
+      setResendCount((count) => count + 1);
+      setResendCountdown(60);
+      toast.success('নতুন ভেরিফিকেশন কোড পাঠানো হয়েছে।');
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'কোড পুনরায় পাঠানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।'));
+    } finally { setSubmitting(false); }
+  };
+
   return (
-    <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle="কয়েকটি তথ্য দিয়ে অ্যাকাউন্ট তৈরি করুন।">
+    <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle={otpStep ? 'ইমেইলে পাঠানো কোড দিয়ে ঠিকানাটি যাচাই করুন।' : 'কয়েকটি তথ্য দিয়ে অ্যাকাউন্ট তৈরি করুন।'}>
       <form className="form-stack auth-register-form" onSubmit={submit}>
         <div className="two-field-grid">
           <label className="field-label">
             <span>নাম</span>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="আপনার নাম" autoComplete="name" required />
+            <input type="text" value={name} disabled={otpStep} onChange={(e) => setName(e.target.value)} placeholder="আপনার নাম" autoComplete="name" required />
           </label>
           <label className="field-label">
             <span>মোবাইল নম্বর</span>
-            <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" required minLength={8} maxLength={20} />
+            <input type="tel" inputMode="tel" value={phone} disabled={otpStep} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" required minLength={8} maxLength={20} />
           </label>
         </div>
         <label className="field-label">
           <span>ইমেইল</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
+          <input type="email" value={email} disabled={otpStep} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
           <small className="register-email-note">অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন।</small>
         </label>
-        <label className="field-label">
+        {!otpStep && <label className="field-label">
           <span>পাসওয়ার্ড</span>
           <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} placeholder="কমপক্ষে ৮ অক্ষর" autoComplete="new-password" />
-        </label>
-        <label className="field-label">
+        </label>}
+        {!otpStep && <label className="field-label">
           <span>পাসওয়ার্ড আবার দিন</span>
           <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
-        </label>
-        {registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
-        <label className="auth-legal-consent auth-combined-consent">
+        </label>}
+        {!otpStep && registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
+        {!otpStep && <label className="auth-legal-consent auth-combined-consent">
           <input type="checkbox" checked={eligibilityAccepted} onChange={(event) => setEligibilityAccepted(event.target.checked)} required />
           <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
-        </label>
+        </label>}
+        {otpStep && <div className="field-label auth-otp-field"><span>৬ সংখ্যার ভেরিফিকেশন কোড</span><input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" aria-label="ছয় সংখ্যার ভেরিফিকেশন কোড" required /><small>কোডটি {email} ঠিকানায় পাঠানো হয়েছে। ইনবক্স ও Spam ফোল্ডার দেখুন।</small><button type="button" className="text-button align-end" onClick={resendCode} disabled={submitting || resendCountdown > 0 || resendCount >= 4}>{resendCountdown > 0 ? `আবার কোড পাঠান · ${resendCountdown} সেকেন্ড` : resendCount >= 4 ? 'পুনরায় পাঠানোর সীমা শেষ' : 'কোড পাননি? আবার পাঠান'}</button></div>}
         <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted}>
-          {submitting ? 'অ্যাকাউন্ট তৈরি হচ্ছে...' : 'রেজিস্ট্রেশন করুন'}
+          {submitting ? (otpStep ? 'কোড যাচাই হচ্ছে...' : 'কোড পাঠানো হচ্ছে...') : otpStep ? 'কোড যাচাই করুন' : 'ভেরিফিকেশন কোড পাঠান'}
         </button>
+        {otpStep && <button className="secondary-button" type="button" disabled={submitting} onClick={() => { setOtpStep(false); setVerificationCode(''); setResendCountdown(0); setResendCount(0); }}>তথ্য পরিবর্তন করুন</button>}
       </form>
       <AuthSwitch current="register" />
     </AuthFrame>

@@ -40,7 +40,8 @@ test('only the informational App Download route bypasses authentication; other a
   assert.match(app, /if \(pathname === '\/app\/menu\/app-download'\) return;/);
   assert.match(app, /if \(pathname === '\/app\/menu\/app-download'\) return withPublicCommunications\(<AppDownloadPage \/>\);/);
   assert.match(app, /if \(!auth\.isAuthenticated\) return withPublicCommunications\(<AuthPage pathname="\/auth\/login" \/>\);/);
-  assert.match(app, /resolveAppPage\(pathname, auth\.isManager\)/);
+  assert.match(app, /resolveAppPage\(pathname, auth\.isManager, hasClosedMonthAccess\)/);
+  assert.match(app, /isManager \|\| hasClosedMonthAccess/);
   assert.match(app, /pathname === '\/app\/menu\/app-download'\) title = 'Hostel Life — অ্যাপ ডাউনলোড'/);
 });
 

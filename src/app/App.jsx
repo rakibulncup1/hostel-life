@@ -22,6 +22,7 @@ import { THEME_KEY, THEME_VALUES, applyPlatformDefaultTheme } from './theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { useAuth } from '../contexts/AuthContext';
+import { useManagementContext } from '../hooks/useManagementContext';
 
 const SUPER_ADMIN_RETURN_KEY = 'hostel-life-super-admin-return-v1';
 const SUPER_ADMIN_RETURN_TTL_MS = 10 * 60 * 1000;
@@ -36,7 +37,7 @@ function getPath() {
   return pathname;
 }
 
-function resolveAppPage(pathname, isManager) {
+function resolveAppPage(pathname, isManager, hasClosedMonthAccess = false) {
   if (pathname === '/app/dining') return <DiningPage />;
   if (pathname === '/app/history') return <HistoryPage />;
   if (pathname === '/app/profile') return <ProfilePage />;
@@ -52,11 +53,11 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/app-download') return <AppDownloadPage />;
   if (pathname === '/app/menu/telegram') return <TelegramConnectionPage />;
   if (pathname === '/app/menu/send-notification') return <SendNotificationPage />;
-  if (pathname === '/app/menu/archive') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
+  if (pathname === '/app/menu/archive') return (isManager || hasClosedMonthAccess) ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/reports') return <ReportsPage />;
   if (pathname === '/app/menu/meal-sheet') return <MealSheetPage />;
   // Legacy deep links now resolve to the single Archive entry.
-  if (pathname === '/app/menu/archive-edit-access') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
+  if (pathname === '/app/menu/archive-edit-access') return (isManager || hasClosedMonthAccess) ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/current-month-close') return <CloseCurrentMonthPage />;
   if (pathname === '/app/menu/new-month') return <NewMonthPage />;
   if (pathname === '/app/menu/change-manager') return <ChangeManagerPage />;
@@ -72,6 +73,7 @@ export function App() {
   const [pathname, setPathname] = useState(getPath);
   const [publicSettings, setPublicSettings] = useState(null);
   const auth = useAuth();
+  const { hasClosedMonthAccess } = useManagementContext();
 
   useEffect(() => {
     const update = () => setPathname(getPath());
@@ -278,7 +280,7 @@ export function App() {
       isManager={auth.isManager}
       user={auth.user}
     >
-      {resolveAppPage(pathname, auth.isManager)}
+      {resolveAppPage(pathname, auth.isManager, hasClosedMonthAccess)}
     </AppShell>
   );
 }

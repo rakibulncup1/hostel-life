@@ -15,6 +15,7 @@ export function useManagementContext() {
   const online = useOnlineStatus();
   const [context, setContext] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [hasClosedMonthAccess, setHasClosedMonthAccess] = useState(false);
   const refreshInFlightRef = useRef(null);
   const lastRefreshAtRef = useRef(0);
 
@@ -122,6 +123,37 @@ export function useManagementContext() {
     };
   }, [membership?.hostel_id, online, refresh]);
 
+  useEffect(() => {
+    let active = true;
+    const loadClosedMonthAccess = async () => {
+      if (!online || !membership?.hostel_id || !supabase) {
+        if (active) setHasClosedMonthAccess(false);
+        return;
+      }
+      try {
+        const { data, error } = await cachedRequest('manager:closed-month-access',
+          () => supabase.rpc('get_khala_entry_periods_v2'), { ttlMs: 15000 });
+        if (error) throw error;
+        if (active) setHasClosedMonthAccess(Array.isArray(data) && data.some((period) =>
+          ['closed', 'archived'].includes(period?.status) && period?.access_kind === 'closed_by'
+        ));
+      } catch {
+        if (active) setHasClosedMonthAccess(false);
+      }
+    };
+    loadClosedMonthAccess();
+    const refreshAccess = () => { if (document.visibilityState === 'visible') loadClosedMonthAccess(); };
+    window.addEventListener('focus', refreshAccess);
+    window.addEventListener('online', refreshAccess);
+    document.addEventListener('visibilitychange', refreshAccess);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', refreshAccess);
+      window.removeEventListener('online', refreshAccess);
+      document.removeEventListener('visibilitychange', refreshAccess);
+    };
+  }, [membership?.hostel_id, online]);
+
   const period = context?.period ? { ...context.period, period_id: context.period.period_id || context.period.id } : null;
   const assistants = asArray(period?.assistant_managers);
   const hasRunningPeriod = Boolean(context?.has_running_period ?? period?.period_id);
@@ -145,6 +177,7 @@ export function useManagementContext() {
     isPrimaryManager,
     isAssistantManager,
     isOperationalManager: isPrimaryManager || isAssistantManager,
+    hasClosedMonthAccess,
     canManageMonth: hasRunningPeriod && hasKnownPeriodPrimary
       ? isPrimaryManager
       : Boolean(context?.can_manage_month ?? operationalRole?.can_manage_month ?? isPrimaryManager),

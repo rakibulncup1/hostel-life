@@ -5,10 +5,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { resolveTrustedVisitor } from '../_shared/geoProxy.ts';
 
-const FUNCTION_VERSION = '2026-11-08-password-reset-quota-and-ip-gate-6-signed-geo-only';
+const FUNCTION_VERSION = '2026-11-08-password-reset-quota-and-ip-gate-8-signed-geo-nonce-attempt-email';
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://hostellife-bd.vercel.app',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
   'https://easy-hostellife.vercel.app',
 
 ];
@@ -74,7 +75,7 @@ function jsonResponse(
 function isValidEmail(value: unknown): value is string {
   if (typeof value !== 'string') return false;
   const email = value.trim();
-  if (email.length < 5 || email.length > 254 || /\s|[\u0000-\u001f\u007f]/.test(email)) return false;
+  if (!(email.length >= 5 && email.length <= 254) || /\s|[\u0000-\u001f\u007f]/.test(email)) return false;
   const separator = email.lastIndexOf('@');
   if (separator < 1 || separator > 64 || separator === email.length - 1) return false;
   const local = email.slice(0, separator);
@@ -126,19 +127,6 @@ Deno.serve(async (request) => {
     return jsonResponse({ code: 'ORIGIN_NOT_ALLOWED', message: 'এই ওয়েব ঠিকানা থেকে অনুরোধ গ্রহণ করা হচ্ছে না।', request_id: requestId }, 403, origin, allowedOrigins);
   }
 
-  // Verify the Worker's body-bound HMAC before reading request.text(). The
-  // shared verifier hashes a clone so the original body remains available.
-  const visitor = await resolveTrustedVisitor(request, 'request-password-reset');
-  const requestIp = visitor.ip;
-  // City/Region are stored only when bound to a verified Worker HMAC. The
-  // direct Supabase path may retain the Cloudflare Country Code only.
-  const location = visitor.proxyVerified
-    ? visitor.location
-    : { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null };
-  if (!visitor.ok || !requestIp) {
-    return jsonResponse({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
-  }
-
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
   const anonKey = publishableKey();
   const serviceRoleKey = secretKey();
@@ -153,6 +141,31 @@ Deno.serve(async (request) => {
       has_hmac_secret: hmacSecret.length >= 32,
     });
     return jsonResponse({ code: 'SERVER_CONFIGURATION_MISSING', message: 'পাসওয়ার্ড রিসেট সেবা এই মুহূর্তে প্রস্তুত নয়। পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  const consumeGeoNonce = async (nonce: string, timestamp: string): Promise<boolean> => {
+    const { data, error } = await admin.rpc('hl_consume_geo_proxy_nonce', {
+      p_nonce: nonce, p_issued_at: new Date(Number(timestamp)).toISOString(),
+    });
+    if (error) {
+      console.error('request-password-reset geo nonce store failed', { request_id: requestId, code: error.code });
+      return false;
+    }
+    return data === true;
+  };
+
+  // Verify the Worker's body-bound HMAC before reading request.text(). The
+  // shared verifier hashes a clone so the original body remains available.
+  const visitor = await resolveTrustedVisitor(request, 'request-password-reset', consumeGeoNonce);
+  const requestIp = visitor.ip;
+  const location = visitor.proxyVerified
+    ? visitor.location
+    : { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null };
+  if (!visitor.ok || !requestIp) {
+    return jsonResponse({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
   }
 
   let body: { email?: unknown };
@@ -172,9 +185,6 @@ Deno.serve(async (request) => {
 
   const email = body.email.trim().toLowerCase();
   const emailFingerprint = await fingerprintEmail(email, hmacSecret);
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
   const authClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
@@ -274,10 +284,10 @@ Deno.serve(async (request) => {
       return jsonResponse({ code, message, request_id: requestId }, status, origin, allowedOrigins);
     }
 
-    // Do not place the email or password in Security Log. The event only records
-    // that the Auth email request was accepted, with trusted ingress IP and optional
-    // unverified display-only location metadata.
-    const { error: securityLogError } = await admin.rpc('hl_record_public_security_event_v3', {
+    // This is an email address, not a password or OTP. Store it in the dedicated
+    // attempt_email field so Super Admin can inspect which address requested a
+    // reset. The value is normalized and validated again inside the SQL writer.
+    const { error: securityLogError } = await admin.rpc('hl_record_public_security_event_v4', {
       p_event_type: 'password_reset_requested',
       p_identity_fingerprint: null,
       p_ip_fingerprint: null,
@@ -289,6 +299,7 @@ Deno.serve(async (request) => {
       p_city: location.city,
       p_region: location.region,
       p_region_code: location.regionCode,
+      p_attempt_email: email,
     });
     if (securityLogError) console.error('password reset success telemetry failed', { request_id: requestId, code: securityLogError.code });
 
