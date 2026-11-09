@@ -2049,12 +2049,44 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
 
 
 
+const RESUMABLE_DINING_VIEWS = new Set([
+  'home', 'meal-request', 'request-history', 'late-request', 'market',
+  'admin-entry', 'admin-manual-request', 'manager-meal', 'manager-request',
+  'deposit', 'other-expense',
+]);
+const MANAGER_ONLY_DINING_VIEWS = new Set([
+  'admin-entry', 'admin-manual-request', 'manager-request', 'deposit', 'other-expense',
+]);
+
+// Parse only an allowlisted view here. Permission is checked after the existing
+// member/period bootstrap finishes, before any sub-view is rendered.
+function resolveInitialDiningView() {
+  try {
+    const requested = new URLSearchParams(window.location.search).get('dining_view');
+    return RESUMABLE_DINING_VIEWS.has(requested) ? requested : 'home';
+  } catch {
+    return 'home';
+  }
+}
+
 export function DiningPage() {
   const toast = useToast();
   const { isManager, membership, profile } = useAuth();
-  const { isOperationalManager, isPrimaryManager, isAssistantManager, period: managementPeriod } = useManagementContext();
+  const { isOperationalManager, isPrimaryManager, isAssistantManager, period: managementPeriod, loading: managementContextLoading } = useManagementContext();
   const isOnline = useOnlineStatus();
-  const [view, setView] = useState('home');
+  const [view, setViewState] = useState(() => resolveInitialDiningView());
+  const setView = (nextView) => {
+    if (!RESUMABLE_DINING_VIEWS.has(nextView)) return;
+    setViewState(nextView);
+    try {
+      const url = new URL(window.location.href);
+      if (nextView === 'home') url.searchParams.delete('dining_view');
+      else url.searchParams.set('dining_view', nextView);
+      const next = `${url.pathname}${url.search}${url.hash}`;
+      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (next !== current) window.history.replaceState(window.history.state, '', next);
+    } catch { /* The selected view remains usable without URL persistence. */ }
+  };
   const [requestMode, setRequestMode] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [members, setMembers] = useState([]);
@@ -2079,7 +2111,37 @@ export function DiningPage() {
   // assistants explicitly assigned to the active running period only.
   const canManageFinalMeals = Boolean(isPrimaryDiningManager || (hasRunningManagerPeriod && isAssistantManager));
   const managerDiningUi = Boolean(canOperateDining || isAssistantManager || isManager);
+
+  // Do not reject a saved manager view while the initial period/member check is
+  // still loading: assistants may only become identifiable after that request.
+  // The page remains in its loading state until then, so no protected screen is
+  // rendered before this permission check runs.
+  useEffect(() => {
+    if (loadingMembers || managerAuthorizationPending) return;
+    if (MANAGER_ONLY_DINING_VIEWS.has(view) && !canOperateDining) {
+      setView('home');
+      return;
+    }
+    if (view === 'manager-meal' && !canManageFinalMeals) setView('home');
+  }, [view, loadingMembers, managerAuthorizationPending, canOperateDining, canManageFinalMeals]);
   const managerPageStackClass = managerDiningUi ? 'page-stack manager-dining-view' : 'page-stack';
+  const managerViewNeedsAuthorization = MANAGER_ONLY_DINING_VIEWS.has(view) || view === 'manager-meal';
+  const managerAuthorizationPending = managerViewNeedsAuthorization && managementContextLoading;
+  const renderView = !loadingMembers && !managerAuthorizationPending && ((MANAGER_ONLY_DINING_VIEWS.has(view) && !canOperateDining) || (view === 'manager-meal' && !canManageFinalMeals)) ? 'home' : view;
+
+  // Keep the current Dining sub-view in the URL so the app-resume mechanism
+  // can restore the same section after a PWA/browser process is recreated.
+  // Only the view key is persisted; financial form values and drafts are not.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (view !== 'home' && RESUMABLE_DINING_VIEWS.has(view)) url.searchParams.set('dining_view', view);
+      else url.searchParams.delete('dining_view');
+      const next = `${url.pathname}${url.search}${url.hash}`;
+      const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (next !== current) window.history.replaceState(window.history.state, '', next);
+    } catch { /* Route state remains functional when history APIs are unavailable. */ }
+  }, [view]);
 
   const loadMembers = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoadingMembers(true);
@@ -2137,6 +2199,16 @@ export function DiningPage() {
 
   if (loadingMembers) {
     return <div className="dining-loading-wrap"><LoadingSpinner label="ডাইনিং প্রস্তুত হচ্ছে..." /></div>;
+  }
+
+  if (managerAuthorizationPending) {
+    return <div className="dining-loading-wrap"><LoadingSpinner label="ম্যানেজার অনুমতি যাচাই হচ্ছে..." /></div>;
+  }
+
+  // Hold a denied restored route behind a small permission-check state until
+  // the effect resets it to the safe Dining home view. Never render its form.
+  if (renderView !== view) {
+    return <div className="dining-loading-wrap"><LoadingSpinner label="অনুমতি যাচাই করা হচ্ছে..." /></div>;
   }
 
   if (requestMode) {

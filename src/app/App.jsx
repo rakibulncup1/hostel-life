@@ -40,16 +40,22 @@ function getPath() {
 
 
 function getSafeResumeSearch(pathname, rawSearch = window.location.search) {
-  if (pathname !== '/app/history') return '';
+  if (pathname !== '/app/history' && pathname !== '/app/dining') return '';
   try {
     const input = new URLSearchParams(rawSearch || '');
     const output = new URLSearchParams();
-    const archivePeriod = input.get('archive_period') || '';
-    const historyTab = input.get('history_tab') || '';
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(archivePeriod)) {
-      output.set('archive_period', archivePeriod);
+    if (pathname === '/app/history') {
+      const archivePeriod = input.get('archive_period') || '';
+      const historyTab = input.get('history_tab') || '';
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(archivePeriod)) {
+        output.set('archive_period', archivePeriod);
+      }
+      if (['market', 'account', 'months'].includes(historyTab)) output.set('history_tab', historyTab);
+    } else {
+      const diningView = input.get('dining_view') || '';
+      const allowedViews = ['meal-request', 'request-history', 'late-request', 'market', 'admin-entry', 'admin-manual-request', 'manager-meal', 'manager-request', 'deposit', 'other-expense'];
+      if (allowedViews.includes(diningView)) output.set('dining_view', diningView);
     }
-    if (['market', 'account', 'months'].includes(historyTab)) output.set('history_tab', historyTab);
     const value = output.toString();
     return value ? `?${value}` : '';
   } catch {
@@ -141,7 +147,7 @@ export function App() {
       const safePath = typeof saved?.path === 'string' && saved.path.startsWith('/app/')
         && !saved.path.startsWith('/app/menu/app-download');
       const safeSearch = getSafeResumeSearch(saved?.path, saved?.search || '');
-      if (safePath && (saved.path !== pathname || (saved.path === '/app/history' && safeSearch !== window.location.search))
+      if (safePath && (saved.path !== pathname || (['/app/history', '/app/dining'].includes(saved.path) && safeSearch !== window.location.search))
         && Number.isFinite(age) && age >= 0 && age <= APP_RESUME_TTL_MS) {
         resumeTargetRef.current = { path: saved.path, search: safeSearch, scrollY: Math.max(0, Number(saved.scrollY) || 0) };
         navigateTo(`${saved.path}${safeSearch}`, true);

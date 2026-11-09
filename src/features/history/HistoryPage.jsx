@@ -10,7 +10,7 @@ import { fetchAccountHistory, fetchArchivedMonthDetail, fetchMarketDetail, fetch
 import { adjustTransaction, updateMarketEntry, voidMarketEntry } from '../../services/managerService';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
-import { printReport, printArchivedMonthlyReport } from '../../services/reportService';
+import { printReport, printArchivedMonthlyReport, openPrintReportWindow } from '../../services/reportService';
 import { buildMarketShareText } from '../../utils/marketShare';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
@@ -276,11 +276,21 @@ export function HistoryPage() {
       toast.warning('এই সংরক্ষিত সারসংক্ষেপের সঙ্গে পূর্ণ মাসের রেকর্ড যুক্ত নেই।');
       return;
     }
+    // Open synchronously from the user's click before awaiting Supabase, otherwise
+    // mobile browsers may block the later report window as an unsolicited popup.
+    let reportWindow;
+    try {
+      reportWindow = openPrintReportWindow();
+    } catch (error) {
+      toast.error(error?.message || 'রিপোর্টের নতুন উইন্ডো খোলা যায়নি। Pop-up অনুমতি দিন।');
+      return;
+    }
     setExportBusy(true);
     try {
       const detail = await fetchArchivedMonthDetail(row.period_id);
-      printArchivedMonthlyReport(detail);
+      printArchivedMonthlyReport(detail, reportWindow);
     } catch (error) {
+      try { if (reportWindow && !reportWindow.closed) reportWindow.close(); } catch { /* Best effort close. */ }
       toast.error(getFriendlySupabaseError(error, 'এই মাসের পূর্ণ রিপোর্ট তৈরি করা যায়নি। সংরক্ষিত পুরোনো মাসের শুধু সারসংক্ষেপ থাকলে বিস্তারিত PDF তৈরি করা সম্ভব নয়।'));
     } finally {
       setExportBusy(false);

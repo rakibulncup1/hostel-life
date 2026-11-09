@@ -4,7 +4,7 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToast } from '../../components/Toast';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useAuth } from '../../contexts/AuthContext';
-import { fetchDashboardData, fetchMealDetails, fetchUpcomingMealOverview } from '../../services/dashboardService';
+import { fetchDashboardData, fetchMealDetails, fetchMemberPeriodDetails, fetchUpcomingMealOverview } from '../../services/dashboardService';
 import { invalidateRequestCache } from '../../lib/requestCache';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
 import { useDashboardOffline } from '../../hooks/useDashboardOffline';
@@ -14,7 +14,6 @@ import { useManagementContext } from '../../hooks/useManagementContext';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatMeal } from '../../utils/meal';
 import { getMealPartsTotal } from '../../utils/mealTotals';
-import { navigateTo } from '../../app/AppShell';
 import { dashboardNeedsPeriodFallback, resolveDashboardPeriodStatus } from '../../utils/period';
 import { clearSevenDayMeals, getSevenDates, readSevenDayMeals, saveSevenDayMeals } from '../../services/sevenDayMealStore';
 import { formatUpcomingMealDate } from '../../utils/sevenDayMeals';
@@ -221,13 +220,27 @@ function BalanceLabel({ value }) {
   );
 }
 
+function handleCardActivation(event, onClick) {
+  if ((event.key === 'Enter' || event.key === ' ') && !event.repeat) {
+    event.preventDefault();
+    onClick?.();
+  }
+}
+
 function MyAccountCard({ account, onClick }) {
   return (
-    <section className="card my-account-card">
+    <section
+      className="card my-account-card dashboard-account-card"
+      role="button"
+      tabIndex={onClick ? 0 : -1}
+      aria-label="আমার সম্পূর্ণ হিসাব দেখুন"
+      onClick={onClick}
+      onKeyDown={(event) => handleCardActivation(event, onClick)}
+    >
       <div className="section-heading">
         <div>
           <span className="eyebrow">আমার হিসাব</span>
-          <h2><button className="dashboard-member-name" type="button" onClick={onClick}>{account?.name || 'আমার হিসাব'}</button></h2>
+          <h2>{account?.name || 'আমার হিসাব'}</h2>
         </div>
         <div className="avatar avatar-large">{account?.avatar_url ? <img className="member-avatar-photo" src={account.avatar_url} alt="" loading="lazy" referrerPolicy="no-referrer" /> : initials(account?.name)}</div>
       </div>
@@ -244,11 +257,18 @@ function MyAccountCard({ account, onClick }) {
 
 function MemberCard({ member, onClick }) {
   return (
-    <article className={`card member-card detailed-member-card ${member?.status === 'inactive' ? 'member-inactive-card' : ''}`}>
+    <article
+      className={`card member-card detailed-member-card ${member?.status === 'inactive' ? 'member-inactive-card' : ''}`}
+      role="button"
+      tabIndex={onClick ? 0 : -1}
+      aria-label={`${member?.name || 'সদস্য'}-এর সম্পূর্ণ হিসাব দেখুন`}
+      onClick={onClick}
+      onKeyDown={(event) => handleCardActivation(event, onClick)}
+    >
       <div className="member-card-top">
         <div className="avatar">{initials(member?.name)}</div>
         <div className="member-copy">
-          <h3><button className="dashboard-member-name" type="button" onClick={onClick}>{member?.name || 'সদস্য'}</button></h3>
+          <h3>{member?.name || 'সদস্য'}</h3>
           <div className="member-badge-row">
             <span className={statusClass(member?.status)}>{member?.status === 'active' ? 'সক্রিয় সদস্য' : 'নিষ্ক্রিয়'}</span>
             {Boolean(member?.is_primary_manager ?? (member?.role === 'manager')) && <span className="role-mini-badge"><Icon name="shield" size={11} /> ম্যানেজার</span>}
@@ -272,6 +292,19 @@ function MemberCard({ member, onClick }) {
 }
 
 export function MemberPeriodDetailsModal({ detail, loading, memberName, onClose }) {
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handler);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
   const summary = detail?.summary || {};
   const meals = Array.isArray(detail?.daily_meals) ? detail.daily_meals : [];
   const transactions = Array.isArray(detail?.transactions) ? detail.transactions : [];
@@ -290,7 +323,7 @@ export function MemberPeriodDetailsModal({ detail, loading, memberName, onClose 
   </div>;
 }
 
-function UpcomingMealOverview({ record, isOnline, syncing, error }) {
+function UpcomingMealOverview({ record, isOnline, syncing, error, onSelectDay }) {
   const days = Array.isArray(record?.days) ? record.days : [];
   return (
     <section className="upcoming-meal-overview" aria-label="আগামী সাত দিনের মিলের সারসংক্ষেপ">
@@ -308,7 +341,22 @@ function UpcomingMealOverview({ record, isOnline, syncing, error }) {
         <>
           <div className="upcoming-meal-days">
             {days.map((day) => (
-              <article className={`upcoming-meal-day-card ${day.within_period === false ? 'outside-period' : ''}`} key={day.meal_date}>
+              <article
+                className={`upcoming-meal-day-card ${day.within_period === false ? 'outside-period' : ''}`}
+                key={day.meal_date}
+                role={isOnline && day.within_period !== false && onSelectDay ? 'button' : undefined}
+                tabIndex={isOnline && day.within_period !== false && onSelectDay ? 0 : -1}
+                aria-disabled={!isOnline || day.within_period === false || !onSelectDay}
+                aria-label={`${formatUpcomingMealDate(day.meal_date)}-এর সদস্যভিত্তিক মিলের বিস্তারিত দেখুন`}
+                title={!isOnline ? 'বিস্তারিত দেখতে ইন্টারনেট চালু করুন' : day.within_period === false ? 'এই দিনটি বর্তমান মাসের বাইরে' : 'দিনের বিস্তারিত দেখুন'}
+                onClick={() => { if (isOnline && day.within_period !== false) onSelectDay?.(day.meal_date); }}
+                onKeyDown={(event) => {
+                  if ((event.key === 'Enter' || event.key === ' ') && !event.repeat && isOnline && day.within_period !== false) {
+                    event.preventDefault();
+                    onSelectDay?.(day.meal_date);
+                  }
+                }}
+              >
                 <div className="upcoming-meal-day-heading">
                   <strong>{formatUpcomingMealDate(day.meal_date)}</strong>
                   {day.within_period === false && <span className="upcoming-period-note">মাসের বাইরে</span>}
@@ -329,7 +377,7 @@ function UpcomingMealOverview({ record, isOnline, syncing, error }) {
   );
 }
 
-function MealDetailsModal({ date, rows, loading, onClose, upcomingRecord, upcomingLoading, upcomingError, isOnline }) {
+function MealDetailsModal({ date, rows, loading, onClose, upcomingRecord, upcomingLoading, upcomingError, isOnline, onSelectUpcomingDay }) {
   const [activeView, setActiveView] = useState('today');
 
   useEffect(() => {
@@ -368,7 +416,7 @@ function MealDetailsModal({ date, rows, loading, onClose, upcomingRecord, upcomi
         </div>
 
         {activeView === 'upcoming' ? (
-          <UpcomingMealOverview record={upcomingRecord} isOnline={isOnline} syncing={upcomingLoading} error={upcomingError}/>
+          <UpcomingMealOverview record={upcomingRecord} isOnline={isOnline} syncing={upcomingLoading} error={upcomingError} onSelectDay={(mealDate) => { setActiveView('today'); onSelectUpcomingDay?.(mealDate); }}/>
         ) : loading ? (
           <div className="loading-wrap"><span className="spinner" /><span>মিলের সদস্যভিত্তিক তথ্য লোড হচ্ছে...</span></div>
         ) : (
@@ -630,11 +678,16 @@ export function DashboardPage() {
   const [detailsDate, setDetailsDate] = useState(null);
   const [detailsRows, setDetailsRows] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const [memberDetail, setMemberDetail] = useState(null);
+  const [memberDetailLoading, setMemberDetailLoading] = useState(false);
   const [upcomingMealRecord, setUpcomingMealRecord] = useState(null);
   const [upcomingMealLoading, setUpcomingMealLoading] = useState(false);
   const [upcomingMealError, setUpcomingMealError] = useState(null);
   const upcomingScopeRef = useRef(`${userId || ''}:${hostelId || ''}`);
   const upcomingRequestVersionRef = useRef(0);
+  const mealDetailRequestVersionRef = useRef(0);
+  const memberDetailRequestVersionRef = useRef(0);
 
   useEffect(() => {
     upcomingScopeRef.current = `${userId || ''}:${hostelId || ''}`;
@@ -970,28 +1023,87 @@ export function DashboardPage() {
       return;
     }
 
+    const requestVersion = ++mealDetailRequestVersionRef.current;
     setDetailsDate(date);
     setDetailsRows([]);
     setDetailsLoading(true);
     try {
       const rows = await fetchMealDetails(date);
-      setDetailsRows(rows);
+      if (mealDetailRequestVersionRef.current === requestVersion) setDetailsRows(rows);
     } catch (error) {
-      toast.error(error?.message || 'মিলের বিস্তারিত লোড করা যায়নি।');
-      setDetailsDate(null);
+      if (mealDetailRequestVersionRef.current === requestVersion) {
+        toast.error(error?.message || 'মিলের বিস্তারিত লোড করা যায়নি।');
+        setDetailsDate(null);
+      }
     } finally {
-      setDetailsLoading(false);
+      if (mealDetailRequestVersionRef.current === requestVersion) setDetailsLoading(false);
     }
   }, [cachedDashboard?.meal_card, mealCard, offlineMealCard, online, toast]);
 
-  const openMember = useCallback((memberId) => {
-    if (!memberId) return;
-    if (!online) { toast.warning('সদস্যের পূর্ণ হিসাব দেখতে ইন্টারনেট চালু করুন।'); return; }
-    navigateTo(`/app/menu/members?member_id=${encodeURIComponent(memberId)}`);
-  }, [online, toast]);
-
   const hasCachedDashboard = Boolean(cachedDashboard);
   const activePeriodId = effectiveDashboard?.period?.period_id || effectiveDashboard?.period?.id || null;
+
+  const openMember = useCallback(async (memberId) => {
+    if (!memberId) return;
+    if (!online) {
+      toast.warning('সদস্যের পূর্ণ হিসাব দেখতে ইন্টারনেট চালু করুন।');
+      return;
+    }
+    const requestVersion = ++memberDetailRequestVersionRef.current;
+    setSelectedMemberId(memberId);
+    setMemberDetail(null);
+    setMemberDetailLoading(true);
+    try {
+      const result = await fetchMemberPeriodDetails(memberId, activePeriodId, { force: true });
+      if (memberDetailRequestVersionRef.current !== requestVersion) return;
+      if (!result) throw new Error('এই সদস্যের হিসাব এখন পাওয়া যাচ্ছে না। আবার চেষ্টা করুন।');
+      setMemberDetail(result);
+    } catch (error) {
+      if (memberDetailRequestVersionRef.current === requestVersion) {
+        setSelectedMemberId(null);
+        toast.error(error?.message || 'সদস্যের বিস্তারিত হিসাব লোড করা যায়নি।');
+      }
+    } finally {
+      if (memberDetailRequestVersionRef.current === requestVersion) setMemberDetailLoading(false);
+    }
+  }, [activePeriodId, online, toast]);
+
+  const closeMemberDetail = useCallback(() => {
+    memberDetailRequestVersionRef.current += 1;
+    setSelectedMemberId(null);
+    setMemberDetail(null);
+    setMemberDetailLoading(false);
+  }, []);
+
+  const selectUpcomingDay = useCallback(async (mealDate) => {
+    if (!mealDate) return;
+    if (!online) {
+      toast.warning('দিনের সদস্যভিত্তিক বিস্তারিত দেখতে ইন্টারনেট চালু করুন।');
+      return;
+    }
+    const requestVersion = ++mealDetailRequestVersionRef.current;
+    setDetailsDate(mealDate);
+    setDetailsRows([]);
+    setDetailsLoading(true);
+    try {
+      const rows = await fetchMealDetails(mealDate, { force: true });
+      if (mealDetailRequestVersionRef.current === requestVersion) setDetailsRows(rows);
+    } catch (error) {
+      if (mealDetailRequestVersionRef.current === requestVersion) {
+        setDetailsRows([]);
+        toast.error(error?.message || 'নির্বাচিত দিনের মিলের বিস্তারিত লোড করা যায়নি।');
+      }
+    } finally {
+      if (mealDetailRequestVersionRef.current === requestVersion) setDetailsLoading(false);
+    }
+  }, [online, toast]);
+
+  const closeMealDetails = useCallback(() => {
+    mealDetailRequestVersionRef.current += 1;
+    setDetailsDate(null);
+    setDetailsRows([]);
+    setDetailsLoading(false);
+  }, []);
   const scopedUpcomingMealRecord = upcomingMealRecord?.userId === userId
     && upcomingMealRecord?.hostelId === hostelId
     && (!online || !activePeriodId || upcomingMealRecord.periodId === activePeriodId)
@@ -1129,11 +1241,23 @@ export function DashboardPage() {
           date={detailsDate}
           rows={detailsRows}
           loading={detailsLoading}
-          onClose={() => setDetailsDate(null)}
+          onClose={closeMealDetails}
           upcomingRecord={scopedUpcomingMealRecord}
           upcomingLoading={upcomingMealLoading}
           upcomingError={upcomingMealError}
           isOnline={online}
+          onSelectUpcomingDay={selectUpcomingDay}
+        />
+      )}
+
+      {selectedMemberId && (
+        <MemberPeriodDetailsModal
+          detail={memberDetail}
+          loading={memberDetailLoading}
+          memberName={selectedMemberId === membership?.membership_id
+            ? account?.name
+            : members.find((member) => member.membership_id === selectedMemberId)?.name}
+          onClose={closeMemberDetail}
         />
       )}
     </div>

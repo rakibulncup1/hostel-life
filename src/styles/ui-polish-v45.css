@@ -171,9 +171,12 @@
 .telegram-page > .info-panel:not(.telegram-privacy-note) { display: none !important; }
 
 /* Dashboard member cards and detail modal: larger financial figures, clearer target. */
-.detailed-member-card { cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
-.detailed-member-card:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--line)); box-shadow: var(--shadow); transform: translateY(-1px); }
+.detailed-member-card,
+.dashboard-account-card { cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.detailed-member-card:hover,
+.dashboard-account-card:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--line)); box-shadow: var(--shadow); transform: translateY(-1px); }
 .detailed-member-card:focus-visible,
+.dashboard-account-card:focus-visible,
 .upcoming-meal-day-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 48%, transparent); outline-offset: 3px; }
 .detailed-member-card .member-stats-grid { gap: 9px; }
 .detailed-member-card .member-stats-grid > div { min-height: 68px; padding: 11px 12px; border-radius: 12px; }
@@ -188,7 +191,8 @@
 .member-period-detail-modal .archive-list-row { padding-block: 13px; }
 .member-period-detail-modal .archive-list-row small { font-size: 12px; line-height: 1.5; }
 .upcoming-meal-day-card { cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
-.upcoming-meal-day-card:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); box-shadow: var(--shadow); transform: translateY(-1px); }
+.upcoming-meal-day-card:not([aria-disabled="true"]):hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); box-shadow: var(--shadow); transform: translateY(-1px); }
+.upcoming-meal-day-card[aria-disabled="true"] { cursor: not-allowed; }
 
 /* Auth brand is centered as one horizontal lockup; quote only fills desktop space. */
 .auth-page .auth-brand-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }

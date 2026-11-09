@@ -18,6 +18,7 @@ const manager = read('src/features/manager/ManagerPages.jsx');
 const dining = read('src/features/dining/DiningPage.jsx');
 const main = read('src/main.jsx');
 const dashboard = read('src/features/dashboard/DashboardPage.jsx');
+const diningPage = read('src/features/dining/DiningPage.jsx');
 
 test('Run45 same-hostel account history RPC exposes read access without relaxing table RLS', () => {
   assert.match(migration, /create or replace function public\.get_account_history_v2/);
@@ -65,10 +66,15 @@ test('market history detail shares through the same shared market-text builder',
   assert.match(history, /navigator\.clipboard\.writeText\(shareText\)/);
 });
 
-test('dashboard member card detail and upcoming daily member detail reuse existing RPCs', () => {
-  assert.match(dashboard, /fetchMemberPeriodDetails/);
-  assert.match(dashboard, /onSelectDay=\{setSelectedUpcomingDate\}/);
-  assert.match(dashboard, /fetchMealDetails\(selectedUpcomingDate, \{ force: true \}\)/);
+test('dashboard opens the complete member card directly and upcoming day cards load the existing meal detail RPC', () => {
+  assert.match(dashboard, /fetchMemberPeriodDetails\(memberId, activePeriodId, \{ force: true \}\)/);
+  assert.match(dashboard, /className=\{`card member-card detailed-member-card/);
+  assert.match(dashboard, /aria-label=\{`\$\{member\?\.name \|\| 'সদস্য'\}-এর সম্পূর্ণ হিসাব দেখুন`\}/);
+  assert.match(dashboard, /onKeyDown=\{\(event\) => handleCardActivation\(event, onClick\)\}/);
+  assert.doesNotMatch(dashboard, /navigateTo\(`\/app\/menu\/members\?member_id=/);
+  assert.match(dashboard, /onSelectDay=\{\(mealDate\) => \{/);
+  assert.match(dashboard, /fetchMealDetails\(mealDate, \{ force: true \}\)/);
+  assert.match(dashboard, /day\.within_period !== false/);
   assert.match(dashboard, /upcoming-meal-day-card/);
 });
 
@@ -104,6 +110,30 @@ test('app resume saves only a safe app route and scroll position, never sensitiv
   assert.match(resumeEffect, /pathname !== '\/app\/dashboard'/);
   assert.match(resumeEffect, /JSON\.stringify\(\{ path: pathname, search: getSafeResumeSearch\(pathname\), scrollY: Math\.max\(0, window\.scrollY \|\| 0\), savedAt: Date\.now\(\) \}\)/);
   assert.doesNotMatch(resumeEffect, /JSON\.stringify\(\{[^}]*password|JSON\.stringify\(\{[^}]*otp|JSON\.stringify\(\{[^}]*draft/i);
+});
+
+test('mobile app resume restores a safe Dining sub-view and checks the saved query', () => {
+  assert.match(app, /pathname !== '\/app\/history' && pathname !== '\/app\/dining'/);
+  assert.match(app, /const diningView = input\.get\('dining_view'\)/);
+  assert.match(app, /allowedViews\.includes\(diningView\)/);
+  assert.match(app, /\['\/app\/history', '\/app\/dining'\]\.includes\(saved\.path\) && safeSearch !== window\.location\.search/);
+  assert.match(diningPage, /useState\(\(\) => resolveInitialDiningView\(\)\)/);
+  assert.match(diningPage, /window\.history\.replaceState\(window\.history\.state, '', next\)/);
+  assert.match(diningPage, /MANAGER_ONLY_DINING_VIEWS\.has\(view\) && !canOperateDining/);
+  assert.match(diningPage, /view === 'manager-meal' && !canManageFinalMeals/);
+  assert.match(diningPage, /if \(loadingMembers \|\| managerAuthorizationPending\) return;[\s\S]*MANAGER_ONLY_DINING_VIEWS/);
+  assert.match(diningPage, /if \(managerAuthorizationPending\)[\s\S]*ম্যানেজার অনুমতি যাচাই হচ্ছে/);
+  assert.match(diningPage, /const managerAuthorizationPending = managerViewNeedsAuthorization && managementContextLoading/);
+  assert.match(diningPage, /const renderView = !loadingMembers && !managerAuthorizationPending && \(\(MANAGER_ONLY_DINING_VIEWS\.has\(view\) && !canOperateDining\) \|\| \(view === 'manager-meal' && !canManageFinalMeals\)\) \? 'home' : view/);
+  assert.match(diningPage, /if \(renderView !== view\)[\s\S]*অনুমতি যাচাই করা হচ্ছে/);
+  assert.match(diningPage, /if \(view === 'deposit'\)/);
+  assert.doesNotMatch(diningPage.slice(diningPage.indexOf('function resolveInitialDiningView'), diningPage.indexOf('export function DiningPage')), /canOperateDining|canManageFinalMeals/);
+});
+
+test('archived summary PDF pre-opens a user-authorized report window before network wait', () => {
+  assert.match(history, /openPrintReportWindow\(\)/);
+  assert.match(history, /const detail = await fetchArchivedMonthDetail\(row\.period_id\);\s*printArchivedMonthlyReport\(detail, reportWindow\);/);
+  assert.match(history, /reportWindow && !reportWindow\.closed\) reportWindow\.close\(\)/);
 });
 
 test('Run45 light theme is green-tinted but token based; Telegram nudge is compact', () => {
