@@ -18,6 +18,7 @@ import './styles/production-flow-finishing.css';
 import './styles/ui-polish-v41.css';
 import './styles/ui-polish-v42.css';
 import './styles/ui-polish-v43.css';
+import './styles/dining-auth-polish-v44.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();

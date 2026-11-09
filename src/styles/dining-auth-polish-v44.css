@@ -1,0 +1,366 @@
+/* Hostel Life — Run44 focused manager Dining + auth brand refinement.
+   Scoped to manager Dining screens; no business logic or member-flow rules changed. */
+
+/* The description below a panel title is plain text, not a second bordered card.
+   Each manager form now has one clear guidance panel at the top. */
+.manager-dining-view {
+  gap: 15px;
+}
+
+.manager-dining-view .dining-panel {
+  min-width: 0;
+  padding: clamp(14px, 2vw, 21px);
+}
+
+.manager-dining-view .dining-panel .panel-header {
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.manager-dining-view .dining-panel .panel-header > div {
+  min-width: 0;
+}
+
+.manager-dining-view .dining-panel .panel-header p {
+  position: static;
+  max-width: 62ch;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.manager-dining-view .dining-panel .panel-header p::before {
+  display: none !important;
+  content: none !important;
+}
+
+.manager-dining-view .dining-panel > .info-panel {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 13px 0 0;
+}
+
+.manager-dining-view .dining-panel > .info-panel + .meal-policy-note,
+.manager-dining-view .dining-panel > .info-panel + .form-hint,
+.manager-dining-view .dining-panel > .info-panel + .state-card {
+  margin-top: 12px;
+}
+
+.manager-dining-view .dining-panel > .market-top-fields,
+.manager-dining-view .dining-panel > .form-grid-2,
+.manager-dining-view .dining-panel > .manager-entry-toolbar {
+  margin-top: 14px;
+  gap: 12px;
+}
+
+.manager-dining-view .dining-panel > .market-table-card {
+  margin-top: 14px;
+  min-width: 0;
+}
+
+/* Market paste instructions are a quiet inline helper, not a second card. */
+.manager-dining-view .market-paste-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.manager-dining-view .market-paste-hint > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.manager-dining-view .market-item-row {
+  grid-template-columns: 34px minmax(0, 1.3fr) minmax(74px, .8fr) minmax(88px, .8fr) 34px;
+  gap: 9px;
+  padding: 10px 12px;
+}
+
+.manager-dining-view .market-item-row > * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.manager-dining-view .market-item-row input,
+.manager-dining-view .market-item-row textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.manager-dining-view .market-item-row textarea {
+  min-height: 40px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px;
+  outline: none;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.manager-dining-view .market-item-row input:focus,
+.manager-dining-view .market-item-row textarea:focus {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 9%, transparent);
+}
+
+/* Consistent gaps and equal-height action cards on manager Dining pages. */
+.manager-dining-view .dining-action-grid,
+.manager-dining-view .request-entry-choice-grid {
+  gap: 14px;
+  align-items: stretch;
+}
+
+.manager-dining-view .request-entry-choice-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+.manager-dining-view .request-choice-card {
+  min-width: 0;
+  min-height: 126px;
+  height: 100%;
+  align-content: start;
+  gap: 9px;
+  padding: 16px;
+  border-radius: 16px;
+  overflow-wrap: anywhere;
+}
+
+.manager-dining-view .request-choice-card .dining-option-icon {
+  margin-bottom: 1px;
+}
+
+.manager-dining-view .dining-option-card {
+  min-width: 0;
+  min-height: 84px;
+  height: 100%;
+  gap: 12px;
+  padding: 15px;
+}
+
+.manager-dining-view .dining-option-copy,
+.manager-dining-view .dining-option-copy small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.manager-dining-view .subpage-back-row {
+  min-width: 0;
+  margin: 0;
+}
+
+.manager-dining-view .dining-panel .form-grid-2 > *,
+.manager-dining-view .dining-panel .market-top-fields > *,
+.manager-dining-view .dining-panel .manager-entry-toolbar > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Login and Registration brand: centered logo + English product name only. */
+.auth-page .auth-brand-panel:not(.auth-brand-panel-compact) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 0;
+  text-align: center;
+}
+
+.auth-page .auth-brand-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  text-align: center;
+}
+
+.auth-page .auth-brand-mark {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+}
+
+.auth-page .auth-brand-mark svg {
+  width: 72px;
+  height: 72px;
+}
+
+.auth-page .auth-brand-identity {
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+}
+
+.auth-page .auth-brand-name {
+  display: block;
+  color: var(--text);
+  font-size: clamp(22px, 2.4vw, 28px);
+  font-weight: 900;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+
+.auth-page .auth-brand-panel h1,
+.auth-page .auth-brand-panel p {
+  display: none !important;
+}
+
+@media (max-width: 640px) {
+  .manager-dining-view {
+    gap: 14px;
+  }
+
+  .manager-dining-view .dining-panel {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .manager-dining-view .dining-panel .panel-header h2 {
+    font-size: 19px;
+    line-height: 1.3;
+  }
+
+  .manager-dining-view .market-top-fields,
+  .manager-dining-view .dining-panel > .form-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
+  }
+
+  .manager-dining-view .market-table-card {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .manager-dining-view .market-table-head {
+    display: none;
+  }
+
+  .manager-dining-view .market-item-list {
+    gap: 9px;
+  }
+
+  .manager-dining-view .market-item-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
+    gap: 8px;
+    padding: 11px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .manager-dining-view .market-serial {
+    grid-column: 1 / -1;
+    text-align: left;
+    padding-bottom: 1px;
+  }
+
+  .manager-dining-view .market-input-item {
+    grid-column: 1 / -1;
+  }
+
+  .manager-dining-view .market-input-quantity {
+    grid-column: 1 / 2;
+  }
+
+  .manager-dining-view .market-input-amount {
+    grid-column: 2 / 3;
+  }
+
+  .manager-dining-view .market-item-row > .icon-button {
+    grid-column: 3;
+    grid-row: 2 / span 2;
+    justify-self: end;
+  }
+
+  .manager-dining-view .add-market-item {
+    width: 100%;
+    margin: 10px 0 0;
+    box-sizing: border-box;
+    justify-content: center;
+  }
+
+  .manager-dining-view .market-total-row {
+    margin-top: 9px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+  }
+
+  .manager-dining-view .dining-action-grid,
+  .manager-dining-view .request-entry-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
+  }
+
+  .manager-dining-view .request-choice-card {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .auth-page .auth-brand-panel:not(.auth-brand-panel-compact) {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    padding: 22px 16px 18px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    text-align: center;
+  }
+
+  .auth-page .auth-brand-lockup {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .auth-page .auth-brand-mark,
+  .auth-page .auth-brand-mark svg {
+    flex-basis: 54px;
+    width: 54px;
+    height: 54px;
+  }
+
+  .auth-page .auth-brand-name {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .manager-dining-view .dining-panel {
+    padding: 12px;
+  }
+
+  .manager-dining-view .market-item-row {
+    gap: 7px;
+    padding: 9px;
+  }
+}

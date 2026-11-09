@@ -1,6 +1,10 @@
-src/app/App.jsx
-src/contexts/AuthContext.jsx
-src/features/auth/AuthPage.jsx
-src/services/authService.js
-tests/oct29UiAndPasswordContract.test.js
-tests/superAdminRequestedFiveFixes.test.js
+Hostel Life/src/features/dining/DiningPage.jsx
+Hostel Life/src/features/auth/AuthPage.jsx
+Hostel Life/src/main.jsx
+Hostel Life/src/styles/dining-auth-polish-v44.css
+Hostel Life/tests/run44ManagerDiningAndAuthPolish.test.js
+Hostel Life/tests/run42MenuAndAuthUx.test.js
+Hostel Life/tests/run43FinanceAndAuthVisualRefinement.test.js
+Hostel Life/RUN44_MANAGER_DINING_AUTH_CHANGELOG_BN.md
+Hostel Life/PATCH_FILE_LIST.txt
+Hostel Life/README_RUN44_PATCH_BN.txt

@@ -53,7 +53,9 @@ test('all menu groups remain present through logout', () => {
 test('menu and operational feature guidance is concise and uses shared compact styling', () => {
   assert.match(menuPages, /description=\{depositor \? 'সদস্যের নামে জমা হওয়া মোট টাকা।' : shopper \? 'কার্যকর বাজারের মোট টাকার তালিকা।'/);
   assert.match(managerPages, /description="মাসিক হিসাব PDF হিসেবে সংরক্ষণ করুন।"/);
-  assert.match(dining, /তারিখ ও মিল বেছে অনুরোধ দিন। Late\/Correction-এ অনুমোদন লাগবে।/);
+  assert.match(dining, /!managerMode && <InfoPanel icon="calendar-clock">তারিখ ও মিল বেছে অনুরোধ দিন। Late\/Correction-এ অনুমোদন লাগবে।/);
+  assert.match(dining, /managerPageStackClass/);
+  assert.match(dining, /বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।/);
   assert.match(css, /\.info-panel \{/);
   assert.match(css, /\.form-hint,/);
 });

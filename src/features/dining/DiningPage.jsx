@@ -232,7 +232,7 @@ function MealDayCard({ day, onChange, readOnly = false, compact = false }) {
   );
 }
 
-function MealRequestEditor({ mode, request, onSaved, onCancel }) {
+function MealRequestEditor({ mode, request, onSaved, onCancel, managerMode = false }) {
   const toast = useToast();
   const today = todayValue();
   const originalDays = useMemo(() => normalizeDays(request?.days || []), [request]);
@@ -490,8 +490,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         </div>
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
-      <InfoPanel icon="calendar-clock">তারিখ ও মিল বেছে অনুরোধ দিন। Late/Correction-এ অনুমোদন লাগবে।</InfoPanel>
-
+      {!managerMode && <InfoPanel icon="calendar-clock">তারিখ ও মিল বেছে অনুরোধ দিন। Late/Correction-এ অনুমোদন লাগবে।</InfoPanel>}
 
       {period?.start_date && period.start_date > today && (
         <div className="meal-policy-note is-info" role="status">
@@ -643,7 +642,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
   );
 }
 
-function RequestHistory({ onEdit, onCorrect }) {
+function RequestHistory({ onEdit, onCorrect, managerMode = false }) {
   const toast = useToast();
   const [requests, setRequests] = useState([]);
   const [dayStates, setDayStates] = useState([]);
@@ -726,7 +725,7 @@ function RequestHistory({ onEdit, onCorrect }) {
         </div>
         <button className="secondary-button compact request-history-refresh" type="button" onClick={load}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
-      <InfoPanel icon="history">অনুরোধের অবস্থা ও সিদ্ধান্ত এখানে দেখুন।</InfoPanel>
+      {!managerMode && <InfoPanel icon="history">অনুরোধের অবস্থা ও সিদ্ধান্ত এখানে দেখুন।</InfoPanel>}
 
       {periodCheckError && <div className="meal-policy-note is-warning" role="status"><Icon name="warning" size={16} /> {periodCheckError}</div>}
       {dayStateError && <div className="meal-policy-note is-warning" role="status"><Icon name="warning" size={16} /> {dayStateError}</div>}
@@ -1022,11 +1021,13 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         <div>
           <span className="eyebrow">বাজার এন্ট্রি</span>
           <h2>বাজারের তথ্য দিন</h2>
-          <p>{periodStartNotice || (period ? `${period.label} — নতুন বাজার entry শুধু চলমান মাসের মধ্যে রাখা হচ্ছে।` : 'কোনো চলমান মাস পাওয়া যায়নি।')}</p>
+          <p>তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন।</p>
         </div>
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
-      <InfoPanel icon="shopping-basket">বাজারকারী, তারিখ, আইটেম ও মোট টাকা যাচাই করুন।</InfoPanel>
+      <InfoPanel tone={periodNotStarted ? 'warning' : 'info'} icon={periodNotStarted ? 'calendar' : 'shopping-basket'}>
+        {periodNotStarted ? periodStartNotice : 'বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।'}
+      </InfoPanel>
 
       <div className="market-top-fields">
         <label className="field-label">
@@ -1267,12 +1268,12 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
         <div>
           <span className="eyebrow">ম্যানেজার ফিচার</span>
           <h2>ফাইনাল মিল সংশোধন ও যোগ</h2>
-          <p>চলমান মাসের চূড়ান্ত হওয়া দিনে সব সক্রিয় সদস্যের মিল দেখুন। আগে মিল না থাকলেও প্রয়োজন অনুযায়ী যোগ করুন। সংরক্ষণের পর হিসাব পুনরায় যাচাই করুন।</p>
+          <p>চূড়ান্ত হওয়া দিনের মিল দেখুন, প্রয়োজনমতো সংশোধন বা নতুন এন্ট্রি দিন।</p>
         </div>
       </div>
-      <InfoPanel icon="clipboard-check">তারিখভিত্তিক ফাইনাল মিল, উৎস, এন্ট্রিকারী ও বাকি সদস্য দেখুন।</InfoPanel>
-
-      {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice} এই পেজে শুধু ইতিমধ্যে ফাইনাল হওয়া দিনের মিল সংশোধন করা যায়; নতুন দিনের জন্য মিল অনুরোধ ব্যবহার করুন।</div>}
+      <InfoPanel tone={periodStartNotice ? 'warning' : 'info'} icon={periodStartNotice ? 'calendar' : 'clipboard-check'}>
+        {periodStartNotice ? `${periodStartNotice} এখানে শুধু আগে থেকে চূড়ান্ত হওয়া দিনের মিল সংশোধন করা যায়।` : 'নির্বাচিত তারিখের ফাইনাল মিল, এন্ট্রিকারী ও সংশোধনের ইতিহাস একসঙ্গে দেখুন।'}
+      </InfoPanel>
       <div className="manager-entry-toolbar">
         <label className="field-label">
           <span>তারিখ</span>
@@ -1500,7 +1501,6 @@ function ManagerMyMeal() {
       <PersonalTomorrowMealCard compact />
       <section className="card dining-panel manager-my-meal-card">
         <div className="panel-header"><div><span className="eyebrow">ম্যানেজারের নিজের মিল</span><h2>আমার মিল</h2><p>সাধারণ সদস্যের মতো একদিন বা একাধিক দিনের মিল একসাথে সাজিয়ে সংরক্ষণ করুন।</p></div></div>
-        <InfoPanel icon="utensils">আগামী দিনের মিল বেছে অনুরোধ জমা দিন।</InfoPanel>
         <div className="request-range-grid">
           <label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date || undefined} value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
           <label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate || tomorrowValue()} max={period?.end_date || undefined} value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
@@ -1516,7 +1516,6 @@ function ManagerMyMeal() {
 
       <section className="card dining-panel manager-override-card">
         <div className="panel-header"><div><span className="eyebrow">জরুরি ক্ষমতা</span><h2>জরুরি ওভাররাইড</h2><p>কাট-অফ পার হয়ে গেলে নিজের মিল সরাসরি বদলানোর জন্য ব্যবহার করুন।</p></div></div>
-        <InfoPanel tone="warning" icon="shield-alert">জরুরি পরিস্থিতিতেই Override ব্যবহার করুন। পরিবর্তন Audit-এ থাকবে।</InfoPanel>
         {!showOverride ? <button className="secondary-button" type="button" onClick={() => setShowOverride(true)}><Icon name="warning" size={16} /> জরুরি ওভাররাইড খুলুন</button> : <>
           <div className="request-range-grid"><label className="field-label"><span>তারিখ</span><input type="date" max={todayValue()} value={overrideDate} onChange={(e) => setOverrideDate(e.target.value)} /></label></div>
           {overrideLoading && <div className="form-hint"><Icon name="clock" size={15}/> নির্বাচিত তারিখের সার্ভার রেকর্ড লোড হচ্ছে...</div>}
@@ -1780,7 +1779,7 @@ function ManagerMealRequests() {
   );
 }
 
-function LateMealRequestForm({ onSaved, onCancel }) {
+function LateMealRequestForm({ onSaved, onCancel, managerMode = false }) {
   const toast = useToast();
   const [values, setValues] = useState(DEFAULT_MEALS);
   const [reason, setReason] = useState('');
@@ -1866,14 +1865,21 @@ function LateMealRequestForm({ onSaved, onCancel }) {
 
   return <section className="dining-panel card late-request-form">
     <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর জন্য রাত ১০টা থেকে সংশ্লিষ্ট দিনের রাত ৯টা পর্যন্ত আবেদন দিন।` : 'লেট অনুরোধ রাত ১০টা থেকে পরদিন রাত ৯টা পর্যন্ত চালু থাকে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
-    <InfoPanel tone="warning" icon="clock">সময় পেরোনো দিনের আবেদন; ম্যানেজারের অনুমোদন লাগবে।</InfoPanel>
-    {periodLoading ? <div className="state-card"><Icon name="clock" size={17}/><div><strong>চলমান মাস যাচাই হচ্ছে</strong><p>লেট অনুরোধ যেন সঠিক মাসে জমা হয়, এজন্য বর্তমান Period-এর সীমা যাচাই করা হচ্ছে।</p></div></div> : runningPeriod && <div className={`state-card ${targetOutsidePeriod ? 'state-card-warning' : ''}`}>
+    <InfoPanel tone="warning" icon="clock">
+      {managerMode ? (
+        <>
+          {`সময় পেরোনো দিনের আবেদন; অনুমোদন পেলে তবেই মিল কার্যকর হবে। ${periodLoading ? 'চলমান মাসের সীমা যাচাই হচ্ছে।' : runningPeriod ? `চলমান মাস ${runningPeriod.label || ''} · ${periodEnd ? `তারিখসীমা ${periodStart} থেকে ${periodEnd}` : `শুরুর তারিখ ${periodStart}`}।` : 'চলমান মাসের তথ্য পাওয়া যায়নি।'}`}
+          {targetOutsidePeriod ? ' নির্বাচিত তারিখ চলমান মাসের বাইরে; অনুরোধ পাঠানো যাবে না।' : ''}
+        </>
+      ) : 'সময় পেরোনো দিনের আবেদন; ম্যানেজারের অনুমোদন লাগবে।'}
+    </InfoPanel>
+    {!managerMode && (periodLoading ? <div className="state-card"><Icon name="clock" size={17}/><div><strong>চলমান মাস যাচাই হচ্ছে</strong><p>লেট অনুরোধ যেন সঠিক মাসে জমা হয়, এজন্য বর্তমান Period-এর সীমা যাচাই করা হচ্ছে।</p></div></div> : runningPeriod && <div className={`state-card ${targetOutsidePeriod ? 'state-card-warning' : ''}`}>
       <Icon name={targetOutsidePeriod ? 'warning' : 'calendar'} size={18}/><div><strong>চলমান মাস: {runningPeriod.label || 'নির্বাচিত Period'}</strong><p>{periodEnd ? `তারিখসীমা: ${periodStart} → ${periodEnd}` : `শুরুর তারিখ: ${periodStart} · মাস বন্ধ না হওয়া পর্যন্ত শেষ তারিখ নির্ধারিত নয়`}{targetDate ? ` · অনুরোধের তারিখ: ${targetDate}` : ''}</p>
       {targetOutsidePeriod && <p>নির্বাচিত তারিখটি চলমান মাস শুরুর আগের। তাই অনুরোধ পাঠানো যাবে না।</p>}
       </div>
-    </div>}
+    </div>)}
     {periodLoadError && <div className="state-card state-card-warning"><Icon name="warning" size={17}/><div><strong>মাসের তারিখসীমা যাচাই করা যায়নি</strong><p>{periodLoadError}</p><button className="secondary-button compact" type="button" onClick={refreshPeriod} disabled={periodLoading}>আবার যাচাই করুন</button></div></div>}
-    <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট অনুরোধ কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট অনুরোধ পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন অনুরোধ পাঠানো যাবে না।</p></div></div>
+    {!managerMode && <div className="manager-warning-box late-request-warning-box"><Icon name="shield" size={18}/><div><strong>ম্যানেজারের অনুমোদন প্রয়োজন</strong><p>আবেদন পাঠালেই মিল যোগ হবে না। প্রধান বা সহকারী ম্যানেজার অনুমোদন করলে এটি সংশ্লিষ্ট দিনের ড্যাশবোর্ডের অনুমোদিত লেট অনুরোধ কার্ডে রাত ৯টার ফাইনালাইজেশন পর্যন্ত দেখা যাবে।</p><p><strong>গুরুত্বপূর্ণ:</strong> একবার লেট অনুরোধ পাঠালে এটি আর এডিট করা বা আলাদা সংশোধন অনুরোধ পাঠানো যাবে না।</p></div></div>}
     {checkingExisting && targetDate && <div className="state-card"><Icon name="clock" size={17}/><div><strong>আগের অনুরোধ যাচাই করা হচ্ছে</strong><p>একই দিনের লেট অনুরোধ পুনরায় জমা না দিতে আপনার অনুরোধের ইতিহাস পরীক্ষা করা হচ্ছে।</p></div></div>}
     {existingTargetRequest && <div className="state-card state-card-warning"><Icon name="warning" size={17}/><div><strong>এই দিনের জন্য আগের অনুরোধ রয়েছে</strong><p>{existingTargetRequest.is_late_request ? `লেট অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'ম্যানেজারের অনুমোদনের অপেক্ষায়'}।` : `আগের অনুরোধের অবস্থা: ${existingTargetRequest.status === 'approved' ? 'অনুমোদিত' : 'অপেক্ষমাণ'}।`} একই দিনের জন্য আরেকটি অনুরোধ দেওয়া যাবে না। মিল পরিবর্তন করতে অনুরোধের ইতিহাস দেখুন।</p></div></div>}
     {!checkingExisting && duplicateCheckFailed && !existingTargetRequest && <div className="state-card state-card-warning"><Icon name="info" size={17}/><div><strong>ডুপ্লিকেট যাচাই সম্পন্ন হয়নি</strong><p>সংযোগের সমস্যা থাকায় আগের অনুরোধ যাচাই করা যায়নি। সাবমিট করলে সার্ভার চূড়ান্তভাবে ডুপ্লিকেট পরীক্ষা করবে।</p></div></div>}
@@ -1915,7 +1921,6 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
   };
   return <section className="dining-panel card">
     <div className="panel-header"><div><span className="eyebrow">এডমিন এন্ট্রি</span><h2>ম্যানুয়াল মিল অনুরোধ</h2><p>সদস্য নিজে অনুরোধ দিতে না পারলে তার হয়ে দিন। request-টি ওই সদস্যের হিস্টরিতেই সংরক্ষিত হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
-    <InfoPanel icon="user-pen">সদস্য বেছে তারিখ ও মিল দিয়ে তাঁর হয়ে আবেদন করুন।</InfoPanel>
     <div className="request-range-grid"><label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e)=>setMemberId(e.target.value)}>{members.filter((m)=>m.member_status==='active').map((m)=><option key={m.membership_id} value={m.membership_id}>{m.member_name}</option>)}</select></label><label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date||undefined} value={startDate} onChange={(e)=>{setStartDate(e.target.value);if(endDate<e.target.value)setEndDate(e.target.value);}}/></label><label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate||tomorrowValue()} max={period?.end_date||undefined} value={endDate} onChange={(e)=>setEndDate(e.target.value)}/></label></div>
     <div className="default-meal-box"><div><strong>ডিফল্ট মিল</strong><small>প্রতিদিনের শুরুতে এই মান থাকবে; প্রতিটি দিনে আলাদা করে +/- করতে পারবেন।</small></div><div className="default-meal-controls">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={defaults[key]} onChange={(e)=>setDefaults((old)=>({...old,[key]:clampMeal(e.target.value)}))}/></label>)}</div><button className="secondary-button compact" type="button" onClick={applyDefaults}>সব দিনে প্রয়োগ করুন</button></div>
     <div className="request-summary-strip"><span>{formatNumber(days.length)} দিন</span><strong>মোট {formatMealCompact(totalDays(days))} মিল</strong></div>
@@ -1966,9 +1971,10 @@ function ManagerDepositForm({ members, period, onSaved }) {
 
   return (
     <section className="dining-panel card">
-      <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>ডিপোজিট</h2><p>যেকোনো সদস্যের নামে ডিপোজিট যোগ করুন।</p></div></div>
-      <InfoPanel icon="wallet">সদস্য, তারিখ ও জমার পরিমাণ যাচাই করুন।</InfoPanel>
-      {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
+      <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>ডিপোজিট</h2></div></div>
+      <InfoPanel tone={periodStartNotice ? 'warning' : 'info'} icon={periodStartNotice ? 'calendar' : 'wallet'}>
+        {periodStartNotice || 'সদস্য, তারিখ ও জমার পরিমাণ যাচাই করে সংরক্ষণ করুন।'}
+      </InfoPanel>
       <div className="form-grid-2">
         <label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e) => setMemberId(e.target.value)}>{members.filter((member) => member.member_status === 'active').map((member) => <option value={member.membership_id} key={member.membership_id}>{member.member_name}</option>)}</select></label>
         <label className="field-label"><span>তারিখ</span><input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < todayValue() ? period.end_date : todayValue()) : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} disabled={!period || Boolean(periodStartNotice)} /></label>
@@ -2024,9 +2030,10 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
 
   return (
     <section className="dining-panel card">
-      <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>অন্যান্য খরচ</h2><p>নির্বাচিত সদস্যের ডিপোজিট/হিসাব থেকে এই পরিমাণ বাদ যাবে।</p></div></div>
-      <InfoPanel tone="warning" icon="receipt">খরচটি নির্বাচিত সদস্যের হিসাব থেকে বাদ যাবে। তথ্য যাচাই করুন।</InfoPanel>
-      {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
+      <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>অন্যান্য খরচ</h2></div></div>
+      <InfoPanel tone="warning" icon={periodStartNotice ? 'calendar' : 'receipt'}>
+        {periodStartNotice || 'এই খরচ নির্বাচিত সদস্যের হিসাব থেকে বাদ যাবে। বিবরণ, তারিখ ও টাকার পরিমাণ যাচাই করুন।'}
+      </InfoPanel>
       <div className="form-grid-2">
         <label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e) => setMemberId(e.target.value)}>{members.filter((member) => member.member_status === 'active').map((member) => <option value={member.membership_id} key={member.membership_id}>{member.member_name}</option>)}</select></label>
         <label className="field-label"><span>তারিখ</span><input type="date" min={period?.start_date || undefined} max={period?.end_date ? (period.end_date < todayValue() ? period.end_date : todayValue()) : todayValue()} value={date} onChange={(e) => setDate(e.target.value)} disabled={!period || Boolean(periodStartNotice)} /></label>
@@ -2071,6 +2078,8 @@ export function DiningPage() {
   // Direct finalized-day edits are available to the current primary manager and
   // assistants explicitly assigned to the active running period only.
   const canManageFinalMeals = Boolean(isPrimaryDiningManager || (hasRunningManagerPeriod && isAssistantManager));
+  const managerDiningUi = Boolean(canOperateDining || isAssistantManager || isManager);
+  const managerPageStackClass = managerDiningUi ? 'page-stack manager-dining-view' : 'page-stack';
 
   const loadMembers = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoadingMembers(true);
@@ -2132,29 +2141,31 @@ export function DiningPage() {
 
   if (requestMode) {
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="arrow-left" size={15} /> ডাইনিংয়ে ফিরে যান</button></div>
         <MealRequestEditor
           mode={requestMode}
           request={selectedRequest}
           onSaved={backToHome}
           onCancel={backToHome}
+          managerMode={managerDiningUi}
         />
       </div>
     );
   }
 
   if (view === 'late-request') {
-    return <div className="page-stack"><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><LateMealRequestForm onSaved={backToHome} onCancel={backToHome} /></div>;
+    return <div className={managerPageStackClass}><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><LateMealRequestForm onSaved={backToHome} onCancel={backToHome} managerMode={managerDiningUi} /></div>;
   }
 
   if (view === 'request-history') {
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
         <RequestHistory
           onEdit={(request) => { setSelectedRequest(request); setRequestMode('edit'); }}
           onCorrect={(request) => { setSelectedRequest(request); setRequestMode('correction'); }}
+          managerMode={managerDiningUi}
         />
       </div>
     );
@@ -2162,7 +2173,7 @@ export function DiningPage() {
 
   if (view === 'meal-request') {
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="arrow-left" size={15} /> ডাইনিংয়ে ফিরে যান</button></div>
         <PersonalTomorrowMealCard />
         <SectionHeader eyebrow="ডাইনিং" title="মিল অনুরোধ" description="নতুন অনুরোধ ও অনুরোধের ইতিহাস।" />
@@ -2196,7 +2207,7 @@ export function DiningPage() {
     }] : [];
     const marketMembers = members.some((member) => member.member_status === 'active') ? members : fallbackOwnMember;
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
         {periodLoadError && <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError} সার্ভারের validation-ই চূড়ান্ত; তারিখ/মাস নিশ্চিত না হলে এন্ট্রি দেবেন না।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
         {memberDirectoryError && canOperateDining && <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>সদস্য তালিকা সম্পূর্ণ লোড হয়নি</strong><p>{memberDirectoryError} নিজের নামে এন্ট্রি দেওয়ার জন্য fallback দেখানো হতে পারে; অন্য সদস্যের নামে এন্ট্রির আগে তালিকা পুনরায় লোড করুন।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
@@ -2206,16 +2217,16 @@ export function DiningPage() {
   }
 
   if (view === 'admin-entry') {
-    return <div className="page-stack"><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><SectionHeader eyebrow="প্রধান/সহকারী ম্যানেজার" title="এডমিন এন্ট্রি" description="ফাইনাল মিল সংশোধন বা সদস্যের হয়ে অনুরোধ তৈরি করুন।"/><div className="request-entry-choice-grid"><button className="card request-choice-card" type="button" disabled={!canManageFinalMeals} onClick={() => setView('manager-meal')}><span className="dining-option-icon"><Icon name="check-circle" size={22}/></span><strong>ফাইনাল মিল যোগ ও সংশোধন</strong><small>{canManageFinalMeals ? 'ফাইনাল দিনের মিল যোগ বা সংশোধন করুন।' : 'এই কাজটি প্রধান বা চলমান মাসের অনুমোদিত সহকারী ম্যানেজারের জন্য।'}</small></button><button className="card request-choice-card" type="button" onClick={() => setView('admin-manual-request')}><span className="dining-option-icon"><Icon name="users" size={22}/></span><strong>ম্যানুয়াল মিল অনুরোধ</strong><small>সদস্যের হয়ে মিল অনুরোধ তৈরি করুন।</small></button></div></div>;
+    return <div className={managerPageStackClass}><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><SectionHeader eyebrow="প্রধান/সহকারী ম্যানেজার" title="এডমিন এন্ট্রি" description="ফাইনাল মিল সংশোধন বা সদস্যের হয়ে অনুরোধ তৈরি করুন।"/><div className="request-entry-choice-grid"><button className="card request-choice-card" type="button" disabled={!canManageFinalMeals} onClick={() => setView('manager-meal')}><span className="dining-option-icon"><Icon name="check-circle" size={22}/></span><strong>ফাইনাল মিল যোগ ও সংশোধন</strong><small>{canManageFinalMeals ? 'ফাইনাল দিনের মিল যোগ বা সংশোধন করুন।' : 'এই কাজটি প্রধান বা চলমান মাসের অনুমোদিত সহকারী ম্যানেজারের জন্য।'}</small></button><button className="card request-choice-card" type="button" onClick={() => setView('admin-manual-request')}><span className="dining-option-icon"><Icon name="users" size={22}/></span><strong>ম্যানুয়াল মিল অনুরোধ</strong><small>সদস্যের হয়ে মিল অনুরোধ তৈরি করুন।</small></button></div></div>;
   }
 
   if (view === 'admin-manual-request') {
-    return <div className="page-stack"><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={() => setView('admin-entry')}><Icon name="chevron" size={15} className="rotate-left" /> এডমিন এন্ট্রি</button></div><ManualMemberMealRequest members={members} period={runningPeriod} onSaved={loadMembers} onCancel={() => setView('admin-entry')} /></div>;
+    return <div className={managerPageStackClass}><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={() => setView('admin-entry')}><Icon name="chevron" size={15} className="rotate-left" /> এডমিন এন্ট্রি</button></div><ManualMemberMealRequest members={members} period={runningPeriod} onSaved={loadMembers} onCancel={() => setView('admin-entry')} /></div>;
   }
 
   if (view === 'manager-meal') {
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
         <ManagerMealEntry members={members} onSaved={loadMembers} canManageFinalMeals={canManageFinalMeals} />
       </div>
@@ -2225,7 +2236,7 @@ export function DiningPage() {
 
   if (view === 'manager-request') {
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
         <ManagerMealRequests />
       </div>
@@ -2234,7 +2245,7 @@ export function DiningPage() {
 
   if (view === 'deposit') {
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
         <ManagerDepositForm members={members} period={runningPeriod} onSaved={loadMembers} />
       </div>
@@ -2243,7 +2254,7 @@ export function DiningPage() {
 
   if (view === 'other-expense') {
     return (
-      <div className="page-stack">
+      <div className={managerPageStackClass}>
         <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
         <ManagerOtherExpenseForm members={members} period={runningPeriod} onSaved={loadMembers} />
       </div>
@@ -2251,7 +2262,7 @@ export function DiningPage() {
   }
 
   return (
-    <div className="page-stack dining-stack">
+    <div className={`page-stack dining-stack ${managerDiningUi ? 'manager-dining-view' : ''}`}>
       <SectionHeader eyebrow="মূল সেকশন" title="ডাইনিং" icon="cooking-pot" description="মিল, বাজার ও লেনদেন পরিচালনা করুন।" />
 
       {periodLoadError && <div className="state-card state-card-warning dining-period-empty-note"><Icon name="warning" size={20}/><div><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError} মাস নেই বলে নিশ্চিত না হওয়া পর্যন্ত এই বার্তাকে প্রকৃত no-month অবস্থা হিসেবে দেখানো হচ্ছে না।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
