@@ -297,7 +297,7 @@ export function HistoryPage() {
           </div>
         </div>
         <div className="history-title-footer">
-          <div className="history-intro-info"><Icon name="info" size={17}/><span>বাজার, জমা-খরচ ও আগের মাসের সংরক্ষিত হিসাব দেখুন। বিস্তারিত খুলতে যেকোনো রেকর্ডে চাপ দিন; সম্পাদনা শুধু অনুমোদিত ম্যানেজারের জন্য।</span></div>
+          <div className="history-intro-info finance-context-note-inline"><Icon name="info" size={17}/><span>বাজার, জমা-খরচ ও আগের মাসের সংরক্ষিত হিসাব দেখুন। বিস্তারিত খুলতে যেকোনো রেকর্ডে চাপ দিন; সম্পাদনা শুধু অনুমোদিত ম্যানেজারের জন্য।</span></div>
           <div className="history-title-actions"><button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>{tab !== 'months' && <button className="secondary-button compact" type="button" onClick={exportCurrentTab} disabled={loading || exportBusy || !accountGrouped.length && tab === 'account' || !visibleMarketRows.length && tab === 'market'}><Icon name="download" size={15} /> PDF / প্রিন্ট</button>}</div>
         </div>
       </div>

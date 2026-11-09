@@ -85,14 +85,12 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
           <div className="auth-brand-lockup">
             <div className="auth-brand-mark"><BrandMark size={64} /></div>
             <div className="auth-brand-identity">
-              <span className="auth-eyebrow">HOSTEL LIFE</span>
-              <small className="auth-brand-submark">MESS MANAGEMENT · MADE SIMPLE</small>
+              <span className="auth-brand-name">হোস্টেল লাইফ</span>
             </div>
           </div>
           {!minimal && <>
-            <div className="auth-brand-highlight"><Icon name="sparkles" size={14} /> হিসাব ও ব্যবস্থাপনা, এক জায়গায়</div>
-            <h1>হোস্টেল ব্যবস্থাপনা, সহজ ও গোছানো।</h1>
-            <p>দৈনন্দিন হিসাব, সদস্য ও মেস পরিচালনা—সবকিছু এক জায়গায়।</p>
+            <h1>মেস পরিচালনা, আরও গোছানো।</h1>
+            <p>মিল, বাজার ও সদস্যের হিসাব সহজে পরিচালনা করুন।</p>
           </>}
         </div>
         <div className="auth-form-panel">

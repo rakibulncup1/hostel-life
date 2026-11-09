@@ -276,7 +276,7 @@ export function NewMonthPage() {
     <PrimaryManagerGuard>
       <div className="page-stack">
         <PageHeader title="নতুন মাস শুরু" icon="calendar" description="নতুন মাসের শুরুর তারিখ সিস্টেম নির্ধারণ করে।" />
-        <InfoPanel icon="calendar-check">রাত ৮টার পর নতুন মাস চালু করা যাবে। তারিখ সিস্টেম নির্ধারণ করে; আগের মাস আর্কাইভে থাকবে।</InfoPanel>
+        <InfoPanel className="finance-context-note" icon="calendar-check">রাত ৮টার পর নতুন মাস চালু করা যাবে। তারিখ সিস্টেম নির্ধারণ করে; আগের মাস আর্কাইভে থাকবে।</InfoPanel>
         <section className="card manager-form-card">
           {periodDateError && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>নতুন মাসের তারিখ যাচাই করা যায়নি।</strong><p>{periodDateError}</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {!periodStatusKnown ? (
@@ -393,7 +393,7 @@ export function CloseCurrentMonthPage() {
           icon="calendar"
           description="আজ পর্যন্ত হিসাব চূড়ান্ত করে মাস বন্ধ করুন।"
         />
-        <InfoPanel tone="warning" icon="alert-triangle">মাস বন্ধের আগে অপেক্ষমাণ অনুরোধ ও আর্থিক এন্ট্রি যাচাই করুন। বন্ধের পর নতুন অনুরোধ নেওয়া যাবে না।</InfoPanel>
+        <InfoPanel className="finance-context-note finance-context-note-warning" tone="warning" icon="alert-triangle">মাস বন্ধের আগে অপেক্ষমাণ অনুরোধ ও আর্থিক এন্ট্রি যাচাই করুন। বন্ধের পর নতুন অনুরোধ নেওয়া যাবে না।</InfoPanel>
         <section className="card manager-form-card">
           <div className="manager-current-period">
             <span>চলমান মাস</span>
@@ -1007,7 +1007,7 @@ export function KhalaMoneyPage() {
   return (
     <div className="page-stack">
         <PageHeader title="খালার টাকা" icon="wallet" description={isOperationalManager ? 'মাসভিত্তিক খালার পারিশ্রমিক যোগ করুন।' : 'আপনার বন্ধ করা মাসের তথ্য দেখুন ও সংশোধন করুন।'} />
-        <InfoPanel icon="wallet">মাস, সদস্য, তারিখ ও পরিমাণ যাচাই করে এন্ট্রি সংরক্ষণ করুন।</InfoPanel>
+        <InfoPanel className="finance-context-note" icon="wallet">মাস, সদস্য, তারিখ ও পরিমাণ যাচাই করে এন্ট্রি সংরক্ষণ করুন।</InfoPanel>
         {periods.length === 0 ? (
           <div className="empty-state-card"><Icon name="wallet" size={26} /><strong>এখনো কোনো কাজের মাস পাওয়া যায়নি</strong><span>বর্তমান বা নির্ধারিত পুরোনো মাস থাকলে এখানে দেখা যাবে।</span></div>
         ) : (
@@ -1154,7 +1154,7 @@ export function ArchiveManagerPage() {
 
   return <PrimaryManagerGuard><div className="page-stack">
     <PageHeader title="আর্কাইভ" icon="history" description="বন্ধ মাস ও সংশোধনের অনুমতি পরিচালনা করুন।" />
-    <InfoPanel icon="archive">Closing Manager ও সংশোধনের অনুমতি দেখুন। Reopen করলে বাতিল অনুরোধ নিজে থেকে ফিরবে না।</InfoPanel>
+    <InfoPanel className="finance-context-note finance-context-note-warning" tone="warning" icon="archive">Closing Manager ও সংশোধনের অনুমতি দেখুন। Reopen করলে বাতিল অনুরোধ নিজে থেকে ফিরবে না।</InfoPanel>
     <div className="archive-refresh-row"><button type="button" className="secondary-button compact" disabled={loading} onClick={loadMonths}>আর্কাইভ রিফ্রেশ</button></div>
     {months.length === 0 ? <div className="empty-state-card"><Icon name="history" size={28} /><strong>সংরক্ষিত মাস পাওয়া যায়নি</strong><span>হিস্টরিতে বন্ধ মাস থাকলে রিফ্রেশ করে দেখুন।</span><button type="button" className="secondary-button compact" onClick={loadMonths}>আবার লোড করুন</button></div> : <>
       <section className="card manager-form-card">
@@ -1256,7 +1256,7 @@ export function MealSheetPage() {
 
   return (
     <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} · চূড়ান্ত মিলের সারসংক্ষেপ।`} />
-      <InfoPanel icon="book-open">চূড়ান্ত মিল ও সদস্যভিত্তিক হিসাব দেখুন।</InfoPanel>
+      <InfoPanel className="finance-context-note" icon="book-open">চূড়ান্ত মিল ও সদস্যভিত্তিক হিসাব দেখুন।</InfoPanel>
       <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{currentPeriodRange(bundle.period)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact report-pdf-button" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
       <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
       <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
@@ -1402,7 +1402,7 @@ export function ReportsPage() {
   return (
     <div className="page-stack reports-page">
       <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" eyebrow="রিপোর্ট" description="মাসিক হিসাব PDF হিসেবে সংরক্ষণ করুন।" />
-      <InfoPanel icon="download">PDF তৈরির আগে নির্বাচিত মাস ও হিসাবের সারসংক্ষেপ যাচাই করুন।</InfoPanel>
+      <InfoPanel className="finance-context-note" icon="download">PDF তৈরির আগে নির্বাচিত মাস ও হিসাবের সারসংক্ষেপ যাচাই করুন।</InfoPanel>
       <section className="report-summary-strip card" aria-label="মাসের সারসংক্ষেপ">
         <div><small>মোট মিল</small><strong>{formatNumber(meals.total)}</strong></div>
         <div><small>মোট বাজার</small><strong>{formatCurrency(totalMarket)}</strong></div>
@@ -1419,7 +1419,7 @@ export function ReportsPage() {
         <div className="section-heading"><div><h2>ফাইনাল হিসাবের প্রিভিউ</h2><small>{bundle.period.label} · {formatNumber(members.length)} জন সদস্য</small></div><button className="secondary-button compact report-preview-download" type="button" onClick={() => runExport(downloadFinalAccount)} disabled={exportBusy}><Icon name="download" size={15}/> PDF সংরক্ষণ</button></div>
         <Table columns={[{ key:'name', label:'সদস্যের নাম' },{ key:'deposit', label:'জমা', render:(r)=>formatCurrency(r.deposit) },{ key:'meals', label:'মিল', render:(r)=>formatNumber(r.meals) },{ key:'totalCost', label:'মোট খরচ', render:(r)=>formatCurrency(r.totalCost) },{ key:'balance', label:'বকেয়া / অবশিষ্ট', render:(r)=>Number(r.balance)<0?`বকেয়া ${formatCurrency(Math.abs(Number(r.balance)))}`:`অবশিষ্ট ${formatCurrency(r.balance)}` }]} rows={finalAccountRows.map((row) => ({ ...row, key: row.key || row.membershipId }))} />
       </section>
-      <InfoPanel icon="info" className="report-page-note">শুধু ফাইনাল মিল অন্তর্ভুক্ত। খালার পারিশ্রমিক মেসের আলাদা খরচ।</InfoPanel>
+      <InfoPanel icon="info" className="report-page-note finance-context-note">শুধু ফাইনাল মিল অন্তর্ভুক্ত। খালার পারিশ্রমিক মেসের আলাদা খরচ।</InfoPanel>
     </div>
   );
 }

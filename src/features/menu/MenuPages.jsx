@@ -309,7 +309,7 @@ function RankingPage({ kind }) {
         title={depositor ? 'বেশি ডিপোজিটকারী' : shopper ? 'বেশি বাজারকারী' : 'শীর্ষ খাদক'}
         description={depositor ? 'সদস্যের নামে জমা হওয়া মোট টাকা।' : shopper ? 'কার্যকর বাজারের মোট টাকার তালিকা।' : 'চূড়ান্ত হওয়া মোট মিলের তালিকা।'}
       />
-      <InfoPanel icon="activity">{depositor
+      <InfoPanel className="finance-context-note" icon="activity">{depositor
         ? 'সদস্যের নামে জমা হওয়া মোট টাকা দেখানো হয়।'
         : shopper
           ? 'মোট বাজারের ভিত্তিতে তালিকা; বাজারকারী ও এন্ট্রিকারী আলাদা হতে পারেন।'
@@ -749,7 +749,7 @@ export function PreviousMonthsPage() {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Archive" title="আর্কাইভ" description="বন্ধ মাসের হিসাব ও রিপোর্ট।" />
-      <InfoPanel icon="archive">বন্ধ মাসের রেকর্ড দেখুন। সংশোধন শুধু অনুমোদিত ব্যবহারকারীর জন্য।</InfoPanel>
+      <InfoPanel className="finance-context-note" icon="archive">বন্ধ মাসের রেকর্ড দেখুন। সংশোধন শুধু অনুমোদিত ব্যবহারকারীর জন্য।</InfoPanel>
       {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..." /> : months.length === 0 ? (
         <div className="empty-state-card"><Icon name="history" size={28} /><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>মেসে এখনো archive করা মাস পাওয়া যায়নি।</span></div>
       ) : (
