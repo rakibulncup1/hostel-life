@@ -39,7 +39,7 @@ test('verification displays email, one OTP input, mail folder tip, live countdow
   assert.match(otpBranch, /\{email\}/);
   assert.equal((otpBranch.match(/className="auth-otp-input"/g) || []).length, 1);
   assert.match(otpBranch, /auth-verification-mail-tip/);
-  assert.match(otpBranch, /Spam বা Promotions/);
+  assert.match(otpBranch, /Spam\/Junk বা Promotions/);
   assert.match(otpBranch, /auth-otp-countdown/);
   assert.match(otpBranch, /রেজিস্ট্রেশনে ফিরে যান/);
 });

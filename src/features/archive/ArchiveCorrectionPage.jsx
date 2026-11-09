@@ -11,6 +11,7 @@ import { getArchiveCorrectionBundle, applyArchiveCorrection, isCorrectionBackend
 import { navigateTo } from '../../app/AppShell';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
+import { printArchivedMonthlyReport } from '../../services/reportService';
 import { formatDateTime12 } from '../../utils/time';
 import './archive-correction.css';
 
@@ -243,7 +244,7 @@ export function ArchiveCorrectionPage() {
         <div className="archive-hero-copy">
           <span className="archive-eyebrow">সংরক্ষিত হিসাব</span>
           <h1>আর্কাইভ</h1>
-          <p>বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। {primary ? 'প্রধান ম্যানেজারের জন্য অনুমোদিত হিসাব-সংশোধনও এখানে রয়েছে।' : 'আপনি যে মাসটি বন্ধ করেছেন, সেই নির্দিষ্ট মাসে অনুমোদিত সংশোধন করতে পারবেন; অন্য মাস শুধু দেখা যাবে।'}</p>
+          <div className="archive-hero-guidance"><Icon name="info" size={17}/><p>বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। {primary ? 'প্রধান ম্যানেজারের জন্য অনুমোদিত হিসাব-সংশোধনও এখানে রয়েছে।' : 'আপনি যে মাসটি বন্ধ করেছেন, সেই নির্দিষ্ট মাসে অনুমোদিত সংশোধন করতে পারবেন; অন্য মাস শুধু দেখা যাবে।'}</p></div>
         </div>
       </div>
       <div className="archive-hero-actions">
@@ -275,6 +276,7 @@ export function ArchiveCorrectionPage() {
         <button type="button" className="secondary-button compact" onClick={() => { setSelectedPeriodId(''); setDetail(null); setBundle(null); setEditing(null); setActiveKind('all'); }}><Icon name="arrow-left" size={15}/> সব মাস</button>
         <div className="archive-detail-title"><span className="archive-eyebrow">নির্বাচিত মাসের হিসাব</span><h2>{detailLabel}</h2><p>{formatDateBangla(detailStart)} – {formatDateBangla(detailEnd)}</p></div>
         <span className="archive-correction-status"><i className="archive-status-dot"/> মাস বন্ধ</span>
+        <button type="button" className="secondary-button compact archive-month-pdf-button" disabled={!Array.isArray(detail?.members)} title={!Array.isArray(detail?.members) ? 'পূর্ণ রিপোর্টের জন্য Run41 migration প্রয়োজন' : 'পূর্ণ মাসিক প্রতিবেদন PDF / প্রিন্ট'} onClick={() => { try { printArchivedMonthlyReport(detail); } catch (error) { toast.error(error?.message || 'রিপোর্ট তৈরি করা যায়নি।'); } }}><Icon name="file-text" size={15}/> পূর্ণ রিপোর্ট PDF</button>
       {primary && selected?.can_reopen && <button type="button" className="primary-button compact" onClick={restoreMonth} disabled={busy}><Icon name="refresh-cw" size={16}/> ভুলবশত বন্ধ? আবার চালু করুন</button>}
       {primary && selected && !selected.can_reopen && !selected.archive_read_only && <small className="archive-reopen-hint">এই মাস পুনরায় চালুর শর্ত পূরণ হচ্ছে না। শুধু সর্বশেষ বন্ধ মাস, একই ক্যালেন্ডার মাসে এবং নতুন মাস শুরুর আগে ফেরানো যায়।</small>}
       </div>

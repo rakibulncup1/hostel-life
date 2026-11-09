@@ -493,8 +493,8 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
           <button type="button" className="release-notice-close" onClick={dismissTelegramNudge} aria-label="বন্ধ করুন">×</button>
           <span className="telegram-nudge-icon"><TelegramLogo size={30} /></span>
           <span className="eyebrow">HOSTEL LIFE · বিজ্ঞপ্তি</span>
-          <h2 id="telegram-nudge-title">টেলিগ্রামে নোটিশ পান</h2>
-          <p>মেসের গুরুত্বপূর্ণ নোটিশ সরাসরি টেলিগ্রামে পেতে সংযোগ করুন। এটি ঐচ্ছিক।</p>
+          <h2 id="telegram-nudge-title">মেসের নোটিশ টেলিগ্রামে পান</h2>
+          <p>গুরুত্বপূর্ণ আপডেট সরাসরি পেতে একবার সংযোগ করুন। এটি ঐচ্ছিক।</p>
           <div className="telegram-nudge-actions"><button type="button" className="primary-button" onClick={openTelegramSettings}>টেলিগ্রাম সংযোগ করুন</button><button type="button" className="secondary-button" onClick={dismissTelegramNudge}>পরে করব</button></div>
         </section>
       </div>}

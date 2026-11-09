@@ -1,3 +1,7 @@
+[auth.email]
+otp_expiry = 600
+otp_length = 6
+
 [functions.record-auth-event]
 verify_jwt = false
 

@@ -393,7 +393,7 @@ export function CloseCurrentMonthPage() {
           icon="calendar"
           description="আজ পর্যন্ত হিসাব চূড়ান্ত করে মাস বন্ধ করুন।"
         />
-        <InfoPanel className="finance-context-note finance-context-note-warning" tone="warning" icon="alert-triangle">মাস বন্ধের আগে অপেক্ষমাণ অনুরোধ ও আর্থিক এন্ট্রি যাচাই করুন। বন্ধের পর নতুন অনুরোধ নেওয়া যাবে না।</InfoPanel>
+        <InfoPanel className="finance-context-note finance-context-note-warning month-close-primary-guidance" tone="warning" icon="alert-triangle">মাস বন্ধের আগে অপেক্ষমাণ অনুরোধ ও আর্থিক এন্ট্রি যাচাই করুন। বন্ধের পর নতুন অনুরোধ নেওয়া যাবে না।</InfoPanel>
         <section className="card manager-form-card">
           <div className="manager-current-period">
             <span>চলমান মাস</span>
@@ -404,7 +404,7 @@ export function CloseCurrentMonthPage() {
           {showGenericCloseBlock && <div className="manager-warning-box" role="alert"><Icon name="clock" size={18} /><div><strong>{preflightKnown ? 'এই মাসটি এখনই বন্ধ করা যাবে না।' : 'মাস বন্ধের আগে যাচাই সম্পন্ন হয়নি।'}</strong><p>{preflight?.message || 'মিলের অনুরোধ, আর্থিক এন্ট্রি ও তারিখের অবস্থা সার্ভার থেকে যাচাই করা যায়নি। নিরাপত্তার জন্য মাস বন্ধের বোতাম বন্ধ রাখা হয়েছে।'}</p>{futureFinancialCount > 0 && <small>ভবিষ্যৎ তারিখের আর্থিক এন্ট্রি আগে ঠিক করুন।</small>}<button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {preflight?.running_period_count > 1 && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মেসে একাধিক চলমান মাস পাওয়া গেছে।</strong><p>নতুন মাস শুরু করবেন না। আগে এই তথ্যের অবস্থা যাচাই করতে হবে।</p></div></div>}
           {requiresImpactConfirmation && <div className="manager-warning-box" role="alert"><Icon name="warning" size={18} /><div><strong>মাস বন্ধ করলে কিছু অনুরোধ/রেকর্ড বাতিল হবে।</strong><p>{futureRequestCount}টি ভবিষ্যৎ সক্রিয় অনুরোধ, {futureDayCount}টি ভবিষ্যৎ মিল-দিন এবং {pendingSpecialCount}টি অপেক্ষমাণ লেট/সংশোধন অনুরোধ পাওয়া গেছে। নিশ্চিত করলে এগুলো বাতিল হবে; আজ পর্যন্ত অনুমোদিত মিলের হিসাব চূড়ান্ত হবে।</p></div></div>}
-          <div className="inline-info" role="status"><Icon name="info" size={16} /> মাস বন্ধ করার দিন রাত ৯টার আগেও বন্ধ করলে আজকের অনুমোদিত মিল সঙ্গে সঙ্গে চূড়ান্ত হবে। কোনো অপেক্ষমাণ লেট/সংশোধন অনুরোধ থাকলে সেটি নিশ্চিতকরণের মাধ্যমে বাতিল হবে।</div>
+          <div className="inline-info month-close-finalization-guidance" role="status"><Icon name="info" size={16} /> মাস বন্ধ করার দিন রাত ৯টার আগেও বন্ধ করলে আজকের অনুমোদিত মিল সঙ্গে সঙ্গে চূড়ান্ত হবে। কোনো অপেক্ষমাণ লেট/সংশোধন অনুরোধ থাকলে সেটি নিশ্চিতকরণের মাধ্যমে বাতিল হবে।</div>
           {preflight && preflight.overlap_pair_count > 0 && <div className="form-hint"><Icon name="info" size={16} /> {preflight.overlap_pair_count}টি পুরোনো overlapping normal request pair আছে। এগুলো মাস বন্ধের বাধা নয়; নতুন request দেওয়ার সময় conflict protection কাজ করবে।</div>}
           {overlaps.length > 0 && <div className="manager-overlap-list"><strong>ঐতিহাসিক overlap-এর বিবরণ</strong>{overlaps.map((item) => <div className="manager-overlap-row" key={`${item.request_id_a}-${item.request_id_b}`}><span>{item.member_name_a || 'সদস্য'} · {formatDateBangla(item.start_date_a)} → {formatDateBangla(item.end_date_a)}</span><span>{item.member_name_b || 'সদস্য'} · {formatDateBangla(item.start_date_b)} → {formatDateBangla(item.end_date_b)}</span></div>)}</div>}
           <div className="archive-period-close-summary">
@@ -1191,6 +1191,14 @@ function Table({ columns, rows }) {
   return <div className="report-table-wrap"><table className="report-table"><thead><tr>{columns.map((c) => <th key={c.key}>{c.label}</th>)}</tr></thead><tbody>{rows.length ? rows.map((row, index) => <tr key={row.key || index}>{columns.map((c) => <td key={c.key}>{c.render ? c.render(row) : row[c.key]}</td>)}</tr>) : <tr><td colSpan={columns.length}><div className="table-empty">কোনো তথ্য পাওয়া যায়নি</div></td></tr>}</tbody></table></div>;
 }
 
+function formatMealSheetColumnDate(value) {
+  const dateText = String(value || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return dateText;
+  const date = new Date(`${dateText}T12:00:00+06:00`);
+  return new Intl.DateTimeFormat('bn-BD', { day: 'numeric', month: 'short', timeZone: 'Asia/Dhaka' })
+    .format(date).replace(/,\s*/u, ' ');
+}
+
 export function MealSheetPage() {
   const toast = useToast();
   const online = useOnlineStatus();
@@ -1239,7 +1247,7 @@ export function MealSheetPage() {
       const allDays = finalizedDays.slice().sort((a, b) => String(a.meal_date).localeCompare(String(b.meal_date)));
       const recordLookup = new Map(bundle.mealRows.map((row) => [`${row.memberId}:${row.date}`, row]));
       const compact = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 1 });
-      const matrixHead = `<tr><th>সদস্য</th>${allDays.map((day) => `<th title="${escapeReportHtml(day.meal_date)}">${escapeReportHtml(String(Number(day.meal_date.slice(-2))))}</th>`).join('')}</tr>`;
+      const matrixHead = `<tr><th>সদস্য</th>${allDays.map((day) => `<th title="${escapeReportHtml(day.meal_date)}">${escapeReportHtml(formatMealSheetColumnDate(day.meal_date))}</th>`).join('')}</tr>`;
       const matrixBody = bundle.members.map((member) => `<tr><td>${escapeReportHtml(member.member_name || 'সদস্য')}</td>${allDays.map((day) => {
         const meal = recordLookup.get(`${member.membership_id}:${day.meal_date}`);
         return `<td>${meal ? `${compact(meal.breakfast)}+${compact(meal.lunch)}+${compact(meal.dinner)}` : '—'}</td>`;

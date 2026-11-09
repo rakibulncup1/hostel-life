@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppShell, navigateTo } from './AppShell';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { ArchiveCorrectionPage } from '../features/archive/ArchiveCorrectionPage';
@@ -26,6 +26,7 @@ import { useManagementContext } from '../hooks/useManagementContext';
 
 const SUPER_ADMIN_RETURN_KEY = 'hostel-life-super-admin-return-v1';
 const SUPER_ADMIN_RETURN_TTL_MS = 10 * 60 * 1000;
+const APP_RESUME_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function getPath() {
   const pathname = window.location.pathname || '/app/dashboard';
@@ -35,6 +36,25 @@ function getPath() {
     return `/invite/${window.location.hash.slice(1)}`;
   }
   return pathname;
+}
+
+
+function getSafeResumeSearch(pathname, rawSearch = window.location.search) {
+  if (pathname !== '/app/history') return '';
+  try {
+    const input = new URLSearchParams(rawSearch || '');
+    const output = new URLSearchParams();
+    const archivePeriod = input.get('archive_period') || '';
+    const historyTab = input.get('history_tab') || '';
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(archivePeriod)) {
+      output.set('archive_period', archivePeriod);
+    }
+    if (['market', 'account', 'months'].includes(historyTab)) output.set('history_tab', historyTab);
+    const value = output.toString();
+    return value ? `?${value}` : '';
+  } catch {
+    return '';
+  }
 }
 
 function resolveAppPage(pathname, isManager, hasClosedMonthAccess = false) {
@@ -74,6 +94,8 @@ export function App() {
   const [publicSettings, setPublicSettings] = useState(null);
   const auth = useAuth();
   const { hasClosedMonthAccess } = useManagementContext();
+  const resumeCheckedUserRef = useRef(null);
+  const resumeTargetRef = useRef(null);
 
   useEffect(() => {
     const update = () => setPathname(getPath());
@@ -100,6 +122,51 @@ export function App() {
   }, []);
 
   const withPublicCommunications = (content) => <>{content}<PlatformCommunicationOverlays communications={publicSettings?.communications} /></>;
+
+  // Preserve the last app location across mobile PWA suspension/recreation.
+  // This deliberately stores only route + scroll position, never form values,
+  // passwords, OTPs or transaction drafts.
+  useEffect(() => {
+    if (!auth.isAuthenticated || !auth.user?.id) {
+      resumeCheckedUserRef.current = null;
+      return;
+    }
+    if (auth.authLoading || !auth.identityReady || pathname !== '/app/dashboard') return;
+    if (resumeCheckedUserRef.current === auth.user.id) return;
+    resumeCheckedUserRef.current = auth.user.id;
+    const storageKey = `hostel-life-app-resume-v1:${auth.user.id}`;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(storageKey) || 'null');
+      const age = Date.now() - Number(saved?.savedAt || 0);
+      const safePath = typeof saved?.path === 'string' && saved.path.startsWith('/app/')
+        && !saved.path.startsWith('/app/menu/app-download');
+      const safeSearch = getSafeResumeSearch(saved?.path, saved?.search || '');
+      if (safePath && (saved.path !== pathname || (saved.path === '/app/history' && safeSearch !== window.location.search))
+        && Number.isFinite(age) && age >= 0 && age <= APP_RESUME_TTL_MS) {
+        resumeTargetRef.current = { path: saved.path, search: safeSearch, scrollY: Math.max(0, Number(saved.scrollY) || 0) };
+        navigateTo(`${saved.path}${safeSearch}`, true);
+      }
+    } catch { /* Invalid or unavailable storage falls back to the dashboard. */ }
+  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityReady, auth.user?.id]);
+
+  useEffect(() => {
+    if (!auth.isAuthenticated || !auth.identityReady || !auth.user?.id || !pathname.startsWith('/app/')) return undefined;
+    const pending = resumeTargetRef.current;
+    if (pending && pending.path !== pathname) return undefined;
+    if (pending && pending.path === pathname) {
+      window.requestAnimationFrame(() => window.scrollTo({ top: pending.scrollY, behavior: 'instant' }));
+      resumeTargetRef.current = null;
+    }
+    const key = `hostel-life-app-resume-v1:${auth.user.id}`;
+    const save = () => {
+      try { window.localStorage.setItem(key, JSON.stringify({ path: pathname, search: getSafeResumeSearch(pathname), scrollY: Math.max(0, window.scrollY || 0), savedAt: Date.now() })); }
+      catch { /* Storage is optional; navigation remains available. */ }
+    };
+    save();
+    window.addEventListener('pagehide', save);
+    document.addEventListener('visibilitychange', save);
+    return () => { window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', save); };
+  }, [pathname, auth.isAuthenticated, auth.identityReady, auth.user?.id]);
 
   useEffect(() => {
     // The install guide contains no member data and is intentionally public.

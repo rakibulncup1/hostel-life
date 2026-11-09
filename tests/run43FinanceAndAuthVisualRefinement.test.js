@@ -45,7 +45,7 @@ test('verification remains email-visible with one OTP input and existing return/
   assert.match(branch, /auth-verification-email/);
   assert.match(branch, /\{email\}/);
   assert.equal((branch.match(/className="auth-otp-input"/g) || []).length, 1);
-  assert.match(branch, /Spam বা Promotions/);
+  assert.match(branch, /Spam\/Junk বা Promotions/);
   assert.match(branch, /auth-otp-countdown/);
   assert.match(branch, /রেজিস্ট্রেশনে ফিরে যান/);
   assert.match(css, /auth-shell-verification \.auth-otp-input/);

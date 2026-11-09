@@ -113,17 +113,15 @@ export function TelegramConnectionPage() {
       <header className="page-heading telegram-heading">
         <span className="eyebrow">ব্যক্তিগত বিজ্ঞপ্তি</span>
         <h1>টেলিগ্রাম সংযোগ</h1>
-        <p>Hostel Life-এর গুরুত্বপূর্ণ বিজ্ঞপ্তি টেলিগ্রামে পেতে সংযোগ করুন।</p>
+        <p>গুরুত্বপূর্ণ মেস বিজ্ঞপ্তি টেলিগ্রামে পেতে সংযোগ করুন।</p>
       </header>
-      <InfoPanel icon="send">সংযোগের পর মেসের নোটিফিকেশন Telegram-এ পাবেন। লিংক ১০ মিনিট কার্যকর।</InfoPanel>
 
       <section className="card telegram-connection-card">
         <div className="telegram-card-hero">
           <span className="telegram-brand-icon"><TelegramLogo size={52}/></span>
           <span className={`telegram-state ${status?.connected ? 'is-connected' : 'is-offline'}`}>{status?.connected ? 'সংযুক্ত' : 'সংযুক্ত নয়'}</span>
-          <span className="eyebrow">ব্যক্তিগত সংযোগ</span>
-          <h2>{status?.connected ? 'আপনার টেলিগ্রাম যুক্ত আছে' : 'টেলিগ্রামে বিজ্ঞপ্তি পান'}</h2>
-          <p>Hostel Life-এর গুরুত্বপূর্ণ বার্তা আপনার টেলিগ্রামে পৌঁছাবে।</p>
+          <h2>{status?.connected ? 'টেলিগ্রাম সংযুক্ত আছে' : 'বিজ্ঞপ্তি পেতে সংযোগ করুন'}</h2>
+          <p>{status?.connected ? 'আপনার মেসের বিজ্ঞপ্তি এই অ্যাকাউন্টে যাবে।' : 'একবার সংযোগ করলেই স্বয়ংক্রিয় বিজ্ঞপ্তি পাবেন।'}</p>
         </div>
 
         {status?.connected ? (
@@ -136,7 +134,7 @@ export function TelegramConnectionPage() {
         ) : (
           <div className="telegram-connect-content">
             {status?.telegram_enabled ? <>
-              <div className="telegram-steps"><span><b>১</b> সংযোগ লিংক তৈরি করুন</span><span><b>২</b> টেলিগ্রামে বট খুলে <strong>শুরু</strong> চাপুন</span><span><b>৩</b> এখানে ফিরে যাচাই করুন</span></div>
+              <div className="telegram-steps"><span><b>১</b> সংযোগ লিংক তৈরি করুন</span><span><b>২</b> Telegram-এ বট খুলে <strong>শুরু</strong> চাপুন</span><span><b>৩</b> অ্যাপে ফিরে সংযোগ যাচাই করুন</span></div>
               <button type="button" className="primary-button telegram-connect-button" disabled={busy} onClick={connect}><TelegramLogo size={20}/> {busy ? 'তৈরি হচ্ছে...' : 'টেলিগ্রাম সংযোগ করুন'}</button>
             </> : <div className="telegram-unavailable"><Icon name="info" size={19}/><span>টেলিগ্রাম সংযোগ এখনো চালু করা হয়নি। সেটআপ সম্পন্ন হলে এখানে সংযোগ করতে পারবেন।</span></div>}
           </div>
@@ -146,7 +144,7 @@ export function TelegramConnectionPage() {
           <div><strong>সংযোগ লিংক তৈরি হয়েছে</strong><small>লিংকটি ১০ মিনিটের মধ্যে ব্যবহার করুন। এটি একবারই কার্যকর।</small></div>
           <a className="primary-button" href={link.url} target="_blank" rel="noopener noreferrer"><TelegramLogo size={19}/> টেলিগ্রাম খুলুন</a>
           <button type="button" className="secondary-button" onClick={copyLink}>লিংক কপি</button>
-          <button type="button" className="text-button" disabled={busy} onClick={verify}>শুরু চাপার পর যাচাই করুন</button>
+          <button type="button" className="text-button" disabled={busy} onClick={verify}>সংযোগ যাচাই</button>
         </div>}
         {error && <div className="inline-error telegram-error" role="alert">{error}</div>}
       </section>

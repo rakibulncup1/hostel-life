@@ -1055,7 +1055,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       )}
 
       <div className="market-table-card">
-        <div className="market-paste-hint"><Icon name="file-text" size={15} /><span>Excel/Sheets থেকে <strong>আইটেম · পরিমাণ · টাকা</strong>—এই ৩ কলাম কপি করে প্রথম আইটেমের ঘরে পেস্ট করলে সারিগুলো একসঙ্গে যোগ হবে।</span></div>
+        <div className="market-paste-hint market-paste-hint-boxed"><Icon name="file-text" size={15} /><span>Excel/Sheets থেকে <strong>আইটেম · পরিমাণ · টাকা</strong>—এই ৩ কলাম কপি করে প্রথম আইটেমের ঘরে পেস্ট করলে সারিগুলো একসঙ্গে যোগ হবে।</span></div>
         <div className="market-table-head">
           <span>ক্রম</span><span>আইটেমের নাম</span><span>পরিমাণ</span><span>টাকার পরিমাণ</span><span aria-hidden="true" />
         </div>
@@ -1682,7 +1682,7 @@ function ManagerMealRequests() {
         <button className="secondary-button compact" type="button" onClick={load} disabled={!online}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
 
-      <InfoPanel icon="inbox">সদস্যের তথ্য ও কারণ যাচাই করে সিদ্ধান্ত দিন।</InfoPanel>
+      <InfoPanel className="manager-request-review-guide" icon="inbox">সদস্যের তথ্য ও কারণ যাচাই করে সিদ্ধান্ত দিন।</InfoPanel>
       {periodError && <div className="inline-error" role="alert">{periodError} <button className="text-button" type="button" onClick={() => load()} disabled={!online}>আবার চেষ্টা করুন</button></div>}
       {!loading && !periodError && !runningPeriod && <div className="empty-state-card dining-empty manager-no-running-period"><Icon name="calendar" size={28} /><strong>কোনো চলমান মাস নেই</strong><span>নতুন মাস শুরু হলে সেই মাসের মিল অনুরোধ এখানে দেখা যাবে। বন্ধ মাসের পুরোনো অনুরোধ এখানে দেখানো হয় না।</span><button className="secondary-button compact" type="button" onClick={() => load()} disabled={!online}><Icon name="refresh" size={15} /> পুনরায় যাচাই করুন</button></div>}
       {runningPeriod && <div className="manager-request-active-period"><Icon name="calendar" size={16} /><span><strong>{runningPeriod.label || 'চলমান মাস'}</strong><small>{runningPeriod.start_date ? `শুরু: ${formatDateWithWeekday(runningPeriod.start_date)}` : 'সক্রিয় হিসাব'}</small></span></div>}

@@ -1,0 +1,250 @@
+/* Hostel Life Run45 — restrained green signature, guidance and interaction polish. */
+
+/* Keep the familiar white theme; only tune its balance toward a soft green identity. */
+:root[data-theme="light"] {
+  --bg: #f6faf7;
+  --surface: #ffffff;
+  --surface-2: #f1f7f3;
+  --text: #15231b;
+  --muted: #65766b;
+  --line: #dfebe3;
+  --primary: #19845b;
+  --primary-strong: #116e49;
+  --primary-soft: #e7f5ec;
+  --shadow: 0 12px 32px rgba(18, 65, 39, .075);
+}
+
+/* Manager pending meal review: the icon is a designed visual anchor, not an empty slot. */
+.manager-request-review-guide {
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+  border-radius: 14px;
+  background: linear-gradient(105deg, color-mix(in srgb, var(--primary-soft) 76%, var(--surface)), var(--surface));
+  color: var(--text);
+  box-shadow: 0 4px 14px rgba(24, 92, 56, .045);
+}
+.manager-request-review-guide .info-panel-icon {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, transparent);
+  border-radius: 11px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+.manager-request-review-guide .info-panel-icon svg { width: 17px; height: 17px; }
+.manager-request-review-guide .info-panel-copy { min-width: 0; font-size: 12.5px; font-weight: 700; line-height: 1.55; }
+
+/* Excel / Sheets paste helper: readable in light, blue and dark theme tokens. */
+.manager-dining-view .market-paste-hint.market-paste-hint-boxed {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 0 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
+  border-left: 3px solid var(--primary);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft) 68%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 3px 12px rgba(20, 70, 42, .045);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.65;
+}
+.manager-dining-view .market-paste-hint.market-paste-hint-boxed > svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  margin-top: 1px;
+  color: var(--primary-strong);
+}
+.manager-dining-view .market-paste-hint.market-paste-hint-boxed strong { color: var(--primary-strong); font-weight: 900; }
+
+/* Close-month instructions are two small, separated, readable notices. */
+.month-close-primary-guidance,
+.month-close-finalization-guidance {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0 0 10px !important;
+  padding: 11px 13px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 13px !important;
+  background: color-mix(in srgb, var(--warning-soft) 72%, var(--surface)) !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+  font-size: 12px !important;
+  font-weight: 650;
+  line-height: 1.65 !important;
+}
+.month-close-primary-guidance .info-panel-icon {
+  display: grid;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  margin: 0;
+  border-radius: 9px;
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.month-close-primary-guidance .info-panel-copy { padding-top: 2px; }
+.month-close-finalization-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--line)) !important;
+  background: color-mix(in srgb, var(--primary-soft) 72%, var(--surface)) !important;
+}
+.month-close-finalization-guidance svg { flex: 0 0 17px; margin-top: 2px; color: var(--primary-strong); }
+
+/* Archive and history guidance use the same quiet green context box. */
+.archive-hero-guidance,
+.history-intro-guidance-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  max-width: 760px;
+  margin-top: 12px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft) 74%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 3px 12px rgba(20, 70, 42, .04);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.65;
+}
+.archive-hero-guidance > svg,
+.history-intro-guidance-box > svg { flex: 0 0 17px; margin-top: 2px; color: var(--primary-strong); }
+.archive-hero-guidance p { margin: 0; }
+.history-intro-guidance-box { margin: 0; }
+.archive-detail-toolbar { flex-wrap: wrap; gap: 10px 12px; }
+.archive-month-pdf-button { flex: 0 0 auto; }
+
+/* Telegram: reduce the large hero and repeated explanatory copy. */
+.telegram-heading { margin-bottom: 13px; }
+.telegram-heading .eyebrow,
+.telegram-card-hero > .eyebrow { display: none !important; }
+.telegram-heading p { margin-top: 5px; font-size: 12px; line-height: 1.55; }
+.telegram-connection-card { max-width: 620px; margin-inline: auto; padding: clamp(14px, 2.5vw, 22px) !important; border-radius: 18px !important; }
+.telegram-card-hero {
+  gap: 6px !important;
+  padding: 2px 8px 15px !important;
+}
+.telegram-card-hero .telegram-brand-icon {
+  width: 56px !important;
+  height: 56px !important;
+  margin: 0 0 2px !important;
+  border-radius: 17px !important;
+  box-shadow: none !important;
+}
+.telegram-card-hero .telegram-brand-icon svg { width: 36px !important; height: 36px !important; }
+.telegram-card-hero .telegram-state { margin: 0 !important; padding: 5px 9px !important; font-size: 10.5px !important; }
+.telegram-card-hero h2 { font-size: clamp(18px, 2.5vw, 21px) !important; line-height: 1.3 !important; }
+.telegram-card-hero p { max-width: 38ch; font-size: 12px !important; line-height: 1.5 !important; }
+.telegram-connect-content { padding-top: 14px; }
+.telegram-steps { display: grid; gap: 7px !important; margin: 0 0 13px !important; }
+.telegram-steps > span { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); font-size: 11.5px; line-height: 1.4; }
+.telegram-steps b { display: grid; flex: 0 0 22px; width: 22px; height: 22px; place-items: center; border-radius: 7px; background: var(--primary-soft); color: var(--primary-strong); }
+.telegram-connect-button { min-height: 42px; }
+.telegram-link-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 13px; padding: 12px; border-radius: 12px; }
+.telegram-link-result > div { grid-column: 1 / -1; }
+.telegram-link-result small { font-size: 11px; }
+.telegram-link-result .primary-button,
+.telegram-link-result .secondary-button { min-height: 38px; padding-inline: 11px; font-size: 11.5px; }
+.telegram-link-result .text-button { grid-column: 1 / -1; justify-self: start; }
+.telegram-connected-summary { gap: 10px !important; padding-top: 14px; }
+.telegram-privacy-note { width: min(620px, 100%); margin: 12px auto 0 !important; padding: 8px 10px !important; font-size: 10.5px !important; }
+.telegram-page > .info-panel:not(.telegram-privacy-note) { display: none !important; }
+
+/* Dashboard member cards and detail modal: larger financial figures, clearer target. */
+.detailed-member-card { cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.detailed-member-card:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--line)); box-shadow: var(--shadow); transform: translateY(-1px); }
+.detailed-member-card:focus-visible,
+.upcoming-meal-day-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary) 48%, transparent); outline-offset: 3px; }
+.detailed-member-card .member-stats-grid { gap: 9px; }
+.detailed-member-card .member-stats-grid > div { min-height: 68px; padding: 11px 12px; border-radius: 12px; }
+.detailed-member-card .member-stats-grid span { font-size: 11px; }
+.detailed-member-card .member-stats-grid strong { font-size: clamp(14px, 1.6vw, 17px); line-height: 1.35; }
+.detailed-member-card .member-balance-row { margin-top: 11px; padding: 11px 12px; }
+.detailed-member-card .member-balance-row strong { font-size: 17px; }
+.member-period-detail-modal { max-width: min(900px, calc(100vw - 28px)); }
+.member-period-summary-grid { gap: 10px !important; }
+.member-period-summary-grid .metric { min-height: 78px; padding: 14px 15px; }
+.member-period-summary-grid .metric strong { font-size: clamp(16px, 2vw, 20px); }
+.member-period-detail-modal .archive-list-row { padding-block: 13px; }
+.member-period-detail-modal .archive-list-row small { font-size: 12px; line-height: 1.5; }
+.upcoming-meal-day-card { cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+.upcoming-meal-day-card:hover { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); box-shadow: var(--shadow); transform: translateY(-1px); }
+
+/* Auth brand is centered as one horizontal lockup; quote only fills desktop space. */
+.auth-page .auth-brand-panel { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.auth-page .auth-brand-lockup { display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; gap: 13px !important; width: 100%; text-align: center; }
+.auth-page .auth-brand-mark { flex: 0 0 52px !important; width: 52px !important; height: 52px !important; }
+.auth-page .auth-brand-mark svg { width: 52px !important; height: 52px !important; }
+.auth-page .auth-brand-identity { display: flex !important; flex: 0 0 auto; align-items: center; justify-content: flex-start !important; width: auto !important; min-width: 0; text-align: left !important; }
+.auth-page .auth-brand-name { display: inline-block !important; white-space: nowrap; font-size: clamp(23px, 2.4vw, 30px) !important; letter-spacing: -.035em; }
+.auth-page .auth-brand-quote { display: none; }
+
+@media (min-width: 820px) {
+  .auth-page .auth-brand-quote {
+    display: block;
+    max-width: 26ch;
+    margin: 24px auto 0;
+    color: var(--text);
+    font-size: clamp(21px, 2.1vw, 29px);
+    font-weight: 850;
+    line-height: 1.45;
+    letter-spacing: -.025em;
+    text-align: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .manager-request-review-guide { padding: 10px 11px; }
+  .manager-dining-view .market-paste-hint.market-paste-hint-boxed { padding: 10px 11px; font-size: 11px; }
+  .archive-hero-guidance { padding: 10px 11px; font-size: 11.5px; }
+  .history-intro-guidance-box { padding: 10px 11px; font-size: 11px; }
+  .archive-month-pdf-button { width: 100%; justify-content: center; }
+  .telegram-connection-card { padding: 13px !important; }
+  .telegram-link-result { grid-template-columns: 1fr; }
+  .telegram-link-result .primary-button,
+  .telegram-link-result .secondary-button { width: 100%; justify-content: center; }
+  .detailed-member-card .member-stats-grid > div { min-height: 62px; padding: 9px 10px; }
+  .detailed-member-card .member-stats-grid strong { font-size: 14px; }
+}
+
+/* First-visit Telegram nudge is intentionally small and single-purpose. */
+.telegram-nudge-dialog {
+  width: min(100%, 360px) !important;
+  padding: 19px 20px !important;
+  border-radius: 18px !important;
+}
+.telegram-nudge-dialog .eyebrow { display: none !important; }
+.telegram-nudge-dialog .telegram-nudge-icon {
+  width: 38px;
+  height: 38px;
+  margin-bottom: 10px;
+  border-radius: 11px;
+}
+.telegram-nudge-dialog .telegram-nudge-icon svg { width: 23px; height: 23px; }
+.telegram-nudge-dialog h2 { margin: 0 32px 7px 0 !important; font-size: 19px !important; line-height: 1.4 !important; }
+.telegram-nudge-dialog p { font-size: 12px !important; line-height: 1.65 !important; }
+.telegram-nudge-dialog .telegram-nudge-actions { gap: 8px; margin-top: 14px; }
+.telegram-nudge-dialog .telegram-nudge-actions button { min-height: 40px; font-size: 12px; }
+@media (max-width: 620px) {
+  .telegram-nudge-dialog { padding: 17px !important; }
+}

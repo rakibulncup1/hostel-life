@@ -88,7 +88,7 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
               <span className="auth-brand-name">Hostel Life</span>
             </div>
           </div>
-
+          {!minimal && <p className="auth-brand-quote">হিসাবের স্বচ্ছতা, মেস পরিচালনায় আস্থা।</p>}
         </div>
         <div className="auth-form-panel">
           <div className="auth-form-toolbar">
@@ -303,7 +303,24 @@ function RegisterForm() {
         clearRegisterOtpFlow();
         toast.success('অ্যাকাউন্ট তৈরি হয়েছে। এখন মেসে যুক্ত হন।');
       } else if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-        throw new Error('এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট থাকতে পারে। লগইন বা পাসওয়ার্ড পুনরুদ্ধার ব্যবহার করুন।');
+        // Supabase intentionally returns an empty identities array for an existing
+        // email. Always route to verification: a resend can be temporarily rate-limited,
+        // but the user may still have a valid code in the inbox.
+        const { error: resendError } = await resendSignUpOtp(email);
+        const retryAt = resendError?.retryAt ? new Date(resendError.retryAt).getTime() : 0;
+        const waitSeconds = Number.isFinite(retryAt) && retryAt > Date.now()
+          ? Math.max(1, Math.ceil((retryAt - Date.now()) / 1000)) : 120;
+        const nextResendUntil = Date.now() + (waitSeconds * 1000);
+        saveRegisterOtpFlow({ otpStep: true, email, name, phone, permissionCode, eligibilityAccepted, resendUntil: nextResendUntil });
+        setOtpStep(true);
+        setVerificationCode('');
+        setResendUntil(nextResendUntil);
+        setResendCountdown(waitSeconds);
+        if (resendError) {
+          toast.warning('এই ইমেইলের যাচাই এখনো বাকি থাকতে পারে। আগে পাঠানো কোড দিন; সময় হলে নতুন কোড আবার পাঠাতে পারবেন।');
+        } else {
+          toast.success('এই ইমেইলের যাচাই অসম্পূর্ণ ছিল। নতুন কোড পাঠানো হয়েছে—Inbox ও Spam/Junk দেখুন।');
+        }
       } else {
         const nextResendUntil = Date.now() + (120 * 1000);
         saveRegisterOtpFlow({ otpStep: true, email, name, phone, permissionCode, eligibilityAccepted, resendUntil: nextResendUntil });
@@ -311,7 +328,7 @@ function RegisterForm() {
         setVerificationCode('');
         setResendUntil(nextResendUntil);
         setResendCountdown(120);
-        toast.success('ভেরিফিকেশন কোড পাঠানো হয়েছে। Inbox দেখুন।');
+        toast.success('ভেরিফিকেশন কোড পাঠানো হয়েছে। Inbox-এ না পেলে Spam/Junk বা Promotions দেখুন।');
       }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'রেজিস্ট্রেশন করা যায়নি। আবার চেষ্টা করুন।'));
@@ -356,7 +373,7 @@ function RegisterForm() {
                 <strong>{email}</strong>
               </span>
             </div>
-            <div className="auth-verification-mail-tip"><Icon name="mail" size={14} /><span>Inbox-এ না পেলে Spam বা Promotions ফোল্ডার দেখুন।</span></div>
+            <div className="auth-verification-mail-tip"><Icon name="mail" size={14} /><span>Inbox-এ না পেলে Spam/Junk বা Promotions ফোল্ডার দেখুন।</span></div>
             <label className="field-label auth-otp-field">
               <span>৬ সংখ্যার কোড</span>
               <input
