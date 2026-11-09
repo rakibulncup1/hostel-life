@@ -2112,10 +2112,15 @@ export function DiningPage() {
   const canManageFinalMeals = Boolean(isPrimaryDiningManager || (hasRunningManagerPeriod && isAssistantManager));
   const managerDiningUi = Boolean(canOperateDining || isAssistantManager || isManager);
 
+  const managerPageStackClass = managerDiningUi ? 'page-stack manager-dining-view' : 'page-stack';
+  const managerViewNeedsAuthorization = MANAGER_ONLY_DINING_VIEWS.has(view) || view === 'manager-meal';
+  const managerAuthorizationPending = managerViewNeedsAuthorization && managementContextLoading;
+  const renderView = !loadingMembers && !managerAuthorizationPending && ((MANAGER_ONLY_DINING_VIEWS.has(view) && !canOperateDining) || (view === 'manager-meal' && !canManageFinalMeals)) ? 'home' : view;
+
   // Do not reject a saved manager view while the initial period/member check is
   // still loading: assistants may only become identifiable after that request.
-  // The page remains in its loading state until then, so no protected screen is
-  // rendered before this permission check runs.
+  // Permission-derived values are declared before this hook's dependency array;
+  // otherwise JavaScript throws a temporal-dead-zone ReferenceError on render.
   useEffect(() => {
     if (loadingMembers || managerAuthorizationPending) return;
     if (MANAGER_ONLY_DINING_VIEWS.has(view) && !canOperateDining) {
@@ -2124,10 +2129,6 @@ export function DiningPage() {
     }
     if (view === 'manager-meal' && !canManageFinalMeals) setView('home');
   }, [view, loadingMembers, managerAuthorizationPending, canOperateDining, canManageFinalMeals]);
-  const managerPageStackClass = managerDiningUi ? 'page-stack manager-dining-view' : 'page-stack';
-  const managerViewNeedsAuthorization = MANAGER_ONLY_DINING_VIEWS.has(view) || view === 'manager-meal';
-  const managerAuthorizationPending = managerViewNeedsAuthorization && managementContextLoading;
-  const renderView = !loadingMembers && !managerAuthorizationPending && ((MANAGER_ONLY_DINING_VIEWS.has(view) && !canOperateDining) || (view === 'manager-meal' && !canManageFinalMeals)) ? 'home' : view;
 
   // Keep the current Dining sub-view in the URL so the app-resume mechanism
   // can restore the same section after a PWA/browser process is recreated.

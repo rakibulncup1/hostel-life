@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './app/App';
 import { ToastProvider } from './components/Toast';
+import { AppRouteErrorBoundary } from './components/AppRouteErrorBoundary';
 import { AuthProvider } from './contexts/AuthContext';
 import { InstallPromptProvider } from './contexts/InstallPromptContext';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
@@ -22,6 +23,7 @@ import './styles/dining-auth-polish-v44.css';
 import './styles/ui-polish-v45.css';
 import './styles/auth-brand-center-v47.css';
 import './styles/auth-brand-refinement-v48.css';
+import './styles/app-route-recovery.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();
@@ -38,10 +40,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ToastProvider>
-      <AuthProvider>
-        <AppWithInstallPrompt />
-      </AuthProvider>
-    </ToastProvider>
+    <AppRouteErrorBoundary onReturnToDashboard={() => window.location.assign('/app/dashboard')}>
+      <ToastProvider>
+        <AuthProvider>
+          <AppWithInstallPrompt />
+        </AuthProvider>
+      </ToastProvider>
+    </AppRouteErrorBoundary>
   </React.StrictMode>,
 );

@@ -1,0 +1,57 @@
+.app-route-error-wrap {
+  width: min(100% - 32px, 680px);
+  min-height: min(68vh, 620px);
+  margin: clamp(18px, 5vh, 48px) auto;
+  display: grid;
+  place-items: center;
+}
+.app-route-error-card {
+  width: 100%;
+  padding: clamp(20px, 4vw, 34px);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+}
+.app-route-error-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 25px;
+  font-weight: 900;
+}
+.app-route-error-card h1 {
+  margin: 0;
+  font-size: clamp(18px, 3vw, 23px);
+  line-height: 1.35;
+}
+.app-route-error-card p {
+  max-width: 48ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.app-route-error-actions {
+  width: min(100%, 420px);
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+.app-route-error-actions button { min-height: 42px; }
+@media (max-width: 480px) {
+  .app-route-error-wrap { width: min(100% - 24px, 680px); min-height: 55vh; margin: 14px auto; }
+  .app-route-error-actions { display: grid; grid-template-columns: 1fr; }
+  .app-route-error-actions button { width: 100%; }
+}
