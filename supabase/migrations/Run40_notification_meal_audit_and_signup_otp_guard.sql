@@ -272,7 +272,7 @@ BEGIN
     'events',COALESCE((SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
       'actor_user_id',e.actor_user_id,'actor_name',e.actor_name,'created_at',e.created_at,
       'action',e.action,'event_label',e.event_label,'member_count',e.member_count,'members',e.members
-    ) ORDER BY e.created_at DESC),'[]'::jsonb)
+    ) ORDER BY e.created_at DESC) FROM audit_events e),'[]'::jsonb)
   ) INTO v_result
   FROM record_summary;
   RETURN v_result;

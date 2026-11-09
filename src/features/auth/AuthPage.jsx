@@ -47,19 +47,27 @@ function PasswordField({ value, onChange, placeholder = 'পাসওয়া�
   );
 }
 
-function AuthFrame({ title, subtitle, children, compact = false }) {
+function AuthFrame({ title, subtitle, children, compact = false, minimal = false }) {
   return (
-    <main className="auth-page">
-      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''} ${title === 'একটি অ্যাকাউন্ট তৈরি করুন' ? 'auth-shell-register' : ''}`}>
-        <div className="auth-brand-panel">
-          <div className="auth-brand-mark"><BrandMark size={64} /></div>
-          <span className="auth-eyebrow">HOSTEL LIFE</span>
-          <h1>হোস্টেল ব্যবস্থাপনা, সহজ ও গোছানো।</h1>
-          <p>দৈনন্দিন হিসাব ও ব্যবস্থাপনা—এক জায়গায়।</p>
+    <main className={`auth-page ${minimal ? 'auth-page-verification' : ''}`}>
+      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''} ${title === 'একটি অ্যাকাউন্ট তৈরি করুন' ? 'auth-shell-register' : ''} ${minimal ? 'auth-shell-verification' : ''}`}>
+        <div className={`auth-brand-panel ${minimal ? 'auth-brand-panel-compact' : ''}`}>
+          <div className="auth-brand-lockup">
+            <div className="auth-brand-mark"><BrandMark size={64} /></div>
+            <div className="auth-brand-identity">
+              <span className="auth-eyebrow">HOSTEL LIFE</span>
+              <small className="auth-brand-submark">MESS MANAGEMENT · MADE SIMPLE</small>
+            </div>
+          </div>
+          {!minimal && <>
+            <div className="auth-brand-highlight"><Icon name="sparkles" size={14} /> হিসাব ও ব্যবস্থাপনা, এক জায়গায়</div>
+            <h1>হোস্টেল ব্যবস্থাপনা, সহজ ও গোছানো।</h1>
+            <p>দৈনন্দিন হিসাব, সদস্য ও মেস পরিচালনা—সবকিছু এক জায়গায়।</p>
+          </>}
         </div>
         <div className="auth-form-panel">
           <div className="auth-form-toolbar">
-            <span className="auth-form-toolbar-label"><Icon name="shield-check" size={15} /> নিরাপদ অ্যাকাউন্ট</span>
+            <span className="auth-form-toolbar-label"><Icon name={minimal ? 'mail-check' : 'shield-check'} size={15} /> {minimal ? 'ইমেইল যাচাই' : 'নিরাপদ অ্যাকাউন্ট'}</span>
             <EntryThemeSwitcher />
           </div>
           <div className="auth-header">
@@ -70,11 +78,11 @@ function AuthFrame({ title, subtitle, children, compact = false }) {
             </div>
           </div>
           {children}
-          <nav className="auth-legal-links" aria-label="আইনি তথ্য ও পরিচিতি">
+          {!minimal && <nav className="auth-legal-links" aria-label="আইনি তথ্য ও পরিচিতি">
             <a href="/about">Hostel Life সম্পর্কে</a>
             <a href="/privacy-policy">গোপনীয়তা</a>
             <a href="/terms-of-service">ব্যবহারের শর্ত</a>
-          </nav>
+          </nav>}
         </div>
       </section>
     </main>
@@ -277,48 +285,88 @@ function RegisterForm() {
   };
 
   return (
-    <AuthFrame title="একটি অ্যাকাউন্ট তৈরি করুন" subtitle={otpStep ? 'ইমেইলে পাঠানো কোড দিয়ে ঠিকানাটি যাচাই করুন।' : 'কয়েকটি তথ্য দিয়ে অ্যাকাউন্ট তৈরি করুন।'}>
-      <form className="form-stack auth-register-form" onSubmit={submit}>
-        <div className="two-field-grid">
-          <label className="field-label">
-            <span>নাম</span>
-            <input type="text" value={name} disabled={otpStep} onChange={(e) => setName(e.target.value)} placeholder="আপনার নাম" autoComplete="name" required />
-          </label>
-          <label className="field-label">
-            <span>মোবাইল নম্বর</span>
-            <input type="tel" inputMode="tel" value={phone} disabled={otpStep} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" required minLength={8} maxLength={20} />
-          </label>
-        </div>
-        <label className="field-label">
-          <span>ইমেইল</span>
-          <input type="email" value={email} disabled={otpStep} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
-          <small className="register-email-note">অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন।</small>
-        </label>
-        {!otpStep && <label className="field-label">
-          <span>পাসওয়ার্ড</span>
-          <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} placeholder="কমপক্ষে ৮ অক্ষর" autoComplete="new-password" />
-        </label>}
-        {!otpStep && <label className="field-label">
-          <span>পাসওয়ার্ড আবার দিন</span>
-          <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
-        </label>}
-        {!otpStep && registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
-        {!otpStep && <label className="auth-legal-consent auth-combined-consent">
-          <input type="checkbox" checked={eligibilityAccepted} onChange={(event) => setEligibilityAccepted(event.target.checked)} required />
-          <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
-        </label>}
-        {otpStep && <section className="auth-otp-card" aria-label="ইমেইল যাচাই">
-          <div className="auth-otp-card-heading"><span className="auth-otp-card-icon"><Icon name="mail-check" size={19} /></span><div><strong>ইমেইল যাচাই করুন</strong><small>আপনার ঠিকানায় ৬ সংখ্যার কোড পাঠানো হয়েছে</small></div></div>
-          <label className="field-label auth-otp-field"><span>ভেরিফিকেশন কোড</span><input className="auth-otp-input" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="০ ০ ০ ০ ০ ০" aria-label="ছয় সংখ্যার ভেরিফিকেশন কোড" required /></label>
-          <div className="auth-otp-meta"><span>প্রাপক: <strong>{email}</strong></span><span>ইনবক্স ও Spam ফোল্ডার দেখুন</span></div>
-          <button type="button" className="auth-otp-resend" onClick={resendCode} disabled={submitting || resendCountdown > 0}>{resendCountdown > 0 ? `আবার কোড পাঠানো যাবে ${formatOtpWait(resendCountdown)} পরে` : 'কোড পাননি? আবার পাঠান'}</button>
-        </section>}
-        <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted}>
-          {submitting ? (otpStep ? 'কোড যাচাই হচ্ছে...' : 'কোড পাঠানো হচ্ছে...') : otpStep ? 'কোড যাচাই করুন' : 'ভেরিফিকেশন কোড পাঠান'}
-        </button>
-        {otpStep && <button className="secondary-button" type="button" disabled={submitting} onClick={() => { setOtpStep(false); setVerificationCode(''); setResendCountdown(0); }}>তথ্য পরিবর্তন করুন</button>}
+    <AuthFrame
+      compact={otpStep}
+      minimal={otpStep}
+      title={otpStep ? 'ইমেইল যাচাই' : 'একটি অ্যাকাউন্ট তৈরি করুন'}
+      subtitle={otpStep ? 'আপনার ইমেইলে পাঠানো ছয় সংখ্যার কোডটি লিখুন।' : 'কয়েকটি তথ্য দিয়ে নিরাপদে অ্যাকাউন্ট তৈরি করুন।'}
+    >
+      <form className={`form-stack auth-register-form ${otpStep ? 'auth-verification-form' : ''}`} onSubmit={submit}>
+        {otpStep ? (
+          <>
+            <div className="auth-verification-email" aria-label={`কোড পাঠানো হয়েছে ${email} ঠিকানায়`}>
+              <span className="auth-verification-email-icon"><Icon name="mail-check" size={19} /></span>
+              <span className="auth-verification-email-copy">
+                <small>ভেরিফিকেশন কোড পাঠানো হয়েছে</small>
+                <strong>{email}</strong>
+              </span>
+            </div>
+            <label className="field-label auth-otp-field">
+              <span>৬ সংখ্যার কোড</span>
+              <input
+                className="auth-otp-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={verificationCode}
+                onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                aria-label="ছয় সংখ্যার ভেরিফিকেশন কোড"
+                required
+              />
+            </label>
+            <button className="primary-button large auth-verification-submit" type="submit" disabled={submitting || !online || verificationCode.length !== 6}>
+              {submitting ? 'যাচাই হচ্ছে...' : 'ইমেইল যাচাই করুন'}
+            </button>
+            <div className="auth-verification-actions">
+              <button type="button" className="auth-otp-resend" onClick={resendCode} disabled={submitting || resendCountdown > 0}>
+                <Icon name="refresh-cw" size={14} />
+                {resendCountdown > 0 ? `${formatOtpWait(resendCountdown)} পরে আবার পাঠানো যাবে` : 'কোড আবার পাঠান'}
+              </button>
+              <button className="text-button auth-otp-edit" type="button" disabled={submitting} onClick={() => { setOtpStep(false); setVerificationCode(''); setResendCountdown(0); }}>
+                ইমেইল পরিবর্তন
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="two-field-grid">
+              <label className="field-label">
+                <span>নাম</span>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="আপনার নাম" autoComplete="name" required />
+              </label>
+              <label className="field-label">
+                <span>মোবাইল নম্বর</span>
+                <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" required minLength={8} maxLength={20} />
+              </label>
+            </div>
+            <label className="field-label">
+              <span>ইমেইল</span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
+              <small className="register-email-note"><Icon name="mail" size={13} /> অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন।</small>
+            </label>
+            <label className="field-label">
+              <span>পাসওয়ার্ড</span>
+              <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} placeholder="কমপক্ষে ৮ অক্ষর" autoComplete="new-password" />
+            </label>
+            <label className="field-label">
+              <span>পাসওয়ার্ড আবার দিন</span>
+              <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
+            </label>
+            {registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
+            <label className="auth-legal-consent auth-combined-consent">
+              <input type="checkbox" checked={eligibilityAccepted} onChange={(event) => setEligibilityAccepted(event.target.checked)} required />
+              <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
+            </label>
+            <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted}>
+              {submitting ? 'কোড পাঠানো হচ্ছে...' : 'ভেরিফিকেশন কোড পাঠান'}
+            </button>
+          </>
+        )}
       </form>
-      <AuthSwitch current="register" />
+      {!otpStep && <AuthSwitch current="register" />}
     </AuthFrame>
   );
 }
