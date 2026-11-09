@@ -18,15 +18,45 @@ function go(path, replace = false) {
 
 function formatOtpWait(seconds) {
   const safeSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
-  if (safeSeconds >= 3600) return `${Math.ceil(safeSeconds / 3600)} ঘণ্টা`;
-  if (safeSeconds >= 60) return `${Math.ceil(safeSeconds / 60)} মিনিট`;
-  return `${safeSeconds} সেকেন্ড`;
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  const toBanglaDigits = (value) => String(value).replace(/\d/g, (digit) => '০১২৩৪৫৬৭৮৯'[Number(digit)]);
+  return `${toBanglaDigits(String(minutes).padStart(2, '0'))}:${toBanglaDigits(String(remainder).padStart(2, '0'))}`;
 }
 
 const authLinks = [
   { path: '/auth/login', label: 'লগইন' },
   { path: '/auth/register', label: 'রেজিস্ট্রেশন' },
 ];
+
+const REGISTER_OTP_FLOW_KEY = 'hostel-life-register-otp-flow-v2';
+const REGISTER_OTP_FLOW_MAX_AGE = 30 * 60 * 1000;
+
+function readRegisterOtpFlow() {
+  try {
+    const raw = window.sessionStorage.getItem(REGISTER_OTP_FLOW_KEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    const age = Date.now() - Number(value?.savedAt || 0);
+    if (!value?.otpStep || !value?.email || !Number.isFinite(age) || age < 0 || age > REGISTER_OTP_FLOW_MAX_AGE) {
+      window.sessionStorage.removeItem(REGISTER_OTP_FLOW_KEY);
+      return null;
+    }
+    return value;
+  } catch {
+    return null;
+  }
+}
+
+function saveRegisterOtpFlow(value) {
+  try { window.sessionStorage.setItem(REGISTER_OTP_FLOW_KEY, JSON.stringify({ ...value, savedAt: Date.now() })); }
+  catch { /* OTP screen remains usable even when browser storage is unavailable. */ }
+}
+
+function clearRegisterOtpFlow() {
+  try { window.sessionStorage.removeItem(REGISTER_OTP_FLOW_KEY); }
+  catch { /* Browser storage can be restricted. */ }
+}
 
 function PasswordField({ value, onChange, placeholder = 'পাসওয়ার্ড', autoComplete = 'current-password' }) {
   const [visible, setVisible] = useState(false);
@@ -72,9 +102,9 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
           </div>
           <div className="auth-header">
             <div>
-              <span className="eyebrow">{title === "আপনার অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>
+              {!minimal && <span className="eyebrow">{title === "আপনার অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>}
               <h2>{title}</h2>
-              <p>{subtitle}</p>
+              {!minimal && <p>{subtitle}</p>}
             </div>
           </div>
           {children}
@@ -167,24 +197,47 @@ function LoginForm() {
 function RegisterForm() {
   const toast = useToast();
   const online = useOnlineStatus();
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [restoredOtpFlow] = useState(() => readRegisterOtpFlow());
+  const [name, setName] = useState(() => restoredOtpFlow?.name || '');
+  const [phone, setPhone] = useState(() => restoredOtpFlow?.phone || '');
+  const [email, setEmail] = useState(() => restoredOtpFlow?.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [permissionCode, setPermissionCode] = useState('');
+  const [permissionCode, setPermissionCode] = useState(() => restoredOtpFlow?.permissionCode || '');
   const [registrationCodeRequired, setRegistrationCodeRequired] = useState(false);
-  const [eligibilityAccepted, setEligibilityAccepted] = useState(false);
+  const [eligibilityAccepted, setEligibilityAccepted] = useState(() => Boolean(restoredOtpFlow?.eligibilityAccepted));
   const [submitting, setSubmitting] = useState(false);
-  const [otpStep, setOtpStep] = useState(false);
+  const [otpStep, setOtpStep] = useState(() => Boolean(restoredOtpFlow?.otpStep));
   const [verificationCode, setVerificationCode] = useState('');
-  const [resendCountdown, setResendCountdown] = useState(0);
+  const [resendUntil, setResendUntil] = useState(() => Number(restoredOtpFlow?.resendUntil) || 0);
+  const [resendCountdown, setResendCountdown] = useState(() => Math.max(0, Math.ceil((Number(restoredOtpFlow?.resendUntil || 0) - Date.now()) / 1000)));
 
   useEffect(() => {
-    if (resendCountdown <= 0) return undefined;
-    const timer = window.setInterval(() => setResendCountdown((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearInterval(timer);
-  }, [resendCountdown > 0]);
+    if (!otpStep) return undefined;
+    const refreshCountdown = () => setResendCountdown(Math.max(0, Math.ceil((resendUntil - Date.now()) / 1000)));
+    refreshCountdown();
+    const timer = window.setInterval(refreshCountdown, 1000);
+    window.addEventListener('pageshow', refreshCountdown);
+    document.addEventListener('visibilitychange', refreshCountdown);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('pageshow', refreshCountdown);
+      document.removeEventListener('visibilitychange', refreshCountdown);
+    };
+  }, [otpStep, resendUntil]);
+
+  useEffect(() => {
+    if (!otpStep) return;
+    saveRegisterOtpFlow({
+      otpStep: true,
+      email,
+      name,
+      phone,
+      permissionCode,
+      eligibilityAccepted,
+      resendUntil,
+    });
+  }, [otpStep, email, name, phone, permissionCode, eligibilityAccepted, resendUntil]);
 
   useEffect(() => {
     let active = true;
@@ -207,6 +260,7 @@ function RegisterForm() {
       try {
         const { data, error } = await verifySignUpOtp(email, code);
         if (error) throw error;
+        clearRegisterOtpFlow();
         if (data?.session) toast.success('ইমেইল যাচাই সম্পন্ন হয়েছে। আপনার অ্যাকাউন্ট প্রস্তুত।');
         else { toast.success('ইমেইল যাচাই হয়েছে। এখন লগইন করুন।'); go('/auth/login'); }
       } catch (error) {
@@ -251,14 +305,18 @@ function RegisterForm() {
       if (error) throw error;
 
       if (data.session) {
+        clearRegisterOtpFlow();
         toast.success('অ্যাকাউন্ট তৈরি হয়েছে। এখন মেসে যুক্ত হন।');
       } else if (data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
         throw new Error('এই ইমেইল দিয়ে আগে থেকেই অ্যাকাউন্ট থাকতে পারে। লগইন বা পাসওয়ার্ড পুনরুদ্ধার ব্যবহার করুন।');
       } else {
+        const nextResendUntil = Date.now() + (120 * 1000);
+        saveRegisterOtpFlow({ otpStep: true, email, name, phone, permissionCode, eligibilityAccepted, resendUntil: nextResendUntil });
         setOtpStep(true);
         setVerificationCode('');
+        setResendUntil(nextResendUntil);
         setResendCountdown(120);
-        toast.success('ছয় সংখ্যার ভেরিফিকেশন কোড আপনার ইমেইলে পাঠানো হয়েছে।');
+        toast.success('ভেরিফিকেশন কোড পাঠানো হয়েছে। Inbox দেখুন।');
       }
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'রেজিস্ট্রেশন করা যায়নি। আবার চেষ্টা করুন।'));
@@ -273,12 +331,14 @@ function RegisterForm() {
     try {
       const { error } = await resendSignUpOtp(email);
       if (error) throw error;
+      const nextResendUntil = Date.now() + (120 * 1000);
+      setResendUntil(nextResendUntil);
       setResendCountdown(120);
-      toast.success('নতুন ভেরিফিকেশন কোড পাঠানো হয়েছে।');
+      toast.success('নতুন কোড পাঠানো হয়েছে।');
     } catch (error) {
       if (error?.retryAt) {
         const retrySeconds = Math.ceil((new Date(error.retryAt).getTime() - Date.now()) / 1000);
-        if (Number.isFinite(retrySeconds) && retrySeconds > 0) setResendCountdown(retrySeconds);
+        if (Number.isFinite(retrySeconds) && retrySeconds > 0) setResendUntil(Date.now() + (retrySeconds * 1000));
       }
       toast.error(getFriendlySupabaseError(error, 'কোড পুনরায় পাঠানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন.'));
     } finally { setSubmitting(false); }
@@ -301,6 +361,7 @@ function RegisterForm() {
                 <strong>{email}</strong>
               </span>
             </div>
+            <div className="auth-verification-mail-tip"><Icon name="mail" size={14} /><span>Inbox-এ না পেলে Spam বা Promotions ফোল্ডার দেখুন।</span></div>
             <label className="field-label auth-otp-field">
               <span>৬ সংখ্যার কোড</span>
               <input
@@ -321,12 +382,14 @@ function RegisterForm() {
               {submitting ? 'যাচাই হচ্ছে...' : 'ইমেইল যাচাই করুন'}
             </button>
             <div className="auth-verification-actions">
-              <button type="button" className="auth-otp-resend" onClick={resendCode} disabled={submitting || resendCountdown > 0}>
-                <Icon name="refresh-cw" size={14} />
-                {resendCountdown > 0 ? `${formatOtpWait(resendCountdown)} পরে আবার পাঠানো যাবে` : 'কোড আবার পাঠান'}
-              </button>
-              <button className="text-button auth-otp-edit" type="button" disabled={submitting} onClick={() => { setOtpStep(false); setVerificationCode(''); setResendCountdown(0); }}>
-                ইমেইল পরিবর্তন
+              <div className="auth-otp-resend-cluster">
+                <span className="auth-otp-countdown" aria-live="polite"><Icon name="clock" size={13} /> {resendCountdown > 0 ? `${formatOtpWait(resendCountdown)} পরে আবার পাঠানো যাবে` : 'কোড পাননি?'}</span>
+                <button type="button" className="auth-otp-resend" onClick={resendCode} disabled={submitting || resendCountdown > 0 || !online}>
+                  <Icon name="refresh-cw" size={14} /> কোড আবার পাঠান
+                </button>
+              </div>
+              <button className="text-button auth-otp-edit" type="button" disabled={submitting} onClick={() => { clearRegisterOtpFlow(); setOtpStep(false); setVerificationCode(''); setResendUntil(0); setResendCountdown(0); }}>
+                <Icon name="arrow-left" size={14} /> রেজিস্ট্রেশনে ফিরে যান
               </button>
             </div>
           </>

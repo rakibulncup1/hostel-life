@@ -66,7 +66,7 @@ test('market, deposit, other-expense and Khala forms explain a future period sta
   assert.match(dining, /getPeriodStartNotice\(period, 'অন্যান্য খরচ'\)/);
   assert.match(dining, /ম্যানেজারের সরাসরি ফাইনাল মিল এন্ট্রি/);
   assert.match(manager, /getPeriodStartNotice\(selectedPeriod, 'খালার টাকার এন্ট্রি'\)/);
-  assert.match(manager, /ম্যানেজার পরিবর্তন একটি আলাদা অনুমতি-নিয়ন্ত্রিত কাজ/);
+  assert.match(manager, /ম্যানেজার পরিবর্তন আলাদা অনুমতিনির্ভর কাজ/);
 });
 
 test('onboarding has its own centered app brand, distinct from the login screen', () => {

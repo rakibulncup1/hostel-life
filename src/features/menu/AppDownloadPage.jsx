@@ -12,15 +12,15 @@ function getManualInstallGuide() {
   const isAndroid = /Android/i.test(ua);
   if (isIOS) return {
     title: 'iPhone বা iPad-এ ইনস্টল',
-    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। iOS সরাসরি ওয়েবসাইট থেকে ইনস্টল প্রম্পট চালাতে দেয় না—Safari-এর Share মেনু থেকে “Add to Home Screen” নির্বাচন করুন।',
+    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Safari-এর Share মেনু থেকে “Add to Home Screen” নির্বাচন করুন।',
   };
   if (isAndroid) return {
     title: 'Android-এ ইনস্টল',
-    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome-এ খুললে সমর্থিত হলে একটি ইনস্টল বোতাম দেখাবে।',
+    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome-এ “Install app” বা “Add to Home screen” নির্বাচন করুন।',
   };
   return {
     title: 'কম্পিউটারে ইনস্টল',
-    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome বা Edge-এ খুললে সমর্থিত হলে ইনস্টল বোতাম দেখাবে।',
+    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome বা Edge-এর Address Bar থেকে Install নির্বাচন করুন।',
   };
 }
 
@@ -51,7 +51,7 @@ export function AppDownloadPage() {
         <span className="app-download-single-icon" aria-hidden="true"><BrandMark size={62}/></span>
         <span className="eyebrow">HOSTEL LIFE · APP</span>
         <h1 id="app-download-title">{installed ? 'Hostel Life ইনস্টল করা আছে' : 'নিজের ডিভাইসে Hostel Life রাখুন'}</h1>
-        <p className="app-download-intro">হোম স্ক্রিন থেকে দ্রুত খুলুন। একই অ্যাকাউন্টে আপনার মেসের তথ্য ব্যবহার করতে পারবেন।</p>
+        <p className="app-download-intro">হোম স্ক্রিন থেকে এক ট্যাপে Hostel Life খুলুন।</p>
         {installed ? (
           <p className="app-download-single-status"><Icon name="check-circle" size={17}/> এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে।</p>
         ) : canInstall ? (

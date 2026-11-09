@@ -107,7 +107,7 @@ export function AllMembersPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="মেসের সবাই" title="সকল সদস্য" description="সদস্যের পরিচয় ও বর্তমান হিসাব দেখুন।" />
+      <PageHeader eyebrow="মেসের সবাই" title="সকল সদস্য" description="সদস্য ও তাঁদের হিসাব।" />
       {!hasRunningPeriod && <div className="no-active-period-inline"><Icon name="calendar" size={18} /><div><strong>এখনো নতুন মাস শুরু হয়নি</strong><span>সদস্য তালিকা অক্ষত আছে। নতুন মাস শুরু হলে হিসাব আবার দেখানো হবে।</span></div></div>}
       {loading ? <LoadingSpinner label="সদস্য তালিকা লোড হচ্ছে..." /> : members.length === 0 ? (
         <div className="empty-state-card"><Icon name="users" size={28} /><strong>কোনো সদস্য পাওয়া যায়নি</strong><span>মেসে এখনো কোনো সদস্যের তথ্য নেই।</span></div>
@@ -217,14 +217,14 @@ export function KhalaMoneyViewPage() {
       <PageHeader
         eyebrow="মেসের স্বচ্ছতা"
         title="খালার টাকা"
-        description="প্রতিটি মাসে খালার পারিশ্রমিকের পৃথক হিসাব দেখুন। এটি কোনো সদস্যের ব্যক্তিগত হিসাব নয়।"
+        description="মাসভিত্তিক পারিশ্রমিকের হিসাব।"
       />
 
       <section className="card khala-view-hero">
         <div>
           <span className="eyebrow">খালার আলাদা হিসাব</span>
           <h2>{formatCurrency(totalKhalaPaid)} মোট কার্যকর পারিশ্রমিক</h2>
-          <p>এই তালিকার কোনো এন্ট্রি সদস্যের ব্যক্তিগত ব্যালেন্স, মিল বা অন্যান্য ব্যক্তিগত খরচের অংশ নয়।</p>
+          <p>এটি মেসের আলাদা খরচ; সদস্যের ব্যক্তিগত ব্যালেন্সে যোগ হয় না।</p>
           <div className="khala-view-hero-metrics"><div><span>কার্যকর এন্ট্রি</span><strong>{formatNumber(activeEntryCount)}টি</strong></div><div><span>অন্তর্ভুক্ত মাস</span><strong>{formatNumber(grouped.length)}টি</strong></div></div>
         </div>
         <button className="secondary-button compact" type="button" onClick={load} disabled={loading}>
@@ -307,13 +307,13 @@ function RankingPage({ kind }) {
       <PageHeader
         eyebrow="চলতি মাসের মজার হিসাব"
         title={depositor ? 'বেশি ডিপোজিটকারী' : shopper ? 'বেশি বাজারকারী' : 'শীর্ষ খাদক'}
-        description={depositor ? 'চলতি মাসে সদস্যের নামে জমা হওয়া মোট ডিপোজিটের ভিত্তিতে বেশি থেকে কম।' : shopper ? 'চলতি মাসে বৈধ বাজার এন্ট্রির মোট টাকার ভিত্তিতে বেশি থেকে কম।' : 'চলতি মাসে final meal-এর মোট সংখ্যার ভিত্তিতে বেশি থেকে কম.'}
+        description={depositor ? 'সদস্যের নামে জমা হওয়া মোট টাকা।' : shopper ? 'কার্যকর বাজারের মোট টাকার তালিকা।' : 'চূড়ান্ত হওয়া মোট মিলের তালিকা।'}
       />
       <InfoPanel icon="activity">{depositor
-        ? 'এই তালিকা সদস্যের নামে যুক্ত ডিপোজিটের মোট পরিমাণ দেখায়। বাজারের টাকা এখানে ডিপোজিট হিসেবে ধরবেন না—বিস্তারিত হিসাব হিস্টরিতে যাচাই করুন।'
+        ? 'সদস্যের নামে জমা হওয়া মোট টাকা দেখানো হয়।'
         : shopper
-          ? 'এখানে কার্যকর বাজার এন্ট্রির মোট টাকা অনুযায়ী তালিকা সাজানো হয়। বাজারকারী ও যিনি এন্ট্রি করেছেন—দুই পরিচয় আলাদা হতে পারে।'
-          : 'এখানে শুধু চূড়ান্ত হওয়া মিলের পরিমাণ ধরা হয়। অপেক্ষমাণ অনুরোধ বা ভবিষ্যতের মিল এই তালিকায় অন্তর্ভুক্ত নয়.'}</InfoPanel>
+          ? 'মোট বাজারের ভিত্তিতে তালিকা; বাজারকারী ও এন্ট্রিকারী আলাদা হতে পারেন।'
+          : 'শুধু চূড়ান্ত হওয়া মিল গণনা করা হয়।'}</InfoPanel>
       <section className="card ranking-card">
         <div className="ranking-card-head">
           <div className={`ranking-hero-icon ${depositor ? 'depositor' : shopper ? 'shopper' : 'eater'}`}><Icon name={depositor ? 'wallet' : shopper ? 'shopping-bag' : 'trophy'} size={25} /></div>
@@ -374,7 +374,7 @@ export function DeveloperInfoPage() {
   const photo = info?.developer_photo_url || '';
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Hostel Life" title="হেল্প" description="অ্যাপ ব্যবহার ও সমস্যা সমাধানে সহায়তা নিন।" />
+      <PageHeader eyebrow="Hostel Life" title="হেল্প" description="সহায়তা ও যোগাযোগ।" />
       <InfoPanel icon="info">সহায়তার জন্য নিচের যোগাযোগের মাধ্যম ব্যবহার করুন। সমস্যা জানালে মেসের নাম, ঘটনার তারিখ ও প্রাসঙ্গিক স্ক্রিনের তথ্য দিন; পাসওয়ার্ড বা OTP কখনো পাঠাবেন না।</InfoPanel>
       <section className="card developer-card">
         {photo ? <img className="developer-photo-placeholder developer-photo-image" src={photo} alt={info?.developer_name || 'ডেভেলপার'} loading="lazy" /> : <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>}
@@ -395,7 +395,7 @@ export function DeveloperInfoPage() {
 export function PrivacyPolicyPage() {
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা ও নীতিমালা" description="Hostel Life-এ আপনার পরিচয়, মেসের সদস্যতা ও দৈনন্দিন হিসাবের তথ্য কীভাবে ব্যবহৃত হয়—সহজ ভাষায় জানুন।" />
+      <PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা ও নীতিমালা" description="আপনার তথ্য ও গোপনীয়তা।" />
       <InfoPanel icon="shield-check">কোন তথ্য কারা দেখতে বা পরিবর্তন করতে পারেন, তা আপনার মেসের ভূমিকা ও অনুমতির ওপর নির্ভর করে। সংবেদনশীল তথ্য নোটিশ বা হিসাবের বিবরণে লিখবেন না।</InfoPanel>
       <p className="policy-public-full-link"><a href="/privacy-policy">প্রকাশ্য পূর্ণ গোপনীয়তা নীতি দেখুন</a></p>
       <section className="card policy-content-card policy-document-card">
@@ -462,7 +462,7 @@ export function TermsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="Hostel Life-এর নিরাপদ, ব্যক্তিগত ও সুশৃঙ্খল ব্যবহারের জন্য প্রয়োজনীয় নিয়ম।" />
+      <PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="অ্যাপ ব্যবহারের নিয়ম।" />
       <InfoPanel icon="book-open">অ্যাকাউন্ট, মেসের হিসাব ও অন্য সদস্যের তথ্য ব্যবহারের সময় নিচের নিয়মগুলো অনুসরণ করুন। ব্যক্তিগত Invite Link বা Join Code প্রকাশ্যে শেয়ার করবেন না।</InfoPanel>
       <p className="policy-public-full-link"><a href="/terms-of-service">প্রকাশ্য পূর্ণ ব্যবহারের শর্তাবলী দেখুন</a></p>
       <section className="card policy-content-card policy-document-card">
@@ -560,7 +560,7 @@ const HOW_TO_USE_GROUPS = [
 export function HowToUsePage() {
   return (
     <div className="page-stack howto-page">
-      <PageHeader eyebrow="সহায়তা কেন্দ্র" title="কীভাবে ব্যবহার করব" description="প্রশ্ন নির্বাচন করুন, উত্তর খুলে ধাপে ধাপে Hostel Life ব্যবহার শিখুন।" />
+      <PageHeader eyebrow="সহায়তা কেন্দ্র" title="কীভাবে ব্যবহার করব" description="প্রয়োজনীয় প্রশ্নের উত্তর খুঁজুন।" />
 
       <section className="card howto-timing-panel" aria-label="গুরুত্বপূর্ণ সময়সীমা">
         <div className="howto-timing-topline">
@@ -679,7 +679,7 @@ export function SendNotificationPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" description="আপনার মেসের সক্রিয় ও নতুন যুক্ত হওয়া সদস্যদের অ্যাপের শীর্ষে একটি গুরুত্বপূর্ণ বার্তা প্রকাশ করুন।" />
+      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" description="সদস্যদের জন্য নোটিশ প্রকাশ করুন।" />
       {!loadingPinned && !pinFeatureReady && <div className="state-card state-card-warning"><Icon name="info" size={20} /><div><strong>মেস নোটিশের ডাটাবেস আপডেট বাকি</strong><p>{pinFeatureError || 'Supabase-এ Run21 migration প্রয়োগের পর এই ফিচার ব্যবহার করা যাবে।'}</p></div></div>}
       {loadingPinned ? <div className="loading-wrap"><span className="spinner" /><span>বর্তমান নোটিশ যাচাই হচ্ছে...</span></div> : currentPinned && (
         <section className="card current-hostel-notice-card">
@@ -692,7 +692,7 @@ export function SendNotificationPage() {
       <form className="card form-panel" onSubmit={submit}>
         <label className="field-label"><span>শিরোনাম</span><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder="যেমন: আজ রাতের রান্নার সময়" /></label>
         <label className="field-label"><span>বার্তা</span><textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} rows={6} placeholder="সবার জন্য প্রয়োজনীয় তথ্য লিখুন..." /></label>
-        <div className="form-hint"><Icon name="info" size={15} /> নোটিশটি শুধু এই মেসের সদস্যদের অ্যাপের শীর্ষে দেখানো হবে এবং নোটিফিকেশন ইনবক্সেও থাকবে। এটি SMS নয়। নতুন নোটিশ প্রকাশ করলে আগের নোটিশটি প্রতিস্থাপিত হবে।</div>
+        <div className="form-hint"><Icon name="info" size={15} /> নোটিশটি সদস্যদের অ্যাপ ও ইনবক্সে দেখাবে; SMS নয়। নতুন নোটিশে আগেরটি প্রতিস্থাপিত হবে।</div>
         <button className="primary-button large" type="submit" disabled={busy || !pinFeatureReady}>{busy ? 'প্রকাশ করা হচ্ছে...' : 'মেসে নোটিশ প্রকাশ করুন'}</button>
       </form>
     </div>
@@ -748,8 +748,8 @@ export function PreviousMonthsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Archive" title="আর্কাইভ" description="বন্ধ মাসগুলোর রিপোর্ট দেখুন। সাধারণ সদস্যরা শুধু দেখতে পারবেন; সংশোধনের সুবিধা কেবল অনুমোদিত ব্যক্তির জন্য।" />
-      <InfoPanel icon="archive">প্রতিটি বন্ধ মাস আলাদা রেকর্ড হিসেবে সংরক্ষিত থাকে। কোনো তথ্য সংশোধনের আগে মাস, সদস্য ও এন্ট্রির তারিখ মিলিয়ে নিন; অনুমতি না থাকলে রেকর্ড শুধু দেখা যাবে।</InfoPanel>
+      <PageHeader eyebrow="Archive" title="আর্কাইভ" description="বন্ধ মাসের হিসাব ও রিপোর্ট।" />
+      <InfoPanel icon="archive">বন্ধ মাসের রেকর্ড দেখুন। সংশোধন শুধু অনুমোদিত ব্যবহারকারীর জন্য।</InfoPanel>
       {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..." /> : months.length === 0 ? (
         <div className="empty-state-card"><Icon name="history" size={28} /><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>মেসে এখনো archive করা মাস পাওয়া যায়নি।</span></div>
       ) : (
@@ -814,7 +814,7 @@ export function ArchiveEditAccessPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
   return <div className="page-stack">
-    <PageHeader eyebrow="নির্দিষ্ট মাসের অনুমতি" title="আর্কাইভ সম্পাদনা" description="শুধু যে আর্কাইভের জন্য তোমার বৈধ অনুমতি আছে, সেগুলোই এখানে দেখানো হবে।" />
+    <PageHeader eyebrow="নির্দিষ্ট মাসের অনুমতি" title="আর্কাইভ সম্পাদনা" description="শুধু অনুমোদিত আর্কাইভ এখানে দেখাবে।" />
     {loading ? <LoadingSpinner label="আর্কাইভের অনুমতি যাচাই হচ্ছে..." /> : errorText ? <div className="state-card state-card-warning"><Icon name="warning" size={24} /><div><h2>আর্কাইভ লোড করা যায়নি</h2><p>{errorText}</p><button className="secondary-button compact" type="button" onClick={load}>আবার চেষ্টা করুন</button></div></div> : periods.length === 0 ? <div className="empty-state-card"><Icon name="shield" size={28} /><strong>এখনো কোনো আর্কাইভ সম্পাদনার অনুমতি নেই</strong><span>যে ম্যানেজার মাসটি বন্ধ করেছেন, বর্তমান প্রধান ম্যানেজার তাকে ওই নির্দিষ্ট মাসের জন্য অস্থায়ী অনুমতি দিতে পারবেন।</span></div> : <div className="archive-month-list">{periods.map((period) => <article className="card archive-month-card detail-month" key={period.period_id}><div className="archive-month-icon"><Icon name="history" size={20} /></div><div className="archive-month-copy"><strong>{period.label}</strong><small>{formatDateBangla(period.start_date)} → {formatDateBangla(period.end_date)}</small><span>{period.access_kind}{period.expires_at ? ` · মেয়াদ ${formatDateWithWeekday(period.expires_at)}` : ''}</span><span>মাস বন্ধ করেছিলেন: {period.manager_at_close_name}</span></div><button className="primary-button compact" type="button" onClick={() => navigateTo(`/app/history?archive_period=${encodeURIComponent(period.period_id)}`)}>হিসাব খুলুন</button></article>)}</div>}
   </div>;
 }

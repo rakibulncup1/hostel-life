@@ -275,8 +275,8 @@ export function NewMonthPage() {
   return (
     <PrimaryManagerGuard>
       <div className="page-stack">
-        <PageHeader title="নতুন মাস শুরু" icon="calendar" description="বন্ধ হওয়া মাসের পরের দিন হবে নতুন মাসের প্রথম মিলের দিন। বন্ধের দিন রাত ৮টার পর নতুন মাস চালু করা যাবে; সাধারণ মিল অনুরোধ রাত ১০টা পর্যন্ত দেওয়া যাবে।" />
-        <InfoPanel icon="calendar-check">নতুন মাস শুরু করলে আগের মাসের হিসাব আর্কাইভে সংরক্ষিত থাকবে। তারিখ সিস্টেম নির্ধারণ করে; কোনো অসামঞ্জস্য থাকলে বোতাম বন্ধ থাকবে—আগের মাস যাচাই না করে জোর করে শুরু করবেন না।</InfoPanel>
+        <PageHeader title="নতুন মাস শুরু" icon="calendar" description="নতুন মাসের শুরুর তারিখ সিস্টেম নির্ধারণ করে।" />
+        <InfoPanel icon="calendar-check">রাত ৮টার পর নতুন মাস চালু করা যাবে। তারিখ সিস্টেম নির্ধারণ করে; আগের মাস আর্কাইভে থাকবে।</InfoPanel>
         <section className="card manager-form-card">
           {periodDateError && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>নতুন মাসের তারিখ যাচাই করা যায়নি।</strong><p>{periodDateError}</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {!periodStatusKnown ? (
@@ -391,9 +391,9 @@ export function CloseCurrentMonthPage() {
         <PageHeader
           title="বর্তমান মাস শেষ করুন"
           icon="calendar"
-          description="মাস যেকোনো সময় বন্ধ করা যাবে। বন্ধ করার সঙ্গে সঙ্গেই আজ পর্যন্ত সব মিলের হিসাব চূড়ান্ত হবে; আজকের পরের তারিখের অনুরোধ ও রেকর্ড বাতিল হবে।"
+          description="আজ পর্যন্ত হিসাব চূড়ান্ত করে মাস বন্ধ করুন।"
         />
-        <InfoPanel tone="warning" icon="alert-triangle">মাস বন্ধ করা চূড়ান্ত প্রশাসনিক কাজ। বন্ধের আগে ভবিষ্যৎ মিল অনুরোধ, অপেক্ষমাণ সংশোধন ও আর্থিক এন্ট্রি যাচাই করুন; বন্ধ করার পর নতুন সাধারণ অনুরোধ নেওয়া হবে না।</InfoPanel>
+        <InfoPanel tone="warning" icon="alert-triangle">মাস বন্ধের আগে অপেক্ষমাণ অনুরোধ ও আর্থিক এন্ট্রি যাচাই করুন। বন্ধের পর নতুন অনুরোধ নেওয়া যাবে না।</InfoPanel>
         <section className="card manager-form-card">
           <div className="manager-current-period">
             <span>চলমান মাস</span>
@@ -491,9 +491,9 @@ export function ChangeManagerPage() {
   return (
     <PrimaryManagerGuard>
       <div className="page-stack">
-        <PageHeader title="ম্যানেজার পরিবর্তন" icon="shield" description="নতুন ম্যানেজার নির্বাচন করলে আপনার বর্তমান ম্যানেজার ক্ষমতা সঙ্গে সঙ্গে চলে যাবে।" />
-        <InfoPanel tone="warning" icon="shield-alert">পরিবর্তন নিশ্চিত করার পর আপনার ম্যানেজার ক্ষমতা সঙ্গে সঙ্গে শেষ হবে। নতুন ম্যানেজার নির্বাচন করার আগে তাঁর সঙ্গে দায়িত্ব ও চলমান হিসাব বুঝিয়ে নিন।</InfoPanel>
-        <div className="form-hint" role="note">ম্যানেজার পরিবর্তন একটি আলাদা অনুমতি-নিয়ন্ত্রিত কাজ; এটি বাজার বা ডিপোজিটের মতো তারিখভিত্তিক হিসাব এন্ট্রি নয়। তাই নতুন মাসের প্রথম দিনের আগে বাজার/ডিপোজিট/অন্যান্য আর্থিক এন্ট্রি বন্ধ থাকলেও, বর্তমান প্রধান ম্যানেজারের অনুমতি থাকলে ম্যানেজার পরিবর্তন করা যায়।</div>
+        <PageHeader title="ম্যানেজার পরিবর্তন" icon="shield" description="দায়িত্ব হস্তান্তর করলে আপনার ম্যানেজার ক্ষমতা শেষ হবে।" />
+        <InfoPanel tone="warning" icon="shield-alert">নিশ্চিত করলে আপনার ম্যানেজার ক্ষমতা চলে যাবে। নতুন দায়িত্বপ্রাপ্ত সদস্য বেছে নিন।</InfoPanel>
+        <div className="form-hint" role="note">ম্যানেজার পরিবর্তন আলাদা অনুমতিনির্ভর কাজ; এটি আর্থিক এন্ট্রি নয়।</div>
         {futurePeriodNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {futurePeriodNotice} ম্যানেজার পরিবর্তনের এই কাজটি এখনই করা যাবে।</div>}
         <section className="card manager-form-card">
           <div className="manager-role-hero"><div className="role-person"><span>বর্তমান</span><strong>{currentName}</strong><small>ম্যানেজার</small></div><Icon name="arrow-right" size={24} /><div className="role-person"><span>নতুন</span><strong>{selected ? members.find((m) => m.membership_id === selected)?.member_name : 'নির্বাচন করুন'}</strong><small>ম্যানেজার হবে</small></div></div>
@@ -557,8 +557,8 @@ export function AssistantManagersPage() {
   return (
     <PrimaryManagerGuard>
       <div className="page-stack">
-        <PageHeader title="সহকারী ম্যানেজার" icon="users" description="চলতি মাসের দৈনন্দিন কাজের জন্য একাধিক সহকারী ম্যানেজার নির্ধারণ করুন।" />
-        <InfoPanel icon="shield-check">শুধু সক্রিয় সদস্যকে সহকারী ম্যানেজার করা যায়। সহকারীরা নির্ধারিত দৈনন্দিন কাজ করবেন; মাস শুরু/বন্ধ ও মূল ম্যানেজার পরিবর্তনের ক্ষমতা প্রধান ম্যানেজারের কাছেই থাকবে।</InfoPanel>
+        <PageHeader title="সহকারী ম্যানেজার" icon="users" description="সক্রিয় সদস্যকে সহকারী ম্যানেজার করুন।" />
+        <InfoPanel icon="shield-check">দৈনন্দিন কাজের জন্য সহকারী নির্ধারণ করুন। মাস শুরু/বন্ধ করবেন প্রধান ম্যানেজার।</InfoPanel>
         <section className="card manager-form-card">
           <div className="manager-warning-box"><Icon name="info" size={18} /><div><strong>সহকারী ম্যানেজার শুধু দৈনন্দিন কাজের ক্ষমতা পাবেন।</strong><p>মাস শুরু/শেষ, সদস্য নিষ্ক্রিয় করা এবং ম্যানেজার পরিবর্তন শুধু প্রধান ম্যানেজার করতে পারবেন।</p></div></div>
           <div className="assistant-selection-heading">
@@ -665,8 +665,8 @@ export function HostelSettingsPage() {
   return (
     <ManagerGuard>
       <div className="page-stack">
-        <PageHeader title="মেস সেটিংস" icon="lock" description="মেসের পরিচয় এবং যুক্ত হওয়ার কোড পরিচালনা করুন।" />
-        <InfoPanel icon="link">Join Code ও Invitation Link কেবল নতুন সদস্যের সঙ্গে ব্যক্তিগতভাবে শেয়ার করুন। নতুন কোড বা লিংক তৈরি করলে আগেরটি অকার্যকর হতে পারে।</InfoPanel>
+        <PageHeader title="মেস সেটিংস" icon="lock" description="মেসের নাম ও Join Link পরিচালনা করুন।" />
+        <InfoPanel icon="link">Join Code ও Invitation Link ব্যক্তিগতভাবে শেয়ার করুন। নতুন লিংক পুরোনোটিকে বাতিল করতে পারে।</InfoPanel>
         <form className="card manager-form-card" onSubmit={saveName}>
           <label className="field-label"><span>মেসের নাম</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} /></label>
           <button className="primary-button" type="submit" disabled={busy}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'মেসের নাম সংরক্ষণ করুন'}</button>
@@ -785,8 +785,8 @@ export function JoinRequestReviewPage() {
   const online = useOnlineStatus();
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="Join Request পর্যালোচনার জন্য অনলাইন সংযোগ প্রয়োজন।" />;
   return <ManagerGuard><div className="page-stack">
-    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের অনুরোধ পর্যালোচনা করুন।" eyebrow="ম্যানেজার ফিচার" />
-    <InfoPanel icon="user-check">সদস্যের পরিচয় ও বার্তা যাচাই করে অনুমোদন বা প্রত্যাখ্যান করুন। অনুমোদনের আগে মেসের সদস্য তালিকা ও বর্তমান সদস্যসংখ্যা বিবেচনা করুন।</InfoPanel>
+    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের আবেদন যাচাই করুন।" eyebrow="ম্যানেজার ফিচার" />
+    <InfoPanel icon="user-check">পরিচয় যাচাই করে আবেদন অনুমোদন বা প্রত্যাখ্যান করুন।</InfoPanel>
     <JoinRequestQueue />
   </div></ManagerGuard>;
 }
@@ -846,8 +846,8 @@ export function MemberManagementPage() {
     <>
       <PrimaryManagerGuard>
       <div className="page-stack">
-        <PageHeader title="সদস্য ব্যবস্থাপনা" icon="users" description="মেস ছেড়ে যাওয়া সদস্যকে নিষ্ক্রিয় করুন; প্রয়োজন হলে পরে আবার সক্রিয় করুন।" />
-        <InfoPanel icon="users">সদস্য নিষ্ক্রিয় করার আগে তাঁর চলমান মিল ও অনুরোধের প্রভাব যাচাই করুন। পুরোনো হিসাব ও আর্কাইভের ইতিহাস অক্ষত থাকবে।</InfoPanel>
+        <PageHeader title="সদস্য ব্যবস্থাপনা" icon="users" description="সদস্যের অবস্থা পরিচালনা করুন।" />
+        <InfoPanel icon="users">নিষ্ক্রিয় করার আগে চলমান মিল ও অনুরোধ যাচাই করুন। পুরোনো হিসাব অক্ষত থাকবে।</InfoPanel>
         {loading ? <LoadingSpinner label="সদস্য তালিকা লোড হচ্ছে..." /> : <div className="manager-member-list">
           {members.map((member) => {
             const isSelf = member.membership_id === membership?.membership_id;
@@ -1006,8 +1006,8 @@ export function KhalaMoneyPage() {
 
   return (
     <div className="page-stack">
-        <PageHeader title="খালার টাকা" icon="wallet" description={isOperationalManager ? 'প্রতিটি এন্ট্রি সংশ্লিষ্ট কাজের মাসের সঙ্গে সংযুক্ত থাকবে।' : 'আপনি যে মাসটি বন্ধ করেছিলেন, শুধু সেই মাসের খালার টাকার তথ্য দেখতে ও সংশোধন করতে পারবেন।'} />
-        <InfoPanel icon="wallet">প্রতিটি খালার টাকার এন্ট্রি নির্দিষ্ট কাজের মাস ও সদস্যের সঙ্গে যুক্ত থাকে। সংরক্ষণের আগে মাস, সদস্য, প্রদানের তারিখ ও পরিমাণ মিলিয়ে নিন।</InfoPanel>
+        <PageHeader title="খালার টাকা" icon="wallet" description={isOperationalManager ? 'মাসভিত্তিক খালার পারিশ্রমিক যোগ করুন।' : 'আপনার বন্ধ করা মাসের তথ্য দেখুন ও সংশোধন করুন।'} />
+        <InfoPanel icon="wallet">মাস, সদস্য, তারিখ ও পরিমাণ যাচাই করে এন্ট্রি সংরক্ষণ করুন।</InfoPanel>
         {periods.length === 0 ? (
           <div className="empty-state-card"><Icon name="wallet" size={26} /><strong>এখনো কোনো কাজের মাস পাওয়া যায়নি</strong><span>বর্তমান বা নির্ধারিত পুরোনো মাস থাকলে এখানে দেখা যাবে।</span></div>
         ) : (
@@ -1153,8 +1153,8 @@ export function ArchiveManagerPage() {
   if (loading) return <LoadingSpinner label="Archive management প্রস্তুত হচ্ছে..." />;
 
   return <PrimaryManagerGuard><div className="page-stack">
-    <PageHeader title="আর্কাইভ" icon="history" description="প্রতিটি আর্কাইভের closing manager, temporary edit access ও নিরাপদ accidental-close recovery এখানে পরিচালনা করুন।" />
-    <InfoPanel icon="archive">প্রতিটি মাসের Closing Manager ও সংশোধনের অনুমতি আলাদাভাবে যাচাই করুন। Reopen করলে ভবিষ্যতের বাতিল হওয়া অনুরোধ নিজে থেকে ফিরবে না; প্রয়োজন হলে নতুন করে যাচাই করুন।</InfoPanel>
+    <PageHeader title="আর্কাইভ" icon="history" description="বন্ধ মাস ও সংশোধনের অনুমতি পরিচালনা করুন।" />
+    <InfoPanel icon="archive">Closing Manager ও সংশোধনের অনুমতি দেখুন। Reopen করলে বাতিল অনুরোধ নিজে থেকে ফিরবে না।</InfoPanel>
     <div className="archive-refresh-row"><button type="button" className="secondary-button compact" disabled={loading} onClick={loadMonths}>আর্কাইভ রিফ্রেশ</button></div>
     {months.length === 0 ? <div className="empty-state-card"><Icon name="history" size={28} /><strong>সংরক্ষিত মাস পাওয়া যায়নি</strong><span>হিস্টরিতে বন্ধ মাস থাকলে রিফ্রেশ করে দেখুন।</span><button type="button" className="secondary-button compact" onClick={loadMonths}>আবার লোড করুন</button></div> : <>
       <section className="card manager-form-card">
@@ -1255,8 +1255,8 @@ export function MealSheetPage() {
   };
 
   return (
-    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} — শুধু ফাইনাল হওয়া দিনের দৈনিক মিলের সারসংক্ষেপ এবং সদস্যভিত্তিক মোট হিসাব। অপেক্ষমাণ অনুরোধ চূড়ান্ত মিল হিসেবে গণনা হয় না।`} />
-      <InfoPanel icon="book-open">মিল শিটে শুধু ফাইনাল হওয়া দিনের তথ্য দেখানো হয়। সদস্য নির্বাচন করে ব্যক্তিগত হিসাব দেখুন; PDF সংরক্ষণের আগে তারিখ ও মোট মিল মিলিয়ে নিন।</InfoPanel>
+    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} · চূড়ান্ত মিলের সারসংক্ষেপ।`} />
+      <InfoPanel icon="book-open">চূড়ান্ত মিল ও সদস্যভিত্তিক হিসাব দেখুন।</InfoPanel>
       <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{currentPeriodRange(bundle.period)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact report-pdf-button" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
       <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
       <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
@@ -1401,8 +1401,8 @@ export function ReportsPage() {
 
   return (
     <div className="page-stack reports-page">
-      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" eyebrow="রিপোর্ট" description="সহজ ও পরিষ্কার ফরম্যাটে মাসিক হিসাব দেখুন এবং PDF হিসেবে সংরক্ষণ করুন।" />
-      <InfoPanel icon="download">প্রতিটি PDF নির্বাচিত চলমান মাসের তথ্য থেকে তৈরি হয়। ডাউনলোডের আগে মাস, সদস্য সংখ্যা, জমা, বাজার ও মিলের সারসংক্ষেপ যাচাই করুন। অপেক্ষমাণ অনুরোধ ফাইনাল মিল হিসেবে গণনা হয় না।</InfoPanel>
+      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" eyebrow="রিপোর্ট" description="মাসিক হিসাব PDF হিসেবে সংরক্ষণ করুন।" />
+      <InfoPanel icon="download">PDF তৈরির আগে নির্বাচিত মাস ও হিসাবের সারসংক্ষেপ যাচাই করুন।</InfoPanel>
       <section className="report-summary-strip card" aria-label="মাসের সারসংক্ষেপ">
         <div><small>মোট মিল</small><strong>{formatNumber(meals.total)}</strong></div>
         <div><small>মোট বাজার</small><strong>{formatCurrency(totalMarket)}</strong></div>
@@ -1419,7 +1419,7 @@ export function ReportsPage() {
         <div className="section-heading"><div><h2>ফাইনাল হিসাবের প্রিভিউ</h2><small>{bundle.period.label} · {formatNumber(members.length)} জন সদস্য</small></div><button className="secondary-button compact report-preview-download" type="button" onClick={() => runExport(downloadFinalAccount)} disabled={exportBusy}><Icon name="download" size={15}/> PDF সংরক্ষণ</button></div>
         <Table columns={[{ key:'name', label:'সদস্যের নাম' },{ key:'deposit', label:'জমা', render:(r)=>formatCurrency(r.deposit) },{ key:'meals', label:'মিল', render:(r)=>formatNumber(r.meals) },{ key:'totalCost', label:'মোট খরচ', render:(r)=>formatCurrency(r.totalCost) },{ key:'balance', label:'বকেয়া / অবশিষ্ট', render:(r)=>Number(r.balance)<0?`বকেয়া ${formatCurrency(Math.abs(Number(r.balance)))}`:`অবশিষ্ট ${formatCurrency(r.balance)}` }]} rows={finalAccountRows.map((row) => ({ ...row, key: row.key || row.membershipId }))} />
       </section>
-      <InfoPanel icon="info" className="report-page-note">মিলের হিসাবে শুধু ফাইনাল হওয়া দিনের তথ্য অন্তর্ভুক্ত। অপেক্ষমাণ অনুরোধ ও ভবিষ্যৎ দিনের planned মিল চূড়ান্ত মিল নয়। খালার পারিশ্রমিক মেসের আলাদা খরচ; এটি কোনো সদস্যের ব্যক্তিগত ব্যালেন্সে যোগ হয় না।</InfoPanel>
+      <InfoPanel icon="info" className="report-page-note">শুধু ফাইনাল মিল অন্তর্ভুক্ত। খালার পারিশ্রমিক মেসের আলাদা খরচ।</InfoPanel>
     </div>
   );
 }
