@@ -234,6 +234,14 @@ export async function fetchMealDayStates(startDate, endDate, periodId = null) {
   return Array.isArray(data) ? data : [];
 }
 
+export async function fetchFinalMealAudit(date) {
+  assertSupabase();
+  if (!date) return null;
+  const { data, error } = await supabase.rpc('hl_get_final_meal_audit', { p_meal_date: date });
+  if (error) throw error;
+  return data && typeof data === 'object' ? data : null;
+}
+
 export async function fetchMealEntryData(date, periodId = null) {
   assertSupabase();
   // The dedicated manager screen reads daily_meal_days directly. Trigger the

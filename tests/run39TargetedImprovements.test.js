@@ -57,12 +57,12 @@ test('Market, deposit, Khala, and period notifications include actor and target 
   assert.match(notifications, /archive_correction|Hostel Life আপডেট/);
 });
 
-test('Registration UI uses six-digit native Supabase OTP with cooldown and server-backed verification', () => {
+test('Registration UI uses six-digit Supabase Auth OTP with cooldown and server-backed resend/verification', () => {
   assert.match(authPage, /ভেরিফিকেশন কোড পাঠান/);
   assert.match(authPage, /resendCountdown/);
-  assert.match(authPage, /setResendCountdown\(60\)/);
+  assert.match(authPage, /setResendCountdown\(120\)/);
   assert.match(auth, /verifyOtp\(\{ email: normalizedEmail, token: code, type: 'signup' \}\)/);
-  assert.match(auth, /resend\(\{ type: 'signup', email: normalizedEmail \}\)/);
+  assert.match(auth, /functions\.invoke\('request-signup-otp'/);
 });
 
 test('Former month closer receives only their own exact closed period, and existing archive correction stays bounded', () => {

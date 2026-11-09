@@ -2,6 +2,7 @@ const ALLOWED_ROUTES = new Map([
   ['/functions/v1/auth-security-gate', new Set(['GET', 'POST'])],
   ['/functions/v1/record-auth-event', new Set(['GET', 'POST'])],
   ['/functions/v1/request-password-reset', new Set(['POST'])],
+  ['/functions/v1/request-signup-otp', new Set(['POST'])],
 ]);
 const MAX_BODY_BYTES = 8192;
 const CORS_HEADERS = 'authorization, apikey, x-client-info, content-type';

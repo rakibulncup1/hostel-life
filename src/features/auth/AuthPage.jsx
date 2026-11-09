@@ -16,6 +16,13 @@ function go(path, replace = false) {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+function formatOtpWait(seconds) {
+  const safeSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
+  if (safeSeconds >= 3600) return `${Math.ceil(safeSeconds / 3600)} ঘণ্টা`;
+  if (safeSeconds >= 60) return `${Math.ceil(safeSeconds / 60)} মিনিট`;
+  return `${safeSeconds} সেকেন্ড`;
+}
+
 const authLinks = [
   { path: '/auth/login', label: 'লগইন' },
   { path: '/auth/register', label: 'রেজিস্ট্রেশন' },
@@ -164,7 +171,6 @@ function RegisterForm() {
   const [otpStep, setOtpStep] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [resendCountdown, setResendCountdown] = useState(0);
-  const [resendCount, setResendCount] = useState(0);
 
   useEffect(() => {
     if (resendCountdown <= 0) return undefined;
@@ -243,8 +249,7 @@ function RegisterForm() {
       } else {
         setOtpStep(true);
         setVerificationCode('');
-        setResendCountdown(60);
-        setResendCount(0);
+        setResendCountdown(120);
         toast.success('ছয় সংখ্যার ভেরিফিকেশন কোড আপনার ইমেইলে পাঠানো হয়েছে।');
       }
     } catch (error) {
@@ -256,16 +261,18 @@ function RegisterForm() {
 
   const resendCode = async () => {
     if (!otpStep || resendCountdown > 0 || submitting) return;
-    if (resendCount >= 4) return toast.warning('নিরাপত্তার জন্য সর্বোচ্চ ৪ বার পুনরায় কোড পাঠানো যাবে। পরে আবার চেষ্টা করুন।');
     setSubmitting(true);
     try {
       const { error } = await resendSignUpOtp(email);
       if (error) throw error;
-      setResendCount((count) => count + 1);
-      setResendCountdown(60);
+      setResendCountdown(120);
       toast.success('নতুন ভেরিফিকেশন কোড পাঠানো হয়েছে।');
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'কোড পুনরায় পাঠানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।'));
+      if (error?.retryAt) {
+        const retrySeconds = Math.ceil((new Date(error.retryAt).getTime() - Date.now()) / 1000);
+        if (Number.isFinite(retrySeconds) && retrySeconds > 0) setResendCountdown(retrySeconds);
+      }
+      toast.error(getFriendlySupabaseError(error, 'কোড পুনরায় পাঠানো যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন.'));
     } finally { setSubmitting(false); }
   };
 
@@ -300,11 +307,16 @@ function RegisterForm() {
           <input type="checkbox" checked={eligibilityAccepted} onChange={(event) => setEligibilityAccepted(event.target.checked)} required />
           <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
         </label>}
-        {otpStep && <div className="field-label auth-otp-field"><span>৬ সংখ্যার ভেরিফিকেশন কোড</span><input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" aria-label="ছয় সংখ্যার ভেরিফিকেশন কোড" required /><small>কোডটি {email} ঠিকানায় পাঠানো হয়েছে। ইনবক্স ও Spam ফোল্ডার দেখুন।</small><button type="button" className="text-button align-end" onClick={resendCode} disabled={submitting || resendCountdown > 0 || resendCount >= 4}>{resendCountdown > 0 ? `আবার কোড পাঠান · ${resendCountdown} সেকেন্ড` : resendCount >= 4 ? 'পুনরায় পাঠানোর সীমা শেষ' : 'কোড পাননি? আবার পাঠান'}</button></div>}
+        {otpStep && <section className="auth-otp-card" aria-label="ইমেইল যাচাই">
+          <div className="auth-otp-card-heading"><span className="auth-otp-card-icon"><Icon name="mail-check" size={19} /></span><div><strong>ইমেইল যাচাই করুন</strong><small>আপনার ঠিকানায় ৬ সংখ্যার কোড পাঠানো হয়েছে</small></div></div>
+          <label className="field-label auth-otp-field"><span>ভেরিফিকেশন কোড</span><input className="auth-otp-input" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={verificationCode} onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="০ ০ ০ ০ ০ ০" aria-label="ছয় সংখ্যার ভেরিফিকেশন কোড" required /></label>
+          <div className="auth-otp-meta"><span>প্রাপক: <strong>{email}</strong></span><span>ইনবক্স ও Spam ফোল্ডার দেখুন</span></div>
+          <button type="button" className="auth-otp-resend" onClick={resendCode} disabled={submitting || resendCountdown > 0}>{resendCountdown > 0 ? `আবার কোড পাঠানো যাবে ${formatOtpWait(resendCountdown)} পরে` : 'কোড পাননি? আবার পাঠান'}</button>
+        </section>}
         <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted}>
           {submitting ? (otpStep ? 'কোড যাচাই হচ্ছে...' : 'কোড পাঠানো হচ্ছে...') : otpStep ? 'কোড যাচাই করুন' : 'ভেরিফিকেশন কোড পাঠান'}
         </button>
-        {otpStep && <button className="secondary-button" type="button" disabled={submitting} onClick={() => { setOtpStep(false); setVerificationCode(''); setResendCountdown(0); setResendCount(0); }}>তথ্য পরিবর্তন করুন</button>}
+        {otpStep && <button className="secondary-button" type="button" disabled={submitting} onClick={() => { setOtpStep(false); setVerificationCode(''); setResendCountdown(0); }}>তথ্য পরিবর্তন করুন</button>}
       </form>
       <AuthSwitch current="register" />
     </AuthFrame>

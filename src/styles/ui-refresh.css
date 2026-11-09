@@ -4369,7 +4369,7 @@ body {
 .onboarding-account-switch-row .onboarding-switch-account { margin-left: auto; }
 @media (max-width: 700px) {
   .onboarding-brand-header .onboarding-brand-description { margin-top: 11px; padding: 9px 11px; font-size: 11px; }
-  .onboarding-choice-intro { padding: 11px 12px; border: 1px solid rgba(112, 186, 145, .23); border-radius: 14px; background: rgba(23, 51, 35, .5); }
+  .onboarding-choice-intro { padding: 11px 12px; border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--primary-soft) 68%, var(--surface)); color: var(--text); }
   .onboarding-choice-intro .eyebrow { display: block; }
   .onboarding-choice-intro h2 { font-size: clamp(18px, 5vw, 22px); }
   .onboarding-choice-intro p { margin-top: 6px; }

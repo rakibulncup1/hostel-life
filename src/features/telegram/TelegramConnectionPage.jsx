@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { InfoPanel } from '../../components/InfoPanel';
 import { TelegramLogo } from '../../components/TelegramLogo';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useToast } from '../../components/Toast';
@@ -114,6 +115,7 @@ export function TelegramConnectionPage() {
         <h1>টেলিগ্রাম সংযোগ</h1>
         <p>Hostel Life-এর গুরুত্বপূর্ণ বিজ্ঞপ্তি টেলিগ্রামে পেতে সংযোগ করুন।</p>
       </header>
+      <InfoPanel icon="send">সংযোগ সম্পন্ন হলে মেসের প্রাসঙ্গিক বিজ্ঞপ্তি সরাসরি আপনার টেলিগ্রামে পৌঁছাবে। নতুন সংযোগ লিংক একবার ব্যবহারযোগ্য এবং ১০ মিনিটের মধ্যে কার্যকর।</InfoPanel>
 
       <section className="card telegram-connection-card">
         <div className="telegram-card-hero">
@@ -149,7 +151,7 @@ export function TelegramConnectionPage() {
         {error && <div className="inline-error telegram-error" role="alert">{error}</div>}
       </section>
 
-      <p className="telegram-privacy-note"><Icon name="shield-check" size={16}/> সংযোগটি ঐচ্ছিক। আপনি যেসব অ্যাপ নোটিফিকেশন পান, কেবল সেগুলোর বার্তাই টেলিগ্রামে পাঠানো হবে। পাসওয়ার্ড, লগইন কোড বা গোপন নিরাপত্তা তথ্য পাঠানো হয় না। অ্যাকাউন্টের গোপনীয়তা টেলিগ্রামের নিজস্ব নীতির অধীন।</p>
+      <InfoPanel icon="shield-check" className="telegram-privacy-note">আপনি যেসব অ্যাপ নোটিফিকেশন পান, কেবল সেগুলোর বার্তাই টেলিগ্রামে পাঠানো হবে। পাসওয়ার্ড, Login Code বা গোপন নিরাপত্তা তথ্য পাঠানো হয় না। অ্যাকাউন্টের গোপনীয়তা টেলিগ্রামের নিজস্ব নীতির অধীন।</InfoPanel>
     </main>
   );
 }

@@ -354,3 +354,225 @@
   .auth-otp-field > input { min-height: 54px; font-size: 23px; }
   .khala-row-actions { grid-column: 1 / -1; justify-content: flex-end; }
 }
+
+/* --------------------------------------------------------------------------
+   Focused visual updates: compact help panels, top toasts and public-entry UI.
+   These rules are presentation-only and do not alter application permissions.
+   -------------------------------------------------------------------------- */
+.info-panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--primary-soft) 48%, var(--surface));
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.info-panel-icon {
+  flex: 0 0 27px;
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface));
+  color: var(--primary-strong);
+}
+.info-panel-copy { min-width: 0; flex: 1; }
+.info-panel-copy > :first-child { margin-top: 0; }
+.info-panel-copy > :last-child { margin-bottom: 0; }
+.info-panel-warning {
+  border-color: color-mix(in srgb, var(--warning) 28%, var(--line));
+  background: color-mix(in srgb, var(--warning-soft) 55%, var(--surface));
+}
+.info-panel-warning .info-panel-icon { background: var(--warning-soft); color: var(--warning); }
+.form-hint,
+.meal-policy-note,
+.market-paste-hint,
+.entry-status-note,
+.report-page-note,
+.telegram-privacy-note {
+  border-radius: 14px !important;
+  line-height: 1.7 !important;
+}
+.dining-panel .panel-header p {
+  position: relative;
+  margin: 11px 0 0;
+  padding: 10px 12px 10px 34px;
+  border: 1px solid color-mix(in srgb, var(--primary) 17%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft) 45%, var(--surface));
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+.dining-panel .panel-header p::before {
+  content: 'i';
+  position: absolute;
+  left: 11px;
+  top: 10px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+/* Toasts now appear at the top and dismiss automatically; there is no close UI. */
+.toast-stack {
+  top: calc(12px + env(safe-area-inset-top)) !important;
+  bottom: auto !important;
+  left: 12px !important;
+  right: 12px !important;
+  width: auto !important;
+  max-width: 440px;
+  margin-left: auto;
+  z-index: 12000 !important;
+  gap: 7px !important;
+}
+.toast {
+  grid-template-columns: 30px minmax(0, 1fr) !important;
+  padding: 10px 13px !important;
+  border-radius: 15px !important;
+  box-shadow: 0 12px 34px rgba(15, 32, 25, .17) !important;
+  animation: toast-enter-top .18s ease-out both;
+}
+.toast-success {
+  border: 1px solid #b8e3c8 !important;
+  background: #effaf3 !important;
+  color: #145c38 !important;
+}
+.toast-success .toast-icon { color: #16864e !important; background: #d9f3e3 !important; }
+.toast-error {
+  border: 1px solid #f0b9b9 !important;
+  background: #fff1f1 !important;
+  color: #922727 !important;
+}
+.toast-error .toast-icon { color: #c23838 !important; background: #ffe0e0 !important; }
+.toast-message { font-size: 12px !important; font-weight: 700; line-height: 1.55 !important; }
+@keyframes toast-enter-top {
+  from { opacity: 0; transform: translateY(-8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (min-width: 768px) {
+  .toast-stack { top: 18px !important; right: 20px !important; left: auto !important; width: min(420px, calc(100vw - 40px)) !important; }
+}
+@media (prefers-reduced-motion: reduce) { .toast { animation: none !important; } }
+
+/* Final-meal per-date audit panel */
+.final-meal-audit-card {
+  display: grid;
+  gap: 13px;
+  margin: 13px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--surface);
+}
+.final-meal-audit-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--primary-strong); }
+.final-meal-audit-heading h3 { margin: 3px 0 1px; color: var(--text); font-size: 15px; }
+.final-meal-audit-heading small { color: var(--muted); font-size: 10px; }
+.final-meal-audit-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.final-meal-audit-stats > div { min-width: 0; display: grid; gap: 4px; padding: 10px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.final-meal-audit-stats strong { color: var(--text); font-size: 18px; font-weight: 900; }
+.final-meal-audit-stats span { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.final-meal-audit-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.final-meal-audit-list { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 13px; }
+.final-meal-audit-list .section-heading { margin-bottom: 8px; }
+.final-meal-audit-list .section-heading h4 { margin: 0; font-size: 11px; }
+.final-meal-audit-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.final-meal-audit-row:last-of-type { border-bottom: 0; }
+.final-meal-audit-row strong { color: var(--text); font-size: 11px; }
+.final-meal-audit-row span,.final-meal-audit-row small { color: var(--muted); font-size: 9px; line-height: 1.5; }
+.final-meal-pending { display: grid; gap: 4px; margin-top: 8px; padding: 9px; border-radius: 10px; background: var(--warning-soft); color: var(--text); }
+.final-meal-pending strong { font-size: 10px; }
+.final-meal-pending span { color: var(--muted); font-size: 9px; line-height: 1.6; }
+.final-meal-audit-event { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.final-meal-audit-event:last-child { border-bottom: 0; }
+.final-meal-audit-event > div { display: grid; gap: 2px; }
+.final-meal-audit-event strong { color: var(--text); font-size: 10px; }
+.final-meal-audit-event span,.final-meal-audit-event small,.final-meal-audit-event p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.55; }
+.final-meal-audit-event p { margin-top: 4px; color: var(--text); }
+@media (max-width: 640px) {
+  .final-meal-audit-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .final-meal-audit-lists { grid-template-columns: minmax(0,1fr); }
+}
+
+/* The join/setup header is cleaner without the old desktop separator line. */
+.onboarding-page .onboarding-brand-header { border-bottom: 0; }
+
+/* OTP panel inherits the active public-entry theme (light, blue or dark). */
+.auth-otp-card {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--line));
+  border-radius: 17px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--primary-soft) 72%, var(--surface)),
+    color-mix(in srgb, var(--surface-2) 78%, var(--surface)));
+  color: var(--text);
+}
+.auth-otp-card-heading { display: flex; align-items: center; gap: 10px; }
+.auth-otp-card-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 12px; background: var(--primary-soft); color: var(--primary-strong); }
+.auth-otp-card-heading > div { display: grid; gap: 2px; }
+.auth-otp-card-heading strong { color: var(--text); font-size: 13px; }
+.auth-otp-card-heading small { color: var(--muted); font-size: 10px; }
+.auth-otp-field { gap: 7px !important; }
+.auth-otp-input {
+  min-height: 54px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 13px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  text-align: center !important;
+  font-size: 21px !important;
+  font-weight: 900 !important;
+  letter-spacing: .38em !important;
+  font-variant-numeric: tabular-nums;
+}
+.auth-otp-meta { display: grid; gap: 2px; color: var(--muted); font-size: 10px; line-height: 1.55; overflow-wrap: anywhere; }
+.auth-otp-meta strong { color: var(--text); }
+.auth-otp-resend {
+  justify-self: start;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.auth-otp-resend:disabled { color: var(--muted); cursor: not-allowed; }
+
+@media (max-width: 849px) {
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-panel {
+    display: grid !important;
+    grid-template-columns: 54px minmax(0,1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "mark brand" "mark title" "mark sub";
+    align-items: center;
+    justify-items: start;
+    column-gap: 13px;
+    min-height: 0 !important;
+    padding: 18px 16px 16px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--line) !important;
+    border-radius: 20px 20px 0 0;
+    text-align: left !important;
+  }
+  .auth-page .auth-brand-panel .auth-brand-mark { grid-area: mark; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 16px; background: var(--surface-2); box-shadow: 0 7px 17px color-mix(in srgb, var(--text) 10%, transparent); }
+  .auth-page .auth-brand-panel .auth-brand-mark svg { width: 43px; height: 43px; }
+  .auth-page .auth-brand-panel .auth-eyebrow { grid-area: brand; margin: 0; font-size: 9px; letter-spacing: .2em; }
+  .auth-page .auth-brand-panel h1 { grid-area: title; max-width: none; margin: 1px 0 0; font-size: clamp(17px,4.7vw,21px) !important; line-height: 1.35; }
+  .auth-page .auth-brand-panel p { grid-area: sub; display: block !important; margin: 2px 0 0; font-size: 10px !important; line-height: 1.4; }
+}

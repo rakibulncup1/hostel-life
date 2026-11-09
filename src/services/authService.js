@@ -239,11 +239,21 @@ export async function updatePassword(password) {
 }
 
 
-// Supabase Auth native Email OTP; no separate OTP table or third-party sender.
+// Supabase Auth remains the OTP sender. The Edge Function adds a shared
+// server-side resend quota without storing OTP values or creating a new table.
 export async function resendSignUpOtp(email) {
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   if (!supabase || !normalizedEmail) return { data: null, error: new Error('সঠিক ইমেইল ঠিকানা দিন।') };
-  return supabase.auth.resend({ type: 'signup', email: normalizedEmail });
+  const { data, error } = await supabase.functions.invoke('request-signup-otp', {
+    body: { email: normalizedEmail },
+  });
+  if (!error) return { data, error: null };
+  const details = await responseDetails(error);
+  const normalized = new Error(details?.message || error.message || 'কোড পুনরায় পাঠানো যায়নি।');
+  normalized.code = details?.code || error.name || 'OTP_RESEND_FAILED';
+  normalized.status = error.context?.status || error.status || null;
+  normalized.retryAt = details?.retry_at || null;
+  return { data: null, error: normalized };
 }
 
 export async function verifySignUpOtp(email, token) {

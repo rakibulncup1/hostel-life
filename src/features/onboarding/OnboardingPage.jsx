@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { useToast } from '../../components/Toast';
 import { Icon } from '../../components/Icon';
+import { InfoPanel } from '../../components/InfoPanel';
 import { BrandMark } from '../../components/BrandMark';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useInstallPromptContext } from '../../contexts/InstallPromptContext';
@@ -405,6 +406,7 @@ export function OnboardingPage() {
             description="মেসে যুক্ত হন অথবা নতুন মেস তৈরি করুন।"
           />
 
+          {pendingLinkToken && <InfoPanel icon="mail">এই আমন্ত্রণ লিংকটি নির্দিষ্ট একটি মেসের জন্য। অনুরোধ পাঠানোর পর ম্যানেজারের অনুমোদন না আসা পর্যন্ত সদস্যপদ চালু হবে না।</InfoPanel>}
           {pendingLinkToken && <section className="onboarding-linked-request card" aria-label="আমন্ত্রণ লিংক দিয়ে মেসে যোগদান">
             <div className="onboarding-linked-request-icon"><Icon name="mail-plus" size={22}/></div>
             <div className="onboarding-linked-request-copy">
@@ -449,10 +451,10 @@ export function OnboardingPage() {
           </div>
 
           {mode && <section id="onboarding-action-panel" className="onboarding-action-panel" aria-live="polite">
+            {mode === 'join' && <InfoPanel icon="key-round">ম্যানেজারের দেওয়া ১২ অক্ষরের Join Code লিখুন। সঠিক কোড ছাড়া মেসে যুক্ত হওয়া যাবে না।</InfoPanel>}
             <div className="onboarding-action-heading">
               <span className="eyebrow">{mode === 'join' ? 'আগে থেকে থাকা মেসে যোগ দিন' : 'নতুন মেস তৈরি'}</span>
               <h3>{mode === 'join' ? 'কোড দিয়ে যুক্ত হন' : 'আপনার মেসের নাম দিন'}</h3>
-              <p>{mode === 'join' ? 'মেসের ১২ অক্ষরের কোড দিন।' : 'আপনার মেসের নাম লিখুন।'}</p>
             </div>
             {mode === 'join' ? (
               <form className="form-stack onboarding-entry-form" onSubmit={join}>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { InfoPanel } from '../../components/InfoPanel';
 import { confirmAction } from '../../utils/actionDialogs';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -308,6 +309,11 @@ function RankingPage({ kind }) {
         title={depositor ? 'বেশি ডিপোজিটকারী' : shopper ? 'বেশি বাজারকারী' : 'শীর্ষ খাদক'}
         description={depositor ? 'চলতি মাসে সদস্যের নামে জমা হওয়া মোট ডিপোজিটের ভিত্তিতে বেশি থেকে কম।' : shopper ? 'চলতি মাসে বৈধ বাজার এন্ট্রির মোট টাকার ভিত্তিতে বেশি থেকে কম।' : 'চলতি মাসে final meal-এর মোট সংখ্যার ভিত্তিতে বেশি থেকে কম.'}
       />
+      <InfoPanel icon="activity">{depositor
+        ? 'এই তালিকা সদস্যের নামে যুক্ত ডিপোজিটের মোট পরিমাণ দেখায়। বাজারের টাকা এখানে ডিপোজিট হিসেবে ধরবেন না—বিস্তারিত হিসাব হিস্টরিতে যাচাই করুন।'
+        : shopper
+          ? 'এখানে কার্যকর বাজার এন্ট্রির মোট টাকা অনুযায়ী তালিকা সাজানো হয়। বাজারকারী ও যিনি এন্ট্রি করেছেন—দুই পরিচয় আলাদা হতে পারে।'
+          : 'এখানে শুধু চূড়ান্ত হওয়া মিলের পরিমাণ ধরা হয়। অপেক্ষমাণ অনুরোধ বা ভবিষ্যতের মিল এই তালিকায় অন্তর্ভুক্ত নয়.'}</InfoPanel>
       <section className="card ranking-card">
         <div className="ranking-card-head">
           <div className={`ranking-hero-icon ${depositor ? 'depositor' : shopper ? 'shopper' : 'eater'}`}><Icon name={depositor ? 'wallet' : shopper ? 'shopping-bag' : 'trophy'} size={25} /></div>
@@ -368,7 +374,8 @@ export function DeveloperInfoPage() {
   const photo = info?.developer_photo_url || '';
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Hostel Life" title="হেল্প" />
+      <PageHeader eyebrow="Hostel Life" title="হেল্প" description="অ্যাপ ব্যবহার ও সমস্যা সমাধানে সহায়তা নিন।" />
+      <InfoPanel icon="info">সহায়তার জন্য নিচের যোগাযোগের মাধ্যম ব্যবহার করুন। সমস্যা জানালে মেসের নাম, ঘটনার তারিখ ও প্রাসঙ্গিক স্ক্রিনের তথ্য দিন; পাসওয়ার্ড বা OTP কখনো পাঠাবেন না।</InfoPanel>
       <section className="card developer-card">
         {photo ? <img className="developer-photo-placeholder developer-photo-image" src={photo} alt={info?.developer_name || 'ডেভেলপার'} loading="lazy" /> : <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>}
         <div className="developer-name">{loading ? 'তথ্য লোড হচ্ছে…' : info?.developer_name || 'Hostel Life Support'}</div>
@@ -389,6 +396,7 @@ export function PrivacyPolicyPage() {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা ও নীতিমালা" description="Hostel Life-এ আপনার পরিচয়, মেসের সদস্যতা ও দৈনন্দিন হিসাবের তথ্য কীভাবে ব্যবহৃত হয়—সহজ ভাষায় জানুন।" />
+      <InfoPanel icon="shield-check">কোন তথ্য কারা দেখতে বা পরিবর্তন করতে পারেন, তা আপনার মেসের ভূমিকা ও অনুমতির ওপর নির্ভর করে। সংবেদনশীল তথ্য নোটিশ বা হিসাবের বিবরণে লিখবেন না।</InfoPanel>
       <p className="policy-public-full-link"><a href="/privacy-policy">প্রকাশ্য পূর্ণ গোপনীয়তা নীতি দেখুন</a></p>
       <section className="card policy-content-card policy-document-card">
         <div className="policy-document-lead">
@@ -455,6 +463,7 @@ export function TermsPage() {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="Hostel Life-এর নিরাপদ, ব্যক্তিগত ও সুশৃঙ্খল ব্যবহারের জন্য প্রয়োজনীয় নিয়ম।" />
+      <InfoPanel icon="book-open">অ্যাকাউন্ট, মেসের হিসাব ও অন্য সদস্যের তথ্য ব্যবহারের সময় নিচের নিয়মগুলো অনুসরণ করুন। ব্যক্তিগত Invite Link বা Join Code প্রকাশ্যে শেয়ার করবেন না।</InfoPanel>
       <p className="policy-public-full-link"><a href="/terms-of-service">প্রকাশ্য পূর্ণ ব্যবহারের শর্তাবলী দেখুন</a></p>
       <section className="card policy-content-card policy-document-card">
         <div className="policy-document-lead"><Icon name="book-open" size={24}/><div><strong>অ্যাপ ব্যবহার করার আগে নিয়মগুলো পড়ুন</strong><p>মেসের তথ্য, সদস্যদের হিসাব ও অ্যাক্সেস সুরক্ষিত রাখতে প্রত্যেক ব্যবহারকারীর জন্য এই নিয়মগুলো প্রযোজ্য।</p></div></div>
@@ -739,7 +748,8 @@ export function PreviousMonthsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Archive" title="আর্কাইভ" description="বন্ধ মাসগুলোর রিপোর্ট দেখুন। সাধারণ সদস্যরা শুধু দেখতে পারবেন; সংশোধনের সুবিধা কেবল বর্তমান প্রধান ম্যানেজারের জন্য।" />
+      <PageHeader eyebrow="Archive" title="আর্কাইভ" description="বন্ধ মাসগুলোর রিপোর্ট দেখুন। সাধারণ সদস্যরা শুধু দেখতে পারবেন; সংশোধনের সুবিধা কেবল অনুমোদিত ব্যক্তির জন্য।" />
+      <InfoPanel icon="archive">প্রতিটি বন্ধ মাস আলাদা রেকর্ড হিসেবে সংরক্ষিত থাকে। কোনো তথ্য সংশোধনের আগে মাস, সদস্য ও এন্ট্রির তারিখ মিলিয়ে নিন; অনুমতি না থাকলে রেকর্ড শুধু দেখা যাবে।</InfoPanel>
       {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..." /> : months.length === 0 ? (
         <div className="empty-state-card"><Icon name="history" size={28} /><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>মেসে এখনো archive করা মাস পাওয়া যায়নি।</span></div>
       ) : (

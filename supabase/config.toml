@@ -22,3 +22,6 @@ verify_jwt = true
 
 [functions.complete-temporary-password]
 verify_jwt = true
+
+[functions.request-signup-otp]
+verify_jwt = false

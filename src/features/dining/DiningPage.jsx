@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { InfoPanel } from '../../components/InfoPanel';
 import { SystemNoticeDialog } from '../../components/SystemNoticeDialog';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { OfflineState } from '../../components/OfflineState';
@@ -23,6 +24,7 @@ import {
   fetchManagerMealRequests,
   fetchMealDayStates,
   fetchMealEntryData,
+  fetchFinalMealAudit,
   fetchMemberDirectory,
   fetchMyMealRequests,
   fetchRunningPeriod,
@@ -488,6 +490,7 @@ function MealRequestEditor({ mode, request, onSaved, onCancel }) {
         </div>
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
+      <InfoPanel icon="calendar-clock">তারিখ ও প্রতিদিনের মিল যাচাই করে অনুরোধ জমা দিন। সাধারণ অনুরোধ নির্ধারিত সময়ে স্বয়ংক্রিয়ভাবে কার্যকর হয়; Late বা Correction অনুরোধে ম্যানেজারের অনুমোদন প্রয়োজন।</InfoPanel>
 
 
       {period?.start_date && period.start_date > today && (
@@ -723,6 +726,7 @@ function RequestHistory({ onEdit, onCorrect }) {
         </div>
         <button className="secondary-button compact request-history-refresh" type="button" onClick={load}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
+      <InfoPanel icon="history">প্রতিটি অনুরোধের অবস্থা, তারিখ ও ম্যানেজারের সিদ্ধান্ত এখানে দেখুন। এডিট বা সংশোধনের সুযোগ থাকলে সংশ্লিষ্ট অনুরোধ খুলে নির্দেশনা অনুসরণ করুন।</InfoPanel>
 
       {periodCheckError && <div className="meal-policy-note is-warning" role="status"><Icon name="warning" size={16} /> {periodCheckError}</div>}
       {dayStateError && <div className="meal-policy-note is-warning" role="status"><Icon name="warning" size={16} /> {dayStateError}</div>}
@@ -1022,6 +1026,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         </div>
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
+      <InfoPanel icon="shopping-basket">বাজারকারীর নাম, কেনাকাটার তারিখ এবং প্রতিটি পণ্যের পরিমাণ ও মোট টাকা যাচাই করুন। সংরক্ষণের পর বাজারের মোট অঙ্ক সদস্যের হিসাবে যুক্ত হবে কি না, সেটিও নির্বাচন করুন।</InfoPanel>
 
       <div className="market-top-fields">
         <label className="field-label">
@@ -1130,6 +1135,7 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   const [selectedMember, setSelectedMember] = useState(members.find((member) => member.member_status === 'active')?.membership_id || '');
   const [entries, setEntries] = useState({});
   const [finalizedMemberIds, setFinalizedMemberIds] = useState([]);
+  const [mealAudit, setMealAudit] = useState(null);
   const [dayStatus, setDayStatus] = useState(null);
   const [period, setPeriod] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1156,11 +1162,22 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
         setDayStatus(null);
         setEntries({});
         setFinalizedMemberIds([]);
+        setMealAudit(null);
         return;
       }
       const mealData = await fetchMealEntryData(date, periodData?.period_id || periodData?.id || null);
       const { day, records } = mealData;
       setDayStatus(day);
+      setMealAudit(null);
+      if (day?.status === 'finalized') {
+        try { setMealAudit(await fetchFinalMealAudit(date)); }
+        catch (auditError) {
+          // Keep the existing entry/edit workflow usable when Run40 has not yet
+          // been deployed; only the optional provenance panel is unavailable.
+          console.warn('[Hostel Life] Final meal audit is not available:', auditError?.code || auditError?.message || 'unknown_error');
+          setMealAudit({ available: false, auditUnavailable: true });
+        }
+      }
       const recordMap = new Map(records.map((record) => [record.member_id, record]));
       const finalizedRows = records.filter((record) => !record.cancelled && (
         Boolean(record.finalized_at) || (day?.status === 'finalized' && [record.final_breakfast, record.final_lunch, record.final_dinner].some((value) => value !== null && value !== undefined))
@@ -1253,6 +1270,7 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
           <p>চলমান মাসের চূড়ান্ত হওয়া দিনে সব সক্রিয় সদস্যের মিল দেখুন। আগে মিল না থাকলেও প্রয়োজন অনুযায়ী যোগ করুন। সংরক্ষণের পর হিসাব পুনরায় যাচাই করুন।</p>
         </div>
       </div>
+      <InfoPanel icon="clipboard-check">নির্বাচিত তারিখের সদস্যভিত্তিক ফাইনাল মিল, কোনটি অনুরোধ থেকে এসেছে, কে ম্যানুয়ালি যোগ বা সংশোধন করেছেন এবং কার মিল বাকি—নিচের Audit থেকে যাচাই করুন। সংরক্ষণের আগে তারিখ ও সদস্য নির্বাচন মিলিয়ে নিন।</InfoPanel>
 
       {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice} এই পেজে শুধু ইতিমধ্যে ফাইনাল হওয়া দিনের মিল সংশোধন করা যায়; নতুন দিনের জন্য মিল অনুরোধ ব্যবহার করুন।</div>}
       <div className="manager-entry-toolbar">
@@ -1286,6 +1304,29 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
           <Icon name="calendar" size={16} /> {formatDateWithWeekday(date)} · অবস্থা: <strong>{getMealDayStatusText(dayStatus)}</strong>
         </div>
       )}
+      {dayStatus?.status === 'finalized' && <section className="final-meal-audit-card" aria-label="ফাইনাল মিলের ইতিহাস">
+        <div className="final-meal-audit-heading"><div><span className="eyebrow">তারিখভিত্তিক অডিট</span><h3>এই দিনের ফাইনাল মিলের ইতিহাস</h3><small>{formatDateWithWeekday(date)}</small></div><Icon name="clipboard-check" size={21}/></div>
+        {mealAudit?.auditUnavailable && <div className="info-panel info-panel-warning"><span className="info-panel-icon"><Icon name="info" size={16}/></span><div className="info-panel-copy">বিস্তারিত Audit দেখতে Run40 Database Migration প্রয়োজন। বর্তমান মিল এন্ট্রি/সংশোধনের কাজ স্বাভাবিকভাবে চালু আছে।</div></div>}
+        {mealAudit?.available && <>
+          <div className="final-meal-audit-stats">
+            <div><strong>{formatNumber(mealAudit.active_member_count || 0)}</strong><span>সক্রিয় সদস্য</span></div>
+            <div><strong>{formatNumber(mealAudit.manual_member_count || 0)}</strong><span>ম্যানুয়াল এন্ট্রি/সংশোধন</span></div>
+            <div><strong>{formatNumber(mealAudit.request_member_count || 0)}</strong><span>অনুরোধ থেকে ফাইনাল</span></div>
+            <div><strong>{formatNumber(mealAudit.pending_member_count || 0)}</strong><span>এখনো ফাইনাল হয়নি</span></div>
+          </div>
+          <div className="final-meal-audit-lists">
+            <div className="final-meal-audit-list"><div className="section-heading"><h4>সদস্যভিত্তিক অবস্থা</h4><span>{formatNumber((mealAudit.records || []).length)} জন</span></div>
+              {(mealAudit.records || []).map((record) => <div className="final-meal-audit-row" key={record.member_id}><strong>{record.member_name}</strong><span>{record.source_label} · {record.actor_name}</span><small>{record.finalized_at ? formatDateTime12(record.finalized_at) : 'সময় সংরক্ষিত নেই'}</small></div>)}
+              {(mealAudit.pending_members || []).length > 0 && <div className="final-meal-pending"><strong>এখনো ফাইনাল হয়নি ({formatNumber(mealAudit.pending_members.length)} জন)</strong><span>{mealAudit.pending_members.map((item) => item.member_name).join(' · ')}</span></div>}
+              {(mealAudit.records || []).length === 0 && <small className="muted-copy">এই দিনে কোনো সদস্যের ফাইনাল মিল পাওয়া যায়নি।</small>}
+            </div>
+            <div className="final-meal-audit-list"><div className="section-heading"><h4>এন্ট্রি ও সংশোধনের ইতিহাস</h4><span>{formatNumber((mealAudit.events || []).length)}টি কার্যক্রম</span></div>
+              {(mealAudit.events || []).map((event, index) => <article className="final-meal-audit-event" key={`${event.actor_user_id || 'system'}-${event.created_at}-${index}`}><div><strong>{event.actor_name}</strong><span>{event.event_label} · {formatNumber(event.member_count)} জন</span><small>{formatDateTime12(event.created_at)}</small></div><p>{(event.members || []).map((member) => member.member_name).join(' · ')}</p></article>)}
+              {(mealAudit.events || []).length === 0 && <small className="muted-copy">এই তারিখের জন্য আলাদা ম্যানেজার এন্ট্রি/সংশোধনের Audit পাওয়া যায়নি।</small>}
+            </div>
+          </div>
+        </>}
+      </section>}
       {!loading && !dayStatus && (
         <div className="meal-policy-note is-warning"><Icon name="warning" size={15} /> এই তারিখের server meal-day record পাওয়া যায়নি। আগে তারিখটি পরিবর্তন করে দেখুন।</div>
       )}
@@ -1459,6 +1500,7 @@ function ManagerMyMeal() {
       <PersonalTomorrowMealCard compact />
       <section className="card dining-panel manager-my-meal-card">
         <div className="panel-header"><div><span className="eyebrow">ম্যানেজারের নিজের মিল</span><h2>আমার মিল</h2><p>সাধারণ সদস্যের মতো একদিন বা একাধিক দিনের মিল একসাথে সাজিয়ে সংরক্ষণ করুন।</p></div></div>
+        <InfoPanel icon="utensils">আগামীকালের বা পরবর্তী দিনের জন্য নিজের মিল দিন। তারিখ ও পরিমাণ যাচাই করে সংরক্ষণ করুন; একই নিয়ম সাধারণ সদস্যদের মিল অনুরোধের ক্ষেত্রেও প্রযোজ্য।</InfoPanel>
         <div className="request-range-grid">
           <label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date || undefined} value={startDate} onChange={(e) => setStartDate(e.target.value)} /></label>
           <label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate || tomorrowValue()} max={period?.end_date || undefined} value={endDate} onChange={(e) => setEndDate(e.target.value)} /></label>
@@ -1474,6 +1516,7 @@ function ManagerMyMeal() {
 
       <section className="card dining-panel manager-override-card">
         <div className="panel-header"><div><span className="eyebrow">জরুরি ক্ষমতা</span><h2>জরুরি ওভাররাইড</h2><p>কাট-অফ পার হয়ে গেলে নিজের মিল সরাসরি বদলানোর জন্য ব্যবহার করুন।</p></div></div>
+        <InfoPanel tone="warning" icon="shield-alert">জরুরি ওভাররাইড কেবল বিশেষ পরিস্থিতিতে ব্যবহার করুন। তারিখ, মিলের পরিমাণ এবং কারণ যাচাই করে সংরক্ষণ করুন; এটি Audit-এ আলাদা হিসেবে চিহ্নিত হবে।</InfoPanel>
         {!showOverride ? <button className="secondary-button" type="button" onClick={() => setShowOverride(true)}><Icon name="warning" size={16} /> জরুরি ওভাররাইড খুলুন</button> : <>
           <div className="request-range-grid"><label className="field-label"><span>তারিখ</span><input type="date" max={todayValue()} value={overrideDate} onChange={(e) => setOverrideDate(e.target.value)} /></label></div>
           {overrideLoading && <div className="form-hint"><Icon name="clock" size={15}/> নির্বাচিত তারিখের সার্ভার রেকর্ড লোড হচ্ছে...</div>}
@@ -1640,6 +1683,7 @@ function ManagerMealRequests() {
         <button className="secondary-button compact" type="button" onClick={load} disabled={!online}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
 
+      <InfoPanel icon="inbox">সংশোধন ও Late Request-এর ক্ষেত্রে সদস্যের দেওয়া তথ্য ও কারণ যাচাই করুন। অনুমোদন বা প্রত্যাখ্যানের আগে নির্বাচিত তারিখ, সদস্য এবং সংশ্লিষ্ট মিলের অবস্থা মিলিয়ে নিন।</InfoPanel>
       {periodError && <div className="inline-error" role="alert">{periodError} <button className="text-button" type="button" onClick={() => load()} disabled={!online}>আবার চেষ্টা করুন</button></div>}
       {!loading && !periodError && !runningPeriod && <div className="empty-state-card dining-empty manager-no-running-period"><Icon name="calendar" size={28} /><strong>কোনো চলমান মাস নেই</strong><span>নতুন মাস শুরু হলে সেই মাসের মিল অনুরোধ এখানে দেখা যাবে। বন্ধ মাসের পুরোনো অনুরোধ এখানে দেখানো হয় না।</span><button className="secondary-button compact" type="button" onClick={() => load()} disabled={!online}><Icon name="refresh" size={15} /> পুনরায় যাচাই করুন</button></div>}
       {runningPeriod && <div className="manager-request-active-period"><Icon name="calendar" size={16} /><span><strong>{runningPeriod.label || 'চলমান মাস'}</strong><small>{runningPeriod.start_date ? `শুরু: ${formatDateWithWeekday(runningPeriod.start_date)}` : 'সক্রিয় হিসাব'}</small></span></div>}
@@ -1822,6 +1866,7 @@ function LateMealRequestForm({ onSaved, onCancel }) {
 
   return <section className="dining-panel card late-request-form">
     <div className="panel-header"><div><span className="eyebrow">বিশেষ আবেদন</span><h2>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর লেট মিল অনুরোধ` : 'লেট অনুরোধের সময় নয়'}</h2><p>{targetDate ? `${formatDateWithWeekday(targetDate)}-এর জন্য রাত ১০টা থেকে সংশ্লিষ্ট দিনের রাত ৯টা পর্যন্ত আবেদন দিন।` : 'লেট অনুরোধ রাত ১০টা থেকে পরদিন রাত ৯টা পর্যন্ত চালু থাকে।'} এটি স্বয়ংক্রিয়ভাবে অনুমোদিত হয় না; অনুমোদন পেলে নির্ধারিত দিনের রাত ৯টায় হিসাব চূড়ান্ত করার সময় যোগ হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
+    <InfoPanel tone="warning" icon="clock">স্বাভাবিক সময়সীমা পার হলে Late Request দিন। এটি সরাসরি মিল যোগ করে না; ম্যানেজার অনুমোদন করলে নির্ধারিত নিয়মে ফাইনাল হবে।</InfoPanel>
     {periodLoading ? <div className="state-card"><Icon name="clock" size={17}/><div><strong>চলমান মাস যাচাই হচ্ছে</strong><p>লেট অনুরোধ যেন সঠিক মাসে জমা হয়, এজন্য বর্তমান Period-এর সীমা যাচাই করা হচ্ছে।</p></div></div> : runningPeriod && <div className={`state-card ${targetOutsidePeriod ? 'state-card-warning' : ''}`}>
       <Icon name={targetOutsidePeriod ? 'warning' : 'calendar'} size={18}/><div><strong>চলমান মাস: {runningPeriod.label || 'নির্বাচিত Period'}</strong><p>{periodEnd ? `তারিখসীমা: ${periodStart} → ${periodEnd}` : `শুরুর তারিখ: ${periodStart} · মাস বন্ধ না হওয়া পর্যন্ত শেষ তারিখ নির্ধারিত নয়`}{targetDate ? ` · অনুরোধের তারিখ: ${targetDate}` : ''}</p>
       {targetOutsidePeriod && <p>নির্বাচিত তারিখটি চলমান মাস শুরুর আগের। তাই অনুরোধ পাঠানো যাবে না।</p>}
@@ -1870,6 +1915,7 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
   };
   return <section className="dining-panel card">
     <div className="panel-header"><div><span className="eyebrow">এডমিন এন্ট্রি</span><h2>ম্যানুয়াল মিল অনুরোধ</h2><p>সদস্য নিজে অনুরোধ দিতে না পারলে তার হয়ে দিন। request-টি ওই সদস্যের হিস্টরিতেই সংরক্ষিত হবে।</p></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
+    <InfoPanel icon="user-pen">সদস্য নিজে অনুরোধ দিতে না পারলে তার হয়ে এন্ট্রি করুন। সঠিক সদস্য ও তারিখ বেছে নিন; অনুরোধটি নির্বাচিত সদস্যের ইতিহাসে সংরক্ষিত হবে এবং ডুপ্লিকেট এন্ট্রি সার্ভার থেকে আটকানো হবে।</InfoPanel>
     <div className="request-range-grid"><label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e)=>setMemberId(e.target.value)}>{members.filter((m)=>m.member_status==='active').map((m)=><option key={m.membership_id} value={m.membership_id}>{m.member_name}</option>)}</select></label><label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date||undefined} value={startDate} onChange={(e)=>{setStartDate(e.target.value);if(endDate<e.target.value)setEndDate(e.target.value);}}/></label><label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate||tomorrowValue()} max={period?.end_date||undefined} value={endDate} onChange={(e)=>setEndDate(e.target.value)}/></label></div>
     <div className="default-meal-box"><div><strong>ডিফল্ট মিল</strong><small>প্রতিদিনের শুরুতে এই মান থাকবে; প্রতিটি দিনে আলাদা করে +/- করতে পারবেন।</small></div><div className="default-meal-controls">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={defaults[key]} onChange={(e)=>setDefaults((old)=>({...old,[key]:clampMeal(e.target.value)}))}/></label>)}</div><button className="secondary-button compact" type="button" onClick={applyDefaults}>সব দিনে প্রয়োগ করুন</button></div>
     <div className="request-summary-strip"><span>{formatNumber(days.length)} দিন</span><strong>মোট {formatMealCompact(totalDays(days))} মিল</strong></div>
@@ -1921,6 +1967,7 @@ function ManagerDepositForm({ members, period, onSaved }) {
   return (
     <section className="dining-panel card">
       <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>ডিপোজিট</h2><p>যেকোনো সদস্যের নামে ডিপোজিট যোগ করুন।</p></div></div>
+      <InfoPanel icon="wallet">যে সদস্যের নামে টাকা জমা হচ্ছে, তাঁর নাম, তারিখ ও পরিমাণ যাচাই করুন। জমা সংশ্লিষ্ট চলমান মাসের লেনদেনে যুক্ত হবে এবং নোটিফিকেশনে সদস্য ও এন্ট্রিকারীর নাম দেখাবে।</InfoPanel>
       {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
       <div className="form-grid-2">
         <label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e) => setMemberId(e.target.value)}>{members.filter((member) => member.member_status === 'active').map((member) => <option value={member.membership_id} key={member.membership_id}>{member.member_name}</option>)}</select></label>
@@ -1978,6 +2025,7 @@ function ManagerOtherExpenseForm({ members, period, onSaved }) {
   return (
     <section className="dining-panel card">
       <div className="panel-header"><div><span className="eyebrow">ম্যানেজার ফিচার</span><h2>অন্যান্য খরচ</h2><p>নির্বাচিত সদস্যের ডিপোজিট/হিসাব থেকে এই পরিমাণ বাদ যাবে।</p></div></div>
+      <InfoPanel tone="warning" icon="receipt">খরচের পরিমাণ ও বিবরণ যাচাই করুন। এটি নির্বাচিত সদস্যের হিসাব থেকে বাদ যাবে; ভুল এন্ট্রি এড়াতে সংরক্ষণের আগে সদস্য ও তারিখ মিলিয়ে নিন।</InfoPanel>
       {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
       <div className="form-grid-2">
         <label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e) => setMemberId(e.target.value)}>{members.filter((member) => member.member_status === 'active').map((member) => <option value={member.membership_id} key={member.membership_id}>{member.member_name}</option>)}</select></label>
