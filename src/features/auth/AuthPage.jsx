@@ -88,7 +88,7 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
               <span className="auth-brand-name">Hostel Life</span>
             </div>
           </div>
-          {!minimal && <p className="auth-brand-quote">হিসাবের স্বচ্ছতা, মেস পরিচালনায় আস্থা।</p>}
+          {!minimal && <p className="auth-brand-quote">মিল, বাজার ও হিসাব—এক জায়গায়, স্বচ্ছতা ও আস্থার সঙ্গে।</p>}
         </div>
         <div className="auth-form-panel">
           <div className="auth-form-toolbar">

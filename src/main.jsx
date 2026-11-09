@@ -20,6 +20,8 @@ import './styles/ui-polish-v42.css';
 import './styles/ui-polish-v43.css';
 import './styles/dining-auth-polish-v44.css';
 import './styles/ui-polish-v45.css';
+import './styles/auth-brand-center-v47.css';
+import './styles/auth-brand-refinement-v48.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();
