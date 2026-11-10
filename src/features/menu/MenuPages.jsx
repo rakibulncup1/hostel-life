@@ -170,9 +170,11 @@ export function KhalaMoneyViewPage() {
         ...(Array.isArray(previousPeriods) ? previousPeriods : []),
       ].filter((period, index, all) => period?.period_id && all.findIndex((item) => item.period_id === period.period_id) === index)
         .slice(0, 36);
-      const editableIds = new Set((Array.isArray(writablePeriods) ? writablePeriods : [])
+      const safeWritablePeriods = (Array.isArray(writablePeriods) ? writablePeriods : [])
+        .filter((period) => period?.status === 'running' || period?.access_kind === 'closed_by');
+      const editableIds = new Set(safeWritablePeriods
         .map((period) => String(period?.period_id || period?.id || '')).filter(Boolean));
-      const periodById = new Map((Array.isArray(writablePeriods) ? writablePeriods : [])
+      const periodById = new Map(safeWritablePeriods
         .map((period) => [String(period?.period_id || period?.id || ''), period]));
       const decoratedPeriods = periodRows.map((period) => {
         const access = periodById.get(String(period.period_id));
@@ -818,7 +820,10 @@ export function ArchiveEditAccessPage() {
   const load = useCallback(async () => {
     setLoading(true);
     setErrorText('');
-    try { setPeriods(await fetchMyArchiveEditablePeriods()); }
+    try {
+      const rows = await fetchMyArchiveEditablePeriods();
+      setPeriods((Array.isArray(rows) ? rows : []).filter((period) => period?.access_kind === 'closed_by'));
+    }
     catch (error) {
       setPeriods([]);
       setErrorText(getFriendlySupabaseError(error, 'আর্কাইভের অনুমতিগুলো লোড করা যায়নি।'));
@@ -826,7 +831,7 @@ export function ArchiveEditAccessPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
   return <div className="page-stack">
-    <PageHeader eyebrow="নির্দিষ্ট মাসের অনুমতি" title="আর্কাইভ সম্পাদনা" description="শুধু অনুমোদিত আর্কাইভ এখানে দেখাবে।" />
-    {loading ? <LoadingSpinner label="আর্কাইভের অনুমতি যাচাই হচ্ছে..." /> : errorText ? <div className="state-card state-card-warning"><Icon name="warning" size={24} /><div><h2>আর্কাইভ লোড করা যায়নি</h2><p>{errorText}</p><button className="secondary-button compact" type="button" onClick={load}>আবার চেষ্টা করুন</button></div></div> : periods.length === 0 ? <div className="empty-state-card"><Icon name="shield" size={28} /><strong>এখনো কোনো আর্কাইভ সম্পাদনার অনুমতি নেই</strong><span>যে ম্যানেজার মাসটি বন্ধ করেছেন, বর্তমান প্রধান ম্যানেজার তাকে ওই নির্দিষ্ট মাসের জন্য অস্থায়ী অনুমতি দিতে পারবেন।</span></div> : <div className="archive-month-list">{periods.map((period) => <article className="card archive-month-card detail-month" key={period.period_id}><div className="archive-month-icon"><Icon name="history" size={20} /></div><div className="archive-month-copy"><strong>{period.label}</strong><small>{formatDateBangla(period.start_date)} → {formatDateBangla(period.end_date)}</small><span>{period.access_kind}{period.expires_at ? ` · মেয়াদ ${formatDateWithWeekday(period.expires_at)}` : ''}</span><span>মাস বন্ধ করেছিলেন: {period.manager_at_close_name}</span></div><button className="primary-button compact" type="button" onClick={() => navigateTo(`/app/history?archive_period=${encodeURIComponent(period.period_id)}`)}>হিসাব খুলুন</button></article>)}</div>}
+    <PageHeader eyebrow="বন্ধ মাসের অনুমতি" title="বন্ধ মাসের সম্পাদনা" description="শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্ট সংশোধন করতে পারবে।" />
+    {loading ? <LoadingSpinner label="আর্কাইভের অনুমতি যাচাই হচ্ছে..." /> : errorText ? <div className="state-card state-card-warning"><Icon name="warning" size={24} /><div><h2>আর্কাইভ লোড করা যায়নি</h2><p>{errorText}</p><button className="secondary-button compact" type="button" onClick={load}>আবার চেষ্টা করুন</button></div></div> : periods.length === 0 ? <div className="empty-state-card"><Icon name="shield" size={28} /><strong>আপনি এখনো কোনো মাস বন্ধ করেননি</strong><span>আপনি যে মাসগুলো বন্ধ করবেন, শুধু সেগুলোর সংশোধনের সুবিধা এখানে দেখা যাবে। অন্য বন্ধ মাসগুলো ইতিহাস ও বন্ধ মাসসমূহ থেকে দেখা যাবে।</span></div> : <div className="archive-month-list">{periods.map((period) => <article className="card archive-month-card detail-month" key={period.period_id}><div className="archive-month-icon"><Icon name="history" size={20} /></div><div className="archive-month-copy"><strong>{period.label}</strong><small>{formatDateBangla(period.start_date)} → {formatDateBangla(period.end_date)}</small><span>{period.access_kind}{period.expires_at ? ` · মেয়াদ ${formatDateWithWeekday(period.expires_at)}` : ''}</span><span>মাস বন্ধ করেছিলেন: {period.manager_at_close_name}</span></div><button className="primary-button compact" type="button" onClick={() => navigateTo(`/app/history?archive_period=${encodeURIComponent(period.period_id)}`)}>হিসাব খুলুন</button></article>)}</div>}
   </div>;
 }

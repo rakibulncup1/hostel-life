@@ -22,11 +22,12 @@ test('finance feature guidance is rendered as a quiet inline hint rather than a 
   for (const snippet of [
     'className="finance-context-note" icon="calendar-check"',
     'className="finance-context-note finance-context-note-warning" tone="warning"',
-    'className="finance-context-note" icon="wallet"',
     'className="finance-context-note finance-context-note-warning" tone="warning" icon="archive"',
     'className="finance-context-note" icon="book-open"',
     'className="finance-context-note" icon="download"',
   ]) assert.ok(manager.includes(snippet), `missing finance note: ${snippet}`);
+  const khalaPage = manager.slice(manager.indexOf('export function KhalaMoneyPage()'), manager.indexOf('export function ', manager.indexOf('export function KhalaMoneyPage()') + 10));
+  assert.doesNotMatch(khalaPage, /finance-context-note|সব মাসের হিসাব দেখুন/);
   assert.match(menu, /className="finance-context-note" icon="activity"/);
   assert.match(menu, /className="closed-month-guidance-panel" icon="archive"/);
   assert.match(css, /\.info-panel\.finance-context-note\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);

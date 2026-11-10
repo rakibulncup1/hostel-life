@@ -205,3 +205,109 @@
 .archive-readonly-counts .metric { padding: 11px 12px; }
 
 .archive-reopen-hint{display:block;width:100%;color:var(--muted);font-size:12px;line-height:1.5}.archive-detail-toolbar{flex-wrap:wrap}
+
+/* Run54: keep the closed-month landing page calm, compact and theme-aware.
+   These rules are intentionally scoped to this page only. */
+.archive-correction-page .archive-correction-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: clamp(12px, 1.8vw, 18px) clamp(14px, 2vw, 22px);
+}
+.archive-correction-page .archive-hero-guidance {
+  grid-column: 1 / -1;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: clamp(11px, 1.35vw, 15px) clamp(13px, 1.8vw, 18px);
+  border: 1px solid color-mix(in srgb, var(--primary, #17845b) 19%, var(--archive-line));
+  border-left: 3px solid var(--primary, #17845b);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft, #e8f5ed) 68%, var(--archive-card));
+  color: var(--archive-text);
+  box-shadow: 0 2px 9px color-mix(in srgb, var(--archive-text) 4%, transparent);
+  font-size: clamp(12px, .95vw, 13px);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.archive-correction-page .archive-hero-guidance p {
+  max-width: none;
+  margin: 0;
+  color: var(--archive-text);
+  font-size: inherit;
+  line-height: inherit;
+}
+.archive-correction-page .archive-hero-stats { gap: 9px; }
+.archive-correction-page .archive-hero-stat {
+  min-height: 66px;
+  justify-content: center;
+  padding: 10px 13px;
+}
+.archive-correction-page .archive-hero-stat span { font-size: .74rem; }
+.archive-correction-page .archive-hero-stat strong { font-size: 1rem; line-height: 1.35; }
+.archive-correction-page .archive-correction-access-note {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 15px;
+  border: 1px solid color-mix(in srgb, var(--primary, #17845b) 17%, var(--archive-line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft, #e8f5ed) 36%, var(--archive-card));
+  color: var(--archive-text);
+}
+.archive-correction-page .archive-correction-access-note > div { min-width: 0; }
+.archive-correction-page .archive-correction-access-note strong {
+  margin: 0 0 3px;
+  font-size: .86rem;
+  line-height: 1.45;
+}
+.archive-correction-page .archive-correction-access-note p {
+  color: var(--archive-muted);
+  font-size: .78rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.archive-correction-page .archive-list-heading { align-items: center; }
+.archive-correction-page .archive-list-heading h2 { margin-bottom: 0; }
+.archive-correction-page .archive-month-copy { gap: 5px; }
+.archive-correction-page .archive-month-copy > span.archive-access-badge { margin-top: 1px; }
+.archive-correction-page .archive-empty-state { min-height: 150px; }
+.archive-correction-page .archive-category-empty { align-items: center; padding: 11px 13px; }
+
+@media (max-width: 760px) {
+  .archive-correction-page .archive-correction-header { grid-template-columns: minmax(0, 1fr); }
+  .archive-correction-page .archive-hero-guidance { grid-column: 1; }
+}
+@media (max-width: 540px) {
+  .archive-correction-page .archive-hero-guidance {
+    padding: 10px 11px;
+    border-radius: 11px;
+    font-size: 11.5px;
+    line-height: 1.58;
+  }
+  .archive-correction-page .archive-hero-stat { min-height: 58px; padding: 9px 10px; }
+  .archive-correction-page .archive-hero-stat span { font-size: .66rem; }
+  .archive-correction-page .archive-hero-stat strong { font-size: .86rem; }
+  .archive-correction-page .archive-correction-access-note { padding: 10px 11px; border-radius: 11px; }
+  .archive-correction-page .archive-correction-access-note strong { font-size: .81rem; }
+  .archive-correction-page .archive-correction-access-note p { font-size: .73rem; }
+}
+.archive-correction-page .archive-readonly-warning {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 12px 14px;
+  border-radius: 13px;
+  overflow-wrap: anywhere;
+}
+.archive-correction-page .archive-readonly-warning > svg { flex: 0 0 18px; margin-top: 2px; }
+.archive-correction-page .archive-readonly-warning > div { flex: 1 1 auto; min-width: 0; }
+.archive-correction-page .archive-readonly-warning p { margin-bottom: 0; overflow-wrap: anywhere; }
+@media (max-width: 540px) {
+  .archive-correction-page .archive-readonly-warning { padding: 10px 11px; border-radius: 11px; }
+}

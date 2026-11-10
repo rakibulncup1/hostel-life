@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '../../components/Icon';
-import { InfoPanel } from '../../components/InfoPanel';
 import { TelegramLogo } from '../../components/TelegramLogo';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useToast } from '../../components/Toast';
@@ -12,6 +11,7 @@ import {
 } from '../../services/telegramService';
 import { confirmAction } from '../../utils/actionDialogs';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
+import { navigateTo } from '../../app/AppShell';
 
 function rememberConnectionStatus(next, userId) {
   if (!userId) return;
@@ -106,15 +106,20 @@ export function TelegramConnectionPage() {
     catch { toast.warning('লিংকটি কপি করা যায়নি। টেলিগ্রাম বোতাম ব্যবহার করুন।'); }
   };
 
-  if (loading) return <main className="page-container telegram-page"><LoadingSpinner label="টেলিগ্রাম সংযোগ যাচাই হচ্ছে..."/></main>;
+  const pageIntro = (
+    <header className="page-heading telegram-heading card menu-page-intro-card telegram-menu-intro-card">
+      <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15}/> ফিরে যান</button>
+      <span className="eyebrow">ব্যক্তিগত বিজ্ঞপ্তি</span>
+      <h1>টেলিগ্রাম সংযোগ</h1>
+      <p>মেসের গুরুত্বপূর্ণ বিজ্ঞপ্তি সরাসরি আপনার টেলিগ্রাম অ্যাকাউন্টে পান।</p>
+    </header>
+  );
+
+  if (loading) return <main className="page-container telegram-page">{pageIntro}<LoadingSpinner label="টেলিগ্রাম সংযোগ যাচাই হচ্ছে..."/></main>;
 
   return (
     <main className="page-container telegram-page">
-      <header className="page-heading telegram-heading">
-        <span className="eyebrow">ব্যক্তিগত বিজ্ঞপ্তি</span>
-        <h1>টেলিগ্রাম সংযোগ</h1>
-        <p>গুরুত্বপূর্ণ মেস বিজ্ঞপ্তি টেলিগ্রামে পেতে সংযোগ করুন।</p>
-      </header>
+      {pageIntro}
 
       <section className="card telegram-connection-card">
         <div className="telegram-card-hero">
@@ -149,7 +154,6 @@ export function TelegramConnectionPage() {
         {error && <div className="inline-error telegram-error" role="alert">{error}</div>}
       </section>
 
-      <InfoPanel icon="shield-check" className="telegram-privacy-note">শুধু অ্যাপ নোটিফিকেশন পাঠানো হয়। পাসওয়ার্ড বা OTP কখনো পাঠানো হয় না।</InfoPanel>
     </main>
   );
 }

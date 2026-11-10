@@ -94,7 +94,9 @@ test('App Install page is reduced to a single direct PWA action without download
   assert.match(appDownload, /canInstall \? \(/);
   assert.match(appDownload, /installNow/);
   assert.match(appDownload, /এখনই ইনস্টল করুন/);
-  assert.match(appDownload, /installed \? 'Hostel Life ইনস্টল করা আছে'/);
+  assert.match(appDownload, /installed \? 'এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে'/);
+  assert.match(appDownload, /app-download-menu-intro/);
+  assert.match(appDownload, /navigateTo\('\/app\/dashboard'\)/);
   assert.doesNotMatch(appDownload, /INSTALL GUIDE|app-download-steps|Android · Chrome|iPhone \/ iPad|Desktop · Chrome/);
   assert.match(appDownloadCss, /\.app-download-single-card/);
   assert.doesNotMatch(appDownloadCss, /\.app-download-steps|\.app-download-step/);

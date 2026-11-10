@@ -1,0 +1,128 @@
+/* Run53: remove leading icon columns from informational/guidance boxes.
+   Keep all message tones, borders and semantic roles; text now uses the full card width. */
+.info-panel,
+.info-panel.finance-context-note {
+  display: block !important;
+  gap: 0 !important;
+  min-width: 0;
+}
+.info-panel .info-panel-icon,
+.info-panel > .info-panel-icon,
+.info-panel > svg {
+  display: none !important;
+}
+.info-panel .info-panel-copy {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: none;
+  padding: 0;
+}
+
+/* The closed-month landing guidance follows the active theme rather than
+   looking like a fixed-color banner. It remains full-width on desktop/mobile. */
+.closed-month-guidance-panel {
+  display: block !important;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 12px 0 16px;
+  padding: clamp(13px, 2vw, 18px) clamp(14px, 2.2vw, 19px);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-left: 3px solid var(--primary);
+  border-radius: 15px;
+  background: linear-gradient(128deg,
+    color-mix(in srgb, var(--primary-soft) 68%, var(--surface)),
+    color-mix(in srgb, var(--surface) 94%, var(--primary-soft)));
+  color: var(--text);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--text) 4%, transparent);
+  font-size: clamp(12px, 1.15vw, 13px);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.closed-month-guidance-panel .info-panel-copy { color: var(--text); }
+
+/* Custom archive/history guidance cards use the same text-first alignment. */
+.archive-hero-guidance,
+.history-intro-guidance-box {
+  display: block !important;
+  gap: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line));
+  border-left: 3px solid var(--primary);
+  border-radius: 14px;
+  background: linear-gradient(128deg,
+    color-mix(in srgb, var(--primary-soft) 62%, var(--surface)),
+    var(--surface));
+  color: var(--text);
+  box-shadow: 0 3px 11px color-mix(in srgb, var(--text) 3%, transparent);
+  overflow-wrap: anywhere;
+}
+.archive-hero-guidance > svg,
+.history-intro-guidance-box > svg { display: none !important; }
+.archive-hero-guidance > p { margin: 0; }
+.history-intro-guidance-box > span { display: block; min-width: 0; }
+
+/* Other informational/warning panels: preserve their color and content while
+   removing the decorative left icon and reclaiming its horizontal space. */
+.manager-warning-box,
+.meal-policy-note,
+.market-paste-hint,
+.hostel-invite-security-note,
+.platform-retention-hint,
+.platform-report-range-note,
+.platform-report-warning,
+.platform-backup-notice,
+.platform-health-runtime-warning,
+.month-close-finalization-guidance {
+  gap: 0 !important;
+}
+.manager-warning-box,
+.meal-policy-note,
+.market-paste-hint,
+.hostel-invite-security-note,
+.platform-report-range-note,
+.platform-report-warning,
+.platform-backup-notice,
+.platform-health-runtime-warning,
+.month-close-finalization-guidance {
+  display: block !important;
+}
+.manager-warning-box > svg,
+.meal-policy-note > svg,
+.market-paste-hint > svg,
+.hostel-invite-security-note > svg,
+.platform-retention-hint > svg,
+.platform-report-range-note > svg,
+.platform-report-warning > svg,
+.platform-backup-notice > svg,
+.platform-health-runtime-warning > svg,
+.month-close-finalization-guidance > svg {
+  display: none !important;
+}
+.manager-warning-box > div,
+.hostel-invite-security-note > span,
+.platform-backup-notice > div,
+.platform-health-runtime-warning > span {
+  display: block;
+  min-width: 0;
+  width: 100%;
+}
+.market-paste-hint > span { display: block; min-width: 0; width: 100%; }
+
+@media (max-width: 640px) {
+  .closed-month-guidance-panel {
+    margin: 10px 0 13px;
+    padding: 11px 12px;
+    border-radius: 13px;
+    font-size: 11.5px;
+    line-height: 1.65;
+  }
+  .archive-hero-guidance,
+  .history-intro-guidance-box { padding-inline: 11px; }
+}

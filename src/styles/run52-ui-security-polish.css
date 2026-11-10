@@ -1,0 +1,246 @@
+/* Run52: responsive menu, guidance panels, compact Khala ledger and share alignment. */
+.menu-page-intro-card,
+.manager-page-title.menu-page-intro-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: clamp(15px, 2.2vw, 23px);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.menu-page-intro-card .back-button { margin-bottom: 12px; }
+.menu-page-intro-card h1 { margin: 4px 0 5px; line-height: 1.22; }
+.menu-page-intro-card p { max-width: 72ch; line-height: 1.65; }
+.telegram-menu-intro-card { margin-bottom: 14px; }
+.telegram-menu-intro-card .eyebrow { display: block !important; }
+.telegram-menu-intro-card h1 { font-size: clamp(22px, 3vw, 28px); }
+.telegram-menu-intro-card p { margin-top: 5px; }
+.telegram-connection-card { width: 100%; max-width: 680px; margin-inline: auto; }
+.telegram-card-hero { min-width: 0; }
+.telegram-connected-summary,
+.telegram-connect-content,
+.telegram-link-result { min-width: 0; }
+.telegram-steps > span { min-width: 0; overflow-wrap: anywhere; }
+.app-download-menu-intro { margin: 0 auto 14px; width: min(100% - 24px, 760px); }
+.app-download-page { display: grid; gap: 14px; }
+.app-download-page .app-download-single-card { margin-top: 0; }
+
+/* Khala money rows: compact without changing deposit/expense ledger cards. */
+.manager-ledger-row.khala-manager-ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+  padding: 11px 13px;
+  border-radius: 14px;
+}
+.khala-manager-ledger-row .khala-ledger-copy { gap: 3px; }
+.khala-manager-ledger-row .khala-ledger-recipient { gap: 2px; margin-bottom: 0; }
+.khala-manager-ledger-row .khala-ledger-recipient > span { font-size: 10px; }
+.khala-manager-ledger-row .khala-ledger-recipient > strong { font-size: clamp(14px, 1.7vw, 17px); line-height: 1.3; }
+.khala-manager-ledger-row .khala-entry-kind { font-size: 10.5px; }
+.khala-manager-ledger-row .khala-ledger-copy > small { font-size: 10.5px; line-height: 1.5; }
+.khala-manager-ledger-row .khala-ledger-description { font-size: 11px; line-height: 1.45; }
+.khala-manager-ledger-row > strong { align-self: start; white-space: nowrap; font-size: clamp(15px, 1.7vw, 18px); }
+.khala-manager-ledger-row .khala-row-actions,
+.khala-manager-ledger-row > .member-badge { justify-self: end; align-self: center; }
+
+/* Meal request, request history and late-request guidance blocks: consistent gaps and wrapping. */
+.dining-panel > .info-panel,
+.dining-panel > .meal-policy-note,
+.dining-panel > .state-card,
+.dining-panel > .manager-warning-box {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-block: 11px 0;
+  overflow-wrap: anywhere;
+}
+.dining-panel > .panel-header + .info-panel { margin-top: 13px; }
+.dining-panel > .info-panel + .meal-policy-note,
+.dining-panel > .info-panel + .state-card,
+.dining-panel > .state-card + .state-card,
+.dining-panel > .manager-warning-box + .state-card { margin-top: 10px; }
+.dining-panel .info-panel-copy,
+.dining-panel .meal-policy-note,
+.dining-panel .manager-warning-box > div,
+.dining-panel .state-card > div { min-width: 0; overflow-wrap: anywhere; }
+.dining-panel .info-panel-icon,
+.dining-panel .meal-policy-note > svg,
+.dining-panel .manager-warning-box > svg,
+.dining-panel .state-card > svg { flex: 0 0 auto; }
+
+/* History and closed-month guidance remain full-width cards at all breakpoints. */
+.history-title-row { min-width: 0; }
+.history-title-footer { min-width: 0; width: 100%; align-items: stretch; }
+.history-title-row .history-intro-guidance-box {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  flex: 1 1 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.archive-correction-header,
+.archive-hero-main,
+.archive-hero-copy { box-sizing: border-box; min-width: 0; }
+.archive-hero-guidance {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.archive-hero-guidance p { min-width: 0; overflow-wrap: anywhere; }
+
+/* All menu features share the same responsive return/title/description rhythm. */
+.menu-page-title-copy,
+.manager-page-title > div { min-width: 0; }
+.menu-page-title-copy .eyebrow,
+.manager-page-title .manager-eyebrow { display: inline-flex; max-width: 100%; overflow-wrap: anywhere; }
+.menu-page-intro-card .back-button { min-height: 34px; }
+
+/* Keep every line in share previews flush-left; never indent numbered rows on mobile. */
+.market-share-preview {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding-inline-start: 13px !important;
+  text-indent: 0 !important;
+  text-align: left !important;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  tab-size: 2;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .menu-page-intro-card,
+  .manager-page-title.menu-page-intro-card { padding: 14px; border-radius: 15px; }
+  .menu-page-intro-card .back-button { margin-bottom: 9px; }
+  .telegram-page { width: min(100% - 20px, 680px); margin: 14px auto 38px; }
+  .telegram-menu-intro-card { margin-bottom: 10px; }
+  .telegram-connection-card { padding: 14px !important; border-radius: 15px !important; }
+  .telegram-card-hero { padding: 5px 4px 16px; }
+  .telegram-card-hero .telegram-brand-icon { width: 62px; height: 62px; border-radius: 18px; }
+  .telegram-card-hero .telegram-brand-icon svg { width: 37px; height: 37px; }
+  .telegram-steps { width: 100%; gap: 8px; }
+  .telegram-steps > span { padding: 9px 10px; font-size: 11px; }
+  .telegram-actions { flex-wrap: wrap; }
+  .telegram-actions > button { flex: 1 1 auto; }
+  .app-download-menu-intro { width: calc(100% - 20px); }
+  .khala-manager-ledger-row { grid-template-columns: minmax(0, 1fr) auto; gap: 7px 9px; padding: 10px 11px; }
+  .khala-manager-ledger-row > strong { font-size: 15px; }
+  .dining-panel > .info-panel,
+  .dining-panel > .meal-policy-note,
+  .dining-panel > .state-card,
+  .dining-panel > .manager-warning-box { margin-top: 9px; padding: 10px 11px; border-radius: 12px; }
+  .history-title-footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .history-title-row .history-intro-guidance-box { padding: 11px 12px; font-size: 11.5px; }
+  .archive-hero-guidance { padding: 10px 11px; font-size: 11.5px; }
+}
+
+@media (max-width: 390px) {
+  .khala-manager-ledger-row { grid-template-columns: minmax(0, 1fr); }
+  .khala-manager-ledger-row > strong { grid-column: 1; grid-row: 1; justify-self: start; }
+  .khala-manager-ledger-row .khala-ledger-copy { grid-row: 2; }
+  .khala-manager-ledger-row .khala-row-actions,
+  .khala-manager-ledger-row > .member-badge { grid-column: 1; grid-row: 3; justify-self: end; }
+  .telegram-link-result { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The management screen is informational now: the database assigns closed-period
+   edit authority exclusively to the recorded closer; do not present a grant form. */
+.archive-closer-only-panel { min-width: 0; }
+.archive-closer-only-note {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  padding: 14px 15px;
+  border: 1px solid color-mix(in srgb, var(--success, #27865c) 22%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--success, #27865c) 7%, var(--surface));
+  color: var(--text);
+}
+.archive-closer-only-note > svg {
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  border-radius: 11px;
+  color: var(--success, #27865c);
+  background: color-mix(in srgb, var(--success, #27865c) 12%, var(--surface));
+}
+.archive-closer-only-note > div { min-width: 0; }
+.archive-closer-only-note strong { display: block; font-size: 13px; line-height: 1.45; }
+.archive-closer-only-note p { margin: 4px 0 5px; color: var(--muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.archive-closer-only-note small { display: block; color: var(--muted); font-size: 10.5px; line-height: 1.55; overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .archive-closer-only-note { grid-template-columns: 32px minmax(0, 1fr); gap: 9px; padding: 11px 12px; border-radius: 12px; }
+  .archive-closer-only-note > svg { width: 32px; height: 32px; padding: 7px; }
+  .archive-closer-only-note strong { font-size: 12px; }
+  .archive-closer-only-note p { font-size: 11px; }
+  .archive-closer-only-note small { font-size: 10px; }
+}
+
+/* Public/member Khala history rows use the same compact visual rhythm as the
+   manager ledger, while preserving their existing two-row mobile amount layout. */
+.khala-public-list { gap: 5px; }
+.khala-public-row {
+  box-sizing: border-box;
+  min-width: 0;
+  gap: 9px 12px;
+  padding: 10px 12px;
+  border-top-color: var(--line);
+}
+.khala-public-row.is-mine { padding: 10px 12px; border-radius: 12px; }
+.khala-public-person,
+.khala-public-person-copy,
+.khala-public-amount { min-width: 0; }
+.khala-public-person { gap: 9px; }
+.khala-public-person-copy { display: grid; gap: 2px; }
+.khala-public-person-copy .khala-ledger-recipient { gap: 2px; }
+.khala-public-person-copy .khala-ledger-recipient > span { font-size: 10px; line-height: 1.3; }
+.khala-public-person-copy .khala-ledger-recipient > strong { font-size: 13.5px; line-height: 1.35; }
+.khala-public-person-copy .khala-public-entry-kind { font-size: 10.5px; line-height: 1.35; }
+.khala-public-person-copy > small { margin-top: 0; font-size: 10.5px; line-height: 1.45; overflow-wrap: anywhere; }
+.khala-public-amount { gap: 8px; }
+.khala-public-amount > strong { font-size: clamp(15px, 1.7vw, 18px); white-space: nowrap; }
+.khala-public-person .khala-ledger-mark { width: 32px; height: 32px; flex: 0 0 32px; border-radius: 10px; }
+
+@media (max-width: 640px) {
+  .khala-public-row { gap: 6px; padding: 9px 10px; }
+  .khala-public-row.is-mine { padding: 9px 10px; }
+  .khala-public-person { gap: 8px; }
+  .khala-public-person .khala-ledger-mark { width: 29px; height: 29px; flex-basis: 29px; }
+  .khala-public-person-copy .khala-ledger-recipient > strong { font-size: 13px; }
+  .khala-public-person-copy > small { font-size: 10px; }
+  .khala-public-amount > strong { font-size: 15px; }
+}
+
+/* History intro must remain a genuine, quiet information box (not bare inline text). */
+.history-title-row .history-intro-guidance-box {
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 74%, var(--surface));
+  box-shadow: 0 3px 12px rgba(20, 70, 42, .04);
+  color: var(--text);
+}
+@media (max-width: 640px) {
+  .history-title-row .history-intro-guidance-box {
+    padding: 10px 11px;
+    border-radius: 12px;
+    font-size: 11px;
+  }
+}

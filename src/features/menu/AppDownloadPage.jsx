@@ -3,6 +3,7 @@ import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { useInstallPromptContext } from '../../contexts/InstallPromptContext';
 import { useToast } from '../../components/Toast';
+import { navigateTo } from '../../app/AppShell';
 
 function getManualInstallGuide() {
   const ua = typeof navigator === 'undefined' ? '' : navigator.userAgent || '';
@@ -47,11 +48,18 @@ export function AppDownloadPage() {
 
   return (
     <main className="app-download-page">
+      <header className="page-title-row menu-page-title card menu-page-intro-card app-download-menu-intro">
+        <div className="menu-page-title-copy">
+          <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15}/> ফিরে যান</button>
+          <span className="eyebrow">ডিভাইস ও অ্যাপ</span>
+          <h1>অ্যাপ ইনস্টল</h1>
+          <p>হোম স্ক্রিন থেকে এক ট্যাপে Hostel Life খুলুন।</p>
+        </div>
+      </header>
       <section className="card app-download-single-card" aria-labelledby="app-download-title">
         <span className="app-download-single-icon" aria-hidden="true"><BrandMark size={62}/></span>
         <span className="eyebrow">HOSTEL LIFE · APP</span>
-        <h1 id="app-download-title">{installed ? 'Hostel Life ইনস্টল করা আছে' : 'নিজের ডিভাইসে Hostel Life রাখুন'}</h1>
-        <p className="app-download-intro">হোম স্ক্রিন থেকে এক ট্যাপে Hostel Life খুলুন।</p>
+        <h2 id="app-download-title">{installed ? 'এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে' : 'Hostel Life ডিভাইসে যুক্ত করুন'}</h2>
         {installed ? (
           <p className="app-download-single-status"><Icon name="check-circle" size={17}/> এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে।</p>
         ) : canInstall ? (

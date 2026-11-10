@@ -120,7 +120,8 @@ export function HistoryPage() {
         setPeriodLoadError(message);
         toast.error(message);
       }
-      const archivePermission = editablePeriods.some((period) => period.period_id === selectedArchivePeriodId);
+      const archivePermission = editablePeriods.some((period) => period.access_kind === 'closed_by'
+        && String(period.period_id || period.id) === String(selectedArchivePeriodId));
       if (selectedArchivePeriodId && periodsResult.status === 'fulfilled'
           && !allPeriods.some((period) => period.period_id === selectedArchivePeriodId)) {
         throw new Error('নির্বাচিত মাস পাওয়া যায়নি।');
@@ -157,7 +158,7 @@ export function HistoryPage() {
         else console.warn('Market filters could not load member names:', memberResult.reason);
       } else if (tab === 'account') {
         // The Run41 RPC limits results to this hostel; any member can read them.
-        // Editing permissions remain unchanged in the action handlers below.
+        // Archived edit permission is granted only by the server-returned closed_by access list.
         const memberId = accountFilter || null;
         const accounts = await fetchAccountHistory({ periodId, memberId, limit: 500 });
         setAccountRows(accounts);
@@ -197,12 +198,13 @@ export function HistoryPage() {
     membership,
     period: runningPeriodContext,
   });
+  const selectedArchivePeriod = archiveEditPeriods.find((period) => period.access_kind === 'closed_by'
+    && String(period.period_id || period.id) === String(selectedArchivePeriodId));
   const canEditVisibleRows = Boolean(selectedArchivePeriodId
-    ? archiveEditPeriods.some((period) => period.period_id === selectedArchivePeriodId)
+    ? Boolean(selectedArchivePeriod)
     : canManageHistoryEffective && hasRunningMonth);
-  const selectedArchivePeriod = archiveEditPeriods.find((period) => period.period_id === selectedArchivePeriodId);
-  // Separate the archived period record from the optional edit grant. The period
-  // label must remain visible even when a viewer has no permission to edit it.
+  // Keep the visible archive record separate from the strict closed_by edit list.
+  // The month label remains visible even when this account cannot edit it.
   const selectedArchiveRecord = periods.find((period) => period.period_id === selectedArchivePeriodId) || selectedArchivePeriod || null;
   const displayedHistoryPeriod = selectedArchivePeriodId ? selectedArchiveRecord : runningPeriodContext;
   const displayedHistoryPeriodLabel = selectedArchivePeriodId
@@ -346,7 +348,7 @@ export function HistoryPage() {
           </div>
         </div>
         <div className="history-title-footer">
-          <div className="history-intro-info finance-context-note-inline history-intro-guidance-box"><Icon name="info" size={17}/><span>বাজার, জমা-খরচ ও আগের মাসের সংরক্ষিত হিসাব দেখুন। বিস্তারিত খুলতে যেকোনো রেকর্ডে চাপ দিন; সম্পাদনা শুধু অনুমোদিত ম্যানেজারের জন্য।</span></div>
+          <div className="history-intro-info finance-context-note-inline history-intro-guidance-box"><span>বাজার, জমা-খরচ ও আগের মাসের সংরক্ষিত হিসাব দেখুন। বিস্তারিত খুলতে যেকোনো রেকর্ডে চাপ দিন; সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য।</span></div>
           <div className="history-title-actions"><button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>{tab !== 'months' && <button className="secondary-button compact" type="button" onClick={exportCurrentTab} disabled={loading || exportBusy || !accountGrouped.length && tab === 'account' || !visibleMarketRows.length && tab === 'market'}><Icon name="download" size={15} /> PDF / প্রিন্ট</button>}</div>
         </div>
       </div>
@@ -359,17 +361,17 @@ export function HistoryPage() {
             <strong>{displayedHistoryPeriodLabel}</strong>
             <small>{displayedHistoryPeriodRange || (selectedArchivePeriodId ? 'সংরক্ষিত মাসের হিসাব' : hasRunningMonth ? 'চলমান মাসের হিসাব' : periodLoadError ? 'আবার চেষ্টা করে মাসের অবস্থা যাচাই করুন।' : 'আগের মাস দেখতে তালিকা থেকে একটি মাস নির্বাচন করুন।')}</small>
           </div>
-          <span className={`history-period-state ${selectedArchivePeriodId ? (selectedArchivePeriod ? 'is-editable' : 'is-readonly') : hasRunningMonth ? 'is-running' : periodLoadError ? 'is-checking' : 'is-unavailable'}`}>
-            {selectedArchivePeriodId ? (selectedArchivePeriod ? 'সম্পাদনার অনুমতি আছে' : 'শুধু দেখুন') : hasRunningMonth ? 'চলমান' : periodLoadError ? 'যাচাই প্রয়োজন' : 'চালু নেই'}
+          <span className={`history-period-state ${selectedArchivePeriodId ? (canEditVisibleRows ? 'is-editable' : 'is-readonly') : hasRunningMonth ? 'is-running' : periodLoadError ? 'is-checking' : 'is-unavailable'}`}>
+            {selectedArchivePeriodId ? (canEditVisibleRows ? 'আপনি মাসটি বন্ধ করেছেন · সম্পাদনা' : 'শুধু দেখুন · লক') : hasRunningMonth ? 'চলমান' : periodLoadError ? 'যাচাই প্রয়োজন' : 'চালু নেই'}
           </span>
         </div>
         <label className="field-label history-period-select"><span>{selectedArchivePeriodId ? 'অন্য মাসের হিসাব দেখতে' : 'অন্য মাস নির্বাচন করুন'}</span><select value={selectedArchivePeriodId} onChange={(event) => chooseArchivePeriod(event.target.value)}>
           <option value="">{hasRunningMonth ? `${runningPeriodContext?.label || 'চলমান মাস'}${formatHistoryPeriodRange(runningPeriodContext) ? ` · ${formatHistoryPeriodRange(runningPeriodContext)}` : ''}` : periodLoadError ? 'চলমান মাসের অবস্থা যাচাই হচ্ছে' : 'কোনো চলমান মাস নেই'}</option>
           {periods.map((period) => <option value={period.period_id} key={period.period_id}>{period.label} · {formatDateBangla(period.start_date)} – {formatDateBangla(period.end_date)}</option>)}
         </select></label>
-        {selectedArchivePeriodId && (selectedArchivePeriod
-          ? <div className="archive-scope-note is-editable"><Icon name="shield" size={16}/><span><strong>{selectedArchivePeriod.label || selectedArchiveRecord?.label || 'আর্কাইভ'}</strong> সম্পাদনা মোড · অনুমতি: {selectedArchivePeriod.access_kind === 'closed_by' ? 'মাস বন্ধকারী ম্যানেজার' : selectedArchivePeriod.access_kind === 'archive_grant' ? 'নির্দিষ্ট মাসের অনুমতি' : 'ম্যানেজমেন্ট অ্যাক্সেস'}{selectedArchivePeriod.expires_at ? ` · মেয়াদ ${formatDateTime12(selectedArchivePeriod.expires_at)}` : ''}</span></div>
-          : <div className="archive-scope-note is-readonly"><Icon name="lock" size={16}/><span><strong>{selectedArchiveRecord?.label || 'নির্বাচিত আর্কাইভ'}</strong> শুধু দেখার জন্য খোলা আছে। এই মাস সম্পাদনার অনুমতি নেই।</span></div>)}
+        {selectedArchivePeriodId && (canEditVisibleRows
+          ? <div className="archive-scope-note is-editable"><Icon name="shield-check" size={16}/><span><strong>{selectedArchivePeriod?.label || selectedArchiveRecord?.label || 'আর্কাইভ'}</strong> — এই মাসটি আপনার অ্যাকাউন্ট থেকে বন্ধ করা হয়েছে; তাই অনুমোদিত সংশোধন করতে পারবেন।</span></div>
+          : <div className="archive-scope-note is-readonly"><Icon name="lock" size={16}/><span><strong>{selectedArchiveRecord?.label || 'নির্বাচিত আর্কাইভ'}</strong> শুধু দেখার জন্য খোলা আছে। সম্পাদনা শুধু যিনি মাসটি বন্ধ করেছেন তিনিই করতে পারবেন।</span></div>)}
       </section>
 
       <div className="history-tabbar" role="tablist" aria-label="হিস্টরি বিভাগ">

@@ -1,0 +1,9 @@
+src/components/InfoPanel.jsx
+src/features/archive/ArchiveCorrectionPage.jsx
+src/features/history/HistoryPage.jsx
+src/features/dining/DiningPage.jsx
+src/main.jsx
+src/styles/run53_info_box_icon_cleanup.css
+tests/run53InfoBoxIconCleanup.test.mjs
+RUN53_INFO_BOX_ICON_CLEANUP_NOTES_BN.md
+RUN53_PATCH_FILES.txt

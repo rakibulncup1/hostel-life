@@ -15,16 +15,13 @@ import {
   deactivateMember,
   emergencyOverrideMyMeal,
   fetchArchiveManagementItems,
-  fetchArchivePermissions,
   fetchKhalaEntryMembers,
   fetchKhalaPeriods,
   fetchMealRequestOverlapDetails,
   fetchPeriodAssistants,
-  grantArchiveEditPermission,
   reactivateMember,
   reopenArchivedPeriod,
   regenerateJoinCode,
-  revokeArchiveEditPermission,
   saveManagerMyMeal,
   setPeriodAssistants,
   startNewMonth,
@@ -886,7 +883,7 @@ export function MemberManagementPage() {
 export function KhalaMoneyPage() {
   const toast = useToast();
   const online = useOnlineStatus();
-  const { context, isPrimaryManager, isOperationalManager, hasClosedMonthAccess } = useManagementContext();
+  const { context } = useManagementContext();
   const [periods, setPeriods] = useState([]);
   const [rows, setRows] = useState([]);
   const [periodId, setPeriodId] = useState(() => new URLSearchParams(window.location.search).get('period_id') || '');
@@ -915,7 +912,9 @@ export function KhalaMoneyPage() {
         const id = String(period?.period_id || period?.id || '');
         return id && all.findIndex((item) => String(item?.period_id || item?.id || '') === id) === index;
       }).slice(0, 36);
-      const writableById = new Map((Array.isArray(writableRows) ? writableRows : []).map((period) => [String(period.period_id || period.id), period]));
+      const writableById = new Map((Array.isArray(writableRows) ? writableRows : [])
+        .filter((period) => period?.status === 'running' || period?.access_kind === 'closed_by')
+        .map((period) => [String(period.period_id || period.id), period]));
       const periodRows = allPeriodRows.map((period) => {
         const id = String(period.period_id || period.id);
         const permission = writableById.get(id);
@@ -1035,12 +1034,10 @@ export function KhalaMoneyPage() {
 
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="খালার টাকার তথ্য অনলাইনে দেখা ও যোগ করা যাবে।" />;
   if (loading) return <LoadingSpinner label="খালার টাকার তথ্য লোড হচ্ছে..." />;
-  if (!isOperationalManager && !hasClosedMonthAccess && !periods.some((period) => period.can_manage_khala)) return <AccessNotice title="অনুমতি নেই" text="খালার টাকার এন্ট্রি বা সংশোধন করার জন্য কোনো অনুমোদিত মাস পাওয়া যায়নি।" />;
 
   return (
     <div className="page-stack">
-        <PageHeader title="খালার টাকা" icon="wallet" description={isOperationalManager ? 'মাসভিত্তিক খালার পারিশ্রমিক যোগ করুন।' : 'আপনার বন্ধ করা মাসের তথ্য দেখুন ও সংশোধন করুন।'} />
-        <InfoPanel className="finance-context-note" icon="wallet">সব মাসের হিসাব দেখুন। এন্ট্রি ও সংশোধন শুধু যেসব মাসে সার্ভার অনুমতি দিয়েছে সেখানেই করা যাবে।</InfoPanel>
+        <PageHeader title="খালার টাকা" icon="wallet" description="সব মাসের খালার হিসাব দেখুন; সংশোধন শুধু আপনার অনুমোদিত মাসে।" />
         <div className="khala-period-tabs" role="tablist" aria-label="খালার টাকার মাস নির্বাচন">
           {[{ key: 'previous', label: 'পূর্ববর্তী মাস' }, { key: 'current', label: 'বর্তমান মাস' }, { key: 'all', label: 'সকল মাস' }].map((tab) => <button key={tab.key} type="button" role="tab" aria-selected={periodTab === tab.key} className={periodTab === tab.key ? 'is-active' : ''} onClick={() => changePeriodTab(tab.key)}><span>{tab.label}</span><b>{formatNumber(periods.filter((period) => tab.key === 'all' || (tab.key === 'current' ? period.status === 'running' : period.status !== 'running')).length)}</b></button>)}
         </div>
@@ -1064,7 +1061,6 @@ export function KhalaMoneyPage() {
                 </select>
                 {!eligibleMembers.length && <small>সদস্য তালিকা পাওয়া যায়নি। তালিকা লোড না হওয়া পর্যন্ত এন্ট্রি করা যাবে না।</small>}
               </label>
-              {selectedPeriod && <div className="form-hint"><Icon name="info" size={15} /> এই খরচটি খালার আলাদা হিসাব হবে; কোনো সদস্যের ব্যক্তিগত ব্যালেন্স বা অন্যান্য খরচে যোগ হবে না। প্রদানের তারিখ নির্বাচিত কাজের মাসের শুরু থেকে আজ পর্যন্ত হতে পারবে। আজ পরিশোধ করলেও এন্ট্রিটি <strong>{selectedPeriod.label}</strong> মাসের হিসাবেই যুক্ত থাকবে।</div>}
               <div className="form-grid-2">
                 <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => setForm((current) => ({ ...current, amount: e.target.value }))} placeholder="০" required /></label>
                 <label className="field-label"><span>বিবরণ <em>(ঐচ্ছিক)</em></span><input value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} placeholder="যেমন: মাসিক পারিশ্রমিক" /></label>
@@ -1076,7 +1072,7 @@ export function KhalaMoneyPage() {
               <div className="section-heading"><div><span className="eyebrow">নির্বাচিত কাজের মাস</span><h2>{selectedPeriod?.label || '—'}</h2></div><div className="khala-total-heading"><small>মোট কার্যকর পারিশ্রমিক</small><strong>{formatCurrency(total)}</strong></div></div>
               <div className="manager-list-stack">
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
-                  <article className={`card manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
+                  <article className={`card manager-ledger-row khala-manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
                     <div className="khala-ledger-copy">
                       <div className="khala-ledger-recipient"><span>সদস্যের নাম</span><strong>{row.recipient_name || (row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : 'সদস্যের নাম পাওয়া যায়নি')}</strong></div>
                       <span className="khala-entry-kind">খালার পারিশ্রমিক</span>
@@ -1102,81 +1098,35 @@ export function ArchiveManagerPage() {
   const toast = useToast();
   const online = useOnlineStatus();
   const [months, setMonths] = useState([]);
-  const [members, setMembers] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('');
-  const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [permLoading, setPermLoading] = useState(false);
-  const [grantForm, setGrantForm] = useState({ expiresAt: '', reason: '' });
   const [busy, setBusy] = useState(false);
 
   const loadMonths = useCallback(async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([
-        fetchArchiveManagementItems(), fetchManagerMemberDirectory(),
-      ]);
-      if (results[0].status === 'rejected') throw results[0].reason;
-      const managementRows = results[0].value;
-      const safeRows = Array.isArray(managementRows) ? managementRows : [];
+      const rows = await fetchArchiveManagementItems();
+      const safeRows = Array.isArray(rows) ? rows : [];
       setMonths(safeRows);
-      if (results[1].status === 'fulfilled') {
-        setMembers(Array.isArray(results[1].value) ? results[1].value : []);
-      }
-      setSelectedPeriod(current => safeRows.some(row => String(row.period_id) === String(current))
+      setSelectedPeriod((current) => safeRows.some((row) => String(row.period_id) === String(current))
         ? current : String(safeRows[0]?.period_id || ''));
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'আর্কাইভের তথ্য লোড করা যায়নি।'));
-    } finally { setLoading(false); }
+      toast.error(getFriendlySupabaseError(error, 'বন্ধ মাসের তথ্য লোড করা যায়নি।'));
+    } finally {
+      setLoading(false);
+    }
   }, [toast]);
 
-  const loadPermissions = useCallback(async () => {
-    if (!selectedPeriod) { setPermissions([]); return; }
-    setPermLoading(true);
-    try { setPermissions(await fetchArchivePermissions(selectedPeriod)); }
-    catch (error) { toast.error(getFriendlySupabaseError(error, 'আর্কাইভ অনুমতি লোড করা যায়নি।')); }
-    finally { setPermLoading(false); }
-  }, [selectedPeriod, toast]);
-
   useEffect(() => { if (online) loadMonths(); }, [online, loadMonths]);
-  useEffect(() => { if (online) loadPermissions(); }, [online, loadPermissions]);
 
-  const selected = months.find((month) => month.period_id === selectedPeriod) || null;
-  const closer = selected ? members.find((member) => member.membership_id === selected.manager_at_close_membership_id) : null;
-  const memberMap = new Map(members.map((member) => [member.membership_id, member.member_name]));
-  const activePermissions = permissions.filter((permission) => !permission.revoked_at && (!permission.expires_at || new Date(permission.expires_at) > new Date()));
-
-  const grant = async (event) => {
-    event.preventDefault();
-    if (!selected) return toast.warning('একটি আর্কাইভ করা মাস নির্বাচন করুন।');
-    if (!selected.can_grant_closer_edit || !selected.manager_at_close_membership_id) return toast.warning('এই মাসের closing manager-কে নতুন অনুমতি দেওয়ার অবস্থা নেই।');
-    if (!grantForm.expiresAt) return toast.warning('অনুমতির মেয়াদ শেষ হওয়ার সময় দিন।');
-    const expiresAt = new Date(grantForm.expiresAt);
-    if (!Number.isFinite(expiresAt.getTime()) || expiresAt <= new Date()) return toast.warning('ভবিষ্যতের একটি বৈধ মেয়াদ দিন।');
-    setBusy(true);
-    try {
-      await grantArchiveEditPermission({
-        periodId: selected.period_id,
-        membershipId: selected.manager_at_close_membership_id,
-        expiresAt: expiresAt.toISOString(),
-        reason: grantForm.reason.trim() || null,
-      });
-      toast.success(`${selected.manager_at_close_name || 'আগের ম্যানেজার'}-কে এই আর্কাইভ সম্পাদনার অনুমতি দেওয়া হয়েছে।`);
-      setGrantForm({ expiresAt: '', reason: '' });
-      await Promise.all([loadMonths(), loadPermissions()]);
-    } catch (error) { toast.error(getFriendlySupabaseError(error, 'আর্কাইভ সম্পাদনার অনুমতি দেওয়া যায়নি।')); }
-    finally { setBusy(false); }
-  };
-
-  const revoke = async (permissionId) => {
-    setBusy(true);
-    try { await revokeArchiveEditPermission(permissionId); toast.success('আর্কাইভ সম্পাদনার অনুমতি বাতিল হয়েছে।'); await loadPermissions(); }
-    catch (error) { toast.error(getFriendlySupabaseError(error, 'Permission বাতিল করা যায়নি।')); }
-    finally { setBusy(false); }
-  };
+  const selected = months.find((month) => String(month.period_id) === String(selectedPeriod)) || null;
+  // A closed month is never editable merely because this account is the current
+  // Primary Manager. Only the account recorded in monthly_periods.closed_by may
+  // manage that exact closed period; the database RPC remains authoritative.
+  const isRecordedCloser = Boolean(selected?.current_manager_is_closer);
 
   const reopen = async () => {
-    if (!selected?.can_reopen) return;
+    if (!selected?.can_reopen || !isRecordedCloser || busy) return;
     const ok = await confirmAction(`“${selected.label}” আবার চালু করা হবে। মাস বন্ধ করার সময় বাতিল হওয়া ভবিষ্যতের request স্বয়ংক্রিয়ভাবে ফেরত আসবে না। আপনি কি নিশ্চিত?`);
     if (!ok) return;
     setBusy(true);
@@ -1184,43 +1134,69 @@ export function ArchiveManagerPage() {
       const result = await reopenArchivedPeriod(selected.period_id);
       toast.success(`${result?.label || selected.label} আবার চালু হয়েছে। বাতিল হওয়া future request প্রয়োজন হলে পুনরায় জমা দিতে হবে।`);
       await loadMonths();
-    } catch (error) { toast.error(getFriendlySupabaseError(error, 'মাস পুনরায় চালু করা যায়নি।')); }
-    finally { setBusy(false); }
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'মাস পুনরায় চালু করা যায়নি।'));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="আর্কাইভ ব্যবস্থাপনা অনলাইনেই পরিচালিত হয়।" />;
-  if (loading) return <LoadingSpinner label="Archive management প্রস্তুত হচ্ছে..." />;
+  if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="বন্ধ মাসের ব্যবস্থাপনা অনলাইনেই দেখা যাবে।" />;
+  if (loading) return <LoadingSpinner label="বন্ধ মাসের তথ্য প্রস্তুত হচ্ছে..." />;
 
   return <PrimaryManagerGuard><div className="page-stack">
-    <PageHeader title="আর্কাইভ" icon="history" description="বন্ধ মাস ও সংশোধনের অনুমতি পরিচালনা করুন।" />
-    <InfoPanel className="finance-context-note finance-context-note-warning" tone="warning" icon="archive">Closing Manager ও সংশোধনের অনুমতি দেখুন। Reopen করলে বাতিল অনুরোধ নিজে থেকে ফিরবে না।</InfoPanel>
-    <div className="archive-refresh-row"><button type="button" className="secondary-button compact" disabled={loading} onClick={loadMonths}>আর্কাইভ রিফ্রেশ</button></div>
-    {months.length === 0 ? <div className="empty-state-card"><Icon name="history" size={28} /><strong>সংরক্ষিত মাস পাওয়া যায়নি</strong><span>হিস্টরিতে বন্ধ মাস থাকলে রিফ্রেশ করে দেখুন।</span><button type="button" className="secondary-button compact" onClick={loadMonths}>আবার লোড করুন</button></div> : <>
+    <PageHeader title="বন্ধ মাসের ব্যবস্থাপনা" icon="history" description="বন্ধ মাসের closing তথ্য ও সংশোধনের অবস্থা দেখুন।" />
+    <InfoPanel className="finance-context-note finance-context-note-warning" tone="warning" icon="archive">
+      বন্ধ মাসের হিসাব সবাই দেখতে পারবেন। সম্পাদনা ও পুনরায় চালুর অনুমতি শুধু সেই অ্যাকাউন্টের, যে মাসটি বন্ধ করেছে; অন্য কাউকে আলাদা অনুমতি দেওয়া যায় না।
+    </InfoPanel>
+    <div className="archive-refresh-row">
+      <button type="button" className="secondary-button compact" disabled={loading} onClick={loadMonths}>
+        <Icon name="refresh-cw" size={15}/> বন্ধ মাস রিফ্রেশ
+      </button>
+    </div>
+    {months.length === 0 ? <div className="empty-state-card">
+      <Icon name="history" size={28}/><strong>সংরক্ষিত মাস পাওয়া যায়নি</strong>
+      <span>কোনো মাস বন্ধ হলে তার closing তথ্য এখানে দেখা যাবে।</span>
+      <button type="button" className="secondary-button compact" onClick={loadMonths}>আবার লোড করুন</button>
+    </div> : <>
       <section className="card manager-form-card">
-        <label className="field-label"><span>আর্কাইভ করা মাস</span><select value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>{months.map((month) => <option value={month.period_id} key={month.period_id}>{month.label} — {formatDateBangla(month.start_date)} → {formatDateBangla(month.end_date)}</option>)}</select></label>
+        <label className="field-label"><span>বন্ধ মাস নির্বাচন করুন</span>
+          <select value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)}>
+            {months.map((month) => <option value={month.period_id} key={month.period_id}>
+              {month.label} — {formatDateBangla(month.start_date)} → {formatDateBangla(month.end_date)}
+            </option>)}
+          </select>
+        </label>
         {selected && <div className="archive-manager-detail-grid">
           <div><span>মাস বন্ধ করেছেন</span><strong>{selected.manager_at_close_name || 'রেকর্ড নেই'}</strong></div>
-          <div><span>অবস্থা</span><strong>{selected.closer_is_active ? 'Closing manager সক্রিয়' : 'Closing manager বর্তমানে inactive'}</strong></div>
-          <div><span>শেষ পরিবর্তন</span><strong>{selected.last_edit_by ? `${selected.last_edit_by} · ${selected.last_edit_at ? formatDateTime12(selected.last_edit_at) : ''}` : 'এখনো কোনো edit audit নেই'}</strong><small>{selected.last_edit_summary || ''}</small></div>
+          <div><span>আপনার প্রবেশাধিকার</span><strong>{isRecordedCloser ? 'সম্পাদনা ও ব্যবস্থাপনা' : 'শুধু দেখা'}</strong></div>
+          <div><span>শেষ সংশোধন</span><strong>{selected.last_edit_by ? `${selected.last_edit_by} · ${selected.last_edit_at ? formatDateTime12(selected.last_edit_at) : ''}` : 'এখনো কোনো সংশোধন নেই'}</strong><small>{selected.last_edit_summary || ''}</small></div>
         </div>}
-        {selected?.archive_read_only && <div className="state-card state-card-warning"><Icon name="info" size={17}/><div><strong>এই মাসটি শুধু দেখার জন্য পাওয়া গেছে</strong><p>ব্যবস্থাপনার অনুমতি সার্ভার থেকে পাওয়া যায়নি। নিরাপত্তার জন্য Reopen ও Edit Permission বন্ধ রাখা হয়েছে।</p></div></div>}
-        {selected?.can_reopen && <div className="archive-reopen-warning"><Icon name="alert-circle" size={18}/><div><strong>ভুলবশত বন্ধ হয়ে থাকলে মাস আবার চালু করতে পারবেন</strong><p>শুধু একই calendar month-এ, নতুন period তৈরি না হলে এবং কোনো running period না থাকলে এটি সম্ভব। আগেই বাতিল হওয়া future request স্বয়ংক্রিয়ভাবে ফিরবে না।</p><button className="secondary-button compact" type="button" disabled={busy} onClick={reopen}>মাস আবার চালু করুন</button></div></div>}
+        {selected?.archive_read_only && <div className="state-card state-card-warning">
+          <Icon name="info" size={17}/><div><strong>এই মাসটি শুধু দেখার জন্য</strong>
+            <p>সার্ভার থেকে সংশোধনের অনুমতি নিশ্চিত করা যায়নি। নিরাপত্তার জন্য কোনো পরিবর্তন বা Reopen অপশন দেখানো হচ্ছে না।</p>
+          </div>
+        </div>}
+        {selected?.can_reopen && isRecordedCloser && <div className="archive-reopen-warning">
+          <Icon name="alert-circle" size={18}/><div><strong>ভুলবশত বন্ধ হয়ে থাকলে মাস আবার চালু করতে পারবেন</strong>
+            <p>শুধু একই calendar month-এ, নতুন period তৈরি না হলে এবং কোনো running period না থাকলে এটি সম্ভব। আগেই বাতিল হওয়া future request স্বয়ংক্রিয়ভাবে ফিরবে না।</p>
+            <button className="secondary-button compact" type="button" disabled={busy} onClick={reopen}>মাস আবার চালু করুন</button>
+          </div>
+        </div>}
       </section>
 
-      <section className="card manager-form-card">
-        <div className="panel-header"><div><span className="eyebrow">Closing-manager-only</span><h2>আগের মাসের ম্যানেজারকে সম্পাদনার অনুমতি দিন</h2><p>অন্য কোনো সদস্যকে এই permission দেওয়া যাবে না। অনুমতি শুধু নির্বাচিত archive-এ এবং নির্ধারিত সময় পর্যন্ত থাকবে।</p></div></div>
-        {!selected?.manager_at_close_membership_id ? <div className="inline-error">এই archive-এর closing manager রেকর্ড নেই; নিরাপত্তার জন্য edit permission দেওয়া বন্ধ রাখা হয়েছে।</div>
-          : selected.current_manager_is_closer ? <div className="inline-success"><Icon name="check-circle" size={17}/> আপনি নিজেই এই মাস বন্ধ করেছিলেন। আলাদা permission ছাড়াই আপনার archive-edit access থাকবে।</div>
-          : !selected.can_grant_closer_edit ? <div className="state-card state-card-warning"><Icon name="shield" size={18}/><div><strong>এখন permission দেওয়া যাচ্ছে না</strong><p>Closing manager-কে active থাকতে হবে এবং বর্তমান account-এ প্রধান ম্যানেজারের অনুমতি থাকতে হবে।</p></div></div>
-          : <form onSubmit={grant}>
-            <div className="archive-closer-target"><Icon name="user-check" size={18}/><div><strong>{selected.manager_at_close_name || closer?.member_name || 'আগের মাসের ম্যানেজার'}</strong><small>শুধু এই সদস্যের কাছেই অনুমতি যাবে</small></div></div>
-            <div className="form-grid-2"><label className="field-label"><span>অনুমতি শেষ হবে <em>(বাধ্যতামূলক)</em></span><input type="datetime-local" required value={grantForm.expiresAt} onChange={(event) => setGrantForm((form) => ({ ...form, expiresAt: event.target.value }))}/></label><label className="field-label"><span>কারণ</span><input value={grantForm.reason} onChange={(event) => setGrantForm((form) => ({ ...form, reason: event.target.value }))} placeholder="যেমন: আগের মাসের বাজারের ভুল সংশোধন"/></label></div>
-            <button className="primary-button" type="submit" disabled={busy}>মাস বন্ধ করা ম্যানেজারকে অনুমতি দিন</button>
-          </form>}
-      </section>
-      <section className="card manager-form-card">
-        <div className="section-heading"><div><h2>এই সংরক্ষিত মাসের অনুমতির ইতিহাস</h2><small>{formatNumber(activePermissions.length)}টি কার্যকর সাময়িক অনুমতি</small></div><button className="secondary-button compact" type="button" onClick={loadPermissions} disabled={permLoading}><Icon name="refresh" size={15}/> রিফ্রেশ</button></div>
-        {activePermissions.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="shield" size={24}/><strong>কোনো active সাময়িক অনুমতি নেই</strong><span>যিনি নিজে মাস বন্ধ করেছেন, তাঁর নিজের প্রবেশাধিকারের জন্য আলাদা অনুমতি দরকার নেই।</span></div> : <div className="permission-list">{activePermissions.map((permission) => <article className="permission-row" key={permission.id}><div><strong>{memberMap.get(permission.membership_id) || (permission.membership_id === selected?.manager_at_close_membership_id ? selected.manager_at_close_name : 'Closing manager')}</strong><small>দেওয়া হয়েছে: {formatDateTime12(permission.created_at)}</small><span>মেয়াদ: {permission.expires_at ? formatDateTime12(permission.expires_at) : 'মেয়াদ নেই'}</span>{permission.reason && <span>কারণ: {permission.reason}</span>}</div><button className="secondary-button compact danger-outline" type="button" disabled={busy} onClick={() => revoke(permission.id)}>বাতিল করুন</button></article>)}</div>}
+      <section className="card manager-form-card archive-closer-only-panel">
+        <div className="section-heading"><div><span className="eyebrow">নিরাপত্তা ও অনুমতি</span><h2>বন্ধ মাসের সম্পাদনা-নিয়ম</h2></div></div>
+        <div className="archive-closer-only-note">
+          <Icon name={isRecordedCloser ? 'shield-check' : 'lock'} size={20}/>
+          <div>
+            <strong>{isRecordedCloser ? 'এই মাসটি আপনি বন্ধ করেছিলেন' : 'এই মাসে আপনার সম্পাদনার অনুমতি নেই'}</strong>
+            <p>{isRecordedCloser
+              ? 'এই নির্দিষ্ট মাসের অনুমোদিত সংশোধন আপনি করতে পারবেন। আপনার বর্তমান Manager পদবি পরিবর্তিত হলেও closed_by রেকর্ডই এই মাসের অধিকার নির্ধারণ করে।'
+              : `এই মাসটি ${selected?.manager_at_close_name || 'অন্য একটি অ্যাকাউন্ট'} বন্ধ করেছিলেন। আপনি রিপোর্ট দেখতে পারবেন, কিন্তু কোনো হিসাব পরিবর্তন করতে পারবেন না।`}</p>
+            <small>বন্ধ মাসের জন্য আলাদা Edit Permission দেওয়া, অন্য অ্যাকাউন্টে স্থানান্তর বা Primary Manager override সমর্থিত নয়।</small>
+          </div>
+        </div>
       </section>
     </>}
   </div></PrimaryManagerGuard>;

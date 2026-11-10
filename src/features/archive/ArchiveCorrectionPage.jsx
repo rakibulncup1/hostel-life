@@ -86,24 +86,24 @@ function ReadOnlyReport({ detail }) {
     ...(detailed ? [['market', 'বাজার', markets.length], ['meals', 'ফাইনাল মিল', meals.length], ['ledger', 'লেনদেন', ledger.length]] : []),
     ...(visibleAudit.length ? [['audit', 'সংশোধন ইতিহাস', visibleAudit.length]] : []),
   ];
-  const Empty = ({ title, description }) => <div className="archive-category-empty"><span><Icon name="check-circle" size={19}/></span><div><strong>{title}</strong><p>{description}</p></div></div>;
+  const Empty = ({ title }) => <div className="archive-category-empty"><span><Icon name="check-circle" size={19}/></span><div><strong>{title}</strong></div></div>;
   return <div className="archive-readonly-content">
     <nav className="archive-kind-tabs" aria-label="আর্কাইভ রিপোর্টের বিভাগ">
       {tabs.map(([key, label, count]) => <button type="button" key={key} className={activeTab === key ? 'is-active' : ''} aria-pressed={activeTab === key} onClick={() => setActiveTab(key)}><span>{label}</span>{count != null && <b>{formatNumber(count)}</b>}</button>)}
     </nav>
     {activeTab === 'overview' && <>
       <SummaryMetrics detail={detail}/>
-      {detailed ? <Section title="এই মাসের রিপোর্ট"><div className="archive-correction-metrics archive-readonly-counts"><div className="metric"><span>বাজার এন্ট্রি</span><strong>{formatNumber(markets.length)}</strong></div><div className="metric"><span>মিলের দিন</span><strong>{formatNumber(meals.length)}</strong></div><div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div></div><p className="form-hint">বিস্তারিত দেখতে উপরের বিভাগ নির্বাচন করুন। এটি শুধু দেখার রিপোর্ট; এখান থেকে কোনো হিসাব পরিবর্তন করা যাবে না।</p></Section> : <div className="state-card"><Icon name="file-text" size={20}/><div><strong>মাসের সারসংক্ষেপ</strong><p>এই মাসের বিস্তারিত লেনদেন সংরক্ষণনীতি অনুযায়ী সীমিত হতে পারে।</p></div></div>}
+      {detailed ? <Section title="এই মাসের রিপোর্ট"><div className="archive-correction-metrics archive-readonly-counts"><div className="metric"><span>বাজার এন্ট্রি</span><strong>{formatNumber(markets.length)}</strong></div><div className="metric"><span>মিলের দিন</span><strong>{formatNumber(meals.length)}</strong></div><div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div></div></Section> : <div className="state-card"><Icon name="file-text" size={20}/><div><strong>মাসের সারসংক্ষেপ</strong><p>এই মাসের বিস্তারিত লেনদেন সংরক্ষণনীতি অনুযায়ী সীমিত হতে পারে।</p></div></div>}
       {visibleAudit.length > 0 && <Section title="সাম্প্রতিক সংশোধন"><div className="archive-correction-records">{visibleAudit.slice(0, 3).map((entry, index) => <article className="archive-correction-record archive-audit-record" key={entry.id || index}><span className="archive-record-kind-icon"><Icon name="history" size={18}/></span><div className="archive-record-main"><strong>{entry.summary || entry.action || 'হিসাব সংশোধন'}</strong><small>{entry.actor_name || 'ম্যানেজার'} · {entry.created_at ? formatDateTime12(entry.created_at) : ''}</small></div></article>)}</div></Section>}
     </>}
     {activeTab === 'market' && <Section title={`বাজার (${formatNumber(markets.length)}টি)`}>
-      {markets.length ? <div className="archive-correction-records">{markets.map((row, index) => <article className="archive-correction-record" key={row.id || index}><span className="archive-record-kind-icon"><Icon name="shopping-basket" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || row.buyer_name || row.name || 'বাজার এন্ট্রি'}</strong><small>{formatDateWithWeekday(row.entry_date || row.date)} · {formatCurrency(row.total ?? row.total_amount ?? 0)} · {row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</small></div></article>)}</div> : <Empty title="এই মাসে বাজার এন্ট্রি নেই" description="নির্বাচিত মাসে বাজারের কোনো রেকর্ড পাওয়া যায়নি।"/>}
+      {markets.length ? <div className="archive-correction-records">{markets.map((row, index) => <article className="archive-correction-record" key={row.id || index}><span className="archive-record-kind-icon"><Icon name="shopping-basket" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || row.buyer_name || row.name || 'বাজার এন্ট্রি'}</strong><small>{formatDateWithWeekday(row.entry_date || row.date)} · {formatCurrency(row.total ?? row.total_amount ?? 0)} · {row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</small></div></article>)}</div> : <Empty title="এই মাসে বাজার এন্ট্রি নেই"/>}
     </Section>}
     {activeTab === 'meals' && <Section title={`দৈনিক ফাইনাল মিল (${formatNumber(meals.length)} দিন)`}>
-      {meals.length ? <div className="archive-correction-records">{meals.map((row, index) => <article className="archive-correction-record" key={row.date || row.meal_date || index}><span className="archive-record-kind-icon"><Icon name="utensils" size={18}/></span><div className="archive-record-main"><strong>{formatDateWithWeekday(row.date || row.meal_date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} + লাঞ্চ {formatNumber(row.lunch)} + ডিনার {formatNumber(row.dinner)} = {formatNumber(Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0))} মিল</small></div></article>)}</div> : <Empty title="ফাইনাল মিলের তথ্য নেই" description="এই মাসের জন্য বিস্তারিত মিলের রেকর্ড পাওয়া যায়নি।"/>}
+      {meals.length ? <div className="archive-correction-records">{meals.map((row, index) => <article className="archive-correction-record" key={row.date || row.meal_date || index}><span className="archive-record-kind-icon"><Icon name="utensils" size={18}/></span><div className="archive-record-main"><strong>{formatDateWithWeekday(row.date || row.meal_date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} + লাঞ্চ {formatNumber(row.lunch)} + ডিনার {formatNumber(row.dinner)} = {formatNumber(Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0))} মিল</small></div></article>)}</div> : <Empty title="ফাইনাল মিলের তথ্য নেই"/>}
     </Section>}
     {activeTab === 'ledger' && <Section title={`লেনদেন (${formatNumber(ledger.length)}টি)`}>
-      {ledger.length ? <div className="archive-correction-records">{ledger.map((row, index) => <article className="archive-correction-record" key={row.id || index}><span className="archive-record-kind-icon"><Icon name="receipt" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || row.description || row.ledger_type || 'লেনদেন'}</strong><small>{formatDateWithWeekday(row.entry_date || row.payment_date || row.date)} · {formatCurrency(row.amount ?? row.total_amount ?? 0)}</small></div></article>)}</div> : <Empty title="লেনদেন নেই" description="এই মাসের বিস্তারিত লেনদেন পাওয়া যায়নি।"/>}
+      {ledger.length ? <div className="archive-correction-records">{ledger.map((row, index) => <article className="archive-correction-record" key={row.id || index}><span className="archive-record-kind-icon"><Icon name="receipt" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || row.description || row.ledger_type || 'লেনদেন'}</strong><small>{formatDateWithWeekday(row.entry_date || row.payment_date || row.date)} · {formatCurrency(row.amount ?? row.total_amount ?? 0)}</small></div></article>)}</div> : <Empty title="লেনদেন নেই"/>}
     </Section>}
     {activeTab === 'audit' && <Section title="সাম্প্রতিক সংশোধন ইতিহাস"><div className="archive-correction-records">{visibleAudit.map((entry, index) => <article className="archive-correction-record archive-audit-record" key={entry.id || index}><span className="archive-record-kind-icon"><Icon name="history" size={18}/></span><div className="archive-record-main"><strong>{entry.summary || entry.action || 'হিসাব সংশোধন'}</strong><small>{entry.actor_name || 'ম্যানেজার'} · {entry.created_at ? formatDateTime12(entry.created_at) : ''}</small>{entry.reason && <p>{entry.reason}</p>}</div></article>)}</div></Section>}
   </div>;
@@ -137,16 +137,18 @@ export function ArchiveCorrectionPage() {
         primary ? fetchArchiveManagementItems() : fetchPreviousMonths(),
         fetchMyArchiveEditablePeriods().catch(() => []),
       ]);
-      const editableIds = new Set((Array.isArray(editableRows) ? editableRows : [])
+      const closerEditableRows = (Array.isArray(editableRows) ? editableRows : [])
+        .filter((row) => row?.access_kind === 'closed_by');
+      const editableIds = new Set(closerEditableRows
         .map((row) => String(row?.period_id || row?.id || '')).filter(Boolean));
-      setEditablePeriods(Array.isArray(editableRows) ? editableRows : []);
+      setEditablePeriods(closerEditableRows);
       const unique = new Map();
       for (const row of [...(Array.isArray(rows) ? rows : []), ...(Array.isArray(editableRows) ? editableRows : [])]) {
         const id = row?.period_id || row?.id;
         if (id && ['closed', 'archived'].includes(row.status || 'closed')) {
           const key = String(id);
           const previous = unique.get(key) || {};
-          unique.set(key, { ...previous, ...row, period_id: id, can_edit: Boolean(primary || editableIds.has(key)) });
+          unique.set(key, { ...previous, ...row, period_id: id, can_edit: editableIds.has(key) });
         }
       }
       const safe = [...unique.values()].sort((a, b) => String(b.start_date || '').localeCompare(String(a.start_date || '')));
@@ -167,9 +169,9 @@ export function ArchiveCorrectionPage() {
     setLoadingDetail(true);
     try {
       const reportPromise = fetchArchivedMonthDetail(id).then(value => ({ ok: true, value })).catch(error => ({ ok: false, error }));
-      // Always ask the server for the exact period grant. Only the backend can
-      // decide whether this user is its recorded closer or an authorized manager.
-      const correctionPromise = (primary || editablePeriods.some((item) => String(item.period_id || item.id) === id))
+      // Only the recorded closer is allowed to fetch the correction bundle.
+      // Other members and managers still receive the read-only archived report.
+      const correctionPromise = editablePeriods.some((item) => item.access_kind === 'closed_by' && String(item.period_id || item.id) === id)
         ? getArchiveCorrectionBundle(id).then(value => ({ ok: true, value })).catch(error => ({ ok: false, error }))
         : Promise.resolve({ ok: false, readonly: true });
       const [reportResult, correctionResult] = await Promise.all([reportPromise, correctionPromise]);
@@ -185,10 +187,10 @@ export function ArchiveCorrectionPage() {
         setReadOnlyReason('এই অ্যাকাউন্টে এই মাসের সংশোধন অনুমোদিত নয়। রিপোর্ট দেখা যাবে, কিন্তু পরিবর্তন করা যাবে না।');
       }
     } finally { setLoadingDetail(false); }
-  }, [primary, editablePeriods, toast]);
+  }, [editablePeriods, toast]);
 
   const restoreMonth = async () => {
-    if (!selected?.can_reopen || busy) return;
+    if (!selected?.can_reopen || !closerAccess || busy) return;
     if (!await confirmAction(`“${selected.label}” পুনরায় চলমান করবেন? বন্ধ করার সময় বাতিল হয়ে যাওয়া অনুরোধ স্বয়ংক্রিয়ভাবে ফিরবে না।`)) return;
     setBusy(true);
     try {
@@ -207,8 +209,8 @@ export function ArchiveCorrectionPage() {
   });
   const correctionCounts = Object.fromEntries(EDIT_KINDS.map(([kind]) => [kind, arr(bundle?.[kind] || bundle?.[`${kind}_entries`]).length]));
   const correctionTotal = Object.values(correctionCounts).reduce((sum, value) => sum + value, 0);
-  const canEditSelected = Boolean(primary || editablePeriods.some((item) => String(item.period_id || item.id) === String(selectedPeriodId)));
-  const closerAccess = Boolean(editablePeriods.some((item) => String(item.period_id || item.id) === String(selectedPeriodId) && item.access_kind === 'closed_by'));
+  const closerAccess = editablePeriods.some((item) => item.access_kind === 'closed_by' && String(item.period_id || item.id) === String(selectedPeriodId));
+  const canEditSelected = closerAccess;
   const detailLabel = selected?.label || bundle?.period?.label || detail?.label || 'আর্কাইভ';
   const detailStart = selected?.start_date || detail?.start_date || bundle?.period?.start_date;
   const detailEnd = selected?.end_date || detail?.end_date || bundle?.period?.end_date;
@@ -244,29 +246,29 @@ export function ArchiveCorrectionPage() {
         <div className="archive-hero-copy">
           <span className="archive-eyebrow">সংরক্ষিত হিসাব</span>
           <h1>বন্ধ মাসসমূহ</h1>
-          <div className="archive-hero-guidance"><Icon name="info" size={17}/><p>বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। {primary ? 'প্রধান ম্যানেজারের জন্য অনুমোদিত হিসাব-সংশোধনও এখানে রয়েছে।' : 'আপনি যে মাসটি বন্ধ করেছেন, সেই নির্দিষ্ট মাসে অনুমোদিত সংশোধন করতে পারবেন; অন্য মাস শুধু দেখা যাবে।'}</p></div>
         </div>
       </div>
       <div className="archive-hero-actions">
         <button type="button" className="secondary-button compact" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15}/> ড্যাশবোর্ড</button>
         <button type="button" className="secondary-button compact" onClick={reloadMonths} disabled={loadingMonths}><Icon name="refresh-cw" size={15}/> {loadingMonths ? 'লোড হচ্ছে...' : 'রিফ্রেশ'}</button>
       </div>
+      <div className="archive-hero-guidance"><p>বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন দেখুন। সম্পাদনা করতে পারবেন শুধু যে মাসটি আপনি বন্ধ করেছেন।</p></div>
       <div className="archive-hero-stats">
-        <div className="archive-hero-stat"><span>সংরক্ষিত মাস</span><strong>{formatNumber(months.length)}</strong><small>বন্ধ হিসাব</small></div>
-        <div className="archive-hero-stat"><span>বর্তমান দৃশ্য</span><strong>{selectedPeriodId ? 'রিপোর্ট' : 'তালিকা'}</strong><small>{selectedPeriodId ? 'একটি মাস নির্বাচিত' : 'মাস বেছে নিন'}</small></div>
-        <div className="archive-hero-stat"><span>অ্যাক্সেস</span><strong>{primary ? 'সংশোধন' : editablePeriods.length ? 'সীমিত সংশোধন' : 'শুধু দেখা'}</strong><small>{primary ? 'অনুমোদিত সীমার মধ্যে' : editablePeriods.length ? 'নিজের বন্ধ করা মাসে' : 'রিড-অনলি'}</small></div>
+        <div className="archive-hero-stat"><span>সংরক্ষিত মাস</span><strong>{formatNumber(months.length)}</strong></div>
+        <div className="archive-hero-stat"><span>বর্তমান দৃশ্য</span><strong>{selectedPeriodId ? 'রিপোর্ট' : 'তালিকা'}</strong></div>
+        <div className="archive-hero-stat"><span>অ্যাক্সেস</span><strong>{editablePeriods.length ? 'সীমিত সংশোধন' : 'শুধু দেখা'}</strong></div>
       </div>
     </header>
 
     {!selectedPeriodId && <section className="card archive-list-section">
       <div className="archive-list-heading">
-        <div><span className="archive-eyebrow">মাসের তালিকা</span><h2>সংরক্ষিত মাস</h2><p>যে মাসের হিসাব দেখতে চান সেটি খুলুন। পুরোনো মাসের তারিখ বা স্ট্যাটাস এখানে বদলানো হয় না।</p></div>
+        <div><span className="archive-eyebrow">মাসের তালিকা</span><h2>সংরক্ষিত মাস</h2></div>
         <span className="archive-count-pill">{formatNumber(filteredMonths.length)} / {formatNumber(months.length)} মাস</span>
       </div>
-      <label className="archive-search-field"><Icon name="search" size={18}/><input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="মাসের নাম বা তারিখ লিখে খুঁজুন" aria-label="আর্কাইভের মাস খুঁজুন"/><span>{searchTerm ? 'ফিল্টার চালু' : 'অনুসন্ধান'}</span></label>
-      {loadingMonths ? <div className="archive-loading-wrap"><LoadingSpinner label="আর্কাইভের মাস লোড হচ্ছে..."/></div> : months.length === 0 ? <div className="archive-empty-state"><span className="archive-empty-icon"><Icon name="history" size={27}/></span><strong>এখনো কোনো বন্ধ মাস নেই</strong><p>একটি মাস বন্ধ হলে সেটি এখানে সংরক্ষিত হবে।</p><button type="button" className="secondary-button compact" onClick={reloadMonths}>আবার লোড করুন</button></div> : filteredMonths.length === 0 ? <div className="archive-empty-state"><span className="archive-empty-icon"><Icon name="search" size={25}/></span><strong>এই অনুসন্ধানে কোনো মাস পাওয়া যায়নি</strong><p>অন্য মাসের নাম বা তারিখ দিয়ে চেষ্টা করুন।</p><button type="button" className="secondary-button compact" onClick={() => setSearchTerm('')}>অনুসন্ধান মুছুন</button></div> : <div className="archive-month-list">{filteredMonths.map((row, index) => <button key={row.period_id} className="archive-month-card" type="button" onClick={() => openMonth(row)}>
+      <label className="archive-search-field"><Icon name="search" size={18}/><input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="মাসের নাম বা তারিখ লিখে খুঁজুন" aria-label="আর্কাইভের মাস খুঁজুন"/></label>
+      {loadingMonths ? <div className="archive-loading-wrap"><LoadingSpinner label="আর্কাইভের মাস লোড হচ্ছে..."/></div> : months.length === 0 ? <div className="archive-empty-state"><span className="archive-empty-icon"><Icon name="history" size={27}/></span><strong>এখনো কোনো বন্ধ মাস নেই</strong><button type="button" className="secondary-button compact" onClick={reloadMonths}>আবার লোড করুন</button></div> : filteredMonths.length === 0 ? <div className="archive-empty-state"><span className="archive-empty-icon"><Icon name="search" size={25}/></span><strong>এই অনুসন্ধানে কোনো মাস পাওয়া যায়নি</strong><button type="button" className="secondary-button compact" onClick={() => setSearchTerm('')}>অনুসন্ধান মুছুন</button></div> : <div className="archive-month-list">{filteredMonths.map((row, index) => <button key={row.period_id} className="archive-month-card" type="button" onClick={() => openMonth(row)}>
         <span className="archive-month-index">{formatNumber(index + 1)}</span>
-        <span className="archive-month-copy"><strong>{row.label || 'সংরক্ষিত মাস'}</strong><small>{formatDateBangla(row.start_date)} – {formatDateBangla(row.end_date)}</small><span><i className="archive-status-dot"/> বন্ধ মাস · রিপোর্ট দেখতে খুলুন</span><span className={`archive-access-badge ${row.can_edit ? 'is-editable' : 'is-locked'}`}>{row.can_edit ? (primary ? 'ম্যানেজারের সম্পাদনার অনুমতি' : editablePeriods.find((item) => String(item.period_id || item.id) === String(row.period_id))?.access_kind === 'closed_by' ? 'আপনি মাসটি বন্ধ করেছেন' : 'নির্দিষ্ট সম্পাদনার অনুমতি') : 'শুধু দেখা · লক'}</span>{row.manager_at_close_name && <small>মাস বন্ধ করেছেন: {row.manager_at_close_name}</small>}</span>
+        <span className="archive-month-copy"><strong>{row.label || 'সংরক্ষিত মাস'}</strong><small>{formatDateBangla(row.start_date)} – {formatDateBangla(row.end_date)}</small><span className={`archive-access-badge ${row.can_edit ? 'is-editable' : 'is-locked'}`}>{row.can_edit ? 'আপনি মাসটি বন্ধ করেছেন' : 'শুধু দেখা · লক'}</span>{row.manager_at_close_name && <small>মাস বন্ধ করেছেন: {row.manager_at_close_name}</small>}</span>
         <span className="archive-month-open">রিপোর্ট দেখুন <Icon name="chevron-right" size={17}/></span>
       </button>)}</div>}
     </section>}
@@ -277,13 +279,13 @@ export function ArchiveCorrectionPage() {
         <div className="archive-detail-title"><span className="archive-eyebrow">নির্বাচিত মাসের হিসাব</span><h2>{detailLabel}</h2><p>{formatDateBangla(detailStart)} – {formatDateBangla(detailEnd)}</p></div>
         <span className="archive-correction-status"><i className="archive-status-dot"/> মাস বন্ধ</span>
         <button type="button" className="secondary-button compact archive-month-pdf-button" disabled={!Array.isArray(detail?.members)} title={!Array.isArray(detail?.members) ? 'পূর্ণ রিপোর্টের জন্য Run41 migration প্রয়োজন' : 'পূর্ণ মাসিক প্রতিবেদন PDF / প্রিন্ট'} onClick={() => { try { printArchivedMonthlyReport(detail); } catch (error) { toast.error(error?.message || 'রিপোর্ট তৈরি করা যায়নি।'); } }}><Icon name="file-text" size={15}/> পূর্ণ রিপোর্ট PDF</button>
-      {primary && selected?.can_reopen && <button type="button" className="primary-button compact" onClick={restoreMonth} disabled={busy}><Icon name="refresh-cw" size={16}/> ভুলবশত বন্ধ? আবার চালু করুন</button>}
-      {primary && selected && !selected.can_reopen && !selected.archive_read_only && <small className="archive-reopen-hint">এই মাস পুনরায় চালুর শর্ত পূরণ হচ্ছে না। শুধু সর্বশেষ বন্ধ মাস, একই ক্যালেন্ডার মাসে এবং নতুন মাস শুরুর আগে ফেরানো যায়।</small>}
+      {closerAccess && selected?.can_reopen && <button type="button" className="primary-button compact" onClick={restoreMonth} disabled={busy}><Icon name="refresh-cw" size={16}/> ভুলবশত বন্ধ? আবার চালু করুন</button>}
+      {closerAccess && selected && !selected.can_reopen && !selected.archive_read_only && <small className="archive-reopen-hint">এই মাস পুনরায় চালুর শর্ত পূরণ হচ্ছে না। শুধু সর্বশেষ বন্ধ মাস, একই ক্যালেন্ডার মাসে এবং নতুন মাস শুরুর আগে ফেরানো যায়।</small>}
       </div>
       {loadingDetail && <section className="card archive-correction-section"><LoadingSpinner label="নির্বাচিত মাসের তথ্য লোড হচ্ছে..."/></section>}
       {!loadingDetail && readOnlyReason && <div className="state-card state-card-warning archive-readonly-warning"><Icon name={backendMissing ? 'info' : 'shield'} size={20}/><div><strong>{backendMissing ? 'এখন শুধু রিপোর্ট দেখা যাবে' : 'সংশোধন বন্ধ আছে'}</strong><p>{readOnlyReason}</p></div></div>}
       {!loadingDetail && bundle && <>
-        <div className="archive-correction-access-note"><span className="archive-note-icon"><Icon name="shield" size={18}/></span><div><strong>{canEditSelected ? (closerAccess && !primary ? 'আপনার বন্ধ করা মাস · সীমিত সংশোধন' : 'সংশোধন মোড প্রস্তুত') : 'রিড-অনলি রিপোর্ট'}</strong><p>সংশোধনের কারণ লিখতে হবে। প্রতিটি পরিবর্তনের আগের ও নতুন মান অডিট লগে থাকবে। মাসের তারিখ, স্ট্যাটাস ও ম্যানেজার ইতিহাস পরিবর্তন করা যাবে না।</p></div></div>
+        <div className="archive-correction-access-note"><div><strong>{canEditSelected && closerAccess ? 'আপনার বন্ধ করা মাস · সীমিত সংশোধন' : 'রিড-অনলি রিপোর্ট'}</strong><p>{canEditSelected && closerAccess ? 'প্রতিটি সংশোধনের কারণ ও পরিবর্তন অডিট লগে সংরক্ষিত হবে।' : 'এই মাসের হিসাব দেখা যাবে; সম্পাদনা করতে পারবেন শুধু মাস বন্ধকারী।'}</p></div></div>
         <SummaryMetrics detail={detail}/>
         <nav className="archive-kind-tabs" aria-label="আর্কাইভ রিপোর্ট বিভাগ">
           <button type="button" className={activeKind === 'all' ? 'is-active' : ''} aria-pressed={activeKind === 'all'} onClick={() => setActiveKind('all')}><span>সব বিভাগ</span><b>{formatNumber(correctionTotal)}</b></button>
@@ -294,7 +296,7 @@ export function ArchiveCorrectionPage() {
           {EDIT_KINDS.filter(([kind]) => activeKind === 'all' || activeKind === kind).map(([kind, label]) => {
             const rows = arr(bundle[kind] || bundle[`${kind}_entries`]);
             return <Section key={kind} title={label} className="archive-kind-section">
-              <div className="archive-section-subhead"><span>{rows.length ? `${formatNumber(rows.length)}টি এন্ট্রি` : 'কোনো এন্ট্রি নেই'}</span>{canEditSelected && rows.length > 0 && <small>এই মাসে অনুমোদিত সংশোধন</small>}</div>
+              <div className="archive-section-subhead"><span>{rows.length ? `${formatNumber(rows.length)}টি এন্ট্রি` : 'কোনো এন্ট্রি নেই'}</span></div>
               {rows.length ? <div className="archive-correction-records">{rows.map((row, index) => {
                 const cannotEditMarket = kind === 'market' && Number(row.item_count ?? 0) !== 1;
                 return <article className="archive-correction-record" key={row.id || `${kind}-${index}`}>
@@ -302,12 +304,12 @@ export function ArchiveCorrectionPage() {
                   <div className="archive-record-main"><strong>{rowTitle(row, kind)}</strong><small>{rowSubtitle(row, kind)}</small>{cannotEditMarket && <span className="archive-record-safety-note">একাধিক/শূন্য আইটেম থাকায় মোট টাকা পরিবর্তন বন্ধ</span>}</div>
                   {canEditSelected && <button type="button" className="secondary-button compact archive-edit-button" onClick={() => beginEdit(kind, row)} disabled={busy || cannotEditMarket}><Icon name="pencil" size={14}/> সংশোধন</button>}
                 </article>;
-              })}</div> : <div className="archive-category-empty"><span><Icon name="check-circle" size={19}/></span><div><strong>এই বিভাগে এন্ট্রি নেই</strong><p>নির্বাচিত মাসে {label} বিভাগের কোনো সংশোধনযোগ্য এন্ট্রি সংরক্ষিত নেই।</p></div></div>}
+              })}</div> : <div className="archive-category-empty"><span><Icon name="check-circle" size={19}/></span><div><strong>এই বিভাগে এন্ট্রি নেই</strong></div></div>}
             </Section>;
           })}
           {(activeKind === 'all' || activeKind === 'audit') && <Section title="সংশোধনের ইতিহাস" className="archive-kind-section archive-audit-section">
-            <div className="archive-section-subhead"><span>{formatNumber(arr(bundle.audit).length)}টি লগ</span><small>কে, কখন এবং কেন পরিবর্তন করেছেন</small></div>
-            {arr(bundle.audit).length ? <div className="archive-correction-records">{bundle.audit.map((entry, index) => <article className="archive-correction-record archive-audit-record" key={entry.id || index}><span className="archive-record-kind-icon"><Icon name="history" size={18}/></span><div className="archive-record-main"><strong>{entry.summary || entry.action || 'সংশোধন'}</strong><small>{entry.actor_name || 'ম্যানেজার'}{entry.created_at ? ` · ${formatDateTime12(entry.created_at)}` : ''}</small>{entry.reason && <p>{entry.reason}</p>}</div></article>)}</div> : <div className="archive-category-empty"><span><Icon name="history" size={19}/></span><div><strong>এখনো সংশোধন করা হয়নি</strong><p>পরবর্তী সংশোধনগুলো এখানে অডিট লগ হিসেবে দেখা যাবে।</p></div></div>}
+            <div className="archive-section-subhead"><span>{formatNumber(arr(bundle.audit).length)}টি লগ</span></div>
+            {arr(bundle.audit).length ? <div className="archive-correction-records">{bundle.audit.map((entry, index) => <article className="archive-correction-record archive-audit-record" key={entry.id || index}><span className="archive-record-kind-icon"><Icon name="history" size={18}/></span><div className="archive-record-main"><strong>{entry.summary || entry.action || 'সংশোধন'}</strong><small>{entry.actor_name || 'ম্যানেজার'}{entry.created_at ? ` · ${formatDateTime12(entry.created_at)}` : ''}</small>{entry.reason && <p>{entry.reason}</p>}</div></article>)}</div> : <div className="archive-category-empty"><span><Icon name="history" size={19}/></span><div><strong>এখনো সংশোধন করা হয়নি</strong></div></div>}
           </Section>}
         </div>
       </>}

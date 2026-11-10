@@ -1021,14 +1021,15 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         <div>
           <span className="eyebrow">বাজার এন্ট্রি</span>
           <h2>বাজারের তথ্য দিন</h2>
-          <p>তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন।</p>
         </div>
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
-      {(isManager || periodNotStarted) && (
-        <InfoPanel tone={periodNotStarted ? 'warning' : 'info'} icon={periodNotStarted ? 'calendar' : 'shopping-basket'}>
-          {periodNotStarted ? periodStartNotice : 'বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।'}
-        </InfoPanel>
+      {periodNotStarted ? (
+        <InfoPanel tone="warning" icon="calendar">{periodStartNotice}</InfoPanel>
+      ) : isManager ? (
+        <InfoPanel icon="shopping-basket">বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।</InfoPanel>
+      ) : (
+        <InfoPanel icon="shopping-basket">তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন।</InfoPanel>
       )}
 
       <div className="market-top-fields">
@@ -1309,7 +1310,7 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
       )}
       {dayStatus?.status === 'finalized' && <section className="final-meal-audit-card" aria-label="ফাইনাল মিলের ইতিহাস">
         <div className="final-meal-audit-heading"><div><span className="eyebrow">তারিখভিত্তিক অডিট</span><h3>এই দিনের ফাইনাল মিলের ইতিহাস</h3><small>{formatDateWithWeekday(date)}</small></div><Icon name="clipboard-check" size={21}/></div>
-        {mealAudit?.auditUnavailable && <div className="info-panel info-panel-warning"><span className="info-panel-icon"><Icon name="info" size={16}/></span><div className="info-panel-copy">বিস্তারিত Audit দেখতে Run40 Database Migration প্রয়োজন। বর্তমান মিল এন্ট্রি/সংশোধনের কাজ স্বাভাবিকভাবে চালু আছে।</div></div>}
+        {mealAudit?.auditUnavailable && <div className="info-panel info-panel-warning"><div className="info-panel-copy">বিস্তারিত Audit দেখতে Run40 Database Migration প্রয়োজন। বর্তমান মিল এন্ট্রি/সংশোধনের কাজ স্বাভাবিকভাবে চালু আছে।</div></div>}
         {mealAudit?.available && <>
           <div className="final-meal-audit-stats">
             <div><strong>{formatNumber(mealAudit.active_member_count || 0)}</strong><span>সক্রিয় সদস্য</span></div>
@@ -2353,7 +2354,7 @@ export function DiningPage() {
         {!isManager && !isAssistantManager && <DiningOptionCard icon="history" title="মিল অনুরোধ" description="মিলের অনুরোধ ও ইতিহাস দেখুন।" onClick={() => setView('meal-request')} />}
       </div>
 
-      {canOperateDining && (
+      {!isManager && !isAssistantManager && (
         <div className="manager-dining-note"><Icon name="shield" size={16} /><span>ম্যানেজার ফিচারে অতিরিক্ত ক্ষমতা আছে। ভুল এন্ট্রি পরে ম্যানেজার সংশোধন করতে পারবেন।</span></div>
       )}
     </div>

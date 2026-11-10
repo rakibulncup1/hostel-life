@@ -29,7 +29,7 @@ export function buildMarketShareText({ entryDate, buyerName, items = [], total =
     ...itemLines,
     '',
     `টোটাল বাজার = ${formatNumber(Number.isFinite(Number(total)) ? Number(total) : 0)} টাকা`,
-  ].join('\n');
+  ].map((line) => String(line).replace(/^[\t \u00a0]+/gu, '')).join('\n').replace(/^\n+|\n+$/gu, '');
 }
 
 /**

@@ -27,7 +27,7 @@ test('Khala entry form permits a payment date after the selected accounting mont
   assert.match(page, /form\.paymentDate > dhakaToday/);
   assert.match(page, /form\.paymentDate < String\(selectedPeriod\.start_date\)/);
   assert.doesNotMatch(page, /form\.paymentDate > selectedPeriod\?\.end_date/);
-  assert.match(page, /আজ পরিশোধ করলেও এন্ট্রিটি <strong>\{selectedPeriod\.label\}<\/strong> মাসের হিসাবেই যুক্ত থাকবে/);
+  assert.doesNotMatch(page, /এই খরচটি খালার আলাদা হিসাব হবে|আজ পরিশোধ করলেও এন্ট্রিটি/);
   assert.match(page, /প্রকৃত প্রদানের তারিখ:/);
   const memberView = read('src/features/menu/MenuPages.jsx');
   assert.match(memberView, /প্রকৃত প্রদানের তারিখ:\s*\{formatDateWithWeekday\(row\.entry_date\)\}/);

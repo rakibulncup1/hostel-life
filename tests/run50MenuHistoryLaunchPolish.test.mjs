@@ -26,18 +26,19 @@ test('menu uses the Bengali closed-months label and keeps Khala Money separated 
 test('archive month badges derive editability from server permission results', () => {
   const archive = read('src/features/archive/ArchiveCorrectionPage.jsx');
   assert.match(archive, /fetchMyArchiveEditablePeriods\(\)/);
-  assert.match(archive, /can_edit: Boolean\(primary \|\| editableIds\.has\(key\)\)/);
-  assert.match(archive, /row\.can_edit \? .*সম্পাদনার অনুমতি/s);
+  assert.match(archive, /can_edit: editableIds\.has\(key\)/);
+  assert.match(archive, /row\.can_edit \? 'আপনি মাসটি বন্ধ করেছেন' : 'শুধু দেখা · লক'/);
   assert.match(archive, /শুধু দেখা · লক/);
   assert.match(archive, /<h1>বন্ধ মাসসমূহ<\/h1>/);
 });
 
 
-test('archive route access recognizes both the closing manager and a valid archive edit grant', () => {
+test('archive route access recognizes the recorded month closer only', () => {
   const context = read('src/hooks/useManagementContext.js');
   const app = read('src/app/App.jsx');
-  assert.match(context, /\['closed_by', 'archive_grant'\]\.includes\(period\?\.access_kind\)/);
-  assert.match(app, /pathname === '\/app\/menu\/archive'.*isManager \|\| hasClosedMonthAccess/);
+  assert.match(context, /period\?\.access_kind === 'closed_by'/);
+  assert.match(app, /pathname === '\/app\/menu\/archive'\) return <ArchiveCorrectionPage \/>/);
+  assert.doesNotMatch(app, /isManager \|\| hasClosedMonthAccess/);
   assert.match(context, /get_khala_entry_periods_v2/);
 });
 
@@ -54,10 +55,11 @@ test('member and manager Khala pages expose month tabs and only show edit form f
   assert.match(managerPages, /এই মাসের হিসাব দেখা যাবে, তবে এন্ট্রি বা সংশোধনের অনুমতি নেই/);
 });
 
-test('ordinary member market-entry hint is removed while manager and period warnings remain', () => {
+test('ordinary member market-entry guidance is shown in its own information panel', () => {
   const dining = read('src/features/dining/DiningPage.jsx');
-  assert.match(dining, /\{\(isManager \|\| periodNotStarted\) && \(/);
-  assert.match(dining, /periodNotStarted \? periodStartNotice : 'বাজারকারীর নাম/);
+  assert.match(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
+  assert.match(dining, /periodNotStarted \? \([\s\S]*?InfoPanel tone="warning"/);
+  assert.match(dining, /: \([\s\S]*?InfoPanel icon="shopping-basket">তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
   assert.match(dining, /manager-request-review-guide" icon="clipboard-check"/);
   assert.doesNotMatch(dining, /manager-request-review-guide" icon="inbox"/);
 });
@@ -71,7 +73,7 @@ test('market edit rows use stable keys instead of item-name-dependent keys', () 
 
 test('market share output trims leading whitespace before every numbered item', () => {
   const share = read('src/utils/marketShare.js');
-  assert.match(share, /return `\$\{formatNumber\(index \+ 1[\s\S]*?replace\(\/\^\[\\s\\u00a0\]\+\//);
+  assert.match(share, /replace\(\/\^\[\\t \\u00a0\]\+\/gu, ''\)/);
 });
 
 test('history and archive detail views receive responsive guidance and detail styling', () => {
