@@ -16,6 +16,7 @@ import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { ledgerRowIsEditable, ledgerRowIsPositive } from '../../utils/accounting';
 import { isCurrentPeriodManager } from '../../utils/historyPermissions';
+import './history-page-visual-refinement.css';
 
 const TABS = [
   { key: 'market', label: 'বাজার ইতিহাস', icon: 'dining' },
@@ -430,10 +431,10 @@ function MarketHistoryList({ rows, serialById = new Map(), onOpen }) {
   if (!rows.length) return <EmptyHistory icon="dining" title="কোনো বাজার ইতিহাস নেই" text="এই ফিল্টারে কোনো বাজার এন্ট্রি পাওয়া যায়নি।" />;
   return <div className="history-list">{rows.map((row, index) => (
     <div className="market-history-row-shell" key={row.market_entry_id}>
-      <button className={`card history-item-card ${row.status === 'void' ? 'is-void' : ''}`} type="button" onClick={() => onOpen(row.market_entry_id)} aria-label={`${row.buyer_name || 'বাজার'} — ${formatDateBangla(row.entry_date)}-এর বিস্তারিত খুলুন`}>
-        <div className="history-leading-icon market-serial-badge"><span>{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
-        <div className="history-item-copy"><strong>{row.buyer_name}</strong><small>{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><small>এন্ট্রি করেছেন: {row.created_by_name || 'নাম সংরক্ষিত নেই'}</small>{row.updated_by_name && <small>শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}<span>{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span><small className="history-row-open-hint">বিস্তারিত দেখতে চাপ দিন <Icon name="chevron" size={12}/></small></div>
-        <div className="history-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
+      <button className={`card history-item-card history-market-entry-card ${row.status === 'void' ? 'is-void' : ''}`} type="button" onClick={() => onOpen(row.market_entry_id)} aria-label={`${row.buyer_name || 'বাজার'} — ${formatDateBangla(row.entry_date)}-এর বিস্তারিত খুলুন`}>
+        <div className="history-leading-icon market-serial-badge history-market-serial" aria-hidden="true"><span>{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
+        <div className="history-item-copy history-market-copy"><strong>{row.buyer_name || 'বাজারকারী'}</strong><small className="history-market-date">{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><small className="history-market-creator">এন্ট্রি করেছেন: {row.created_by_name || 'নাম সংরক্ষিত নেই'}</small>{row.updated_by_name && <small className="history-market-updated">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}<span className="history-market-item-count">{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span><small className="history-row-open-hint">বিস্তারিত দেখতে চাপ দিন <Icon name="chevron" size={12}/></small></div>
+        <div className="history-amount history-market-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
         <Icon name="chevron" size={17} />
       </button>
     </div>

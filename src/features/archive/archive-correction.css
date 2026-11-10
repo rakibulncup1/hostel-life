@@ -311,3 +311,51 @@
 @media (max-width: 540px) {
   .archive-correction-page .archive-readonly-warning { padding: 10px 11px; border-radius: 11px; }
 }
+
+
+/* Run55: keep the guidance surrounding the full monthly PDF action tidy,
+   readable and visually consistent with the active theme. */
+.archive-correction-page .archive-detail-toolbar .archive-reopen-hint {
+  grid-column: 1 / -1;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--primary, #17845b) 16%, var(--archive-line));
+  border-left: 3px solid color-mix(in srgb, var(--primary, #17845b) 58%, var(--archive-line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--primary-soft, #e8f5ed) 34%, var(--archive-card));
+  color: var(--archive-muted);
+  font-size: .74rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.archive-correction-page .archive-correction-access-note {
+  padding: 13px 16px;
+  border-left: 3px solid color-mix(in srgb, var(--primary, #17845b) 58%, var(--archive-line));
+  border-radius: 12px;
+  background: linear-gradient(125deg,
+    color-mix(in srgb, var(--primary-soft, #e8f5ed) 42%, var(--archive-card)),
+    var(--archive-card));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--archive-text) 3%, transparent);
+}
+.archive-correction-page .archive-correction-access-note strong {
+  font-size: .85rem;
+  line-height: 1.45;
+}
+.archive-correction-page .archive-correction-access-note p {
+  margin-top: 3px;
+  font-size: .77rem;
+  line-height: 1.65;
+}
+@media (max-width: 540px) {
+  .archive-correction-page .archive-detail-toolbar .archive-reopen-hint {
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: .7rem;
+    line-height: 1.55;
+  }
+  .archive-correction-page .archive-correction-access-note {
+    padding: 10px 12px;
+  }
+}
