@@ -1,1 +1,8 @@
+Runtime file changed:
 src/features/history/history-page-visual-refinement.css
+
+Included validation:
+tests/run60HistoryInfoBoxCardMatch.test.mjs
+RUN60_HISTORY_INFOBOX_CARD_MATCH_NOTES_BN.md
+
+No other runtime files are changed. No SQL migration.

@@ -435,7 +435,7 @@ function MarketHistoryList({ rows, serialById = new Map(), onOpen }) {
         <div className="history-leading-icon market-serial-badge history-market-serial" aria-hidden="true"><span>{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
         <div className="history-item-copy history-market-copy"><strong>{row.buyer_name || 'বাজারকারী'}</strong><small className="history-market-date">{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><small className="history-market-creator">এন্ট্রি করেছেন: {row.created_by_name || 'নাম সংরক্ষিত নেই'}</small>{row.updated_by_name && <small className="history-market-updated">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}<span className="history-market-item-count">{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span><small className="history-row-open-hint">বিস্তারিত দেখতে চাপ দিন <Icon name="chevron" size={12}/></small></div>
         <div className="history-amount history-market-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
-        <Icon name="chevron" size={17} />
+        <Icon name="chevron" size={17} className="history-market-chevron" />
       </button>
     </div>
   ))}</div>;

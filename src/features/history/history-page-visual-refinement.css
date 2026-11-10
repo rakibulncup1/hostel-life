@@ -216,3 +216,324 @@
     letter-spacing: normal;
   }
 }
+
+
+/* Run57: make the History heading and its guidance feel like one composed header.
+   Desktop/tablet only; the established <=640px phone layout remains untouched. */
+@media (min-width: 641px) {
+  .page-stack .page-title-row.history-title-row {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+    align-items: center;
+    gap: 16px 22px;
+    width: 100%;
+    padding: 17px 19px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--primary-soft) 38%, var(--surface)),
+      color-mix(in srgb, var(--surface) 96%, var(--primary-soft)) 72%);
+    box-shadow: var(--soft-shadow);
+  }
+
+  .history-title-row .history-title-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .history-title-row .history-page-brand-mark {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    box-shadow: none;
+  }
+
+  .history-title-row .history-page-intro-copy {
+    gap: 3px;
+  }
+
+  .history-title-row .history-page-intro-copy .eyebrow {
+    color: var(--primary-strong);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .045em;
+  }
+
+  .history-title-row .history-page-intro-copy h1 {
+    color: var(--text);
+    font-size: clamp(23px, 2.1vw, 27px);
+    font-weight: 750;
+    line-height: 1.25;
+    letter-spacing: -.025em;
+  }
+
+  .history-title-row .history-page-intro-copy p {
+    margin: 1px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.55;
+  }
+
+  .history-title-row .history-title-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .history-title-row .history-intro-guidance-box {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 10px 13px;
+    border: 1px solid color-mix(in srgb, var(--primary) 13%, var(--line));
+    border-left: 1px solid color-mix(in srgb, var(--primary) 13%, var(--line));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface) 82%, var(--primary-soft));
+    box-shadow: none;
+    color: var(--muted);
+    font-size: 11.5px;
+    font-weight: 400;
+    letter-spacing: normal;
+    line-height: 1.62;
+    text-align: left;
+  }
+
+  .history-title-row .history-intro-guidance-box > span {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    color: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    letter-spacing: normal;
+    line-height: inherit;
+    overflow-wrap: anywhere;
+  }
+
+  .history-title-row .history-title-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 0;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 920px) {
+  .page-stack .page-title-row.history-title-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 13px;
+    padding: 15px 16px;
+  }
+
+  .history-title-row .history-title-footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+}
+
+
+/* Run59: restore a quiet, properly sized guidance box on phones.
+   Keep the mobile copy regular-weight and visually aligned with the History page. */
+@media (max-width: 640px) {
+  .page-stack .history-title-row .history-intro-guidance-box {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    margin: 5px 0 0;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--line) 86%, var(--surface));
+    border-left: 1px solid color-mix(in srgb, var(--line) 86%, var(--surface));
+    border-radius: 11px;
+    background: color-mix(in srgb, var(--surface-2) 48%, var(--surface));
+    box-shadow: none;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: normal;
+    line-height: 1.65;
+    text-align: left;
+    overflow: visible;
+  }
+
+  .page-stack .history-title-row .history-intro-guidance-box > span {
+    display: block;
+    width: 100%;
+    max-width: none;
+    color: inherit;
+    font-size: inherit;
+    font-weight: 400;
+    letter-spacing: normal;
+    line-height: inherit;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  /* Keep the market amount on a full-width row instead of a detached corner. */
+  .history-list .history-market-entry-card {
+    grid-template-columns: 34px minmax(0, 1fr) 16px;
+    grid-template-areas:
+      "serial copy chevron"
+      "amount amount amount";
+    align-items: start;
+    gap: 7px 9px;
+  }
+
+  .history-list .history-market-entry-card > .history-market-serial { grid-area: serial; }
+  .history-list .history-market-entry-card > .history-market-copy { grid-area: copy; }
+  .history-list .history-market-entry-card > .history-market-chevron {
+    grid-area: chevron;
+    justify-self: end;
+    align-self: start;
+    margin-top: 4px;
+  }
+  .history-list .history-market-entry-card > .history-market-amount {
+    grid-area: amount;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    margin: 2px 0 0;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-2) 78%, var(--surface));
+    text-align: right;
+  }
+  .history-list .history-market-entry-card > .history-market-amount::before {
+    content: "মোট বাজার";
+    flex: 0 0 auto;
+    margin-right: auto;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .history-list .history-market-entry-card > .history-market-amount > small {
+    flex: 0 0 auto;
+    margin: 0;
+    color: var(--muted);
+    font-size: 9px;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .history-list .history-market-entry-card > .history-market-amount > strong {
+    flex: 0 0 auto;
+    color: var(--primary-strong);
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+  .history-list .history-market-entry-card.is-void > .history-market-amount > strong {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+}
+
+/* Phones hide the trailing chevron in the existing global layout; reclaim that column. */
+@media (max-width: 560px) {
+  .history-list .history-market-entry-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-areas:
+      "serial copy"
+      "amount amount";
+  }
+  .history-list .history-market-entry-card > .history-market-chevron { display: none; }
+}
+
+@media (max-width: 390px) {
+  .history-list .history-market-entry-card {
+    grid-template-columns: 31px minmax(0, 1fr);
+    grid-template-areas:
+      "serial copy"
+      "amount amount";
+  }
+  .history-market-serial { width: 31px; height: 31px; }
+  .history-list .history-market-entry-card > .history-market-amount {
+    justify-self: stretch;
+    gap: 7px;
+    padding: 7px 9px;
+  }
+  .history-list .history-market-entry-card > .history-market-amount::before { font-size: 9.5px; }
+  .history-list .history-market-entry-card > .history-market-amount > small { font-size: 8.5px; }
+  .history-list .history-market-entry-card > .history-market-amount > strong { font-size: 12px; }
+}
+
+/* Run60: make the History guidance box use the same quiet surface as standard cards.
+   This override is intentionally limited to the History intro guidance element. */
+.page-stack .page-title-row.history-title-row .history-intro-guidance-box {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.65;
+  text-align: left;
+  overflow: visible;
+}
+
+.page-stack .page-title-row.history-title-row .history-intro-guidance-box > span {
+  display: block;
+  width: 100%;
+  max-width: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+@media (max-width: 640px) {
+  .page-stack .page-title-row.history-title-row .history-intro-guidance-box {
+    width: 100%;
+    min-height: 0;
+    height: auto;
+    margin: 5px 0 0;
+    padding: 13px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-size: 12px;
+    line-height: 1.65;
+  }
+}
