@@ -98,36 +98,26 @@ test('signup OTP uses spam guidance, 10-minute hosted setup and unverified-email
   assert.match(otpGuide, /REGISTER_OTP_FLOW_MAX_AGE/);
 });
 
-test('app resume saves only a safe app route and scroll position, never sensitive form state', () => {
-  assert.match(app, /hostel-life-app-resume-v1/);
-  assert.match(app, /saved\.path\.startsWith\('\/app\/'\)/);
-  assert.match(app, /scrollY/);
-  assert.match(app, /getSafeResumeSearch/);
-  assert.match(app, /history_tab/);
-  assert.match(history, /updateHistoryTab/);
-  const resumeEffect = app.slice(app.indexOf('Preserve the last app location'), app.indexOf('useEffect(() => {\n    // The install guide'));
-  assert.match(resumeEffect, /auth\.identityReady/);
-  assert.match(resumeEffect, /pathname !== '\/app\/dashboard'/);
-  assert.match(resumeEffect, /JSON\.stringify\(\{ path: pathname, search: getSafeResumeSearch\(pathname\), scrollY: Math\.max\(0, window\.scrollY \|\| 0\), savedAt: Date\.now\(\) \}\)/);
-  assert.doesNotMatch(resumeEffect, /JSON\.stringify\(\{[^}]*password|JSON\.stringify\(\{[^}]*otp|JSON\.stringify\(\{[^}]*draft/i);
+test('cold app relaunch returns to Dashboard without persisting a stale subroute or sensitive form state', () => {
+  assert.match(app, /APP_BACKGROUND_EXIT_KEY/);
+  assert.match(app, /resolveLaunchPath\(currentPath, markerPresent\)/);
+  assert.match(app, /localStorage\.setItem\(APP_BACKGROUND_EXIT_KEY/);
+  assert.match(app, /document\.visibilityState !== 'hidden'/);
+  assert.doesNotMatch(app, /hostel-life-app-resume-v1|getSafeResumeSearch|scrollY/);
+  assert.doesNotMatch(app, /localStorage\.setItem\([^\n]*(password|otp|draft|payment|amount)/i);
 });
 
-test('mobile app resume restores a safe Dining sub-view and checks the saved query', () => {
-  assert.match(app, /pathname !== '\/app\/history' && pathname !== '\/app\/dining'/);
-  assert.match(app, /const diningView = input\.get\('dining_view'\)/);
-  assert.match(app, /allowedViews\.includes\(diningView\)/);
-  assert.match(app, /\['\/app\/history', '\/app\/dining'\]\.includes\(saved\.path\) && safeSearch !== window\.location\.search/);
-  assert.match(diningPage, /useState\(\(\) => resolveInitialDiningView\(\)\)/);
-  assert.match(diningPage, /window\.history\.replaceState\(window\.history\.state, '', next\)/);
+test('cold relaunch helper resets app routes to Dashboard but preserves public and invite routes', () => {
+  const policy = read('src/app/appLaunchPolicy.js');
+  assert.match(policy, /backgroundExitMarkerPresent && safePath\.startsWith\('\/app\/'\)/);
+  assert.match(policy, /\? '\/app\/dashboard'/);
   assert.match(diningPage, /MANAGER_ONLY_DINING_VIEWS\.has\(view\) && !canOperateDining/);
   assert.match(diningPage, /view === 'manager-meal' && !canManageFinalMeals/);
   assert.match(diningPage, /if \(loadingMembers \|\| managerAuthorizationPending\) return;[\s\S]*MANAGER_ONLY_DINING_VIEWS/);
   assert.match(diningPage, /if \(managerAuthorizationPending\)[\s\S]*ম্যানেজার অনুমতি যাচাই হচ্ছে/);
   assert.match(diningPage, /const managerAuthorizationPending = managerViewNeedsAuthorization && managementContextLoading/);
-  assert.match(diningPage, /const renderView = !loadingMembers && !managerAuthorizationPending && \(\(MANAGER_ONLY_DINING_VIEWS\.has\(view\) && !canOperateDining\) \|\| \(view === 'manager-meal' && !canManageFinalMeals\)\) \? 'home' : view/);
-  assert.match(diningPage, /if \(renderView !== view\)[\s\S]*অনুমতি যাচাই করা হচ্ছে/);
+  assert.match(diningPage, /const renderView = !loadingMembers && !managerAuthorizationPending/);
   assert.match(diningPage, /if \(view === 'deposit'\)/);
-  assert.doesNotMatch(diningPage.slice(diningPage.indexOf('function resolveInitialDiningView'), diningPage.indexOf('export function DiningPage')), /canOperateDining|canManageFinalMeals/);
 });
 
 test('archived summary PDF pre-opens a user-authorized report window before network wait', () => {

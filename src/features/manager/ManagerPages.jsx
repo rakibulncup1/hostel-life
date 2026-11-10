@@ -39,7 +39,7 @@ import { formatDateBangla, formatDateWithWeekday, toDateInputValue } from '../..
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
-import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
+import { getDhakaBusinessDate, getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
 import {
   managerCreateHostelInviteLink,
   managerListHostelJoinRequests,
@@ -889,8 +889,9 @@ export function KhalaMoneyPage() {
   const { context, isPrimaryManager, isOperationalManager, hasClosedMonthAccess } = useManagementContext();
   const [periods, setPeriods] = useState([]);
   const [rows, setRows] = useState([]);
-  const [periodId, setPeriodId] = useState('');
-  const [form, setForm] = useState({ amount: '', memberId: '', paymentDate: toDateInputValue(), description: '' });
+  const [periodId, setPeriodId] = useState(() => new URLSearchParams(window.location.search).get('period_id') || '');
+  const [periodTab, setPeriodTab] = useState('previous');
+  const [form, setForm] = useState({ amount: '', memberId: '', paymentDate: getDhakaBusinessDate(), description: '' });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [voidTarget, setVoidTarget] = useState(null);
@@ -901,62 +902,94 @@ export function KhalaMoneyPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const periodRows = await fetchKhalaPeriods();
-      const historyByPeriod = await Promise.all(periodRows.map((period) => fetchKhalaMoneyHistory({ periodId: period.period_id, limit: 300 })));
-      const khalaRows = historyByPeriod.flat().sort((a, b) => String(b.entry_date || '').localeCompare(String(a.entry_date || '')) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
+      const [writableRows, previousRows] = await Promise.all([
+        fetchKhalaPeriods().catch(() => []),
+        fetchPreviousMonths(),
+      ]);
+      const currentPeriod = context?.period?.period_id ? { ...context.period, status: 'running' } : null;
+      const allPeriodRows = [
+        ...(currentPeriod ? [currentPeriod] : []),
+        ...(Array.isArray(previousRows) ? previousRows : []),
+        ...(Array.isArray(writableRows) ? writableRows : []),
+      ].filter((period, index, all) => {
+        const id = String(period?.period_id || period?.id || '');
+        return id && all.findIndex((item) => String(item?.period_id || item?.id || '') === id) === index;
+      }).slice(0, 36);
+      const writableById = new Map((Array.isArray(writableRows) ? writableRows : []).map((period) => [String(period.period_id || period.id), period]));
+      const periodRows = allPeriodRows.map((period) => {
+        const id = String(period.period_id || period.id);
+        const permission = writableById.get(id);
+        return { ...period, period_id: id, can_manage_khala: Boolean(permission), end_date: permission?.end_date || period.end_date, manager_at_close_name: period.manager_at_close_name || permission?.manager_at_close_name || '', access_kind: permission?.access_kind || '' };
+      });
+      const historyByPeriod = await Promise.all(periodRows.map((period) => fetchKhalaMoneyHistory({ periodId: period.period_id, limit: 300 }).catch(() => [])));
+      const khalaRows = historyByPeriod.flatMap((data, index) => (Array.isArray(data) ? data : []).map((row) => ({ ...row, period_id: periodRows[index].period_id })))
+        .sort((a, b) => String(b.entry_date || '').localeCompare(String(a.entry_date || '')) || String(b.created_at || '').localeCompare(String(a.created_at || '')));
       setPeriods(periodRows);
-      const currentPeriod = context?.period?.period_id;
-      // Keep the user's selected historical period when refreshing after an edit.
-      // Fall back to the running period (or first available period) only when it disappeared.
-      setPeriodId((previous) => periodRows.some((p) => p.period_id === previous)
-        ? previous
-        : ((currentPeriod && periodRows.some((p) => p.period_id === currentPeriod))
-          ? currentPeriod
-          : (periodRows[0]?.period_id || '')));
+      const requestedPeriodId = new URLSearchParams(window.location.search).get('period_id') || '';
+      const preferredId = periodRows.some((p) => p.period_id === requestedPeriodId)
+        ? requestedPeriodId
+        : periodRows.find((p) => p.status !== 'running')?.period_id || '';
+      setPeriodId((previous) => periodRows.some((p) => p.period_id === previous) ? previous : preferredId);
+      const preferredPeriod = periodRows.find((p) => p.period_id === (periodRows.some((p) => p.period_id === requestedPeriodId) ? requestedPeriodId : preferredId));
+      if (preferredPeriod?.status === 'running') setPeriodTab('current');
       setRows(khalaRows);
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'খালার টাকার তথ্য লোড করা যায়নি।'));
     } finally { setLoading(false); }
   }, [context?.period?.period_id, toast]);
 
-  useEffect(() => { if (online && (isOperationalManager || hasClosedMonthAccess)) load(); }, [online, isOperationalManager, hasClosedMonthAccess, load]);
+  useEffect(() => { if (online) load(); }, [online, load]);
 
-  const selectedPeriod = periods.find((p) => p.period_id === periodId) || null;
+  const visiblePeriods = periods.filter((period) => periodTab === 'all' || (periodTab === 'current' ? period.status === 'running' : period.status !== 'running'));
+  const selectedPeriod = visiblePeriods.find((p) => p.period_id === periodId) || null;
   const periodStartNotice = getPeriodStartNotice(selectedPeriod, 'খালার টাকার এন্ট্রি');
-  const visibleRows = selectedPeriod ? rows.filter((row) => row.period_id === selectedPeriod.period_id) : rows;
+  const visibleRows = selectedPeriod ? rows.filter((row) => row.period_id === selectedPeriod.period_id) : [];
   const total = visibleRows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  // The selected accounting period and the actual payment date are different concepts.
+  // A payment may belong to a closed month while being paid on any later day up to
+  // today's Bangladesh date; the period_id remains the selected month.
+  const paymentDateMax = getDhakaBusinessDate();
+  const changePeriodTab = (nextTab) => {
+    setPeriodTab(nextTab);
+    const nextPeriods = periods.filter((period) => nextTab === 'all' || (nextTab === 'current' ? period.status === 'running' : period.status !== 'running'));
+    if (!nextPeriods.some((period) => period.period_id === periodId)) setPeriodId(nextPeriods[0]?.period_id || '');
+  };
 
   useEffect(() => {
     let active = true;
-    if (!online || !selectedPeriod?.period_id) { setEligibleMembers([]); return undefined; }
+    if (!online || !selectedPeriod?.period_id || !selectedPeriod.can_manage_khala) { setEligibleMembers([]); return undefined; }
     fetchKhalaEntryMembers(selectedPeriod.period_id)
       .then((members) => { if (active) setEligibleMembers(Array.isArray(members) ? members : []); })
       .catch((error) => { if (active) { setEligibleMembers([]); toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।')); } });
     return () => { active = false; };
-  }, [online, selectedPeriod?.period_id, toast]);
+  }, [online, selectedPeriod?.period_id, selectedPeriod?.can_manage_khala, toast]);
 
   useEffect(() => {
     if (!selectedPeriod) return;
-    setForm((current) => ({
-      ...current,
-      paymentDate: periodStartNotice ? String(selectedPeriod.start_date).slice(0, 10) : (current.paymentDate || toDateInputValue()),
-    }));
-  }, [selectedPeriod?.period_id, selectedPeriod?.start_date, periodStartNotice]);
+    setForm((current) => {
+      const currentDate = current.paymentDate || paymentDateMax;
+      const periodStartDate = String(selectedPeriod.start_date || '').slice(0, 10);
+      const lowerBoundedDate = periodStartDate && currentDate < periodStartDate ? periodStartDate : currentDate;
+      const boundedDate = lowerBoundedDate > paymentDateMax ? paymentDateMax : lowerBoundedDate;
+      return { ...current, paymentDate: periodStartNotice ? periodStartDate : boundedDate };
+    });
+  }, [selectedPeriod?.period_id, selectedPeriod?.start_date, periodStartNotice, paymentDateMax]);
 
   const save = async (event) => {
     event.preventDefault();
-    if (!periodId) return toast.warning('কাজের মাস নির্বাচন করুন।');
+    if (!selectedPeriod?.period_id) return toast.warning('কাজের মাস নির্বাচন করুন।');
+    if (!selectedPeriod.can_manage_khala) return toast.warning('এই মাসে খালার টাকার এন্ট্রি বা সংশোধনের অনুমতি নেই।');
     if (periodStartNotice) return toast.info(periodStartNotice);
     if (!form.memberId) return toast.warning('সংশ্লিষ্ট সদস্য নির্বাচন করুন।');
     const amount = Number(form.amount);
     if (!(amount > 0)) return toast.warning('টাকার পরিমাণ শূন্যের বেশি হতে হবে।');
     if (!form.paymentDate) return toast.warning('প্রদানের তারিখ নির্বাচন করুন।');
-    if (form.paymentDate > toDateInputValue()) return toast.warning('প্রদানের তারিখ ভবিষ্যতের হতে পারবে না।');
-    if (selectedPeriod?.start_date && form.paymentDate < selectedPeriod.start_date) return toast.warning('প্রদানের তারিখ নির্বাচিত মাসের শুরুর আগের হতে পারবে না।');
-    if (selectedPeriod?.end_date && form.paymentDate > selectedPeriod.end_date) return toast.warning('প্রদানের তারিখ নির্বাচিত মাসের শেষের পরের হতে পারবে না।');
+    const dhakaToday = getDhakaBusinessDate();
+    if (form.paymentDate > dhakaToday) return toast.warning('প্রদানের তারিখ বাংলাদেশ সময় অনুযায়ী আজকের দিনের পরের হতে পারবে না।');
+    if (selectedPeriod?.start_date && form.paymentDate < String(selectedPeriod.start_date).slice(0, 10)) return toast.warning('প্রদানের তারিখ নির্বাচিত কাজের মাস শুরুর আগের হতে পারবে না।');
     setBusy(true);
     try {
-      const payload = { periodId, memberId: form.memberId, amount, paymentDate: form.paymentDate, description: form.description.trim() || null };
+      const payload = { periodId: selectedPeriod.period_id, memberId: form.memberId, amount, paymentDate: form.paymentDate, description: form.description.trim() || null };
       if (editingTarget?.entry_id) {
         await updateKhalaMoney({ ...payload, entryId: editingTarget.entry_id });
         toast.success('খালার টাকার এন্ট্রি সংশোধন হয়েছে।');
@@ -985,7 +1018,7 @@ export function KhalaMoneyPage() {
 
   const cancelEdit = () => {
     setEditingTarget(null);
-    setForm({ amount: '', memberId: '', paymentDate: toDateInputValue(), description: '' });
+    setForm({ amount: '', memberId: '', paymentDate: getDhakaBusinessDate(), description: '' });
   };
 
   const doVoid = async () => {
@@ -1001,22 +1034,28 @@ export function KhalaMoneyPage() {
   };
 
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="খালার টাকার তথ্য অনলাইনে দেখা ও যোগ করা যাবে।" />;
-  if (!isOperationalManager && !hasClosedMonthAccess) return <AccessNotice title="অনুমতি নেই" text="খালার টাকার এই অংশটি শুধু অনুমোদিত মাসের দায়িত্বপ্রাপ্ত ম্যানেজার দেখতে পারবেন।" />;
   if (loading) return <LoadingSpinner label="খালার টাকার তথ্য লোড হচ্ছে..." />;
+  if (!isOperationalManager && !hasClosedMonthAccess && !periods.some((period) => period.can_manage_khala)) return <AccessNotice title="অনুমতি নেই" text="খালার টাকার এন্ট্রি বা সংশোধন করার জন্য কোনো অনুমোদিত মাস পাওয়া যায়নি।" />;
 
   return (
     <div className="page-stack">
         <PageHeader title="খালার টাকা" icon="wallet" description={isOperationalManager ? 'মাসভিত্তিক খালার পারিশ্রমিক যোগ করুন।' : 'আপনার বন্ধ করা মাসের তথ্য দেখুন ও সংশোধন করুন।'} />
-        <InfoPanel className="finance-context-note" icon="wallet">মাস, সদস্য, তারিখ ও পরিমাণ যাচাই করে এন্ট্রি সংরক্ষণ করুন।</InfoPanel>
+        <InfoPanel className="finance-context-note" icon="wallet">সব মাসের হিসাব দেখুন। এন্ট্রি ও সংশোধন শুধু যেসব মাসে সার্ভার অনুমতি দিয়েছে সেখানেই করা যাবে।</InfoPanel>
+        <div className="khala-period-tabs" role="tablist" aria-label="খালার টাকার মাস নির্বাচন">
+          {[{ key: 'previous', label: 'পূর্ববর্তী মাস' }, { key: 'current', label: 'বর্তমান মাস' }, { key: 'all', label: 'সকল মাস' }].map((tab) => <button key={tab.key} type="button" role="tab" aria-selected={periodTab === tab.key} className={periodTab === tab.key ? 'is-active' : ''} onClick={() => changePeriodTab(tab.key)}><span>{tab.label}</span><b>{formatNumber(periods.filter((period) => tab.key === 'all' || (tab.key === 'current' ? period.status === 'running' : period.status !== 'running')).length)}</b></button>)}
+        </div>
         {periods.length === 0 ? (
           <div className="empty-state-card"><Icon name="wallet" size={26} /><strong>এখনো কোনো কাজের মাস পাওয়া যায়নি</strong><span>বর্তমান বা নির্ধারিত পুরোনো মাস থাকলে এখানে দেখা যাবে।</span></div>
+        ) : visiblePeriods.length === 0 ? (
+          <div className="empty-state-card"><Icon name="wallet" size={26}/><strong>{periodTab === 'previous' ? 'কোনো পূর্ববর্তী মাস নেই' : 'কোনো চলমান মাস নেই'}</strong><span>অন্য ট্যাব থেকে মাস নির্বাচন করে হিসাব দেখতে পারেন।</span></div>
         ) : (
           <>
-            <form className="card manager-form-card khala-entry-form" onSubmit={save}>
+            {selectedPeriod && !selectedPeriod.can_manage_khala && <div className="khala-view-readonly-note"><Icon name="lock" size={17}/><span><strong>{selectedPeriod.label}</strong> — এই মাসের হিসাব দেখা যাবে, তবে এন্ট্রি বা সংশোধনের অনুমতি নেই।</span></div>}
+            {selectedPeriod?.can_manage_khala && <form className="card manager-form-card khala-entry-form" onSubmit={save}>
               {periodStartNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {periodStartNotice}</div>}
               <div className="form-grid-2">
-                <label className="field-label"><span>কাজের মাস</span><select value={periodId} onChange={(e) => setPeriodId(e.target.value)}>{periods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label}{period.status !== 'running' ? ` · ${period.manager_at_close_name || 'বন্ধ মাস'}` : ' · চলমান'}</option>)}</select></label>
-                <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={toDateInputValue()} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} disabled={Boolean(periodStartNotice)} required /></label>
+                <label className="field-label"><span>কাজের মাস</span><select value={periodId} onChange={(e) => setPeriodId(e.target.value)}>{visiblePeriods.map((period) => <option key={period.period_id} value={period.period_id}>{period.label}{period.status !== 'running' ? ` · ${period.manager_at_close_name || 'বন্ধ মাস'}` : ' · চলমান'}</option>)}</select></label>
+                <label className="field-label"><span>প্রদানের তারিখ</span><input type="date" max={paymentDateMax} min={selectedPeriod?.start_date || undefined} value={form.paymentDate} onChange={(e) => setForm((current) => ({ ...current, paymentDate: e.target.value }))} disabled={Boolean(periodStartNotice)} required /></label>
               </div>
               <label className="field-label"><span>যে সদস্যের নামে খালার পারিশ্রমিকটি নথিভুক্ত হবে</span>
                 <select value={form.memberId} required onChange={(e) => setForm((current) => ({ ...current, memberId: e.target.value }))}>
@@ -1025,13 +1064,13 @@ export function KhalaMoneyPage() {
                 </select>
                 {!eligibleMembers.length && <small>সদস্য তালিকা পাওয়া যায়নি। তালিকা লোড না হওয়া পর্যন্ত এন্ট্রি করা যাবে না।</small>}
               </label>
-              {selectedPeriod && <div className="form-hint"><Icon name="info" size={15} /> এই খরচটি খালার আলাদা হিসাব হবে; কোনো সদস্যের ব্যক্তিগত ব্যালেন্স বা অন্যান্য খরচে যোগ হবে না।</div>}
+              {selectedPeriod && <div className="form-hint"><Icon name="info" size={15} /> এই খরচটি খালার আলাদা হিসাব হবে; কোনো সদস্যের ব্যক্তিগত ব্যালেন্স বা অন্যান্য খরচে যোগ হবে না। প্রদানের তারিখ নির্বাচিত কাজের মাসের শুরু থেকে আজ পর্যন্ত হতে পারবে। আজ পরিশোধ করলেও এন্ট্রিটি <strong>{selectedPeriod.label}</strong> মাসের হিসাবেই যুক্ত থাকবে।</div>}
               <div className="form-grid-2">
                 <label className="field-label"><span>টাকার পরিমাণ</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={form.amount} onChange={(e) => setForm((current) => ({ ...current, amount: e.target.value }))} placeholder="০" required /></label>
                 <label className="field-label"><span>বিবরণ <em>(ঐচ্ছিক)</em></span><input value={form.description} onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))} placeholder="যেমন: মাসিক পারিশ্রমিক" /></label>
               </div>
               <div className="form-actions-inline"><button className="primary-button large" type="submit" disabled={busy || Boolean(periodStartNotice) || !eligibleMembers.length}>{busy ? 'সংরক্ষণ হচ্ছে...' : editingTarget ? 'পরিবর্তন সংরক্ষণ করুন' : 'খালার টাকা যোগ করুন'}</button>{editingTarget && <button className="secondary-button" type="button" disabled={busy} onClick={cancelEdit}>সম্পাদনা বাতিল</button>}</div>
-            </form>
+            </form>}
 
             <section className="card manager-form-card">
               <div className="section-heading"><div><span className="eyebrow">নির্বাচিত কাজের মাস</span><h2>{selectedPeriod?.label || '—'}</h2></div><div className="khala-total-heading"><small>মোট কার্যকর পারিশ্রমিক</small><strong>{formatCurrency(total)}</strong></div></div>
@@ -1041,13 +1080,13 @@ export function KhalaMoneyPage() {
                     <div className="khala-ledger-copy">
                       <div className="khala-ledger-recipient"><span>সদস্যের নাম</span><strong>{row.recipient_name || (row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : 'সদস্যের নাম পাওয়া যায়নি')}</strong></div>
                       <span className="khala-entry-kind">খালার পারিশ্রমিক</span>
-                      <small>{formatDateWithWeekday(row.entry_date)} · {formatDateTime12(row.created_at)}</small>
+                      <small>প্রকৃত প্রদানের তারিখ: {formatDateWithWeekday(row.entry_date)} · এন্ট্রি: {formatDateTime12(row.created_at)}</small>
                       <span className="khala-ledger-description">{row.description || 'খালার টাকা'}</span>
                       <small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small>
                       {row.updated_by_name && <small className="khala-entry-actor">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}
                     </div>
                     <strong>{formatCurrency(row.amount)}</strong>
-                    {row.status !== 'void' ? <div className="khala-row-actions"><button className="icon-button compact-icon" type="button" disabled={busy} onClick={() => startEdit(row)} aria-label="এন্ট্রি সম্পাদনা করুন" title="সম্পাদনা"><Icon name="edit" size={15} /></button><button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button></div> : <span className="member-badge inactive">বাতিল</span>}
+                    {selectedPeriod?.can_manage_khala && row.status !== 'void' ? <div className="khala-row-actions"><button className="icon-button compact-icon" type="button" disabled={busy} onClick={() => startEdit(row)} aria-label="এন্ট্রি সম্পাদনা করুন" title="সম্পাদনা"><Icon name="edit" size={15} /></button><button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button></div> : <span className={`member-badge ${row.status === 'void' ? 'inactive' : 'subtle'}`}>{row.status === 'void' ? 'বাতিল' : selectedPeriod?.can_manage_khala ? 'পরিশোধিত' : 'শুধু দেখা'}</span>}
                   </article>
                 ))}
               </div>

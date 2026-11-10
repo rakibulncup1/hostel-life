@@ -3,7 +3,7 @@ import { TelegramLogo } from './TelegramLogo';
 
 const commonItems = [
   { key: 'meal-sheet', label: 'মিল শিট', icon: 'history' },
-  { key: 'archive', label: 'আর্কাইভ', icon: 'history' },
+  { key: 'archive', label: 'বন্ধ মাসসমূহ', icon: 'history' },
   { key: 'reports', label: 'রিপোর্ট ডাউনলোড', icon: 'download' },
   { key: 'members', label: 'সকল সদস্য', icon: 'user' },
   { key: 'khala-money-view', label: 'খালার টাকা', icon: 'wallet' },
@@ -51,7 +51,7 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
   const initials = profile?.full_name?.trim()?.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'HL';
   const effectivePrimaryManager = Boolean(isManager || isPrimaryManager);
   const effectiveOperationalManager = Boolean(isManager || isOperationalManager);
-  const managerItems = effectivePrimaryManager ? primaryItems : effectiveOperationalManager ? assistantItems : (hasClosedMonthAccess ? [{ key: 'khala-money', label: 'খালার টাকা', icon: 'wallet' }] : []);
+  const managerItems = effectivePrimaryManager ? primaryItems : effectiveOperationalManager ? assistantItems : [];
 
   return (
     <>
@@ -74,7 +74,7 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
 
         <div className="menu-group">
           <div className="menu-group-title">সাধারণ</div>
-          {commonItems.filter((item) => !((effectiveOperationalManager || hasClosedMonthAccess) && item.key === 'khala-money-view')).map((item) => (
+          {commonItems.filter((item) => !(effectiveOperationalManager && item.key === 'khala-money-view')).map((item) => (
             <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
               <span className="menu-row-icon">{item.key === 'telegram' ? <TelegramLogo size={18} monochrome /> : <Icon name={item.icon} size={18} />}</span>
               <span>{item.label}</span>
@@ -94,9 +94,9 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
           ))}
         </div>
 
-        {(effectiveOperationalManager || hasClosedMonthAccess) && (
+        {effectiveOperationalManager && (
           <div className="menu-group manager-group">
-            <div className="menu-group-title manager-title"><Icon name="shield" size={13} /> {effectivePrimaryManager ? 'ম্যানেজার ফিচার' : effectiveOperationalManager ? 'সহকারী ম্যানেজার' : 'বন্ধ মাসের ব্যবস্থাপনা'}</div>
+            <div className="menu-group-title manager-title"><Icon name="shield" size={13} /> {effectivePrimaryManager ? 'ম্যানেজার ফিচার' : effectiveOperationalManager ? 'সহকারী ম্যানেজার' : 'ম্যানেজার ফিচার'}</div>
             {managerItems.map((item) => (
               <button className="menu-row" key={item.key} onClick={() => click(item.key)}>
                 <span className="menu-row-icon manager-icon"><Icon name={item.icon} size={18} /></span>

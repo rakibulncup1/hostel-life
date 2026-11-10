@@ -89,6 +89,11 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
             </div>
           </div>
           {!minimal && <p className="auth-brand-quote">মিল, বাজার ও হিসাব—এক জায়গায়, স্বচ্ছতা ও আস্থার সঙ্গে।</p>}
+          {!minimal && <div className="auth-brand-feature-list" aria-label="Hostel Life-এর সুবিধা">
+            <span><Icon name="utensils" size={15} /> মিলের হিসাব</span>
+            <span><Icon name="shopping-bag" size={15} /> বাজার ও জমা</span>
+            <span><Icon name="activity" size={15} /> মাসিক রিপোর্ট</span>
+          </div>}
         </div>
         <div className="auth-form-panel">
           <div className="auth-form-toolbar">

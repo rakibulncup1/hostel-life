@@ -1,0 +1,249 @@
+/* Run50 focused finishing layer — presentation only, no business logic. */
+
+/* Closed months: clear access status without changing the server permission. */
+.archive-correction-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+.archive-hero-copy { min-width: 0; }
+.archive-hero-copy h1 { overflow-wrap: anywhere; }
+.archive-hero-guidance {
+  max-width: min(100%, 900px);
+  align-items: flex-start;
+  padding: 13px 15px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.archive-hero-stats { gap: 12px; }
+.archive-hero-stat { min-height: 82px; justify-content: center; }
+.archive-access-badge {
+  display: inline-flex !important;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px !important;
+  font-weight: 800;
+  line-height: 1.4 !important;
+  white-space: normal;
+}
+.archive-access-badge.is-editable {
+  color: var(--primary-strong);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 74%, var(--surface));
+}
+.archive-access-badge.is-locked {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.archive-correction-page .archive-month-card .archive-month-copy > span.archive-access-badge {
+  margin-top: 3px;
+}
+.closed-month-guidance-panel,
+.document-guidance-panel {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--primary-soft) 76%, var(--surface));
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.closed-month-guidance-panel > svg,
+.document-guidance-panel > svg { flex: 0 0 19px; margin-top: 2px; color: var(--primary-strong); }
+
+/* Khala Money month selector: identical tab language in member and manager views. */
+.khala-period-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface-2);
+}
+.khala-period-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.khala-period-tabs button b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 10px;
+}
+.khala-period-tabs button.is-active {
+  color: var(--primary-strong);
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 2px 7px rgba(20, 60, 40, .06);
+}
+.khala-period-tabs button.is-active b {
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--line));
+}
+.khala-period-heading { align-items: flex-start; }
+.khala-period-badge-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
+.khala-period-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: var(--surface-2);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.khala-period-badge.is-current,
+.khala-period-badge.is-editable {
+  color: var(--primary-strong);
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--line));
+  background: var(--primary-soft);
+}
+.khala-period-badge-row small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.khala-period-total { display: grid; justify-items: end; gap: 4px; text-align: right; }
+.khala-period-total strong { font-size: clamp(15px, 2vw, 19px); white-space: nowrap; }
+.khala-period-total small { color: var(--muted); font-size: 10px; }
+.khala-period-action,
+.khala-view-readonly-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.khala-period-action button { display: inline-flex; align-items: center; gap: 5px; }
+.khala-view-readonly-note { justify-content: flex-start; color: var(--text); background: color-mix(in srgb, var(--surface-2) 82%, var(--surface)); }
+.khala-view-readonly-note > svg { flex: 0 0 auto; color: var(--muted); }
+.khala-view-readonly-note strong { display: inline; }
+.khala-total-heading { display: grid; gap: 3px; justify-items: end; }
+.khala-total-heading small { color: var(--muted); font-size: 10px; }
+.khala-total-heading strong { font-size: 16px; }
+
+/* Policy and Terms: keep the guidance full-width and let document content breathe. */
+.policy-document-card { gap: 15px; }
+.policy-document-lead { padding: 15px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.policy-section-block { padding: 13px 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+.policy-section-block h2 { line-height: 1.55; }
+.policy-section-block p { line-height: 1.8; }
+
+/* History and archived-month detail: better spacing and metric hierarchy. */
+.history-intro-guidance-box {
+  max-width: none;
+  padding: 13px 15px;
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.history-month-detail-modal { display: grid; gap: 15px; }
+.history-month-detail-modal .modal-head { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.history-month-detail-modal .archive-last-edit-note { margin: 0; }
+.history-month-detail-modal .archive-detail-body { display: grid; gap: 15px; }
+.history-month-detail-modal .archive-detail-grid,
+.history-month-detail-modal .archive-summary-grid { gap: 10px; }
+.history-month-detail-modal .metric { min-width: 0; padding: 13px; border-radius: 13px; background: var(--surface-2); }
+.history-month-detail-modal .metric strong { overflow-wrap: anywhere; }
+.history-month-detail-modal .archive-detail-section { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.history-month-detail-modal .archive-list-row { padding: 11px 2px; }
+
+/* Market share: numbering, date, buyer and total start on the same left edge. */
+.market-share-preview { text-indent: 0; padding-inline-start: 15px; tab-size: 2; }
+
+/* Desktop auth brand panel: compact feature cues occupy the former empty area.
+   Hidden on mobile so the current mobile header remains compact. */
+.auth-brand-feature-list {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  width: min(100%, 430px);
+  margin: 18px auto 0;
+}
+.auth-brand-feature-list span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 76%, var(--primary-soft));
+  color: var(--primary-strong);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+.auth-brand-feature-list svg { flex: 0 0 15px; }
+
+@media (max-width: 680px) {
+  .archive-correction-header { grid-template-columns: minmax(0, 1fr); }
+  .archive-hero-main { align-items: flex-start; }
+  .archive-hero-actions { justify-content: stretch; }
+  .archive-hero-actions button { flex: 1 1 auto; }
+  .archive-hero-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+  .archive-hero-stat { min-height: 76px; padding: 9px; }
+  .archive-hero-stat span, .archive-hero-stat small { font-size: 10px; }
+  .archive-hero-stat strong { font-size: 13px; }
+  .archive-correction-page .archive-month-card { grid-template-columns: 34px minmax(0, 1fr) 18px; gap: 9px; }
+  .archive-access-badge { font-size: 10px !important; }
+  .closed-month-guidance-panel,
+  .document-guidance-panel { padding: 11px 12px; font-size: 12px; }
+  .khala-period-tabs { gap: 4px; padding: 4px; }
+  .khala-period-tabs button { flex-direction: column; gap: 3px; min-height: 48px; padding: 6px 4px; font-size: 10px; }
+  .khala-period-tabs button b { min-width: 19px; height: 19px; font-size: 9px; }
+  .khala-period-heading { flex-wrap: wrap; }
+  .khala-period-total { justify-items: start; text-align: left; }
+  .khala-period-action { align-items: flex-start; }
+  .khala-period-action button { width: 100%; justify-content: center; }
+  .history-month-detail-modal .archive-detail-grid,
+  .history-month-detail-modal .archive-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .history-month-detail-modal .metric { padding: 10px; }
+  .auth-brand-feature-list { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .khala-period-tabs button { transition: none !important; }
+}

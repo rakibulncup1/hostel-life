@@ -45,7 +45,7 @@ test('verification displays email, one OTP input, mail folder tip, live countdow
 });
 
 test('all menu groups remain present through logout', () => {
-  for (const label of ['মিল শিট', 'আর্কাইভ', 'রিপোর্ট ডাউনলোড', 'সকল সদস্য', 'শীর্ষ খাদক', 'বেশি বাজারকারী', 'বেশি ডিপোজিটকারী', 'সিস্টেম তথ্য', 'ম্যানেজার ফিচার', 'লগআউট']) {
+  for (const label of ['মিল শিট', 'বন্ধ মাসসমূহ', 'রিপোর্ট ডাউনলোড', 'সকল সদস্য', 'শীর্ষ খাদক', 'বেশি বাজারকারী', 'বেশি ডিপোজিটকারী', 'খালার টাকা', 'সিস্টেম তথ্য', 'ম্যানেজার ফিচার', 'লগআউট']) {
     assert.ok(menu.includes(label), `missing menu item: ${label}`);
   }
 });

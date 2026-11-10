@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AppShell, navigateTo } from './AppShell';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { ArchiveCorrectionPage } from '../features/archive/ArchiveCorrectionPage';
@@ -23,10 +23,10 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { useAuth } from '../contexts/AuthContext';
 import { useManagementContext } from '../hooks/useManagementContext';
+import { APP_BACKGROUND_EXIT_KEY, resolveLaunchPath } from './appLaunchPolicy';
 
 const SUPER_ADMIN_RETURN_KEY = 'hostel-life-super-admin-return-v1';
 const SUPER_ADMIN_RETURN_TTL_MS = 10 * 60 * 1000;
-const APP_RESUME_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function getPath() {
   const pathname = window.location.pathname || '/app/dashboard';
@@ -39,28 +39,18 @@ function getPath() {
 }
 
 
-function getSafeResumeSearch(pathname, rawSearch = window.location.search) {
-  if (pathname !== '/app/history' && pathname !== '/app/dining') return '';
+function getInitialPath() {
+  const currentPath = getPath();
+  let markerPresent = false;
   try {
-    const input = new URLSearchParams(rawSearch || '');
-    const output = new URLSearchParams();
-    if (pathname === '/app/history') {
-      const archivePeriod = input.get('archive_period') || '';
-      const historyTab = input.get('history_tab') || '';
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(archivePeriod)) {
-        output.set('archive_period', archivePeriod);
-      }
-      if (['market', 'account', 'months'].includes(historyTab)) output.set('history_tab', historyTab);
-    } else {
-      const diningView = input.get('dining_view') || '';
-      const allowedViews = ['meal-request', 'request-history', 'late-request', 'market', 'admin-entry', 'admin-manual-request', 'manager-meal', 'manager-request', 'deposit', 'other-expense'];
-      if (allowedViews.includes(diningView)) output.set('dining_view', diningView);
-    }
-    const value = output.toString();
-    return value ? `?${value}` : '';
-  } catch {
-    return '';
+    markerPresent = Boolean(window.localStorage.getItem(APP_BACKGROUND_EXIT_KEY));
+    if (markerPresent) window.localStorage.removeItem(APP_BACKGROUND_EXIT_KEY);
+  } catch { /* Restricted storage should not prevent the app from opening. */ }
+  const launchPath = resolveLaunchPath(currentPath, markerPresent);
+  if (launchPath !== currentPath) {
+    try { window.history.replaceState({}, '', '/app/dashboard'); } catch { /* Router state still falls back to dashboard. */ }
   }
+  return launchPath;
 }
 
 function resolveAppPage(pathname, isManager, hasClosedMonthAccess = false) {
@@ -96,12 +86,10 @@ function resolveAppPage(pathname, isManager, hasClosedMonthAccess = false) {
 }
 
 export function App() {
-  const [pathname, setPathname] = useState(getPath);
+  const [pathname, setPathname] = useState(getInitialPath);
   const [publicSettings, setPublicSettings] = useState(null);
   const auth = useAuth();
   const { hasClosedMonthAccess } = useManagementContext();
-  const resumeCheckedUserRef = useRef(null);
-  const resumeTargetRef = useRef(null);
 
   useEffect(() => {
     const update = () => setPathname(getPath());
@@ -129,50 +117,31 @@ export function App() {
 
   const withPublicCommunications = (content) => <>{content}<PlatformCommunicationOverlays communications={publicSettings?.communications} /></>;
 
-  // Preserve the last app location across mobile PWA suspension/recreation.
-  // This deliberately stores only route + scroll position, never form values,
-  // passwords, OTPs or transaction drafts.
-  useEffect(() => {
-    if (!auth.isAuthenticated || !auth.user?.id) {
-      resumeCheckedUserRef.current = null;
-      return;
-    }
-    if (auth.authLoading || !auth.identityReady || pathname !== '/app/dashboard') return;
-    if (resumeCheckedUserRef.current === auth.user.id) return;
-    resumeCheckedUserRef.current = auth.user.id;
-    const storageKey = `hostel-life-app-resume-v1:${auth.user.id}`;
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(storageKey) || 'null');
-      const age = Date.now() - Number(saved?.savedAt || 0);
-      const safePath = typeof saved?.path === 'string' && saved.path.startsWith('/app/')
-        && !saved.path.startsWith('/app/menu/app-download');
-      const safeSearch = getSafeResumeSearch(saved?.path, saved?.search || '');
-      if (safePath && (saved.path !== pathname || (['/app/history', '/app/dining'].includes(saved.path) && safeSearch !== window.location.search))
-        && Number.isFinite(age) && age >= 0 && age <= APP_RESUME_TTL_MS) {
-        resumeTargetRef.current = { path: saved.path, search: safeSearch, scrollY: Math.max(0, Number(saved.scrollY) || 0) };
-        navigateTo(`${saved.path}${safeSearch}`, true);
-      }
-    } catch { /* Invalid or unavailable storage falls back to the dashboard. */ }
-  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityReady, auth.user?.id]);
 
+  // A live app returning from background keeps its current React state. If the
+  // browser/PWA process is killed while hidden, the marker makes the next cold
+  // launch start at Dashboard instead of restoring a stale sub-page.
   useEffect(() => {
-    if (!auth.isAuthenticated || !auth.identityReady || !auth.user?.id || !pathname.startsWith('/app/')) return undefined;
-    const pending = resumeTargetRef.current;
-    if (pending && pending.path !== pathname) return undefined;
-    if (pending && pending.path === pathname) {
-      window.requestAnimationFrame(() => window.scrollTo({ top: pending.scrollY, behavior: 'instant' }));
-      resumeTargetRef.current = null;
-    }
-    const key = `hostel-life-app-resume-v1:${auth.user.id}`;
-    const save = () => {
-      try { window.localStorage.setItem(key, JSON.stringify({ path: pathname, search: getSafeResumeSearch(pathname), scrollY: Math.max(0, window.scrollY || 0), savedAt: Date.now() })); }
-      catch { /* Storage is optional; navigation remains available. */ }
+    if (!auth.isAuthenticated || !auth.user?.id || !pathname.startsWith('/app/')) return undefined;
+    const markBackground = () => {
+      if (document.visibilityState !== 'hidden') return;
+      try {
+        window.localStorage.setItem(APP_BACKGROUND_EXIT_KEY, JSON.stringify({ userId: auth.user.id, markedAt: Date.now() }));
+      } catch { /* Storage is optional; a live resumed app still retains its state. */ }
     };
-    save();
-    window.addEventListener('pagehide', save);
-    document.addEventListener('visibilitychange', save);
-    return () => { window.removeEventListener('pagehide', save); document.removeEventListener('visibilitychange', save); };
-  }, [pathname, auth.isAuthenticated, auth.identityReady, auth.user?.id]);
+    const clearForLiveReturn = () => {
+      if (document.visibilityState !== 'visible') return;
+      try { window.localStorage.removeItem(APP_BACKGROUND_EXIT_KEY); } catch { /* Ignore storage restrictions. */ }
+    };
+    document.addEventListener('visibilitychange', markBackground);
+    document.addEventListener('visibilitychange', clearForLiveReturn);
+    window.addEventListener('pagehide', markBackground);
+    return () => {
+      document.removeEventListener('visibilitychange', markBackground);
+      document.removeEventListener('visibilitychange', clearForLiveReturn);
+      window.removeEventListener('pagehide', markBackground);
+    };
+  }, [pathname, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
     // The install guide contains no member data and is intentionally public.
@@ -285,10 +254,10 @@ export function App() {
     else if (pathname.includes('/menu/app-download')) title = 'Hostel Life — অ্যাপ ডাউনলোড';
     else if (pathname.includes('/menu/telegram')) title = 'Hostel Life — টেলিগ্রাম সংযোগ';
     else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
-    else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
+    else if (pathname.includes('/menu/archive')) title = 'Hostel Life — বন্ধ মাসসমূহ';
     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
     else if (pathname.includes('/menu/meal-sheet')) title = 'Hostel Life — মিল শিট';
-    else if (pathname.includes('/menu/archive-edit-access')) title = 'Hostel Life — আর্কাইভ';
+    else if (pathname.includes('/menu/archive-edit-access')) title = 'Hostel Life — বন্ধ মাসসমূহ';
     else if (pathname.includes('/menu/current-month-close')) title = 'Hostel Life — বর্তমান মাস শেষ করুন';
     else if (pathname.includes('/menu/new-month')) title = 'Hostel Life — নতুন মাস';
     else if (pathname.includes('/menu/change-manager')) title = 'Hostel Life — ম্যানেজার পরিবর্তন';

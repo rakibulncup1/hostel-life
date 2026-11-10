@@ -9,6 +9,7 @@ import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
 import { useToast } from '../../components/Toast';
 import { navigateTo } from '../../app/AppShell';
 import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningService';
+import { fetchKhalaPeriods } from '../../services/managerService';
 import { fetchMemberPeriodDetails } from '../../services/dashboardService';
 import { MemberPeriodDetailsModal } from '../dashboard/DashboardPage';
 import { fetchArchivedMonthDetail, fetchKhalaMoneyHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
@@ -149,27 +150,42 @@ export function AllMembersPage() {
 
 export function KhalaMoneyViewPage() {
   const toast = useToast();
+  const [periods, setPeriods] = useState([]);
   const [rows, setRows] = useState([]);
+  const [editablePeriodIds, setEditablePeriodIds] = useState([]);
+  const [activeTab, setActiveTab] = useState('previous');
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [currentPeriod, previousPeriods] = await Promise.all([
-        fetchRunningPeriod(),
+      const [currentPeriod, previousPeriods, writablePeriods] = await Promise.all([
+        fetchRunningPeriod().catch(() => null),
         fetchPreviousMonths(),
+        fetchKhalaPeriods().catch(() => []),
       ]);
-
+      const currentId = currentPeriod?.period_id || currentPeriod?.id || '';
       const periodRows = [
-        ...(currentPeriod?.period_id ? [currentPeriod] : []),
+        ...(currentPeriod?.period_id || currentPeriod?.id ? [{ ...currentPeriod, period_id: currentId, status: 'running' }] : []),
         ...(Array.isArray(previousPeriods) ? previousPeriods : []),
       ].filter((period, index, all) => period?.period_id && all.findIndex((item) => item.period_id === period.period_id) === index)
-        .slice(0, 24);
-
+        .slice(0, 36);
+      const editableIds = new Set((Array.isArray(writablePeriods) ? writablePeriods : [])
+        .map((period) => String(period?.period_id || period?.id || '')).filter(Boolean));
+      const periodById = new Map((Array.isArray(writablePeriods) ? writablePeriods : [])
+        .map((period) => [String(period?.period_id || period?.id || ''), period]));
+      const decoratedPeriods = periodRows.map((period) => {
+        const access = periodById.get(String(period.period_id));
+        return {
+          ...period,
+          can_manage_khala: editableIds.has(String(period.period_id)),
+          manager_at_close_name: period.manager_at_close_name || access?.manager_at_close_name || '',
+          access_kind: access?.access_kind || '',
+        };
+      });
       const responses = await Promise.all(
         periodRows.map((period) => fetchKhalaMoneyHistory({ periodId: period.period_id, limit: 300 }))
       );
-
       const nextRows = [];
       responses.forEach((data, index) => {
         const period = periodRows[index];
@@ -177,7 +193,8 @@ export function KhalaMoneyViewPage() {
           nextRows.push({ ...row, period_id: period.period_id, period_label: period.label || period.name || 'কাজের মাস' });
         }
       });
-
+      setPeriods(decoratedPeriods);
+      setEditablePeriodIds([...editableIds]);
       setRows(nextRows);
     } catch (error) {
       toast.error(getFriendlySupabaseError(error, 'খালার টাকার তথ্য দেখা যায়নি।'));
@@ -189,37 +206,47 @@ export function KhalaMoneyViewPage() {
   useEffect(() => { load(); }, [load]);
 
   const grouped = useMemo(() => {
-    const groups = new Map();
+    const byPeriod = new Map(periods.map((period) => [String(period.period_id), {
+      ...period,
+      rows: [],
+      total: 0,
+      count: 0,
+    }]));
     for (const row of rows) {
-      const key = row.period_id || 'unknown';
-      if (!groups.has(key)) {
-        groups.set(key, {
-          period_id: key,
-          label: row.period_label || row.period_name || 'মাস',
-          rows: [],
-        });
+      const key = String(row.period_id || 'unknown');
+      if (!byPeriod.has(key)) {
+        byPeriod.set(key, { period_id: key, label: row.period_label || row.period_name || 'মাস', rows: [], total: 0, count: 0, can_manage_khala: false });
       }
-      groups.get(key).rows.push(row);
+      byPeriod.get(key).rows.push(row);
     }
-    return [...groups.values()].map((group) => ({
-      ...group,
-      rows: [...group.rows].sort((a, b) => String(b.entry_date || b.created_at || '').localeCompare(String(a.entry_date || a.created_at || ''))),
-      total: group.rows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0),
-      count: group.rows.filter((row) => row.status !== 'void').length,
-    }));
-  }, [rows]);
+    return [...byPeriod.values()].map((group) => {
+      const activeRows = group.rows.filter((row) => row.status !== 'void');
+      return {
+        ...group,
+        rows: [...group.rows].sort((a, b) => String(b.entry_date || b.created_at || '').localeCompare(String(a.entry_date || a.created_at || ''))),
+        total: activeRows.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+        count: activeRows.length,
+      };
+    }).sort((a, b) => String(b.start_date || '').localeCompare(String(a.start_date || '')));
+  }, [periods, rows]);
 
+  const visibleGroups = useMemo(() => grouped.filter((group) => {
+    if (activeTab === 'current') return group.status === 'running';
+    if (activeTab === 'previous') return group.status !== 'running';
+    return true;
+  }), [activeTab, grouped]);
   const totalKhalaPaid = rows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
   const activeEntryCount = rows.filter((row) => row.status !== 'void').length;
 
+  const tabs = [
+    { key: 'previous', label: 'পূর্ববর্তী মাস', count: grouped.filter((group) => group.status !== 'running').length },
+    { key: 'current', label: 'বর্তমান মাস', count: grouped.filter((group) => group.status === 'running').length },
+    { key: 'all', label: 'সকল মাস', count: grouped.length },
+  ];
+
   return (
     <div className="page-stack">
-      <PageHeader
-        eyebrow="মেসের স্বচ্ছতা"
-        title="খালার টাকা"
-        description="মাসভিত্তিক পারিশ্রমিকের হিসাব।"
-      />
-
+      <PageHeader eyebrow="মেসের স্বচ্ছতা" title="খালার টাকা" description="সব মাসের পারিশ্রমিক দেখুন; সংশোধন শুধু অনুমোদিত মাসে করা যাবে।" />
       <section className="card khala-view-hero">
         <div>
           <span className="eyebrow">খালার আলাদা হিসাব</span>
@@ -227,57 +254,36 @@ export function KhalaMoneyViewPage() {
           <p>এটি মেসের আলাদা খরচ; সদস্যের ব্যক্তিগত ব্যালেন্সে যোগ হয় না।</p>
           <div className="khala-view-hero-metrics"><div><span>কার্যকর এন্ট্রি</span><strong>{formatNumber(activeEntryCount)}টি</strong></div><div><span>অন্তর্ভুক্ত মাস</span><strong>{formatNumber(grouped.length)}টি</strong></div></div>
         </div>
-        <button className="secondary-button compact" type="button" onClick={load} disabled={loading}>
-          <Icon name="refresh" size={15} /> রিফ্রেশ
-        </button>
+        <button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </section>
-
-      {loading ? (
-        <LoadingSpinner label="খালার টাকার হিসাব লোড হচ্ছে..." />
-      ) : grouped.length === 0 ? (
-        <div className="empty-state-card">
-          <Icon name="wallet" size={28} />
-          <strong>এখনো কোনো খালার টাকার তথ্য নেই</strong>
-          <span>ম্যানেজার এন্ট্রি যোগ করলে এখানেই সবার জন্য দেখা যাবে।</span>
-        </div>
-      ) : (
-        grouped.map((group) => (
-          <section className="card khala-view-section" key={group.period_id}>
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">কাজের মাস</span>
-                <h2>{group.label}</h2>
-              </div>
-              <strong>{formatCurrency(group.total)}</strong>
-            </div>
-
-            <div className="khala-public-list">
-              {group.rows.map((row) => (
-                <article className={`khala-public-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.entry_id}>
-                  <div className="khala-public-person">
-                    <span className="khala-ledger-mark"><Icon name="wallet" size={17} /></span>
-                    <div className="khala-public-person-copy">
-                      <div className="khala-ledger-recipient">
-                        <span>যাঁর নামে নথিভুক্ত</span>
-                        <strong>{row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : row.recipient_name || 'সদস্যের নাম পাওয়া যায়নি'}</strong>
-                      </div>
-                      <strong className="khala-public-entry-kind">খালার পারিশ্রমিক</strong>
-                      <small>পরিশোধ করেছেন: {row.created_by_name || row.actor_name || row.manager_name || row.entered_by_name || 'নাম পাওয়া যায়নি'}</small>
-                      <small>{formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
-                    </div>
-                  </div>
-                  <div className="khala-public-amount">
-                    <strong>{formatCurrency(row.amount)}</strong>
-                    <span className={`member-badge ${row.status === 'void' ? 'inactive' : 'subtle'}`}>
-                      {row.status === 'void' ? 'বাতিল' : 'পরিশোধিত'}
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))
-      )}
+      <div className="khala-period-tabs" role="tablist" aria-label="খালার টাকার মাস নির্বাচন">
+        {tabs.map((tab) => <button key={tab.key} type="button" role="tab" aria-selected={activeTab === tab.key} className={activeTab === tab.key ? 'is-active' : ''} onClick={() => setActiveTab(tab.key)}><span>{tab.label}</span><b>{formatNumber(tab.count)}</b></button>)}
+      </div>
+      {loading ? <LoadingSpinner label="খালার টাকার হিসাব লোড হচ্ছে..." /> : visibleGroups.length === 0 ? (
+        <div className="empty-state-card"><Icon name="wallet" size={28} /><strong>{activeTab === 'previous' ? 'কোনো পূর্ববর্তী মাস নেই' : activeTab === 'current' ? 'কোনো চলমান মাস নেই' : 'এখনো কোনো খালার টাকার মাস নেই'}</strong><span>অন্য ট্যাবে মাস নির্বাচন করে দেখতে পারেন।</span></div>
+      ) : visibleGroups.map((group) => (
+        <section className="card khala-view-section" key={group.period_id}>
+          <div className="section-heading khala-period-heading">
+            <div><span className="eyebrow">কাজের মাস</span><h2>{group.label}</h2><div className="khala-period-badge-row">
+              {group.status === 'running' ? <span className="khala-period-badge is-current">চলমান মাস</span> : group.can_manage_khala ? <span className="khala-period-badge is-editable">সম্পাদনার অনুমতি</span> : <span className="khala-period-badge is-locked"><Icon name="lock" size={12}/> শুধু দেখা · লক</span>}
+              {group.manager_at_close_name && group.status !== 'running' && <small>বন্ধ করেছেন: {group.manager_at_close_name}</small>}
+            </div></div>
+            <div className="khala-period-total"><strong>{formatCurrency(group.total)}</strong><small>{formatNumber(group.count)}টি কার্যকর এন্ট্রি</small></div>
+          </div>
+          {group.can_manage_khala && <div className="khala-period-action"><span>এই মাসে আপনার খালার টাকার ব্যবস্থাপনার অনুমতি আছে।</span><button className="secondary-button compact" type="button" onClick={() => navigateTo(`/app/menu/khala-money?period_id=${encodeURIComponent(group.period_id)}`)}>এন্ট্রি পরিচালনা <Icon name="chevron-right" size={15}/></button></div>}
+          {group.rows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={23}/><strong>এই মাসে কোনো এন্ট্রি নেই</strong><span>খালার পারিশ্রমিকের তথ্য যোগ হলে এখানে দেখা যাবে।</span></div> : <div className="khala-public-list">
+            {group.rows.map((row) => (
+              <article className={`khala-public-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.entry_id}>
+                <div className="khala-public-person"><span className="khala-ledger-mark"><Icon name="wallet" size={17}/></span><div className="khala-public-person-copy">
+                  <div className="khala-ledger-recipient"><span>যাঁর নামে নথিভুক্ত</span><strong>{row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : row.recipient_name || 'সদস্যের নাম পাওয়া যায়নি'}</strong></div>
+                  <strong className="khala-public-entry-kind">খালার পারিশ্রমিক</strong><small>পরিশোধ করেছেন: {row.created_by_name || row.actor_name || row.manager_name || row.entered_by_name || 'নাম পাওয়া যায়নি'}</small><small>প্রকৃত প্রদানের তারিখ: {formatDateWithWeekday(row.entry_date)}{row.description ? ` · ${row.description}` : ''}</small>
+                </div></div>
+                <div className="khala-public-amount"><strong>{formatCurrency(row.amount)}</strong><span className={`member-badge ${row.status === 'void' ? 'inactive' : 'subtle'}`}>{row.status === 'void' ? 'বাতিল' : 'পরিশোধিত'}</span></div>
+              </article>
+            ))}
+          </div>}
+        </section>
+      ))}
     </div>
   );
 }
@@ -396,7 +402,7 @@ export function PrivacyPolicyPage() {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা ও নীতিমালা" description="আপনার তথ্য ও গোপনীয়তা।" />
-      <InfoPanel icon="shield-check">কোন তথ্য কারা দেখতে বা পরিবর্তন করতে পারেন, তা আপনার মেসের ভূমিকা ও অনুমতির ওপর নির্ভর করে। সংবেদনশীল তথ্য নোটিশ বা হিসাবের বিবরণে লিখবেন না।</InfoPanel>
+      <InfoPanel className="document-guidance-panel" icon="shield-check">কোন তথ্য কারা দেখতে বা পরিবর্তন করতে পারেন, তা আপনার মেসের ভূমিকা ও অনুমতির ওপর নির্ভর করে। সংবেদনশীল তথ্য নোটিশ বা হিসাবের বিবরণে লিখবেন না।</InfoPanel>
       <p className="policy-public-full-link"><a href="/privacy-policy">প্রকাশ্য পূর্ণ গোপনীয়তা নীতি দেখুন</a></p>
       <section className="card policy-content-card policy-document-card">
         <div className="policy-document-lead">
@@ -463,7 +469,7 @@ export function TermsPage() {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="অ্যাপ ব্যবহারের নিয়ম।" />
-      <InfoPanel icon="book-open">অ্যাকাউন্ট, মেসের হিসাব ও অন্য সদস্যের তথ্য ব্যবহারের সময় নিচের নিয়মগুলো অনুসরণ করুন। ব্যক্তিগত Invite Link বা Join Code প্রকাশ্যে শেয়ার করবেন না।</InfoPanel>
+      <InfoPanel className="document-guidance-panel" icon="book-open">অ্যাকাউন্ট, মেসের হিসাব ও অন্য সদস্যের তথ্য ব্যবহারের সময় নিচের নিয়মগুলো অনুসরণ করুন। ব্যক্তিগত Invite Link বা Join Code প্রকাশ্যে শেয়ার করবেন না।</InfoPanel>
       <p className="policy-public-full-link"><a href="/terms-of-service">প্রকাশ্য পূর্ণ ব্যবহারের শর্তাবলী দেখুন</a></p>
       <section className="card policy-content-card policy-document-card">
         <div className="policy-document-lead"><Icon name="book-open" size={24}/><div><strong>অ্যাপ ব্যবহার করার আগে নিয়মগুলো পড়ুন</strong><p>মেসের তথ্য, সদস্যদের হিসাব ও অ্যাক্সেস সুরক্ষিত রাখতে প্রত্যেক ব্যবহারকারীর জন্য এই নিয়মগুলো প্রযোজ্য।</p></div></div>
@@ -708,7 +714,7 @@ export function PlaceholderMenuPage({ title, description }) {
   );
 }
 
-function MonthSummaryCard({ item, onClick }) {
+function MonthSummaryCard({ item, onClick, canEdit = false }) {
   const detail = item.detail_available;
   return (
     <button className={`card archive-month-card ${detail ? 'detail-month' : 'summary-month'}`} type="button" onClick={onClick}>
@@ -717,6 +723,7 @@ function MonthSummaryCard({ item, onClick }) {
         <strong>{item.label}</strong>
         <small>{formatDateBangla(item.start_date)} → {formatDateBangla(item.end_date)}</small>
         <span>{detail ? 'বিস্তারিত ডাটা উপলব্ধ' : 'শুধু মাসিক সারসংক্ষেপ'}</span>
+        <span className={`archive-access-badge ${canEdit ? 'is-editable' : 'is-locked'}`}>{canEdit ? 'সম্পাদনার অনুমতি' : 'শুধু দেখা · লক'}</span>
       </div>
       <Icon name="chevron" size={18} />
     </button>
@@ -726,13 +733,18 @@ function MonthSummaryCard({ item, onClick }) {
 export function PreviousMonthsPage() {
   const toast = useToast();
   const [months, setMonths] = useState([]);
+  const [editablePeriodIds, setEditablePeriodIds] = useState([]);
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setMonths(await fetchPreviousMonths()); }
+    try {
+      const [monthRows, editableRows] = await Promise.all([fetchPreviousMonths(), fetchMyArchiveEditablePeriods().catch(() => [])]);
+      setMonths(Array.isArray(monthRows) ? monthRows : []);
+      setEditablePeriodIds((Array.isArray(editableRows) ? editableRows : []).map((row) => String(row.period_id || row.id || '')).filter(Boolean));
+    }
     catch (error) { toast.error(getFriendlySupabaseError(error, 'পূর্ববর্তী মাসগুলো লোড করা যায়নি।')); }
     finally { setLoading(false); }
   }, [toast]);
@@ -748,13 +760,13 @@ export function PreviousMonthsPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Archive" title="আর্কাইভ" description="বন্ধ মাসের হিসাব ও রিপোর্ট।" />
-      <InfoPanel className="finance-context-note" icon="archive">বন্ধ মাসের রেকর্ড দেখুন। সংশোধন শুধু অনুমোদিত ব্যবহারকারীর জন্য।</InfoPanel>
+      <PageHeader eyebrow="সংরক্ষিত হিসাব" title="বন্ধ মাসসমূহ" description="বন্ধ মাসের হিসাব ও রিপোর্ট দেখুন।" />
+      <InfoPanel className="closed-month-guidance-panel" icon="archive">বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। মাসভেদে সম্পাদনার অনুমতি আলাদা; লক করা মাস শুধু দেখা যাবে।</InfoPanel>
       {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..." /> : months.length === 0 ? (
         <div className="empty-state-card"><Icon name="history" size={28} /><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>মেসে এখনো archive করা মাস পাওয়া যায়নি।</span></div>
       ) : (
         <div className="archive-month-list">
-          {months.map((item) => <MonthSummaryCard key={item.period_id} item={item} onClick={() => open(item)} />)}
+          {months.map((item) => <MonthSummaryCard key={item.period_id} item={item} canEdit={editablePeriodIds.includes(String(item.period_id || item.id || ''))} onClick={() => open(item)} />)}
         </div>
       )}
       {detailLoading && <div className="modal-backdrop"><div className="modal-panel card"><LoadingSpinner label="মাসের বিস্তারিত লোড হচ্ছে..." /></div></div>}

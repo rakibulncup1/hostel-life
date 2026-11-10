@@ -243,7 +243,7 @@ export function ArchiveCorrectionPage() {
         <div className="archive-hero-mark"><Icon name="history" size={25}/></div>
         <div className="archive-hero-copy">
           <span className="archive-eyebrow">সংরক্ষিত হিসাব</span>
-          <h1>আর্কাইভ</h1>
+          <h1>বন্ধ মাসসমূহ</h1>
           <div className="archive-hero-guidance"><Icon name="info" size={17}/><p>বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। {primary ? 'প্রধান ম্যানেজারের জন্য অনুমোদিত হিসাব-সংশোধনও এখানে রয়েছে।' : 'আপনি যে মাসটি বন্ধ করেছেন, সেই নির্দিষ্ট মাসে অনুমোদিত সংশোধন করতে পারবেন; অন্য মাস শুধু দেখা যাবে।'}</p></div>
         </div>
       </div>
@@ -266,7 +266,7 @@ export function ArchiveCorrectionPage() {
       <label className="archive-search-field"><Icon name="search" size={18}/><input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="মাসের নাম বা তারিখ লিখে খুঁজুন" aria-label="আর্কাইভের মাস খুঁজুন"/><span>{searchTerm ? 'ফিল্টার চালু' : 'অনুসন্ধান'}</span></label>
       {loadingMonths ? <div className="archive-loading-wrap"><LoadingSpinner label="আর্কাইভের মাস লোড হচ্ছে..."/></div> : months.length === 0 ? <div className="archive-empty-state"><span className="archive-empty-icon"><Icon name="history" size={27}/></span><strong>এখনো কোনো বন্ধ মাস নেই</strong><p>একটি মাস বন্ধ হলে সেটি এখানে সংরক্ষিত হবে।</p><button type="button" className="secondary-button compact" onClick={reloadMonths}>আবার লোড করুন</button></div> : filteredMonths.length === 0 ? <div className="archive-empty-state"><span className="archive-empty-icon"><Icon name="search" size={25}/></span><strong>এই অনুসন্ধানে কোনো মাস পাওয়া যায়নি</strong><p>অন্য মাসের নাম বা তারিখ দিয়ে চেষ্টা করুন।</p><button type="button" className="secondary-button compact" onClick={() => setSearchTerm('')}>অনুসন্ধান মুছুন</button></div> : <div className="archive-month-list">{filteredMonths.map((row, index) => <button key={row.period_id} className="archive-month-card" type="button" onClick={() => openMonth(row)}>
         <span className="archive-month-index">{formatNumber(index + 1)}</span>
-        <span className="archive-month-copy"><strong>{row.label || 'সংরক্ষিত মাস'}</strong><small>{formatDateBangla(row.start_date)} – {formatDateBangla(row.end_date)}</small><span><i className="archive-status-dot"/> বন্ধ মাস · রিপোর্ট দেখতে খুলুন</span></span>
+        <span className="archive-month-copy"><strong>{row.label || 'সংরক্ষিত মাস'}</strong><small>{formatDateBangla(row.start_date)} – {formatDateBangla(row.end_date)}</small><span><i className="archive-status-dot"/> বন্ধ মাস · রিপোর্ট দেখতে খুলুন</span><span className={`archive-access-badge ${row.can_edit ? 'is-editable' : 'is-locked'}`}>{row.can_edit ? (primary ? 'ম্যানেজারের সম্পাদনার অনুমতি' : editablePeriods.find((item) => String(item.period_id || item.id) === String(row.period_id))?.access_kind === 'closed_by' ? 'আপনি মাসটি বন্ধ করেছেন' : 'নির্দিষ্ট সম্পাদনার অনুমতি') : 'শুধু দেখা · লক'}</span>{row.manager_at_close_name && <small>মাস বন্ধ করেছেন: {row.manager_at_close_name}</small>}</span>
         <span className="archive-month-open">রিপোর্ট দেখুন <Icon name="chevron-right" size={17}/></span>
       </button>)}</div>}
     </section>}

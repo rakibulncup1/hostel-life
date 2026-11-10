@@ -135,7 +135,7 @@ export function useManagementContext() {
           () => supabase.rpc('get_khala_entry_periods_v2'), { ttlMs: 15000 });
         if (error) throw error;
         if (active) setHasClosedMonthAccess(Array.isArray(data) && data.some((period) =>
-          ['closed', 'archived'].includes(period?.status) && period?.access_kind === 'closed_by'
+          ['closed', 'archived'].includes(period?.status) && ['closed_by', 'archive_grant'].includes(period?.access_kind)
         ));
       } catch {
         if (active) setHasClosedMonthAccess(false);

@@ -19,7 +19,7 @@ export function buildMarketShareText({ entryDate, buyerName, items = [], total =
     const quantity = String(item.quantity || '').trim();
     const amount = Number(item.amount);
     const quantityText = quantity ? ` ${quantity}` : '';
-    return `${formatNumber(index + 1, { maximumFractionDigits: 0 })}. ${itemName}${quantityText} ${formatNumber(Number.isFinite(amount) ? amount : 0)} টাকা`;
+    return `${formatNumber(index + 1, { maximumFractionDigits: 0 })}. ${itemName}${quantityText} ${formatNumber(Number.isFinite(amount) ? amount : 0)} টাকা`.replace(/^[\s\u00a0]+/u, '');
   });
 
   return [

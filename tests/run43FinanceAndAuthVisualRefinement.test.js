@@ -28,7 +28,7 @@ test('finance feature guidance is rendered as a quiet inline hint rather than a 
     'className="finance-context-note" icon="download"',
   ]) assert.ok(manager.includes(snippet), `missing finance note: ${snippet}`);
   assert.match(menu, /className="finance-context-note" icon="activity"/);
-  assert.match(menu, /className="finance-context-note" icon="archive"/);
+  assert.match(menu, /className="closed-month-guidance-panel" icon="archive"/);
   assert.match(css, /\.info-panel\.finance-context-note\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
   assert.match(css, /\.finance-context-note-warning/);
 });

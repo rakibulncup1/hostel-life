@@ -1025,9 +1025,11 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
         </div>
         <button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button>
       </div>
-      <InfoPanel tone={periodNotStarted ? 'warning' : 'info'} icon={periodNotStarted ? 'calendar' : 'shopping-basket'}>
-        {periodNotStarted ? periodStartNotice : 'বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।'}
-      </InfoPanel>
+      {(isManager || periodNotStarted) && (
+        <InfoPanel tone={periodNotStarted ? 'warning' : 'info'} icon={periodNotStarted ? 'calendar' : 'shopping-basket'}>
+          {periodNotStarted ? periodStartNotice : 'বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।'}
+        </InfoPanel>
+      )}
 
       <div className="market-top-fields">
         <label className="field-label">
@@ -1682,7 +1684,7 @@ function ManagerMealRequests() {
         <button className="secondary-button compact" type="button" onClick={load} disabled={!online}><Icon name="refresh" size={15} /> রিফ্রেশ</button>
       </div>
 
-      <InfoPanel className="manager-request-review-guide" icon="inbox">সদস্যের তথ্য ও কারণ যাচাই করে সিদ্ধান্ত দিন।</InfoPanel>
+      <InfoPanel className="manager-request-review-guide" icon="clipboard-check">সদস্যের তথ্য ও কারণ যাচাই করে সিদ্ধান্ত দিন।</InfoPanel>
       {periodError && <div className="inline-error" role="alert">{periodError} <button className="text-button" type="button" onClick={() => load()} disabled={!online}>আবার চেষ্টা করুন</button></div>}
       {!loading && !periodError && !runningPeriod && <div className="empty-state-card dining-empty manager-no-running-period"><Icon name="calendar" size={28} /><strong>কোনো চলমান মাস নেই</strong><span>নতুন মাস শুরু হলে সেই মাসের মিল অনুরোধ এখানে দেখা যাবে। বন্ধ মাসের পুরোনো অনুরোধ এখানে দেখানো হয় না।</span><button className="secondary-button compact" type="button" onClick={() => load()} disabled={!online}><Icon name="refresh" size={15} /> পুনরায় যাচাই করুন</button></div>}
       {runningPeriod && <div className="manager-request-active-period"><Icon name="calendar" size={16} /><span><strong>{runningPeriod.label || 'চলমান মাস'}</strong><small>{runningPeriod.start_date ? `শুরু: ${formatDateWithWeekday(runningPeriod.start_date)}` : 'সক্রিয় হিসাব'}</small></span></div>}

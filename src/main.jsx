@@ -24,6 +24,7 @@ import './styles/ui-polish-v45.css';
 import './styles/auth-brand-center-v47.css';
 import './styles/auth-brand-refinement-v48.css';
 import './styles/app-route-recovery.css';
+import './styles/run50-ui-finish.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();
