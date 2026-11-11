@@ -343,7 +343,6 @@ export function SuperAdminPage({ user }) {
   const [mfaStage, setMfaStage] = useState('idle');
   const [mfaFactors, setMfaFactors] = useState([]);
   const [mfaFactorId, setMfaFactorId] = useState('');
-  const [mfaChallengeId, setMfaChallengeId] = useState('');
   const [mfaQrCode, setMfaQrCode] = useState('');
   const [mfaSecret, setMfaSecret] = useState('');
   const [mfaCode, setMfaCode] = useState('');
@@ -1370,27 +1369,31 @@ export function SuperAdminPage({ user }) {
   const reloadMfaFactors = async () => {
     const { data, error: factorError } = await supabase.auth.mfa.listFactors();
     if (factorError) throw factorError;
-    const verified = (data?.totp || []).filter((factor) => factor.status === 'verified');
+
+    // Supabase's `totp` collection contains verified TOTP factors only.
+    // `all` is the authoritative collection for finding abandoned/unverified enrollments.
+    const allFactors = Array.isArray(data?.all)
+      ? data.all
+      : [...(data?.totp || []), ...(data?.phone || [])];
+    const verified = (data?.totp || [])
+      .filter((factor) => factor.status === 'verified')
+      .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
+    const unverified = allFactors.filter((factor) =>
+      factor.factor_type === 'totp' && factor.status !== 'verified'
+    );
+
     setMfaFactors(verified);
-    return { verified, unverified: (data?.totp || []).filter((factor) => factor.status !== 'verified') };
+    return { verified, unverified };
   };
 
-  const createMfaChallenge = async (factorId) => {
+  // Do not create a challenge when the password screen is submitted. A fresh
+  // challenge is created at the exact moment the user submits their TOTP code.
+  const selectMfaFactorForChallenge = (factorId) => {
+    if (!factorId) return;
     setMfaError('');
-    setMfaBusy(true);
-    try {
-      const { data, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
-      if (challengeError) throw challengeError;
-      if (!data?.id) throw new Error('Authenticator challenge তৈরি করা যায়নি।');
-      setMfaFactorId(factorId);
-      setMfaChallengeId(data.id);
-      setMfaCode('');
-      setMfaStage('challenge');
-    } catch (cause) {
-      setMfaError(cause?.message || 'Authenticator challenge তৈরি করা যায়নি।');
-    } finally {
-      setMfaBusy(false);
-    }
+    setMfaFactorId(factorId);
+    setMfaCode('');
+    setMfaStage('challenge');
   };
 
   const beginMfaEnrollment = async (purpose = 'backup') => {
@@ -1411,7 +1414,6 @@ export function SuperAdminPage({ user }) {
       setMfaPurpose(purpose);
       setMfaFriendlyName(friendlyName);
       setMfaFactorId(data.id);
-      setMfaChallengeId('');
       setMfaQrCode(data.totp.qr_code);
       setMfaSecret(data.totp.secret);
       setMfaCode('');
@@ -1426,7 +1428,7 @@ export function SuperAdminPage({ user }) {
   const prepareSuperAdminMfa = async () => {
     const { verified, unverified } = await reloadMfaFactors();
     if (verified.length) {
-      await createMfaChallenge(verified[0].id);
+      selectMfaFactorForChallenge(verified[0].id);
       return;
     }
     // Remove only abandoned, unverified setup factors belonging to this user.
@@ -1436,9 +1438,9 @@ export function SuperAdminPage({ user }) {
     await beginMfaEnrollment('primary');
   };
 
-  const changeMfaFactor = async (factorId) => {
+  const changeMfaFactor = (factorId) => {
     if (!factorId || factorId === mfaFactorId) return;
-    await createMfaChallenge(factorId);
+    selectMfaFactorForChallenge(factorId);
   };
 
   const verifySuperAdminMfa = async (event) => {
@@ -1455,28 +1457,82 @@ export function SuperAdminPage({ user }) {
     setMfaBusy(true);
     setMfaError('');
     try {
-      let challengeId = mfaChallengeId;
-      if (mfaStage === 'enroll-primary' || mfaStage === 'enroll-backup') {
-        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
-        if (challengeError) throw challengeError;
-        challengeId = challengeData?.id;
-      }
-      if (!challengeId) throw new Error('Authenticator challenge মেয়াদোত্তীর্ণ। নতুন Challenge তৈরি করুন।');
-      const { error: verifyError } = await supabase.auth.mfa.verify({
+      // Always request a fresh challenge immediately before verification.
+      // A challenge created on the password screen can become stale while the
+      // user waits for the next TOTP window or changes authenticator factors.
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: mfaFactorId,
+      });
+      if (challengeError) throw challengeError;
+      const challengeId = challengeData?.id;
+      if (!challengeId) throw new Error('নতুন Authenticator challenge তৈরি করা যায়নি। আবার চেষ্টা করুন।');
+
+      const { data: verifyData, error: verifyError } = await supabase.auth.mfa.verify({
         factorId: mfaFactorId,
         challengeId,
         code,
       });
       if (verifyError) throw verifyError;
-      const { data: assuranceData, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (assuranceError) throw assuranceError;
-      if (assuranceData?.currentLevel !== 'aal2') {
-        throw new Error('দ্বিতীয় ধাপ যাচাই হলেও Session AAL2 হয়নি। প্যানেল নিরাপদ রাখতে প্রবেশ বন্ধ রাখা হয়েছে।');
+
+      // Supabase returns the upgraded AAL2 session from MFA verification.
+      // Check the response token and the actual persisted client session; this
+      // prevents the UI from opening while Database RPCs still receive AAL1.
+      const verifiedSession = verifyData?.session || verifyData;
+      const verifiedUserId = verifiedSession?.user?.id || verifyData?.user?.id;
+      if (verifiedUserId && verifiedUserId !== user?.id) {
+        throw new Error('Authenticator যাচাইয়ের Session বর্তমান Super Admin অ্যাকাউন্টের সঙ্গে মেলেনি। নিরাপত্তার জন্য প্রবেশ বন্ধ রাখা হয়েছে।');
       }
+
+      const verifiedAccessToken = verifiedSession?.access_token || null;
+      const verifiedRefreshToken = verifiedSession?.refresh_token || null;
+      let { data: sessionSnapshot, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      let activeSession = sessionSnapshot?.session;
+      if (!activeSession?.access_token || activeSession?.user?.id !== user?.id) {
+        throw new Error('Authenticator যাচাইয়ের পরে বর্তমান অ্যাকাউন্টের Session পাওয়া যায়নি। আবার পাসওয়ার্ড যাচাই করুন।');
+      }
+
+      // Validate the exact token returned by MFA verification when available.
+      // This is a server-validated AAL check, not a client-side JWT decode.
+      const aalToken = verifiedAccessToken || activeSession.access_token;
+      const { data: tokenAssurance, error: tokenAssuranceError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel(aalToken);
+      if (tokenAssuranceError) throw tokenAssuranceError;
+      if (tokenAssurance?.currentLevel !== 'aal2') {
+        throw new Error('কোড যাচাইয়ের পর Supabase AAL2 Session নিশ্চিত করেনি। প্যানেল নিরাপদ রাখতে প্রবেশ বন্ধ রাখা হয়েছে।');
+      }
+
+      let { data: activeAssurance, error: activeAssuranceError } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (activeAssuranceError) throw activeAssuranceError;
+
+      // Only repair a stale AAL1 client session. Never replace a session that
+      // has already reached AAL2 (it may have been refreshed after verification).
+      if (activeAssurance?.currentLevel !== 'aal2' && verifiedAccessToken && verifiedRefreshToken) {
+        const { error: setSessionError } = await supabase.auth.setSession({
+          access_token: verifiedAccessToken,
+          refresh_token: verifiedRefreshToken,
+        });
+        if (setSessionError) throw setSessionError;
+        const refreshedSessionResult = await supabase.auth.getSession();
+        if (refreshedSessionResult.error) throw refreshedSessionResult.error;
+        sessionSnapshot = refreshedSessionResult.data;
+        activeSession = sessionSnapshot?.session;
+        const assuranceResult = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (assuranceResult.error) throw assuranceResult.error;
+        activeAssurance = assuranceResult.data;
+      }
+
+      if (!activeSession?.access_token || activeSession?.user?.id !== user?.id) {
+        throw new Error('Authenticator-এর পর Session পুনরায় সমন্বয় করা যায়নি। আবার চেষ্টা করুন।');
+      }
+      if (activeAssurance?.currentLevel !== 'aal2') {
+        throw new Error('AAL2 Token পাওয়া গেছে, কিন্তু অ্যাপের সক্রিয় Session এখনো AAL2 হয়নি। প্যানেল নিরাপদ রাখতে প্রবেশ বন্ধ রাখা হয়েছে।');
+      }
+
       await reloadMfaFactors();
       setMfaQrCode('');
       setMfaSecret('');
-      setMfaChallengeId('');
       setMfaCode('');
       if (mfaPurpose === 'primary' || mfaStage === 'challenge') {
         setMfaStage('idle');
@@ -1487,7 +1543,15 @@ export function SuperAdminPage({ user }) {
         setNotice('ব্যাকআপ Authenticator সফলভাবে যুক্ত হয়েছে।');
       }
     } catch (cause) {
-      setMfaError(cause?.message || 'Authenticator কোড যাচাই করা যায়নি।');
+      const errorCode = String(cause?.code || cause?.name || '').trim();
+      const errorMessage = String(cause?.message || 'Authenticator কোড যাচাই করা যায়নি।');
+      if (errorCode === 'mfa_verification_failed') {
+        setMfaError('কোডটি Supabase-এর সঙ্গে মেলেনি। সঠিক Authenticator নির্বাচন করুন এবং ফোনের Date & Time স্বয়ংক্রিয় (Set time automatically) আছে কি না দেখুন। নতুন কোড তৈরি হলে সেটি দিয়ে আবার চেষ্টা করুন।');
+      } else if (errorCode === 'mfa_verification_rejected') {
+        setMfaError('Supabase MFA Verification Hook এই যাচাই প্রত্যাখ্যান করেছে। Dashboard-এর Auth Hook ও লগ পরীক্ষা করতে হবে।');
+      } else {
+        setMfaError(errorCode ? `${errorMessage} [${errorCode}]` : errorMessage);
+      }
     } finally {
       setMfaBusy(false);
     }
@@ -1951,7 +2015,7 @@ export function SuperAdminPage({ user }) {
 
   if (checking) return <main className="platform-page"><LoadingSpinner label="Super Admin role যাচাই হচ্ছে..."/></main>;
   if (!allowed) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="shield" size={30}/></span><h1>Super Admin প্রবেশাধিকার যাচাই</h1><p>{gateError || 'আপনার অ্যাকাউন্টের অনুমতি যাচাই করা যাচ্ছে না। Supabase URL/Key এবং Profile role যাচাই করুন।'}</p><button className="primary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরে যান</button></section></main>;
-  if (!reauthenticated && (mfaStage === 'challenge' || mfaStage === 'enroll-primary')) return <main className="platform-page"><section className="card platform-reauth platform-mfa-gate"><span className="platform-lock"><Icon name="shield-check" size={28}/></span><span className="eyebrow">দ্বিতীয় নিরাপত্তা ধাপ</span><h1>{mfaStage === 'challenge' ? 'Authenticator কোড যাচাই' : 'Google Authenticator সংযুক্ত করুন'}</h1><p>{mfaStage === 'challenge' ? 'পাসওয়ার্ড যাচাই সফল হয়েছে। Google Authenticator থেকে ছয় সংখ্যার বর্তমান কোড দিন।' : 'প্রথমবার Super Admin খুলতে Authenticator অ্যাপে QR Scan করুন, তারপর ছয় সংখ্যার কোড দিয়ে সংযোগ নিশ্চিত করুন।'}</p>{mfaStage === 'challenge' && mfaFactors.length > 1 && <label className="field-label"><span>যে Authenticator ব্যবহার করবেন</span><select value={mfaFactorId} onChange={(event)=>changeMfaFactor(event.target.value)}>{mfaFactors.map((factor)=><option value={factor.id} key={factor.id}>{factor.friendly_name || 'Authenticator'}</option>)}</select></label>}{mfaStage === 'enroll-primary' && <div className="platform-mfa-qr-wrap"><img src={mfaQrCode} alt="Google Authenticator QR code"/><span>QR Scan না হলে এই Secret ম্যানুয়ালি Authenticator-এ যোগ করুন</span><code>{mfaSecret}</code><button type="button" className="secondary-button compact" onClick={async()=>{try{await navigator.clipboard.writeText(mfaSecret);setMfaError('Secret কপি হয়েছে। নিরাপদে রাখুন; কাউকে শেয়ার করবেন না।');}catch{setMfaError('কপি করা যায়নি। Secret নিজে লিখে নিন।');}}}>Secret কপি করুন</button></div>}<form className="form-stack" onSubmit={verifySuperAdminMfa}><label className="field-label"><span>৬ সংখ্যার Authenticator কোড</span><input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event)=>setMfaCode(event.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" required/></label>{mfaError && <div className="inline-error">{mfaError}</div>}<button className="primary-button large" type="submit" disabled={mfaBusy || mfaCode.length!==6}>{mfaBusy ? 'কোড যাচাই হচ্ছে...' : mfaStage === 'challenge' ? 'Authenticator যাচাই করে প্রবেশ করুন' : 'Authenticator সংযোগ নিশ্চিত করুন'}</button>{mfaStage === 'challenge' && <button type="button" className="secondary-button" disabled={mfaBusy} onClick={()=>createMfaChallenge(mfaFactorId)}>নতুন Challenge তৈরি করুন</button>}</form><button type="button" className="secondary-button" onClick={() => { setMfaStage('idle'); setMfaError(''); setMfaCode(''); window.location.href = '/app/dashboard'; }}>বাতিল</button></section></main>;
+  if (!reauthenticated && (mfaStage === 'challenge' || mfaStage === 'enroll-primary')) return <main className="platform-page"><section className="card platform-reauth platform-mfa-gate"><span className="platform-lock"><Icon name="shield-check" size={28}/></span><span className="eyebrow">দ্বিতীয় নিরাপত্তা ধাপ</span><h1>{mfaStage === 'challenge' ? 'Authenticator কোড যাচাই' : 'Google Authenticator সংযুক্ত করুন'}</h1><p>{mfaStage === 'challenge' ? 'পাসওয়ার্ড যাচাই সফল হয়েছে। Google Authenticator থেকে ছয় সংখ্যার বর্তমান কোড দিন।' : 'প্রথমবার Super Admin খুলতে Authenticator অ্যাপে QR Scan করুন, তারপর ছয় সংখ্যার কোড দিয়ে সংযোগ নিশ্চিত করুন।'}</p>{mfaStage === 'challenge' && mfaFactors.length > 1 && <label className="field-label"><span>যে Authenticator ব্যবহার করবেন</span><select value={mfaFactorId} onChange={(event)=>changeMfaFactor(event.target.value)}>{mfaFactors.map((factor)=><option value={factor.id} key={factor.id}>{factor.friendly_name || 'Authenticator'}</option>)}</select></label>}{mfaStage === 'enroll-primary' && <div className="platform-mfa-qr-wrap"><img src={mfaQrCode} alt="Google Authenticator QR code"/><span>QR Scan না হলে এই Secret ম্যানুয়ালি Authenticator-এ যোগ করুন</span><code>{mfaSecret}</code><button type="button" className="secondary-button compact" onClick={async()=>{try{await navigator.clipboard.writeText(mfaSecret);setMfaError('Secret কপি হয়েছে। নিরাপদে রাখুন; কাউকে শেয়ার করবেন না।');}catch{setMfaError('কপি করা যায়নি। Secret নিজে লিখে নিন।');}}}>Secret কপি করুন</button></div>}<form className="form-stack" onSubmit={verifySuperAdminMfa}><label className="field-label"><span>৬ সংখ্যার Authenticator কোড</span><input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event)=>setMfaCode(event.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" required/></label>{mfaError && <div className="inline-error">{mfaError}</div>}<button className="primary-button large" type="submit" disabled={mfaBusy || mfaCode.length!==6}>{mfaBusy ? 'কোড যাচাই হচ্ছে...' : mfaStage === 'challenge' ? 'Authenticator যাচাই করে প্রবেশ করুন' : 'Authenticator সংযোগ নিশ্চিত করুন'}</button></form><button type="button" className="secondary-button" onClick={() => { setMfaStage('idle'); setMfaError(''); setMfaCode(''); window.location.href = '/app/dashboard'; }}>বাতিল</button></section></main>;
   if (!reauthenticated) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="lock" size={28}/></span><span className="eyebrow">অতিরিক্ত নিরাপত্তা</span><h1>Super Admin যাচাইকরণ</h1><p>প্যানেল খোলার আগে আপনার মূল অ্যাকাউন্টের পাসওয়ার্ড পুনরায় যাচাই হবে।</p><form className="form-stack" onSubmit={reauthenticate}><label className="field-label"><span>অ্যাকাউন্ট ইমেইল</span><input type="email" value={user?.email || ''} readOnly /></label><label className="field-label"><span>বর্তমান পাসওয়ার্ড</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>{gateError && <div className="inline-error">{gateError}</div>}<button className="primary-button large" type="submit" disabled={reauthBusy}>{reauthBusy ? 'যাচাই হচ্ছে...' : 'যাচাই করে প্রবেশ করুন'}</button><button type="button" className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>বাতিল</button></form></section></main>;
 
   return <main className="platform-page">
