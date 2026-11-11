@@ -29,7 +29,7 @@ test('Run39 event writer preserves Run36 bounded geo handling and adds attempted
   assert.match(migration, /p_event_type IS NULL OR p_event_type NOT IN/);
   assert.match(migration, /hl_security_events\(\s*event_type,ip_address,ip_fingerprint,identity_fingerprint,[\s\S]*?country_code,city,region,region_code/);
   assert.match(migration, /city text/);
-  assert.match(telemetry, /hl_record_public_security_event_v4/);
+  assert.match(telemetry, /hl_record_public_security_event_v5/);
   assert.match(targetedMigration, /hl_record_public_security_event_v4/);
   assert.match(telemetry, /resolveTrustedVisitor/);
   assert.match(worker, /request\.cf/);
@@ -41,7 +41,7 @@ test('Run39 event writer preserves Run36 bounded geo handling and adds attempted
 });
 
 test('Password reset Edge Function sends optional display-only location fields to new limiter and event writer', () => {
-  assert.match(reset, /hl_consume_password_reset_ip_request_v2/);
+  assert.match(reset, /hl_consume_password_reset_ip_request_v3/);
   assert.match(reset, /hl_record_public_security_event_v4/);
   assert.match(reset, /p_city: location\.city/);
   assert.match(reset, /p_region: location\.region/);
@@ -75,8 +75,8 @@ test('Security health reports if upstream Cloudflare city and region headers are
   assert.match(telemetry, /region_header_available: Boolean\(location\.region\)/);
   assert.match(page, /securityTelemetryStatus\.city_header_available/);
   assert.match(page, /securityTelemetryStatus\.region_header_available/);
-  assert.match(page, /Cloudflare Worker Proxy deploy/);
-  assert.match(page, /Worker signature যাচাই হয়নি \/ Direct Supabase path/);
+  assert.match(page, /Cloudflare Worker একটি ঐচ্ছিক Geo layer/);
+  assert.match(page, /Direct Supabase path · Worker ঐচ্ছিক/);
 });
 
 test('Local Super Admin denial explains project, blocked-profile, and role causes', () => {

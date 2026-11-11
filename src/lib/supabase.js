@@ -30,10 +30,9 @@ function normalizeWorkerOrigin(value) {
 }
 
 const securityWorkerOrigin = normalizeWorkerOrigin(workerUrlValue);
-// Treat any non-empty Worker setting as an enabled security requirement, even
-// when malformed. Invalid configuration must never silently fall back to the
-// direct Supabase endpoint for these three protected Function routes.
-export const securityGeoProxyEnabled = Boolean(workerUrlValue);
+// Cloudflare is an optional signed Geo/edge layer. Supabase's own ingress remains
+// the direct fallback so a Worker outage can never prevent login or OTP delivery.
+export const securityGeoProxyEnabled = Boolean(securityWorkerOrigin);
 
 function createSecurityAwareFetch() {
   const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -58,28 +57,32 @@ function createSecurityAwareFetch() {
     const isProtectedRoute = requestUrl.origin === supabaseOrigin && SECURITY_FUNCTION_PATHS.has(requestUrl.pathname);
     if (!isProtectedRoute) return nativeFetch(input, init);
 
-    if (!securityWorkerOrigin) {
-      throw new TypeError('Hostel Life security proxy URL is invalid. Correct VITE_HOSTEL_SECURITY_WORKER_URL or remove it deliberately to use direct mode.');
-    }
-    if (requestUrl.search || requestUrl.hash) {
-      throw new TypeError('Hostel Life security proxy does not accept query strings or fragments.');
-    }
+    if (!securityWorkerOrigin || requestUrl.search || requestUrl.hash) return nativeFetch(input, init);
 
     let request;
     try {
       request = new Request(input, init);
     } catch {
-      // Do not let a Request-construction/body error turn a protected request
-      // into a direct-Supabase request.
-      throw new TypeError('Hostel Life security proxy could not prepare the protected request.');
+      // If request cloning is impossible, prefer the original safe Supabase path.
+      return nativeFetch(input, init);
     }
 
-    // Route all Auth/Security Edge Functions, including signup OTP resend, through Cloudflare.
-    // Supabase Auth, PostgREST, Storage, Realtime, and all other Functions keep
-    // using the original Supabase origin.
+    // The Worker is optional. Route only the four first-party security Functions;
+    // on Worker configuration/transport/Geo-signature errors retry directly through
+    // Supabase's Cloudflare ingress. Real 429 blocks and application responses are kept.
     const target = `${securityWorkerOrigin}${requestUrl.pathname}`;
-    const routedRequest = new Request(target, request);
-    return nativeFetch(routedRequest);
+    try {
+      const workerResponse = await nativeFetch(new Request(target, request.clone()));
+      if ([502, 503, 504].includes(workerResponse.status)) {
+        let code = '';
+        try { code = String((await workerResponse.clone().json())?.code || ''); } catch { /* Non-JSON Worker response. */ }
+        const proxyFailure = /^(?:PROXY_CONFIGURATION_MISSING|CLOUDFLARE_CLIENT_IP_UNAVAILABLE|SUPABASE_FUNCTION_UNREACHABLE|GEO_PROXY_[A-Z0-9_]+|CLIENT_IP_UNAVAILABLE|AUTH_GATE_LOOKUP_FAILED)$/.test(code);
+        if (proxyFailure) return nativeFetch(new Request(requestUrl.href, request.clone()));
+      }
+      return workerResponse;
+    } catch {
+      return nativeFetch(new Request(requestUrl.href, request.clone()));
+    }
   };
 }
 

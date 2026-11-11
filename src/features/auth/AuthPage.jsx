@@ -300,7 +300,7 @@ function RegisterForm() {
         ageConfirmationAt: acceptedAt,
         termsAcceptedAt: acceptedAt,
         privacyPolicyAcceptedAt: acceptedAt,
-        legalPolicyVersion: '2026-11-04',
+        legalPolicyVersion: '2026-11-11',
       });
       if (error) throw error;
 
@@ -441,7 +441,7 @@ function RegisterForm() {
               <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
             </label>
             <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted}>
-              {submitting ? 'কোড পাঠানো হচ্ছে...' : 'ভেরিফিকেশন কোড পাঠান'}
+              {submitting ? 'রেজিস্ট্রেশন হচ্ছে...' : 'রেজিস্ট্রেশন করুন'}
             </button>
           </>
         )}

@@ -98,6 +98,12 @@ async function fingerprintEmail(email: string, secret: string): Promise<string> 
   return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function fingerprintAuthIdentity(email: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`identity:${email}`));
+  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
@@ -164,8 +170,8 @@ Deno.serve(async (request) => {
   const location = visitor.proxyVerified
     ? visitor.location
     : { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null };
-  if (!visitor.ok || !requestIp) {
-    return jsonResponse({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
+  if (!visitor.ok && visitor.code !== 'CLIENT_IP_UNAVAILABLE') {
+    return jsonResponse({ code: visitor.code || 'GEO_PROXY_INVALID', message: 'ঐচ্ছিক নেটওয়ার্ক যাচাই সেবা সাময়িকভাবে অনুপলব্ধ। আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
   }
 
   let body: { email?: unknown };
@@ -185,34 +191,35 @@ Deno.serve(async (request) => {
 
   const email = body.email.trim().toLowerCase();
   const emailFingerprint = await fingerprintEmail(email, hmacSecret);
+  const authHmacSecret = Deno.env.get('HOSTEL_SECURITY_HMAC_SECRET')?.trim() || serviceRoleKey;
+  const authIdentityFingerprint = await fingerprintAuthIdentity(email, authHmacSecret);
   const authClient = createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   try {
-    // Network-level app protection is independent of the per-email quota. The
-    // third request from a trusted IP in one hour starts a one-hour IP block.
-    const { data: ipGateData, error: ipGateError } = await admin.rpc('hl_consume_password_reset_ip_request_v2', {
-      p_request_ip: requestIp,
-      p_country_code: location.countryCode,
-      p_city: location.city,
-      p_region: location.region,
-      p_region_code: location.regionCode,
-    });
-    if (ipGateError) {
-      console.error('request-password-reset IP gate failed', { request_id: requestId, code: ipGateError.code, message: ipGateError.message });
-      return jsonResponse({ code: 'IP_RATE_LIMIT_CHECK_FAILED', message: 'নিরাপত্তা যাচাই করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
-    }
-    if (ipGateData?.reason === 'client_ip_unavailable') {
-      return jsonResponse({ code: 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য Client IP যাচাই করা যাচ্ছে না। পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
-    }
-    if (ipGateData?.allowed === false) {
-      return jsonResponse({
-        code: 'PASSWORD_RESET_IP_TEMPORARILY_BLOCKED',
-        message: 'নিরাপত্তার জন্য এই নেটওয়ার্ক থেকে এক ঘণ্টায় সর্বোচ্চ ২টি Password Reset অনুরোধ গ্রহণ করা হয়। সীমা অতিক্রম করায় ১ ঘণ্টার জন্য নতুন অনুরোধ বন্ধ রাখা হয়েছে।',
-        retry_at: ipGateData.retry_at || ipGateData.blocked_until || null,
-        retry_after_seconds: ipGateData.retry_after_seconds || 3600,
-        request_id: requestId,
-      }, 429, origin, allowedOrigins);
+    // Additional IP protection is scoped to the trusted IP + HMAC email pair.
+    // A shared hostel/mobile-network IP therefore does not block other accounts.
+    if (requestIp) {
+      const { data: ipGateData, error: ipGateError } = await admin.rpc('hl_consume_password_reset_ip_request_v3', {
+        p_request_ip: requestIp,
+        p_email_fingerprint: authIdentityFingerprint,
+        p_country_code: location.countryCode,
+        p_city: location.city,
+        p_region: location.region,
+        p_region_code: location.regionCode,
+      });
+      if (ipGateError) {
+        // Email quota and Supabase Auth's native limits remain active if optional IP telemetry is unavailable.
+        console.warn('request-password-reset pair IP limiter unavailable', { request_id: requestId, code: ipGateError.code });
+      } else if (ipGateData?.allowed === false) {
+        return jsonResponse({
+          code: 'PASSWORD_RESET_IP_TEMPORARILY_BLOCKED',
+          message: 'এই ইমেইল ঠিকানা থেকে এই নেটওয়ার্কে এক ঘণ্টায় ২টির বেশি Password Reset অনুরোধ হয়েছে। এক ঘণ্টা পরে আবার চেষ্টা করুন।',
+          retry_at: ipGateData.retry_at || ipGateData.blocked_until || null,
+          retry_after_seconds: ipGateData.retry_after_seconds || 3600,
+          request_id: requestId,
+        }, 429, origin, allowedOrigins);
+      }
     }
 
     const { data: quotaData, error: quotaError } = await admin.rpc('consume_password_reset_quota', {

@@ -69,6 +69,12 @@ async function fingerprintEmail(email: string, secret: string): Promise<string> 
   return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function fingerprintAuthIdentity(email: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`identity:${email}`));
+  return Array.from(new Uint8Array(signature), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 Deno.serve(async (request) => {
   const requestId = crypto.randomUUID();
   const origin = request.headers.get('Origin') ?? '';
@@ -107,8 +113,8 @@ Deno.serve(async (request) => {
 
   const visitor = await resolveTrustedVisitor(request, 'request-signup-otp', consumeNonce);
   if (request.method === 'GET') {
-    if (!visitor.ok || !visitor.ip || !visitor.proxyVerified) {
-      return reply({ ready: false, code: visitor.code || 'GEO_PROXY_NOT_VERIFIED', client_ip_available: Boolean(visitor.ip), geo_proxy_verified: visitor.proxyVerified, geo_source: visitor.source, geo_provider: visitor.geoProvider || null, version: 'run44-otp-health' }, 503, origin, origins);
+    if (!visitor.ok && visitor.code !== 'CLIENT_IP_UNAVAILABLE') {
+      return reply({ ready: false, code: visitor.code || 'GEO_PROXY_INVALID', client_ip_available: Boolean(visitor.ip), geo_proxy_verified: visitor.proxyVerified, geo_source: visitor.source, version: 'run45-otp-health' }, 503, origin, origins);
     }
     const [eventHealth, otpHealth] = await Promise.all([
       admin.rpc('hl_security_monitor_writer_health_v1'),
@@ -133,7 +139,7 @@ Deno.serve(async (request) => {
       city_header_available: Boolean(visitor.location?.city),
       region_header_available: Boolean(visitor.location?.region),
       country_header_available: Boolean(visitor.location?.countryCode),
-      version: 'run44-otp-health',
+      version: 'run45-otp-health',
     }, ready ? 200 : 503, origin, origins);
   }
 
@@ -148,27 +154,32 @@ Deno.serve(async (request) => {
   if (!validEmail(body.email)) return reply({ code: 'INVALID_EMAIL', message: 'একটি সঠিক ইমেইল ঠিকানা লিখুন।' }, 400, origin, origins);
 
   const email = body.email.trim().toLowerCase();
-  if (!visitor.ok || !visitor.ip) {
-    return reply({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য নেটওয়ার্ক তথ্য যাচাই করা যাচ্ছে না। পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, origins);
+  if (!visitor.ok && visitor.code !== 'CLIENT_IP_UNAVAILABLE') {
+    return reply({ code: visitor.code || 'GEO_PROXY_INVALID', message: 'ঐচ্ছিক নেটওয়ার্ক যাচাই সেবা সাময়িকভাবে অনুপলব্ধ। আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, origins);
   }
 
-  // Apply the same manual/automatic Login+Registration deny-list to OTP resend.
-  // A blocked IP must not bypass the auth gate by calling this Function directly.
-  const authBlock = await admin.rpc('hl_check_auth_ip_block', { p_request_ip: visitor.ip });
-  if (authBlock.error || authBlock.data?.protection_available === false) {
-    console.error('request-signup-otp auth IP block check failed', { request_id: requestId, code: authBlock.error?.code || 'protection_unavailable' });
-    return reply({ code: 'AUTH_GATE_LOOKUP_FAILED', message: 'নিরাপত্তা যাচাই করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, origins);
-  }
-  if (authBlock.data?.blocked === true) {
-    const retryAt = typeof authBlock.data.blocked_until === 'string' ? authBlock.data.blocked_until : null;
-    const retrySeconds = Math.max(1, Number(authBlock.data.retry_after_seconds) || 900);
-    return reply({
-      code: 'AUTH_IP_TEMPORARILY_BLOCKED',
-      message: 'নিরাপত্তার কারণে এই নেটওয়ার্ক থেকে Login ও Registration সাময়িকভাবে বন্ধ আছে।',
-      retry_at: retryAt,
-      retry_after_seconds: retrySeconds,
-      request_id: requestId,
-    }, 429, origin, origins);
+  // Manual global blocks and automatic pair blocks are both enforced when IP is available.
+  // Missing IP disables only this additional gate; the per-email quota and Supabase limits remain.
+  const authHmacSecret = Deno.env.get('HOSTEL_SECURITY_HMAC_SECRET')?.trim() || serviceKey;
+  const authIdentityFingerprint = await fingerprintAuthIdentity(email, authHmacSecret);
+  if (visitor.ip) {
+    const authBlock = await admin.rpc('hl_check_auth_ip_block_v2', {
+      p_request_ip: visitor.ip || null,
+      p_email_fingerprint: authIdentityFingerprint,
+    });
+    if (authBlock.error) {
+      console.warn('request-signup-otp optional pair IP block check unavailable', { request_id: requestId, code: authBlock.error.code });
+    } else if (authBlock.data?.blocked === true) {
+      const retryAt = typeof authBlock.data.blocked_until === 'string' ? authBlock.data.blocked_until : null;
+      const retrySeconds = Math.max(1, Number(authBlock.data.retry_after_seconds) || 900);
+      return reply({
+        code: 'AUTH_IP_TEMPORARILY_BLOCKED',
+        message: 'এই ইমেইল ও নেটওয়ার্কের জন্য Login/Registration সাময়িকভাবে বন্ধ আছে।',
+        retry_at: retryAt,
+        retry_after_seconds: retrySeconds,
+        request_id: requestId,
+      }, 429, origin, origins);
+    }
   }
 
   try {
@@ -176,8 +187,8 @@ Deno.serve(async (request) => {
     const quota = await admin.rpc('hl_consume_signup_otp_resend', {
       p_email_fingerprint: fingerprint,
       p_attempt_email: email,
-      p_request_ip: visitor.ip,
-      p_country_code: visitor.proxyVerified ? visitor.location?.countryCode || null : null,
+      p_request_ip: visitor.ip || null,
+      p_country_code: visitor.ok ? visitor.location?.countryCode || null : null,
       p_city: visitor.proxyVerified ? visitor.location?.city || null : null,
       p_region: visitor.proxyVerified ? visitor.location?.region || null : null,
       p_region_code: visitor.proxyVerified ? visitor.location?.regionCode || null : null,
@@ -188,14 +199,11 @@ Deno.serve(async (request) => {
       console.error('request-signup-otp quota check failed', { request_id: requestId, code: quota.error.code });
       return reply({ code: 'OTP_RATE_LIMIT_CHECK_FAILED', message: 'নিরাপত্তা যাচাই করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, origins);
     }
-    if (quota.data?.reason === 'client_ip_unavailable') {
-      return reply({ code: 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নেটওয়ার্ক তথ্য যাচাই করা যায়নি।' }, 503, origin, origins);
-    }
     if (quota.data?.allowed === false) {
       return reply({
         code: 'SIGNUP_OTP_RATE_LIMITED',
         message: quota.data.reason === 'ip_hourly_limit'
-          ? 'এই নেটওয়ার্ক থেকে এক ঘণ্টায় সর্বোচ্চ ২টি পুনরায় কোড পাঠানোর অনুরোধ গ্রহণ করা হয়। কিছুক্ষণ পরে চেষ্টা করুন।'
+          ? 'এই ইমেইল ও নেটওয়ার্কের জন্য এক ঘণ্টায় সর্বোচ্চ ২টি পুনরায় কোড পাঠানোর অনুরোধ গ্রহণ করা হয়। কিছুক্ষণ পরে চেষ্টা করুন।'
           : 'এই ইমেইলে প্রতিদিন সর্বোচ্চ ২ বার নতুন কোড পাঠানো যায়। নির্ধারিত সময় পরে আবার চেষ্টা করুন।',
         retry_at: quota.data.retry_at,
         retry_after_seconds: quota.data.retry_after_seconds || 3600,

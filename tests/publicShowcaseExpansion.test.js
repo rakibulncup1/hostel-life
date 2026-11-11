@@ -59,11 +59,11 @@ test('root URL redirects to About, while Vite and all public paths remain config
   assert.match(read('public/about.html'), /rel="canonical" href="https:\/\/hostellife-bd\.vercel\.app\/about"/);
 });
 
-test('Google authentication is still disclosed as inactive and future scope is conditional', () => {
+test('Google Sign-In is not integrated', () => {
   const privacy = read('public/privacy-policy.html');
   const terms = read('public/terms-of-service.html');
-  assert.match(privacy, /Google Sign-In বর্তমানে অ্যাপে সক্রিয় নয়/);
-  assert.match(privacy, /এই মুহূর্তে Google-এর মাধ্যমে লগইন বা Google অ্যাকাউন্টের তথ্য সংগ্রহ করা হয় না/);
-  assert.match(privacy, /Gmail, Drive বা অন্য Google content access করার অনুমতি/);
-  assert.match(terms, /বর্তমানে Google Sign-In চালু নেই/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত নেই/);
+  assert.match(privacy, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না/);
+  assert.match(privacy, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না/);
+  assert.match(terms, /এই অ্যাপে Google Sign-In নেই/);
 });

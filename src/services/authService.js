@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { supabase, securityGeoProxyEnabled } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 async function responseDetails(error) {
   const response = error?.context;
@@ -7,72 +7,42 @@ async function responseDetails(error) {
   try { return await response.clone().json(); } catch { return null; }
 }
 
-async function checkAppAuthGate() {
+async function checkAppAuthGate(email) {
   if (!supabase) return null;
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!normalizedEmail) return null;
   try {
-    const { data, error } = await supabase.functions.invoke('auth-security-gate', { body: {} });
+    const { data, error } = await supabase.functions.invoke('auth-security-gate', {
+      body: { email: normalizedEmail },
+    });
     if (error) {
       const details = await responseDetails(error);
       const status = error.context?.status || error.status || null;
       if (status === 429 || details?.code === 'AUTH_IP_TEMPORARILY_BLOCKED') {
-        const blocked = new Error(details?.message || 'নিরাপত্তার জন্য এই নেটওয়ার্ক থেকে Login ও Registration সাময়িকভাবে বন্ধ রাখা হয়েছে।');
+        const blocked = new Error(details?.message || 'এই ইমেইল ও নেটওয়ার্কের জন্য Login/Registration সাময়িকভাবে বন্ধ আছে।');
         blocked.code = details?.code || 'AUTH_IP_TEMPORARILY_BLOCKED';
         blocked.status = 429;
         blocked.retryAt = details?.retry_at || null;
         return blocked;
       }
-      if (details?.code === 'GEO_PROXY_REQUIRED') {
-        const unavailable = new Error('এই সাইটে নিরাপত্তা যাচাইয়ের জন্য Cloudflare Worker সংযোগ বাধ্যতামূলক। অ্যাপটি সঠিক Worker URL দিয়ে প্রকাশ না হওয়া পর্যন্ত Login ও Registration বন্ধ থাকবে।');
-        unavailable.code = details.code;
-        unavailable.status = 503;
-        return unavailable;
-      }
-      if (details?.code === 'CLIENT_IP_UNAVAILABLE') {
-        const unavailable = new Error(details?.message || 'নিরাপত্তা যাচাই করা যাচ্ছে না। কিছুক্ষণ পরে আবার চেষ্টা করুন।');
-        unavailable.code = details.code;
-        unavailable.status = 503;
-        return unavailable;
-      }
-      // With the signed Cloudflare Worker enabled, a gate failure must not
-      // silently fall through to direct Supabase Auth (which would skip the
-      // app-level IP check). Remove VITE_HOSTEL_SECURITY_WORKER_URL to return
-      // deliberately to the documented direct-Supabase/fail-open mode.
-      if (securityGeoProxyEnabled) {
-        const unavailable = new Error(details?.message || 'নিরাপত্তা যাচাই সেবা অনুপলব্ধ। কিছুক্ষণ পরে আবার চেষ্টা করুন।');
-        unavailable.code = details?.code || 'SECURITY_GATE_UNAVAILABLE';
-        unavailable.status = status || 503;
-        return unavailable;
-      }
-      console.warn('[Hostel Life] Auth security gate unavailable:', details?.code || error.message || error.name || 'unknown_error');
+      // The pair-based IP gate is an additional guard, never a prerequisite for
+      // Supabase Auth. Native Auth rate limits remain active if this layer fails.
+      console.warn('[Hostel Life] Optional IP/email security gate unavailable:', details?.code || error.message || error.name || 'unknown_error');
       return null;
     }
     if (data?.blocked) {
-      const blocked = new Error(data.message || 'নিরাপত্তার জন্য Login ও Registration সাময়িকভাবে বন্ধ রাখা হয়েছে।');
+      const blocked = new Error(data.message || 'এই ইমেইল ও নেটওয়ার্কের জন্য Login/Registration সাময়িকভাবে বন্ধ আছে।');
       blocked.code = data.code || 'AUTH_IP_TEMPORARILY_BLOCKED';
       blocked.status = 429;
       blocked.retryAt = data.retry_at || null;
       return blocked;
     }
     if (data?.protection_available === false) {
-      if (securityGeoProxyEnabled) {
-        const unavailable = new Error('নিরাপত্তা যাচাইয়ের জন্য Visitor IP পাওয়া যায়নি। পরে আবার চেষ্টা করুন।');
-        unavailable.code = 'CLIENT_IP_UNAVAILABLE';
-        unavailable.status = 503;
-        return unavailable;
-      }
-      console.warn('[Hostel Life] Auth gate received no trusted client IP; IP protection is unavailable for this request.');
+      console.warn('[Hostel Life] No trusted visitor IP; Supabase Auth native rate limits remain active.');
     }
     return null;
   } catch (error) {
-    // A configured Worker is part of the required IP-gate path. Do not fall
-    // through to Supabase Auth if that signed proxy cannot be reached.
-    if (securityGeoProxyEnabled) {
-      const unavailable = new Error('নিরাপত্তা যাচাই সেবা পাওয়া যাচ্ছে না। সংযোগ ঠিক করে আবার চেষ্টা করুন।');
-      unavailable.code = 'SECURITY_GATE_UNAVAILABLE';
-      unavailable.status = 503;
-      return unavailable;
-    }
-    console.warn('[Hostel Life] Auth security gate request failed:', error?.message || 'network_error');
+    console.warn('[Hostel Life] Optional IP/email security gate request failed:', error?.message || 'network_error');
     return null;
   }
 }
@@ -112,7 +82,7 @@ function classifyAuthFailure(error, eventType) {
 
 export async function signIn({ email, password, trackSuccessfulLogin = true }) {
   const normalizedEmail = email.trim().toLowerCase();
-  const gateError = await checkAppAuthGate();
+  const gateError = await checkAppAuthGate(normalizedEmail);
   if (gateError) return { data: null, error: gateError };
   const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
   if (result.error) {
@@ -186,7 +156,7 @@ export async function signUp({ fullName, phone, email, password, permissionCode 
     return { data: null, error: new Error('রেজিস্ট্রেশনের আগে ১৮+ বয়স নিশ্চিত করে ব্যবহারের শর্তাবলী ও গোপনীয়তা নীতিতে সম্মতি দিতে হবে।') };
   }
   const normalizedEmail = email.trim().toLowerCase();
-  const gateError = await checkAppAuthGate();
+  const gateError = await checkAppAuthGate(normalizedEmail);
   if (gateError) return { data: null, error: gateError };
   const result = await supabase.auth.signUp({
     email: normalizedEmail,

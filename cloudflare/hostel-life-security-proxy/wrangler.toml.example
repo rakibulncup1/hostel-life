@@ -1,6 +1,6 @@
 name = "hostel-life-security-proxy"
 main = "src/index.js"
-compatibility_date = "2026-11-06"
+compatibility_date = "2026-11-11"
 workers_dev = true
 
 # Set these in the Cloudflare Worker Dashboard or replace the example values

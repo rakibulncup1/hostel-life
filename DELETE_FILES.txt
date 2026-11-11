@@ -1,0 +1,4 @@
+Remove this obsolete, unreferenced legacy Express middleware from the Cloudflare Worker folder:
+cloudflare/hostel-life-security-proxy/src/middleware.js
+
+It used a Vercel/Express custom-header secret check, is not imported by the current Cloudflare Worker, and is not part of the supported Worker architecture. The replacement Worker is cloudflare/hostel-life-security-proxy/src/index.js.

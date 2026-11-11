@@ -36,8 +36,9 @@ test('Cloudflare Worker forwards only signed request.cf city and region metadata
   assert.match(worker, /let city = safeLocation\(cf\.city/);
   assert.match(worker, /let region = safeLocation\(cf\.region/);
   assert.match(worker, /let regionCode = safeLocation\(cf\.regionCode/);
-  assert.match(worker, /https:\/\/api\.ipinfo\.io\/lite/);
-  assert.match(worker, /!resolvedCountry && env\.IPINFO_TOKEN/);
+  assert.doesNotMatch(worker, /IPINFO_TOKEN|api\.ipinfo\.io/);
+  assert.match(worker, /const resolvedCountry = country/);
+  assert.match(worker, /request\.cf/);
   assert.match(worker, /x-hostel-geo-provider/);
   assert.match(worker, /canonicalPayload\(signed\)/);
   assert.match(authEventEdge, /hl_consume_geo_proxy_nonce/);
@@ -61,7 +62,7 @@ test('Market, deposit, Khala, and period notifications include actor and target 
 });
 
 test('Registration UI uses six-digit Supabase Auth OTP with cooldown and server-backed resend/verification', () => {
-  assert.match(authPage, /ভেরিফিকেশন কোড পাঠান/);
+  assert.match(authPage, /রেজিস্ট্রেশন করুন/);
   assert.match(authPage, /resendCountdown/);
   assert.match(authPage, /setResendCountdown\(120\)/);
   assert.match(auth, /verifyOtp\(\{ email: normalizedEmail, token: code, type: 'signup' \}\)/);

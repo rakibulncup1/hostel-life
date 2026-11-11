@@ -98,8 +98,8 @@ test('legal pages retain user-facing data, age and service terms without exposin
   for (const phrase of ['নাম', 'ইমেইল', 'মোবাইল নম্বর', 'মিল', 'বাজার', 'জমা', 'খরচ', 'Telegram', 'Google Sign-In', 'প্রোফাইল ছবি', 'তথ্য সংরক্ষণ']) {
     assert.ok(privacy.includes(phrase), `privacy page should disclose ${phrase}`);
   }
-  assert.match(privacy, /Google Sign-In বর্তমানে অ্যাপে সক্রিয় নয়/);
-  assert.match(privacy, /Google থেকে পাওয়া মৌলিক পরিচয়-তথ্য/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত নেই/);
+  assert.match(privacy, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না/);
   assert.match(privacy, /বয়স কমপক্ষে ১৮ বছর/);
   assert.doesNotMatch(privacy, /Supabase|Vercel|IndexedDB|User-Agent|ap-southeast-1|public bucket|openid|userinfo\.email|userinfo\.profile|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র|প্রকাশের আগে পূরণ করতে হবে/);
   assert.match(terms, /অ্যাপটি নিজে পেমেন্ট গেটওয়ে নয়/);

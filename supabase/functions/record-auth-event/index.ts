@@ -142,15 +142,12 @@ Deno.serve(async (request) => {
     return data === true;
   };
   const visitor = await resolveTrustedVisitor(request, 'record-auth-event', consumeGeoNonce);
-  const noTrustedIpFallback = !visitor.ok && ['GEO_PROXY_REQUIRED', 'CLIENT_IP_UNAVAILABLE'].includes(visitor.code || '');
+  const noTrustedIpFallback = !visitor.ok && ['CLIENT_IP_UNAVAILABLE'].includes(visitor.code || '');
   // Health checks must prove that the signed proxy supplies a real visitor IP.
   // POST telemetry may still store the attempted email with a NULL IP if the
   // proxy is missing, but never accepts invalid/replayed signatures.
   if (!visitor.ok && !noTrustedIpFallback) {
     return response({ accepted: false, ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
-  }
-  if (request.method === 'GET' && noTrustedIpFallback) {
-    return response({ ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', client_ip_available: false, geo_proxy_verified: false, geo_source: 'unavailable', geo_provider: null, version: VERSION }, 503, origin, origins);
   }
   // Only signed Worker metadata may populate City/Region. Direct Supabase
   // ingress can still provide a Cloudflare Country Code, but its geo labels
@@ -270,7 +267,7 @@ Deno.serve(async (request) => {
     ? body.failure_code : (!ip ? (visitor.code || 'trusted_ip_unavailable') : null);
 
   try {
-    const { data, error } = await admin.rpc('hl_record_public_security_event_v4', {
+    const { data, error } = await admin.rpc('hl_record_public_security_event_v5', {
       p_event_type: eventType,
       p_identity_fingerprint: identityFingerprint,
       p_ip_fingerprint: ipFingerprint,

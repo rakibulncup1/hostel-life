@@ -65,23 +65,20 @@ test('Signup OTP endpoint is proxied and has a read-only health endpoint', () =>
   assert.match(edge, /hl_check_auth_ip_block/);
 });
 
-test('IPinfo Lite fallback is HTTPS-only, cached, and used only when Cloudflare Country is missing', () => {
+test('Optional location uses Cloudflare-native Geo and no third-party lookup', () => {
   const worker = read('cloudflare/hostel-life-security-proxy/src/index.js');
   const helper = read('supabase/functions/_shared/geoProxy.ts');
-  assert.match(worker, /https:\/\/api\.ipinfo\.io\/lite/);
-  assert.match(worker, /lookupIpinfoGeo/);
-  assert.match(worker, /globalThis\.caches\?\.default/);
-  assert.match(worker, /max-age=86400/);
-  assert.match(worker, /!resolvedCountry && env\.IPINFO_TOKEN/);
-  assert.match(worker, /x-hostel-geo-provider/);
+  const privacy = read('public/privacy-policy.html');
+  assert.match(worker, /request\.cf/);
+  assert.doesNotMatch(worker, /IPINFO_TOKEN|api\.ipinfo\.io/);
   assert.match(helper, /GEO_PROXY_PROVIDER_INVALID/);
-  assert.match(helper, /input\.geoProvider/);
+  assert.doesNotMatch(privacy, /IPinfo Lite/);
 });
 
 test('Privacy policy discloses attempted-email and conditional IPinfo Lite geolocation processing', () => {
   const privacy = read('public/privacy-policy.html');
   assert.match(privacy, /Security Event/);
   assert.match(privacy, /৩০ দিনের/);
-  assert.match(privacy, /IPinfo Lite/);
+  assert.doesNotMatch(privacy, /IPinfo Lite/);
   assert.match(privacy, /Password, OTP code/);
 });

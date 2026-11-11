@@ -52,11 +52,12 @@ test('password reset IP gate accepts two requests/hour and blocks the third for 
   assert.match(sql, /requested_at>v_now-interval '1 hour'/);
   assert.match(sql, /IF v_count>2 THEN/);
   assert.match(sql, /v_now\+interval '1 hour'/);
-  assert.match(reset, /hl_consume_password_reset_ip_request_v2/);
+  assert.match(reset, /hl_consume_password_reset_ip_request_v3/);
   assert.match(reset, /PASSWORD_RESET_IP_TEMPORARILY_BLOCKED/);
   assert.match(reset, /const visitor = await resolveTrustedVisitor\(request, 'request-password-reset', consumeGeoNonce\)/);
-  assert.match(reset, /if \(!visitor\.ok \|\| !requestIp\)/);
+  assert.match(reset, /if \(requestIp\)/);
   assert.match(sql, /'reason','client_ip_unavailable'/);
+  assert.match(sql, /email_fingerprint=p_email_fingerprint/);
   const config = read('supabase/config.toml');
   assert.match(config, /\[functions\.request-password-reset\][\s\S]*?verify_jwt = false/);
   assert.match(config, /\[functions\.admin-delete-unlinked-user\][\s\S]*?verify_jwt = true/);
@@ -79,8 +80,9 @@ test('public security gates and ingestion are service-role-only; private attempt
 
 
 test('Security UI discloses direct Auth endpoint bypass and shared-network IP block impact', () => {
-  assert.match(page, /সরাসরি Supabase Auth endpoint-এ request পাঠালে এই app gate এড়িয়ে যেতে পারে/);
-  assert.match(page, /shared IP সাময়িকভাবে block হতে পারে/);
+  assert.match(page, /App pre-check সরাসরি Supabase Auth endpoint-এ পাঠানো অনুরোধ আটকাতে পারে না/);
+  assert.match(page, /অন্য ইমেইল ব্যবহারকারী এতে ব্লক হবেন না/);
+  assert.match(page, /Manual Global IP Block/);
 });
 
 test('Security Monitor exposes success/failure events, country, IP and date-window filters', () => {
@@ -118,22 +120,22 @@ test('Country attribution uses only trusted Cloudflare country header and only t
 test('Auth app gate checks trusted Cloudflare IP and refuses to trust arbitrary forwarding headers', () => {
   assert.match(gate, /resolveTrustedVisitor/);
   assert.match(geoProxy, /cf-connecting-ip/);
-  assert.match(gate, /hl_check_auth_ip_block/);
+  assert.match(gate, /hl_check_auth_ip_block_v2/);
   assert.doesNotMatch(gate, /headers\.get\(['"]x-forwarded-for/i);
-  assert.match(auth, /checkAppAuthGate\(\)/);
-  assert.match(auth, /await checkAppAuthGate\(\)/);
+  assert.match(auth, /checkAppAuthGate\(normalizedEmail\)/);
+  assert.match(auth, /await checkAppAuthGate\(normalizedEmail\)/);
   assert.match(auth, /signInWithPassword/);
   assert.match(auth, /auth\.signUp/);
   assert.match(service, /platformAdminCheckSecurityTelemetry/);
   assert.match(service, /auth-security-gate/);
-  assert.match(gate, /direct requests to the public Auth endpoint may bypass it/i);
+  assert.match(gate, /Direct requests to the public Auth endpoint may bypass this app pre-check/i);
   assert.match(gate, /CLIENT_IP_UNAVAILABLE/);
-  assert.match(auth, /details\?\.code === 'CLIENT_IP_UNAVAILABLE'/);
+  assert.match(auth, /Optional IP\/email security gate unavailable/i);
   assert.match(gate, /const visitor = await resolveTrustedVisitor\(request, 'auth-security-gate', consumeGeoNonce\)/);
-  assert.match(gate, /if \(!visitor\.ok \|\| !visitor\.ip\)/);
-  assert.match(gate, /const clientIpAvailable = Boolean\(visitor\.ip\)/);
-  assert.match(gate, /const ip = visitor\.ip/);
-  assert.match(gate, /protection_available: protectionAvailable/);
+  assert.match(gate, /if \(!ip\) return respond\(\{ allowed: true, protection_available: false/);
+  assert.match(gate, /client_ip_available: Boolean\(ip\)/);
+  assert.match(gate, /const ip = visitor\.ok \? visitor\.ip : null/);
+  assert.match(gate, /protection_available: data\?\.protection_available !== false/);
   assert.doesNotMatch(gate, /hl_check_auth_ip_block', \{ p_request_ip: null \}\);[\s\S]{0,300}protection_available: clientIpAvailable/);
 });
 

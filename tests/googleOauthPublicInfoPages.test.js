@@ -34,8 +34,8 @@ test('privacy page explains actual user-facing data flows without exposing imple
   for (const phrase of ['নাম', 'ইমেইল', 'মোবাইল নম্বর', 'মিল', 'বাজার', 'জমা', 'খরচ', 'Telegram', 'Google Sign-In', 'প্রোফাইল ছবি', 'তথ্য সংরক্ষণ', 'support.sec1.info@gmail.com']) {
     assert.ok(html.includes(phrase), `privacy page should disclose ${phrase}`);
   }
-  assert.match(html, /Google Sign-In বর্তমানে অ্যাপে সক্রিয় নয়/);
-  assert.match(html, /Google থেকে পাওয়া মৌলিক পরিচয়-তথ্য/);
+  assert.match(html, /Google Sign-In সংযুক্ত নেই/);
+  assert.match(html, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না/);
   assert.doesNotMatch(html, /Supabase|Vercel|IndexedDB|User-Agent|ap-southeast-1|public bucket|openid|userinfo\.email|userinfo\.profile|অভিভাবক|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র|প্রকাশের আগে পূরণ করতে হবে/);
 });
 
@@ -79,11 +79,10 @@ test('login and registration pages expose public legal links before sign-in', ()
   assert.match(auth, /href="\/about"/);
 });
 
-test('stage-one guide accurately documents public identity preparation without activating OAuth', () => {
-  const guide = read('README_GOOGLE_OAUTH_STAGE1_BN.md');
-  assert.match(guide, /OAuth button\/code বা কোনো credential এখনো যোগ হয়নি/);
-  assert.match(guide, /Google Client Secret শুধু Supabase Dashboard-এর Google Provider-এ রাখুন/);
-  assert.match(guide, /shared subdomain/);
-  assert.match(guide, /Privacy Policy ও Terms/);
-  assert.match(guide, /guardian-consent/);
+test('Google OAuth is not part of the product and no staging/provider setup guide is shipped', () => {
+  const authService = read('src/services/authService.js');
+  const supabaseConfig = read('supabase/config.toml');
+  assert.doesNotMatch(authService, /signInWithOAuth|signInWithIdToken/);
+  assert.doesNotMatch(supabaseConfig, /google|oauth/i);
+  assert.equal(fs.existsSync(path.join(root, 'README_GOOGLE_OAUTH_STAGE1_BN.md')), false);
 });

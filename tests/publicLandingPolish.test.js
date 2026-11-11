@@ -59,7 +59,7 @@ test('public pages share a balanced palette, compact centered footer and respons
     assert.match(css, /@media \(max-width: 760px\)/);
     assert.match(css, /\.legal-hero/);
     assert.match(html, /support\.sec1\.info@gmail\.com/);
-    assert.match(html, file.includes('privacy-policy') ? /সর্বশেষ হালনাগাদ: ৬ নভেম্বর ২০২৬/ : /সর্বশেষ হালনাগাদ: ৫ নভেম্বর ২০২৬/);
+    assert.match(html, file.includes('privacy-policy') ? /সর্বশেষ হালনাগাদ: ১১ নভেম্বর ২০২৬/ : /সর্বশেষ হালনাগাদ: ১১ নভেম্বর ২০২৬/);
     assert.doesNotMatch(html, /Supabase|ap-southeast-1|YOUR_PROJECT|প্রকাশের আগে পূরণ করতে হবে|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র|অভিভাবক/);
   }
 });
@@ -67,7 +67,7 @@ test('public pages share a balanced palette, compact centered footer and respons
 test('policy accurately says Google Sign-In is currently inactive and the product is 18+ only', () => {
   const privacy = read('public/privacy-policy.html');
   const terms = read('public/terms-of-service.html');
-  assert.match(privacy, /Google Sign-In বর্তমানে অ্যাপে সক্রিয় নয়/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত নেই/);
   assert.match(privacy, /বয়স কমপক্ষে ১৮ বছর/);
   assert.match(terms, /বয়স কমপক্ষে ১৮ বছর/);
 });

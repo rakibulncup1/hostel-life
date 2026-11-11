@@ -36,8 +36,8 @@ test('public legal pages are concise, have real contact details and no unfinishe
     assert.doesNotMatch(page, /প্রকাশের আগে পূরণ করতে হবে|\[বাস্তব|\[সেবার|Supabase|Vercel|ap-southeast-1|Region|database|ডাটাবেজ|অভিভাবক|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র/);
     assert.match(page, /কমপক্ষে ১৮ বছর/);
   }
-  assert.match(privacy, /Google Sign-In বর্তমানে অ্যাপে সক্রিয় নয়/);
-  assert.match(privacy, /Google থেকে পাওয়া মৌলিক পরিচয়-তথ্য/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত নেই/);
+  assert.match(privacy, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না/);
 });
 
 test('About is the default document on Vite dev, preview and Vercel root', () => {

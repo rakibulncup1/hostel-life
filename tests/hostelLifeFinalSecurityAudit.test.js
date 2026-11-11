@@ -64,10 +64,10 @@ test('Backup UI links the downloaded .hlbackup to the local Restore & Recovery f
   assert.match(backupGui, /filedialog\.askopenfilename/);
 });
 
-test('Cloudflare proxy can be made mandatory without breaking the staged direct-mode fallback', () => {
-  assert.match(geo, /HOSTEL_GEO_PROXY_REQUIRED/);
-  assert.match(geo, /code: 'GEO_PROXY_REQUIRED'/);
-  assert.ok(geo.indexOf("proxyMarker === 'v1'") < geo.indexOf("HOSTEL_GEO_PROXY_REQUIRED"));
+test('Cloudflare Geo Proxy is optional and Direct Supabase mode is not blocked by a missing Worker', () => {
+  assert.doesNotMatch(geo, /HOSTEL_GEO_PROXY_REQUIRED|GEO_PROXY_REQUIRED/);
+  assert.match(geo, /Direct-to-Supabase is the supported baseline/);
+  assert.match(geo, /proxyMarker === 'v1'/);
 });
 
 test('Password re-authentication does not inflate the fresh login-success metric', () => {
@@ -76,8 +76,7 @@ test('Password re-authentication does not inflate the fresh login-success metric
   assert.match(authService, /result\.data\?\.user && recordLoginSuccess/);
 });
 
-test('server-required Geo Proxy cannot be bypassed by a frontend build missing the Worker URL', () => {
-  assert.match(authService, /details\?\.code === 'GEO_PROXY_REQUIRED'/);
-  assert.match(authService, /details\?\.code === 'GEO_PROXY_REQUIRED'/);
-  assert.match(authService, /unavailable\.code = details\.code/);
+test('optional Geo/IP guard failures do not prevent Supabase Authentication', () => {
+  assert.match(authService, /Optional IP\/email security gate unavailable/i);
+  assert.doesNotMatch(authService, /GEO_PROXY_REQUIRED|SECURITY_GATE_UNAVAILABLE/);
 });

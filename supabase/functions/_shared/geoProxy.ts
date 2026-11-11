@@ -149,7 +149,7 @@ async function verifyProxyRequest(request: Request, expectedRoute: string, consu
   if (!/^[0-9a-f-]{36}$/i.test(nonce) || route !== expectedRoute || !ip) return fail('GEO_PROXY_METADATA_INVALID');
   if (country && !/^[A-Z]{2}$/.test(country)) return fail('GEO_PROXY_COUNTRY_INVALID');
   if (city.length > 300 || region.length > 300 || regionCode.length > 60) return fail('GEO_PROXY_LOCATION_INVALID');
-  if (!['cloudflare','ipinfo','cloudflare+ipinfo','unavailable'].includes(geoProvider)) return fail('GEO_PROXY_PROVIDER_INVALID');
+  if (!['cloudflare','unavailable'].includes(geoProvider)) return fail('GEO_PROXY_PROVIDER_INVALID');
   const signatureBytes = hexToBytes(signature);
   if (!signatureBytes) return fail('GEO_PROXY_SIGNATURE_INVALID');
 
@@ -221,25 +221,9 @@ export async function resolveTrustedVisitor(
     return await verifyProxyRequest(request, expectedRoute, consumeNonce);
   }
 
-  // Once the operator enables this secret, direct-to-Supabase calls to these
-  // three protected Functions are rejected. This closes the deliberate
-  // transition fallback after the Cloudflare Worker has been deployed/tested.
-  const proxyRequired = Deno.env.get('HOSTEL_GEO_PROXY_REQUIRED')?.trim().toLowerCase() === 'true';
-  if (proxyRequired) {
-    return {
-      ok: false,
-      ip: null,
-      location: EMPTY_LOCATION,
-      proxyVerified: false,
-      source: 'unavailable',
-      geoProvider: null,
-      code: 'GEO_PROXY_REQUIRED',
-    };
-  }
-
-  // Direct-to-Supabase fallback. Cloudflare supplies this ingress IP and its
-  // country header. City/Region are deliberately omitted: without the signed
-  // Worker they are not reliably attributable to the Cloudflare edge.
+  // Direct-to-Supabase is the supported baseline; an optional Worker outage
+  // can never lock users out of Authentication.
+  // City/Region are omitted on this path; only ingress-provided IP/Country are used.
   const ip = validIp(request.headers.get('cf-connecting-ip'));
   const countryHeader = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
   return {

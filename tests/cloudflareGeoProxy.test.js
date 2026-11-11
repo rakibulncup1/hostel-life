@@ -137,57 +137,10 @@ test('Worker accepts only the four intended Auth/Security Function routes', () =
 });
 
 
-test('IPinfo Lite fallback returns only country data, uses HTTPS and never blocks on lookup failure', async () => {
+test('Worker does not call a third-party geolocation provider when Cloudflare country is absent', async () => {
   const originalFetch = globalThis.fetch;
-  const originalCaches = globalThis.caches;
-  let requested = '';
-  globalThis.caches = undefined;
-  globalThis.fetch = async (input) => {
-    requested = String(input);
-    return new Response(JSON.stringify({ ip: '8.8.8.8', country_code: 'US', asn: 'AS15169' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  };
-  try {
-    const result = await __test.lookupIpinfoGeo('8.8.8.8', 'ipinfo-test-token');
-    assert.match(requested, /^https:\/\/api\.ipinfo\.io\/lite\/8\.8\.8\.8\?token=ipinfo-test-token$/);
-    assert.deepEqual(result, { country: 'US' });
-    assert.equal('asn' in result, false);
-  } finally {
-    globalThis.fetch = originalFetch;
-    if (originalCaches === undefined) delete globalThis.caches;
-    else globalThis.caches = originalCaches;
-  }
-});
-
-test('IPinfo Lite fallback refuses private addresses and treats provider errors as non-fatal', async () => {
-  const originalFetch = globalThis.fetch;
-  let calls = 0;
-  globalThis.fetch = async () => { calls += 1; return new Response('{"error":true}', { status: 200 }); };
-  try {
-    assert.equal(await __test.lookupIpinfoGeo('192.168.1.10', 'ipinfo-test-token'), null);
-    assert.equal(calls, 0);
-    assert.equal(await __test.lookupIpinfoGeo('8.8.4.4', 'ipinfo-test-token'), null);
-    assert.equal(calls, 1);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-
-
-test('Worker uses IPinfo Lite only for missing Cloudflare country and signs the returned country', async () => {
-  const originalFetch = globalThis.fetch;
-  const originalCaches = globalThis.caches;
-  let lookupUrl = '';
   let upstreamRequest = null;
-  globalThis.caches = undefined;
   globalThis.fetch = async (input, init) => {
-    const url = String(input instanceof Request ? input.url : input);
-    if (url.startsWith('https://api.ipinfo.io/lite/')) {
-      lookupUrl = url;
-      return new Response(JSON.stringify({ ip: '8.8.8.8', country_code: 'US', asn: 'AS15169' }), {
-        status: 200, headers: { 'Content-Type': 'application/json' },
-      });
-    }
     upstreamRequest = input instanceof Request ? input : new Request(input, init);
     return new Response('{"ready":true}', { status: 200 });
   };
@@ -195,37 +148,26 @@ test('Worker uses IPinfo Lite only for missing Cloudflare country and signs the 
     const request = withCf(new Request('https://hostel-life-security.example.workers.dev/functions/v1/record-auth-event', {
       method: 'GET', headers: { Origin: 'https://hostellife-bd.vercel.app', apikey: 'public-test-key', 'cf-connecting-ip': '8.8.8.8' },
     }), { city: 'Dhaka', region: 'Dhaka Division', regionCode: 'BD-C' });
-    const response = await worker.fetch(request, { ...env, IPINFO_TOKEN: 'lite-test-token' });
+    const response = await worker.fetch(request, env);
     assert.equal(response.status, 200);
-    assert.match(lookupUrl, /^https:\/\/api\.ipinfo\.io\/lite\/8\.8\.8\.8\?token=lite-test-token$/);
     assert.ok(upstreamRequest);
-    assert.equal(upstreamRequest.headers.get('x-hostel-geo-country'), 'US');
-    assert.equal(upstreamRequest.headers.get('x-hostel-geo-city'), encodeURIComponent('Dhaka'));
-    assert.equal(upstreamRequest.headers.get('x-hostel-geo-provider'), 'cloudflare+ipinfo');
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-country'), '');
+    assert.equal(decodeURIComponent(upstreamRequest.headers.get('x-hostel-geo-city')), 'Dhaka');
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-provider'), 'cloudflare');
   } finally {
     globalThis.fetch = originalFetch;
-    if (originalCaches === undefined) delete globalThis.caches;
-    else globalThis.caches = originalCaches;
   }
 });
 
-test('IPinfo Lite is not called when Cloudflare already supplied country, city and region', async () => {
-  const originalFetch = globalThis.fetch;
-  const requestedUrls = [];
-  globalThis.fetch = async (input) => {
-    requestedUrls.push(String(input));
-    return new Response('{"ready":true}', { status: 200 });
-  };
-  try {
-    const request = withCf(new Request('https://hostel-life-security.example.workers.dev/functions/v1/record-auth-event', {
-      method: 'GET', headers: { Origin: 'https://hostellife-bd.vercel.app', apikey: 'public-test-key', 'cf-connecting-ip': '8.8.8.8' },
-    }), { country: 'BD', city: 'Dhaka', region: 'Dhaka Division' });
-    // Directly test the lookup decision via the worker request: location fields are complete,
-    // therefore an absent auxiliary regionCode does not spend the third-party lookup quota.
-    const response = await worker.fetch(request, env);
+test('Worker root and /health return non-sensitive JSON without requiring a custom domain', async () => {
+  for (const path of ['/', '/health']) {
+    const response = await worker.fetch(new Request(`https://hostel-life-security.example.workers.dev${path}`), env);
     assert.equal(response.status, 200);
-    assert.equal(requestedUrls.filter((url) => url.includes('api.ipinfo.io')).length, 0);
-  } finally {
-    globalThis.fetch = originalFetch;
+    const body = await response.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.service, 'hostel-life-security-proxy');
+    assert.equal(body.mode, 'optional-signed-proxy');
+    assert.equal('secret' in body, false);
   }
 });
+

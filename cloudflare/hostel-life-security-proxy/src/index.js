@@ -83,62 +83,6 @@ async function sha256Hex(bytes) {
 }
 
 
-function isPublicClientIp(ip) {
-  if (validIpv4(ip)) {
-    const [a,b,c,d] = ip.split('.').map(Number);
-    if (a===0 || a===10 || a===127 || a>=224 || (a===169 && b===254) || (a===172 && b>=16 && b<=31) || (a===192 && b===168) || (a===100 && b>=64 && b<=127) || (a===192 && b===0 && c===2) || (a===198 && (b===18 || b===19 || (b===51 && c===100))) || (a===203 && b===0 && c===113)) return false;
-    return true;
-  }
-  const lower = ip.toLowerCase();
-  return validIpv6(ip) && lower !== '::' && lower !== '::1' && !lower.startsWith('fc') && !lower.startsWith('fd') && !lower.startsWith('fe8') && !lower.startsWith('fe9') && !lower.startsWith('fea') && !lower.startsWith('feb') && !lower.startsWith('ff') && !lower.startsWith('2001:db8:');
-}
-
-async function lookupIpinfoGeo(ip, token) {
-  // IPinfo Lite's authenticated free tier supplies country-level Geo and basic
-  // ASN with no daily/monthly request cap. Cloudflare remains authoritative
-  // for city/region. Call IPinfo only when Cloudflare omitted country, cache
-  // the coarse result for at most 24h, and never persist third-party data in DB.
-  if (!isPublicClientIp(ip) || !String(token || '').trim()) return null;
-  const cache = globalThis.caches?.default || null;
-  const keyHash = await sha256Hex(new TextEncoder().encode(`ipinfo-lite-country-v1|${ip}`));
-  const cacheRequest = new Request(`https://hostel-life-geo-cache.invalid/ipinfo-lite/${keyHash}`);
-  if (cache) {
-    try {
-      const cached = await cache.match(cacheRequest);
-      if (cached) return await cached.json();
-    } catch { /* Cache is an optimization; never block Auth. */ }
-  }
-
-  try {
-    const endpoint = `https://api.ipinfo.io/lite/${encodeURIComponent(ip)}?token=${encodeURIComponent(String(token).trim())}`;
-    const response = await fetch(endpoint, {
-      headers: { Accept: 'application/json' },
-      cf: { cacheTtl: 0, cacheEverything: false },
-      signal: AbortSignal.timeout(1800),
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
-    const returnedIp = String(payload?.ip || '').trim();
-    if (!validClientIp(returnedIp) || returnedIp !== ip) return null;
-    const result = {
-      country: /^[A-Za-z]{2}$/.test(String(payload?.country_code || ''))
-        ? String(payload.country_code).toUpperCase() : '',
-    };
-    if (!result.country) return null;
-    if (cache) {
-      try {
-        await cache.put(cacheRequest, new Response(JSON.stringify(result), {
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
-        }));
-      } catch { /* Cache failures must not block Auth. */ }
-    }
-    return result;
-  } catch {
-    // A third-party outage or exhausted quota must never block authentication.
-    return null;
-  }
-}
-
 function canonicalPayload(input) {
   return JSON.stringify([
     'hostel-life-geo-v1',
@@ -184,8 +128,6 @@ export const __test = {
   hmacHex,
   parseAllowedOrigins,
   validClientIp,
-  isPublicClientIp,
-  lookupIpinfoGeo,
 };
 
 export default {
@@ -194,8 +136,21 @@ export default {
     const origin = request.headers.get('Origin') || '';
     const normalizedOrigin = origin.replace(/\/$/, '');
     const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS);
-    const allowedMethods = ALLOWED_ROUTES.get(url.pathname);
 
+    // Opening the Worker URL should show a harmless JSON health response, not a misleading route error.
+    if ((url.pathname === '/' || url.pathname === '/health') && request.method === 'GET') {
+      const healthOrigin = origin && allowedOrigins.has(normalizedOrigin) ? origin : '';
+      return json({
+        ok: true,
+        service: 'hostel-life-security-proxy',
+        version: 'run45-optional-geo-proxy',
+        mode: 'optional-signed-proxy',
+        upstream_configured: Boolean(getUpstreamOrigin(env.SUPABASE_FUNCTIONS_ORIGIN)),
+        allowed_routes: [...ALLOWED_ROUTES.keys()],
+      }, 200, healthOrigin);
+    }
+
+    const allowedMethods = ALLOWED_ROUTES.get(url.pathname);
     if (!allowedMethods) return json({ code: 'ROUTE_NOT_ALLOWED' }, 404, allowedOrigins.has(normalizedOrigin) ? origin : '');
     if (!origin || !allowedOrigins.has(normalizedOrigin)) return json({ code: 'ORIGIN_NOT_ALLOWED' }, 403);
 
@@ -242,15 +197,10 @@ export default {
     let city = safeLocation(cf.city, 100);
     let region = safeLocation(cf.region, 100);
     let regionCode = safeLocation(cf.regionCode, 20);
-    let resolvedCountry = country;
-    let geoProvider = (resolvedCountry || city || region || regionCode) ? 'cloudflare' : 'unavailable';
-    if (!resolvedCountry && env.IPINFO_TOKEN) {
-      const fallback = await lookupIpinfoGeo(clientIp, env.IPINFO_TOKEN);
-      if (fallback?.country) {
-        resolvedCountry = fallback.country;
-        geoProvider = (city || region || regionCode) ? 'cloudflare+ipinfo' : 'ipinfo';
-      }
-    }
+    const resolvedCountry = country;
+    // Use Cloudflare's own edge metadata only. City/Region may be absent for some IPs;
+    // a missing optional location field never affects the signed proxy or authentication.
+    const geoProvider = (resolvedCountry || city || region || regionCode) ? 'cloudflare' : 'unavailable';
     const encodedCity = encodeLocation(city, 100);
     const encodedRegion = encodeLocation(region, 100);
     const encodedRegionCode = encodeLocation(regionCode, 20);

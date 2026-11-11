@@ -16,15 +16,15 @@ test('Supabase client routes only the four intended security Functions when Work
   assert.match(source, /VITE_HOSTEL_SECURITY_WORKER_URL/);
   assert.match(source, /requestUrl\.origin === supabaseOrigin && SECURITY_FUNCTION_PATHS\.has\(requestUrl\.pathname\)/);
   assert.match(source, /SECURITY_FUNCTION_PATHS\.has\(requestUrl\.pathname\)/);
-  assert.match(source, /securityGeoProxyEnabled = Boolean\(workerUrlValue\)/, 'a malformed but configured Worker URL must still count as proxy-enabled');
-  assert.match(source, /security proxy URL is invalid/, 'invalid Worker configuration must fail closed');
-  assert.match(source, /could not prepare the protected request/, 'request construction errors must not fall back to direct Supabase');
+  assert.match(source, /securityGeoProxyEnabled = Boolean\(securityWorkerOrigin\)/, 'only a valid optional Worker origin is enabled');
+  assert.match(source, /optional signed Geo\/edge layer/);
+  assert.match(source, /requestUrl\.href, request\.clone\(\)/, 'proxy failures can retry through direct Supabase ingress');
 });
 
-test('Worker proxy mode fails closed when the pre-auth IP gate cannot be reached', () => {
+test('optional pre-auth IP/email gate does not block Supabase Auth when unavailable', () => {
   const auth = read('src/services/authService.js');
-  assert.match(auth, /securityGeoProxyEnabled/);
-  assert.match(auth, /SECURITY_GATE_UNAVAILABLE/);
+  assert.match(auth, /Optional IP\/email security gate unavailable/i);
+  assert.doesNotMatch(auth, /SECURITY_GATE_UNAVAILABLE/);
 });
 
 test('All four Edge Functions require HMAC verification when a Worker marker is present', () => {
@@ -40,8 +40,7 @@ test('All four Edge Functions require HMAC verification when a Worker marker is 
   assert.match(helper, /GEO_PROXY_NONCE_REPLAYED_OR_EXPIRED/);
   assert.match(helper, /consumeNonce\(nonce, timestamp\)/);
   assert.match(helper, /proxyMarker === 'v1'/);
-  assert.match(helper, /HOSTEL_GEO_PROXY_REQUIRED/);
-  assert.match(helper, /GEO_PROXY_REQUIRED/);
+  assert.doesNotMatch(helper, /HOSTEL_GEO_PROXY_REQUIRED|GEO_PROXY_REQUIRED/);
 });
 
 test('Worker CORS and upstream proxy whitelist exclude administrative Functions and Auth API paths', () => {
@@ -68,7 +67,7 @@ test('Password reset validates the signed body hash before consuming the origina
 test('Signup OTP resend is subject to the same server-side auth IP deny-list', () => {
   const edge = read('supabase/functions/request-signup-otp/index.ts');
   const visitor = edge.indexOf("resolveTrustedVisitor(request, 'request-signup-otp'");
-  const block = edge.indexOf("admin.rpc('hl_check_auth_ip_block'");
+  const block = edge.indexOf("admin.rpc('hl_check_auth_ip_block_v2'");
   const quota = edge.indexOf("admin.rpc('hl_consume_signup_otp_resend'");
   assert.ok(visitor >= 0 && block > visitor && quota > block, 'verified visitor and auth IP block must be checked before OTP quota/resend');
   assert.match(edge, /AUTH_IP_TEMPORARILY_BLOCKED/);

@@ -583,10 +583,10 @@ export async function platformAdminAddSecurityIpBlock(ipAddress, scope, duration
   return firstRow(data) || data || {};
 }
 
-export async function platformAdminReleaseSecurityIpBlock(ipAddress, scope) {
+export async function platformAdminReleaseSecurityIpBlock(ipAddress, scope, attemptEmail = null) {
   assertSupabase();
-  const { data, error } = await supabase.rpc('platform_admin_release_security_ip_block', {
-    p_ip_address: String(ipAddress || '').trim(), p_scope: scope,
+  const { data, error } = await supabase.rpc('platform_admin_release_security_ip_block_v2', {
+    p_ip_address: String(ipAddress || '').trim(), p_scope: scope, p_attempt_email: attemptEmail || null,
   });
   if (error) throw error;
   return firstRow(data) || data || {};
@@ -608,7 +608,7 @@ export async function platformAdminCheckSecurityTelemetry() {
     ? signupOtpResult.value.data : null;
   return {
     ...telemetry,
-    auth_gate_ready: authGate?.ready === true && authGate?.protection_available === true,
+    auth_gate_ready: authGate?.ready === true && authGate?.database_rpc_ready === true,
     auth_gate_ip_available: authGate?.client_ip_available === true,
     auth_gate_geo_proxy_verified: authGate?.geo_proxy_verified === true,
     auth_gate_geo_source: authGate?.geo_source || null,

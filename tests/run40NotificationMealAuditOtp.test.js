@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const migration = read('../supabase/migrations/Run40_notification_meal_audit_and_signup_otp_guard.sql');
+const pairLimitMigration = read('../supabase/migrations/Run45_auth_ip_email_pair_limits.sql');
 const authPage = read('../src/features/auth/AuthPage.jsx');
 const otpFunction = read('../supabase/functions/request-signup-otp/index.ts');
 const diningPage = read('../src/features/dining/DiningPage.jsx');
@@ -50,15 +51,16 @@ test('Final-meal audit UI displays totals, member provenance, timestamps and pen
   assert.match(diningPage, /record\.finalized_at/);
 });
 
-test('Signup OTP resend uses the existing security log with a 2-per-email daily and 2-per-IP hourly quota', () => {
+test('Signup OTP resend uses the existing security log with a 2-per-email daily and 2-per-IP+email hourly quota', () => {
   assert.match(migration, /hl_consume_signup_otp_resend/);
   assert.match(migration, /v_email_count>=2/);
-  assert.match(migration, /v_ip_count>=2/);
+  assert.match(pairLimitMigration, /p_request_ip IS NOT NULL AND v_ip_count>=2/);
+  assert.match(pairLimitMigration, /identity_fingerprint=p_email_fingerprint/);
   assert.match(migration, /INSERT INTO private\.hl_security_events/);
   assert.doesNotMatch(migration, /CREATE TABLE[^;]*signup_otp/i);
   assert.match(otpFunction, /auth\.resend\(\{ type: 'signup', email \}\)/);
   assert.match(otpFunction, /hl_consume_signup_otp_resend/);
-  assert.match(otpFunction, /নেটওয়ার্ক থেকে এক ঘণ্টায় সর্বোচ্চ ২টি/);
+  assert.match(otpFunction, /ইমেইল ও নেটওয়ার্কের জন্য এক ঘণ্টায় সর্বোচ্চ ২টি/);
   assert.match(otpFunction, /ইমেইলে প্রতিদিন সর্বোচ্চ ২ বার/);
   assert.doesNotMatch(otpFunction, /console\.(?:log|warn|error)[^;]*(?:body\.(?:otp|token|password)|verificationCode|suppliedPassword)/i);
 });
