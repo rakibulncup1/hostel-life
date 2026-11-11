@@ -33,9 +33,12 @@ test('Security Monitor captures attempted email without ever accepting password 
 });
 
 test('Cloudflare Worker forwards only signed request.cf city and region metadata', () => {
-  assert.match(worker, /const city = encodeLocation\(cf\.city/);
-  assert.match(worker, /const region = encodeLocation\(cf\.region/);
-  assert.match(worker, /const regionCode = encodeLocation\(cf\.regionCode/);
+  assert.match(worker, /let city = safeLocation\(cf\.city/);
+  assert.match(worker, /let region = safeLocation\(cf\.region/);
+  assert.match(worker, /let regionCode = safeLocation\(cf\.regionCode/);
+  assert.match(worker, /https:\/\/api\.ipinfo\.io\/lite/);
+  assert.match(worker, /!resolvedCountry && env\.IPINFO_TOKEN/);
+  assert.match(worker, /x-hostel-geo-provider/);
   assert.match(worker, /canonicalPayload\(signed\)/);
   assert.match(authEventEdge, /hl_consume_geo_proxy_nonce/);
 });

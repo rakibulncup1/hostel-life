@@ -49,7 +49,7 @@ test('Worker refuses arbitrary paths, origins, and request methods', async () =>
   assert.equal((await worker.fetch(badOrigin, env)).status, 403);
 
   const wrongMethod = new Request('https://hostel-life-security.example.workers.dev/functions/v1/request-password-reset', {
-    method: 'GET', headers: { Origin: 'https://hostellife-bd.vercel.app', apikey: 'public-test-key' },
+    method: 'GET', headers: { Origin: 'https://hostellife-bd.vercel.app', apikey: 'public-test-key', 'cf-connecting-ip': '8.8.8.8' },
   });
   assert.equal((await worker.fetch(wrongMethod, env)).status, 405);
 });
@@ -108,6 +108,7 @@ test('Worker signs Cloudflare IP and location metadata, overriding all browser-s
       city: encodeURIComponent('Dhaka'),
       region: encodeURIComponent('Dhaka Division'),
       regionCode: encodeURIComponent('BD-C'),
+      geoProvider: 'cloudflare',
     };
     const canonical = __test.canonicalPayload(signed);
     const expected = await __test.hmacHex(env.HOSTEL_GEO_PROXY_HMAC_SECRET, canonical);
@@ -127,10 +128,104 @@ test('Worker rejects missing visitor IP and invalid Supabase upstream configurat
   assert.equal(__test.getUpstreamOrigin('https://user:pass@exampleproject.supabase.co'), null);
 });
 
-test('Worker accepts only the three intended Supabase Function routes', () => {
+test('Worker accepts only the four intended Auth/Security Function routes', () => {
   assert.equal(__test.getUpstreamOrigin('https://exampleproject.supabase.co'), 'https://exampleproject.supabase.co');
   assert.ok(__test.validClientIp('203.0.113.17'));
   assert.ok(__test.validClientIp('2001:db8::1'));
   assert.equal(__test.validClientIp('not-an-ip'), '');
   assert.equal(__test.parseAllowedOrigins('https://a.example/, https://b.example').size, 2);
+});
+
+
+test('IPinfo Lite fallback returns only country data, uses HTTPS and never blocks on lookup failure', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalCaches = globalThis.caches;
+  let requested = '';
+  globalThis.caches = undefined;
+  globalThis.fetch = async (input) => {
+    requested = String(input);
+    return new Response(JSON.stringify({ ip: '8.8.8.8', country_code: 'US', asn: 'AS15169' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const result = await __test.lookupIpinfoGeo('8.8.8.8', 'ipinfo-test-token');
+    assert.match(requested, /^https:\/\/api\.ipinfo\.io\/lite\/8\.8\.8\.8\?token=ipinfo-test-token$/);
+    assert.deepEqual(result, { country: 'US' });
+    assert.equal('asn' in result, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalCaches === undefined) delete globalThis.caches;
+    else globalThis.caches = originalCaches;
+  }
+});
+
+test('IPinfo Lite fallback refuses private addresses and treats provider errors as non-fatal', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return new Response('{"error":true}', { status: 200 }); };
+  try {
+    assert.equal(await __test.lookupIpinfoGeo('192.168.1.10', 'ipinfo-test-token'), null);
+    assert.equal(calls, 0);
+    assert.equal(await __test.lookupIpinfoGeo('8.8.4.4', 'ipinfo-test-token'), null);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+
+
+test('Worker uses IPinfo Lite only for missing Cloudflare country and signs the returned country', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalCaches = globalThis.caches;
+  let lookupUrl = '';
+  let upstreamRequest = null;
+  globalThis.caches = undefined;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input instanceof Request ? input.url : input);
+    if (url.startsWith('https://api.ipinfo.io/lite/')) {
+      lookupUrl = url;
+      return new Response(JSON.stringify({ ip: '8.8.8.8', country_code: 'US', asn: 'AS15169' }), {
+        status: 200, headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    upstreamRequest = input instanceof Request ? input : new Request(input, init);
+    return new Response('{"ready":true}', { status: 200 });
+  };
+  try {
+    const request = withCf(new Request('https://hostel-life-security.example.workers.dev/functions/v1/record-auth-event', {
+      method: 'GET', headers: { Origin: 'https://hostellife-bd.vercel.app', apikey: 'public-test-key', 'cf-connecting-ip': '8.8.8.8' },
+    }), { city: 'Dhaka', region: 'Dhaka Division', regionCode: 'BD-C' });
+    const response = await worker.fetch(request, { ...env, IPINFO_TOKEN: 'lite-test-token' });
+    assert.equal(response.status, 200);
+    assert.match(lookupUrl, /^https:\/\/api\.ipinfo\.io\/lite\/8\.8\.8\.8\?token=lite-test-token$/);
+    assert.ok(upstreamRequest);
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-country'), 'US');
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-city'), encodeURIComponent('Dhaka'));
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-provider'), 'cloudflare+ipinfo');
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalCaches === undefined) delete globalThis.caches;
+    else globalThis.caches = originalCaches;
+  }
+});
+
+test('IPinfo Lite is not called when Cloudflare already supplied country, city and region', async () => {
+  const originalFetch = globalThis.fetch;
+  const requestedUrls = [];
+  globalThis.fetch = async (input) => {
+    requestedUrls.push(String(input));
+    return new Response('{"ready":true}', { status: 200 });
+  };
+  try {
+    const request = withCf(new Request('https://hostel-life-security.example.workers.dev/functions/v1/record-auth-event', {
+      method: 'GET', headers: { Origin: 'https://hostellife-bd.vercel.app', apikey: 'public-test-key', 'cf-connecting-ip': '8.8.8.8' },
+    }), { country: 'BD', city: 'Dhaka', region: 'Dhaka Division' });
+    // Directly test the lookup decision via the worker request: location fields are complete,
+    // therefore an absent auxiliary regionCode does not spend the third-party lookup quota.
+    const response = await worker.fetch(request, env);
+    assert.equal(response.status, 200);
+    assert.equal(requestedUrls.filter((url) => url.includes('api.ipinfo.io')).length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

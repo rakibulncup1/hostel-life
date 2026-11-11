@@ -576,3 +576,89 @@
   .auth-page .auth-brand-panel h1 { grid-area: title; max-width: none; margin: 1px 0 0; font-size: clamp(17px,4.7vw,21px) !important; line-height: 1.35; }
   .auth-page .auth-brand-panel p { grid-area: sub; display: block !important; margin: 2px 0 0; font-size: 10px !important; line-height: 1.4; }
 }
+
+/* Run44 security review and Super Admin TOTP styles */
+.platform-mfa-gate { max-width: 520px; }
+.platform-mfa-qr-wrap { display: grid; justify-items: center; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-soft, var(--surface)); text-align: center; }
+.platform-mfa-qr-wrap img { width: min(210px, 72vw); height: auto; aspect-ratio: 1; padding: 8px; border-radius: 12px; background: #fff; object-fit: contain; }
+.platform-mfa-qr-wrap span { color: var(--muted); font-size: 12px; line-height: 1.55; }
+.platform-mfa-qr-wrap code { max-width: 100%; overflow-wrap: anywhere; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--surface); font-size: 12px; letter-spacing: .04em; }
+.platform-mfa-settings { display: grid; gap: 16px; }
+.platform-mfa-factor-list { display: grid; gap: 9px; }
+.platform-mfa-factor { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 13px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.platform-mfa-factor > div { display: grid; gap: 4px; min-width: 0; flex: 1; }
+.platform-mfa-factor strong { color: var(--text); font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.platform-mfa-factor small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.platform-mfa-factor-icon { width: 35px; height: 35px; display: grid; place-items: center; flex: 0 0 auto; color: var(--primary-strong); background: var(--primary-soft); border-radius: 11px; }
+.platform-mfa-backup-note { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 12px; line-height: 1.6; }
+.platform-mfa-backup-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--primary-strong); }
+.platform-mfa-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.platform-mfa-actions > span { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.platform-mfa-enroll-card { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.platform-mfa-enroll-card > div:first-child { display: grid; gap: 5px; }
+.platform-mfa-enroll-card > div:first-child strong { font-size: 14px; }
+.platform-mfa-enroll-card > div:first-child p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.platform-security-review-center { display: grid; gap: 15px; min-width: 0; padding: clamp(13px, 2vw, 20px); border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.platform-security-review-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; min-width: 0; }
+.platform-security-review-heading > div { min-width: 0; }
+.platform-security-review-heading h4 { margin: 4px 0 5px; color: var(--text); font-size: clamp(15px, 1.5vw, 18px); font-weight: 700; }
+.platform-security-review-heading p { margin: 0; max-width: 720px; color: var(--muted); font-size: 11px; line-height: 1.6; font-weight: 400; }
+.platform-security-retention-ok,.platform-security-retention-warning { flex: 0 0 auto; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface-soft, var(--surface)); font-size: 10px; line-height: 1.3; }
+.platform-security-retention-ok { color: var(--success, var(--primary-strong)); }
+.platform-security-retention-warning { color: var(--warning, #9a6414); }
+.platform-security-review-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+.platform-security-review-stats .platform-stat-card { min-width: 0; }
+.platform-security-review-grid { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(260px,1fr); gap: 12px; min-width: 0; }
+.platform-security-review-grid-wide { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.platform-security-review-card { display: grid; align-content: start; gap: 11px; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-soft, var(--surface)); }
+.platform-security-review-card-heading { display: grid; gap: 3px; }
+.platform-security-review-card-heading strong { color: var(--text); font-size: 12px; font-weight: 700; }
+.platform-security-review-card-heading small { color: var(--muted); font-size: 10px; }
+.platform-security-daily-chart { display: grid; grid-template-columns: repeat(30,minmax(0,1fr)); align-items: end; gap: 3px; min-height: 112px; padding: 8px 4px 0; border-bottom: 1px solid var(--line); }
+.platform-security-day-bar { display: grid; grid-template-rows: 1fr 14px; align-items: end; gap: 5px; min-width: 0; height: 110px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.platform-security-day-bar-track { display: flex; align-items: end; justify-content: center; min-height: 0; height: 100%; }
+.platform-security-day-bar-track i { display: block; width: min(100%,12px); min-height: 3px; border-radius: 5px 5px 2px 2px; background: var(--primary); opacity: .72; transition: opacity .15s ease, transform .15s ease; }
+.platform-security-day-bar:hover .platform-security-day-bar-track i,.platform-security-day-bar:focus-visible .platform-security-day-bar-track i { opacity: 1; transform: scaleX(1.12); }
+.platform-security-day-bar small { color: var(--muted); font-size: 8px; text-align: center; line-height: 1; }
+.platform-security-chart-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 10px; }
+.platform-security-chart-legend b { color: var(--text); font-weight: 650; }
+.platform-security-breakdown-list { display: grid; gap: 0; min-width: 0; }
+.platform-security-breakdown-list > button,.platform-security-breakdown-list > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; padding: 9px 2px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); text-align: left; }
+.platform-security-breakdown-list > button { width: 100%; cursor: pointer; }
+.platform-security-breakdown-list > button:last-child,.platform-security-breakdown-list > div:last-child { border-bottom: 0; }
+.platform-security-breakdown-list > button > span,.platform-security-breakdown-list > div > span { min-width: 0; overflow-wrap: anywhere; color: var(--text); font-size: 11px; line-height: 1.45; }
+.platform-security-breakdown-list > button > b,.platform-security-breakdown-list > div > b { flex: 0 0 auto; color: var(--text); font-size: 10px; font-weight: 700; }
+.platform-security-top-ip { align-items: flex-start !important; }
+.platform-security-top-ip > button:first-child { display: grid; flex: 1; min-width: 0; gap: 3px; padding: 0; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.platform-security-top-ip > button:first-child strong { font-size: 11px; overflow-wrap: anywhere; }
+.platform-security-top-ip > button:first-child small { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.platform-security-top-ip > div { display: grid; justify-items: end; gap: 4px; flex: 0 0 auto; }
+.platform-security-top-ip > div > b { color: var(--text); font-size: 10px; white-space: nowrap; }
+.platform-security-top-ip .text-button { font-size: 10px; }
+.platform-security-data-coverage { display: flex; flex-wrap: wrap; gap: 9px 16px; padding-top: 3px; color: var(--muted); font-size: 10px; }
+.platform-security-data-coverage strong { color: var(--text); font-weight: 700; }
+.platform-security-range-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.platform-security-range-presets > span { margin-right: 3px; color: var(--muted); font-size: 11px; }
+.platform-security-manual-block { display: grid; gap: 12px; }
+.platform-security-block-form { display: grid; grid-template-columns: minmax(170px,1.25fr) minmax(180px,1fr) minmax(140px,.8fr) minmax(180px,1.25fr) auto; align-items: end; gap: 10px; }
+.platform-security-block-form .field-label { min-width: 0; }
+.platform-security-block-warning { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.platform-security-block-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.platform-security-block-actions .danger-text { color: var(--danger, #b33c3c); }
+
+@media (max-width: 900px) {
+  .platform-security-review-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .platform-security-review-grid,.platform-security-review-grid-wide { grid-template-columns: minmax(0,1fr); }
+  .platform-security-block-form { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .platform-security-block-form > button { grid-column: 1/-1; }
+}
+@media (max-width: 560px) {
+  .platform-mfa-gate { width: min(100%,calc(100% - 12px)); margin: 18px auto 0; padding: 18px; }
+  .platform-mfa-actions { align-items: stretch; }
+  .platform-mfa-actions > .primary-button,.platform-mfa-actions > .secondary-button { width: 100%; }
+  .platform-security-review-heading { display: grid; }
+  .platform-security-retention-ok,.platform-security-retention-warning { justify-self: start; white-space: normal; }
+  .platform-security-review-stats { gap: 7px; }
+  .platform-security-review-center { padding: 11px; gap: 11px; }
+  .platform-security-review-card { padding: 11px; }
+  .platform-security-daily-chart { gap: 2px; min-height: 92px; }

@@ -23,6 +23,7 @@ import {
   platformAdminGetSystemHealth, platformAdminGetDatabaseRuntimeHealth, platformAdminListNoticeMonitoring, platformAdminGetPlatformReport,
   platformAdminListActivity, platformAdminListActivityV2, platformAdminGetMemberActivityOverview, platformAdminListMemberActivity, platformAdminListMemberSessions,
   platformAdminGetSecurityOverview, platformAdminListSecurityEvents, platformAdminGetSecurityOverviewV2, platformAdminListSecurityEventsV4, platformAdminListSecurityIpBlocks, platformAdminCheckSecurityTelemetry,
+  platformAdminGetSecurityAnalytics30d, platformAdminAddSecurityIpBlock, platformAdminReleaseSecurityIpBlock,
   platformAdminListActiveSessions, platformAdminRevokeActiveSession,
   platformAdminGetNotificationSettings, platformAdminUpdateNotificationSettings, platformAdminSendTargetedMessage,
   platformAdminGetTelegramDeliveryHealth, platformAdminListTelegramDeliveryBatches, platformAdminGetTelegramWebhookStatus, platformAdminConfigureTelegramWebhook,
@@ -233,7 +234,7 @@ function activityEventLabel(eventType) {
   return String(eventType || 'অন্যান্য কার্যক্রম').replaceAll('.', ' · ').replaceAll('_', ' ');
 }
 function securityEventLabel(eventType) {
-  return ({ login_failed: 'ব্যর্থ লগইন চেষ্টা', login_success: 'সফল Login', signup_failed: 'ব্যর্থ রেজিস্ট্রেশন', signup_submitted: 'রেজিস্ট্রেশন অনুরোধ জমা', signup_verified: 'ইমেইল OTP যাচাই সম্পন্ন', password_reset_failed: 'ব্যর্থ পাসওয়ার্ড রিসেট', password_reset_requested: 'Reset email পাঠানোর অনুরোধ গ্রহণ' })[eventType] || eventType || 'অন্যান্য';
+  return ({ login_failed: 'ব্যর্থ লগইন চেষ্টা', login_success: 'সফল Login', signup_failed: 'ব্যর্থ রেজিস্ট্রেশন', signup_submitted: 'রেজিস্ট্রেশন অনুরোধ জমা', signup_verified: 'ইমেইল OTP যাচাই সম্পন্ন', signup_otp_resend: 'ইমেইল OTP পুনরায় পাঠানোর অনুরোধ', password_reset_failed: 'ব্যর্থ পাসওয়ার্ড রিসেট', password_reset_requested: 'Reset email পাঠানোর অনুরোধ গ্রহণ' })[eventType] || eventType || 'অন্যান্য';
 }
 function activityChangedFields(metadata) {
   const fields = Array.isArray(metadata?.changed_fields) ? metadata.changed_fields : [];
@@ -339,6 +340,17 @@ export function SuperAdminPage({ user }) {
   const [password, setPassword] = useState('');
   const [reauthenticated, setReauthenticated] = useState(false);
   const [reauthBusy, setReauthBusy] = useState(false);
+  const [mfaStage, setMfaStage] = useState('idle');
+  const [mfaFactors, setMfaFactors] = useState([]);
+  const [mfaFactorId, setMfaFactorId] = useState('');
+  const [mfaChallengeId, setMfaChallengeId] = useState('');
+  const [mfaQrCode, setMfaQrCode] = useState('');
+  const [mfaSecret, setMfaSecret] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaFriendlyName, setMfaFriendlyName] = useState('Hostel Life Super Admin');
+  const [mfaPurpose, setMfaPurpose] = useState('primary');
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const [mfaError, setMfaError] = useState('');
   const [tab, setTab] = useState('overview');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -428,6 +440,7 @@ export function SuperAdminPage({ user }) {
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState('');
   const [securityOverview, setSecurityOverview] = useState(null);
+  const [securityAnalytics30d, setSecurityAnalytics30d] = useState(null);
   const [securityRows, setSecurityRows] = useState([]);
   const [securityTotal, setSecurityTotal] = useState(0);
   const [securityPage, setSecurityPage] = useState(0);
@@ -442,6 +455,11 @@ export function SuperAdminPage({ user }) {
   const [securityToDate, setSecurityToDate] = useState('');
   const [securityIpBlocks, setSecurityIpBlocks] = useState([]);
   const [securityIpBlocksError, setSecurityIpBlocksError] = useState('');
+  const [securityBlockIp, setSecurityBlockIp] = useState('');
+  const [securityBlockScope, setSecurityBlockScope] = useState('both');
+  const [securityBlockDuration, setSecurityBlockDuration] = useState('360');
+  const [securityBlockReason, setSecurityBlockReason] = useState('');
+  const [securityBlockBusy, setSecurityBlockBusy] = useState(false);
   const [securityLoading, setSecurityLoading] = useState(false);
   const [securityError, setSecurityError] = useState('');
   const [securityTelemetryStatus, setSecurityTelemetryStatus] = useState(null);
@@ -624,6 +642,7 @@ export function SuperAdminPage({ user }) {
     const securityTo = securityToDate ? fromDhakaDateTimeInput(`${addCalendarDaysToDateInput(securityToDate)}T00:00`).toISOString() : null;
     const results = await Promise.allSettled([
       platformAdminGetSecurityOverviewV2(),
+      platformAdminGetSecurityAnalytics30d(),
       platformAdminListSecurityEventsV4({
         eventType: securityEventFilter === 'all' ? null : securityEventFilter,
         ipSearch: securityIpSearch || null,
@@ -633,13 +652,15 @@ export function SuperAdminPage({ user }) {
         limit: pageSize, offset: securityPage * pageSize,
       }),
       platformAdminCheckSecurityTelemetry(),
-      platformAdminListSecurityIpBlocks({ limit: 20, offset: 0 }),
+      platformAdminListSecurityIpBlocks({ limit: 30, offset: 0 }),
     ]);
     if (requestId !== securityRequestRef.current) return;
     const failures = [];
-    const [overviewResult, listResult, telemetryResult, blocksResult] = results;
+    const [overviewResult, analyticsResult, listResult, telemetryResult, blocksResult] = results;
     if (overviewResult.status === 'fulfilled') setSecurityOverview(overviewResult.value || {});
     else failures.push(`Security Summary: ${errorText(overviewResult.reason, 'লোড হয়নি')}`);
+    if (analyticsResult.status === 'fulfilled') setSecurityAnalytics30d(analyticsResult.value || {});
+    else failures.push(`৩০ দিনের Review Center: ${errorText(analyticsResult.reason, 'লোড হয়নি')}`);
     if (listResult.status === 'fulfilled') {
       setSecurityRows(Array.isArray(listResult.value?.items) ? listResult.value.items : []);
       setSecurityTotal(Number(listResult.value?.total_count) || 0);
@@ -656,6 +677,49 @@ export function SuperAdminPage({ user }) {
     setSecurityError(failures.length ? `কিছু Security তথ্য লোড হয়নি; সফল অংশটি দেখা যাচ্ছে। ${failures.join(' · ')}` : '');
     setSecurityLoading(false);
   }, [securityEventFilter, securityIpSearch, securityCountryFilter, securityLocationFilter, securityFromDate, securityToDate, securityPage]);
+  const submitSecurityIpBlock = async (event) => {
+    event.preventDefault();
+    const ip = securityBlockIp.trim();
+    if (!ip || securityBlockReason.trim().length < 3) {
+      setSecurityIpBlocksError('IP ঠিকানা ও কমপক্ষে ৩ অক্ষরের কারণ লিখুন।');
+      return;
+    }
+    const confirm = await confirmTypedAction(
+      `নির্বাচিত IP ${ip} নির্দিষ্ট সময়ের জন্য ${securityBlockScope === 'both' ? 'Login/Registration এবং Password Reset' : securityBlockScope === 'auth' ? 'Login/Registration' : 'Password Reset'} থেকে ব্লক হবে। একই Wi-Fi/CGNAT ব্যবহারকারীরাও প্রভাবিত হতে পারেন। নিশ্চিত করতে IP-টি হুবহু লিখুন।`,
+      ip,
+    );
+    if (!confirm) return;
+    setSecurityBlockBusy(true); setSecurityIpBlocksError(''); setError(''); setNotice('');
+    try {
+      const result = await platformAdminAddSecurityIpBlock(ip, securityBlockScope, Number(securityBlockDuration), securityBlockReason.trim());
+      setSecurityBlockReason('');
+      setSecurityBlockIp('');
+      setNotice(`${result?.ip_address || ip} IP Block করা হয়েছে · মেয়াদ ${Number(securityBlockDuration)===43200?'৩০ দিন':Number(securityBlockDuration)===10080?'৭ দিন':Number(securityBlockDuration)===1440?'২৪ ঘণ্টা':Number(securityBlockDuration)===360?'৬ ঘণ্টা':Number(securityBlockDuration)===60?'১ ঘণ্টা':'১৫ মিনিট'}।`);
+      await loadSecurityMonitor();
+    } catch (cause) {
+      setSecurityIpBlocksError(errorText(cause, 'IP Block করা যায়নি। AAL2 যাচাই এবং Run44 Migration পরীক্ষা করুন।'));
+    } finally { setSecurityBlockBusy(false); }
+  };
+
+  const releaseSecurityIpBlock = async (block) => {
+    const scopeLabel = block.scope === 'auth' ? 'Login/Registration' : 'Password Reset';
+    if (!await confirmAction(`${block.ip_address} থেকে ${scopeLabel}-এর অস্থায়ী Block তুলে দেবেন? এটি Audit Log-এ সংরক্ষিত হবে।`)) return;
+    setSecurityBlockBusy(true); setSecurityIpBlocksError('');
+    try {
+      await platformAdminReleaseSecurityIpBlock(block.ip_address, block.scope);
+      setNotice(`${block.ip_address} থেকে ${scopeLabel} Block তুলে দেওয়া হয়েছে।`);
+      await loadSecurityMonitor();
+    } catch (cause) {
+      setSecurityIpBlocksError(errorText(cause, 'IP Block তোলা যায়নি।'));
+    } finally { setSecurityBlockBusy(false); }
+  };
+
+  const setSecurityDateRange = (days) => {
+    const today = toDhakaDateTimeInput(new Date()).slice(0, 10);
+    setSecurityFromDate(addCalendarDaysToDateInput(today, -(Math.max(1, Number(days) || 30) - 1)));
+    setSecurityToDate(today);
+    setSecurityPage(0);
+  };
 
   const loadMemberActivity = useCallback(async (member, page = 0) => {
     if (!member?.hostel_id || !member?.user_id) return;
@@ -847,6 +911,7 @@ export function SuperAdminPage({ user }) {
   useEffect(() => { if (tab === 'audit' && reauthenticated) loadAuditLog(); }, [tab, reauthenticated, loadAuditLog]);
   useEffect(() => { if (tab === 'activity' && reauthenticated && activityView === 'timeline') loadActivity(); }, [tab, reauthenticated, activityView, loadActivity]);
   useEffect(() => { if (tab === 'activity' && reauthenticated && activityView === 'security') loadSecurityMonitor(); }, [tab, reauthenticated, activityView, loadSecurityMonitor]);
+  useEffect(() => { if (tab === 'mfa' && reauthenticated) reloadMfaFactors().catch((cause) => setMfaError(cause?.message || 'Authenticator তালিকা লোড হয়নি।')); }, [tab, reauthenticated]);
   useEffect(() => { if (tab === 'security' && reauthenticated) loadCodeHistory(); }, [tab, reauthenticated, loadCodeHistory, codeHistoryReload]);
   useEffect(() => { if (tab === 'health' && reauthenticated) loadSystemHealth(); }, [tab, reauthenticated, loadSystemHealth]);
   useEffect(() => { if (tab === 'notices' && reauthenticated) loadNoticeMonitoring(); }, [tab, reauthenticated, loadNoticeMonitoring]);
@@ -1302,12 +1367,139 @@ export function SuperAdminPage({ user }) {
 
   const metrics = useMemo(() => normalizePlatformOverview(overview), [overview]);
   const selectedStatus = selected?.platform_status || 'active';
+  const reloadMfaFactors = async () => {
+    const { data, error: factorError } = await supabase.auth.mfa.listFactors();
+    if (factorError) throw factorError;
+    const verified = (data?.totp || []).filter((factor) => factor.status === 'verified');
+    setMfaFactors(verified);
+    return { verified, unverified: (data?.totp || []).filter((factor) => factor.status !== 'verified') };
+  };
+
+  const createMfaChallenge = async (factorId) => {
+    setMfaError('');
+    setMfaBusy(true);
+    try {
+      const { data, error: challengeError } = await supabase.auth.mfa.challenge({ factorId });
+      if (challengeError) throw challengeError;
+      if (!data?.id) throw new Error('Authenticator challenge তৈরি করা যায়নি।');
+      setMfaFactorId(factorId);
+      setMfaChallengeId(data.id);
+      setMfaCode('');
+      setMfaStage('challenge');
+    } catch (cause) {
+      setMfaError(cause?.message || 'Authenticator challenge তৈরি করা যায়নি।');
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const beginMfaEnrollment = async (purpose = 'backup') => {
+    setMfaError('');
+    setMfaBusy(true);
+    try {
+      const friendlyName = purpose === 'primary'
+        ? 'Hostel Life Super Admin'
+        : `Hostel Life Backup Authenticator ${Math.max(1, mfaFactors.length)}`;
+      const { data, error: enrollError } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        friendlyName,
+      });
+      if (enrollError) throw enrollError;
+      if (!data?.id || !data?.totp?.qr_code || !data?.totp?.secret) {
+        throw new Error('Supabase Authenticator Setup-এর QR বা Secret পাওয়া যায়নি। Supabase Auth → Multi-factor Authentication-এ TOTP সক্রিয় আছে কি না দেখুন।');
+      }
+      setMfaPurpose(purpose);
+      setMfaFriendlyName(friendlyName);
+      setMfaFactorId(data.id);
+      setMfaChallengeId('');
+      setMfaQrCode(data.totp.qr_code);
+      setMfaSecret(data.totp.secret);
+      setMfaCode('');
+      setMfaStage(purpose === 'primary' ? 'enroll-primary' : 'enroll-backup');
+    } catch (cause) {
+      setMfaError(cause?.message || 'Authenticator যুক্ত করা যায়নি।');
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
+  const prepareSuperAdminMfa = async () => {
+    const { verified, unverified } = await reloadMfaFactors();
+    if (verified.length) {
+      await createMfaChallenge(verified[0].id);
+      return;
+    }
+    // Remove only abandoned, unverified setup factors belonging to this user.
+    for (const factor of unverified) {
+      try { await supabase.auth.mfa.unenroll({ factorId: factor.id }); } catch { /* keep the safe enrollment path; show any Supabase limit error below */ }
+    }
+    await beginMfaEnrollment('primary');
+  };
+
+  const changeMfaFactor = async (factorId) => {
+    if (!factorId || factorId === mfaFactorId) return;
+    await createMfaChallenge(factorId);
+  };
+
+  const verifySuperAdminMfa = async (event) => {
+    event?.preventDefault?.();
+    const code = String(mfaCode || '').replace(/\D/g, '').slice(0, 6);
+    if (!/^\d{6}$/.test(code)) {
+      setMfaError('Google Authenticator-এর ছয় সংখ্যার কোড লিখুন।');
+      return;
+    }
+    if (!mfaFactorId) {
+      setMfaError('Authenticator Factor পাওয়া যায়নি। আবার শুরু করুন।');
+      return;
+    }
+    setMfaBusy(true);
+    setMfaError('');
+    try {
+      let challengeId = mfaChallengeId;
+      if (mfaStage === 'enroll-primary' || mfaStage === 'enroll-backup') {
+        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: mfaFactorId });
+        if (challengeError) throw challengeError;
+        challengeId = challengeData?.id;
+      }
+      if (!challengeId) throw new Error('Authenticator challenge মেয়াদোত্তীর্ণ। নতুন Challenge তৈরি করুন।');
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: mfaFactorId,
+        challengeId,
+        code,
+      });
+      if (verifyError) throw verifyError;
+      const { data: assuranceData, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assuranceError) throw assuranceError;
+      if (assuranceData?.currentLevel !== 'aal2') {
+        throw new Error('দ্বিতীয় ধাপ যাচাই হলেও Session AAL2 হয়নি। প্যানেল নিরাপদ রাখতে প্রবেশ বন্ধ রাখা হয়েছে।');
+      }
+      await reloadMfaFactors();
+      setMfaQrCode('');
+      setMfaSecret('');
+      setMfaChallengeId('');
+      setMfaCode('');
+      if (mfaPurpose === 'primary' || mfaStage === 'challenge') {
+        setMfaStage('idle');
+        setReauthenticated(true);
+        setNotice('পাসওয়ার্ড ও Authenticator—দুই ধাপের যাচাই সফল হয়েছে।');
+      } else {
+        setMfaStage('idle');
+        setNotice('ব্যাকআপ Authenticator সফলভাবে যুক্ত হয়েছে।');
+      }
+    } catch (cause) {
+      setMfaError(cause?.message || 'Authenticator কোড যাচাই করা যায়নি।');
+    } finally {
+      setMfaBusy(false);
+    }
+  };
+
   const reauthenticate = async (event) => {
     event.preventDefault(); setGateError(''); setReauthBusy(true);
     try {
       const { error: authError } = await verifyPassword({ email: user?.email, password });
       if (authError) throw authError;
-      setPassword(''); setReauthenticated(true); setNotice('পাসওয়ার্ড যাচাই সফল হয়েছে।');
+      setPassword('');
+      await prepareSuperAdminMfa();
     } catch (cause) {
       const code = String(cause?.code || '').toUpperCase();
       const message = String(cause?.message || '');
@@ -1759,6 +1951,7 @@ export function SuperAdminPage({ user }) {
 
   if (checking) return <main className="platform-page"><LoadingSpinner label="Super Admin role যাচাই হচ্ছে..."/></main>;
   if (!allowed) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="shield" size={30}/></span><h1>Super Admin প্রবেশাধিকার যাচাই</h1><p>{gateError || 'আপনার অ্যাকাউন্টের অনুমতি যাচাই করা যাচ্ছে না। Supabase URL/Key এবং Profile role যাচাই করুন।'}</p><button className="primary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>অ্যাপে ফিরে যান</button></section></main>;
+  if (!reauthenticated && (mfaStage === 'challenge' || mfaStage === 'enroll-primary')) return <main className="platform-page"><section className="card platform-reauth platform-mfa-gate"><span className="platform-lock"><Icon name="shield-check" size={28}/></span><span className="eyebrow">দ্বিতীয় নিরাপত্তা ধাপ</span><h1>{mfaStage === 'challenge' ? 'Authenticator কোড যাচাই' : 'Google Authenticator সংযুক্ত করুন'}</h1><p>{mfaStage === 'challenge' ? 'পাসওয়ার্ড যাচাই সফল হয়েছে। Google Authenticator থেকে ছয় সংখ্যার বর্তমান কোড দিন।' : 'প্রথমবার Super Admin খুলতে Authenticator অ্যাপে QR Scan করুন, তারপর ছয় সংখ্যার কোড দিয়ে সংযোগ নিশ্চিত করুন।'}</p>{mfaStage === 'challenge' && mfaFactors.length > 1 && <label className="field-label"><span>যে Authenticator ব্যবহার করবেন</span><select value={mfaFactorId} onChange={(event)=>changeMfaFactor(event.target.value)}>{mfaFactors.map((factor)=><option value={factor.id} key={factor.id}>{factor.friendly_name || 'Authenticator'}</option>)}</select></label>}{mfaStage === 'enroll-primary' && <div className="platform-mfa-qr-wrap"><img src={mfaQrCode} alt="Google Authenticator QR code"/><span>QR Scan না হলে এই Secret ম্যানুয়ালি Authenticator-এ যোগ করুন</span><code>{mfaSecret}</code><button type="button" className="secondary-button compact" onClick={async()=>{try{await navigator.clipboard.writeText(mfaSecret);setMfaError('Secret কপি হয়েছে। নিরাপদে রাখুন; কাউকে শেয়ার করবেন না।');}catch{setMfaError('কপি করা যায়নি। Secret নিজে লিখে নিন।');}}}>Secret কপি করুন</button></div>}<form className="form-stack" onSubmit={verifySuperAdminMfa}><label className="field-label"><span>৬ সংখ্যার Authenticator কোড</span><input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event)=>setMfaCode(event.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" required/></label>{mfaError && <div className="inline-error">{mfaError}</div>}<button className="primary-button large" type="submit" disabled={mfaBusy || mfaCode.length!==6}>{mfaBusy ? 'কোড যাচাই হচ্ছে...' : mfaStage === 'challenge' ? 'Authenticator যাচাই করে প্রবেশ করুন' : 'Authenticator সংযোগ নিশ্চিত করুন'}</button>{mfaStage === 'challenge' && <button type="button" className="secondary-button" disabled={mfaBusy} onClick={()=>createMfaChallenge(mfaFactorId)}>নতুন Challenge তৈরি করুন</button>}</form><button type="button" className="secondary-button" onClick={() => { setMfaStage('idle'); setMfaError(''); setMfaCode(''); window.location.href = '/app/dashboard'; }}>বাতিল</button></section></main>;
   if (!reauthenticated) return <main className="platform-page"><section className="card platform-reauth"><span className="platform-lock"><Icon name="lock" size={28}/></span><span className="eyebrow">অতিরিক্ত নিরাপত্তা</span><h1>Super Admin যাচাইকরণ</h1><p>প্যানেল খোলার আগে আপনার মূল অ্যাকাউন্টের পাসওয়ার্ড পুনরায় যাচাই হবে।</p><form className="form-stack" onSubmit={reauthenticate}><label className="field-label"><span>অ্যাকাউন্ট ইমেইল</span><input type="email" value={user?.email || ''} readOnly /></label><label className="field-label"><span>বর্তমান পাসওয়ার্ড</span><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>{gateError && <div className="inline-error">{gateError}</div>}<button className="primary-button large" type="submit" disabled={reauthBusy}>{reauthBusy ? 'যাচাই হচ্ছে...' : 'যাচাই করে প্রবেশ করুন'}</button><button type="button" className="secondary-button" onClick={() => { window.location.href = '/app/dashboard'; }}>বাতিল</button></form></section></main>;
 
   return <main className="platform-page">
@@ -1772,7 +1965,7 @@ export function SuperAdminPage({ user }) {
       </section>
       <section className="platform-navigation-group platform-configuration-group" aria-label="সিস্টেম সেটিংস">
         <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong></div>
-        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','গ্লোবাল নোটিশ'],['communications','আপডেট ও বিজ্ঞপ্তি'],['messages','বার্তা পাঠান'],['telegram','টেলিগ্রাম সেটআপ'],['developer','ডেভেলপার তথ্য'],['appearance','অ্যাপের থিম'],['sessions','সেশন নিরাপত্তা'],['security','প্রবেশ কোড']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','গ্লোবাল নোটিশ'],['communications','আপডেট ও বিজ্ঞপ্তি'],['messages','বার্তা পাঠান'],['telegram','টেলিগ্রাম সেটআপ'],['developer','ডেভেলপার তথ্য'],['appearance','অ্যাপের থিম'],['sessions','সেশন নিরাপত্তা'],['mfa','দ্বিস্তর নিরাপত্তা'],['security','প্রবেশ কোড']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       </section>
     </div>
     {tab === 'overview' && <>
@@ -1878,7 +2071,7 @@ export function SuperAdminPage({ user }) {
             <ul>
               <li>এটি Auth flow ও Password Reset Function-এ পৌঁছানো Event-এর পর্যবেক্ষণ; সব Page View বা সব Supabase API Traffic-এর Network Analytics নয়।</li>
               <li>Password বা OTP কখনো সংরক্ষণ করা হয় না। নতুন Login, Registration ও Password Reset Event-এ চেষ্টা করা ইমেইল private security log-এ রাখা হয়। পুরোনো Event-এ ইমেইল আগে সংরক্ষিত না থাকলে তা পুনরুদ্ধার করা সম্ভব নয়; HMAC identity reference আলাদা সুরক্ষিত রেফারেন্স।</li>
-              <li>City/Region IP-ভিত্তিক আনুমানিক অবস্থান, GPS নয়। নতুন Event-এ শুধু signed Cloudflare Worker-এর যাচাইকৃত City/Region নেওয়া হয়; Direct Supabase path-এ Country পাওয়া যেতে পারে, City/Region ফাঁকা থাকবে। পুরোনো Event-এর Geo provenance আলাদা করে চিহ্নিত করা হয়নি; তাই পুরোনো Event-এ লোকেশন তথ্য অনুপস্থিত বা unverified হতে পারে।</li>
+              <li>City/Region IP-ভিত্তিক আনুমানিক অবস্থান, GPS নয়। নতুন Event-এ শুধু signed Cloudflare Worker-এর যাচাইকৃত City/Region নেওয়া হয়; Cloudflare Country অনুপস্থিত হলে Worker HTTPS-এ IPinfo Lite-এর Country-only fallback ব্যবহার করে; Direct Supabase path-এ Country পাওয়া যেতে পারে, City/Region ফাঁকা থাকবে। পুরোনো Event-এর Geo provenance আলাদা করে চিহ্নিত করা হয়নি; তাই পুরোনো Event-এ লোকেশন তথ্য অনুপস্থিত বা unverified হতে পারে।</li>
               <li>Location কখনো Access Control বা Security Block-এর সিদ্ধান্তে ব্যবহার করা হয় না।</li>
               <li>৩০ দিনের Log Retention নির্ধারিত। Run37 সফলভাবে প্রয়োগ হলে দৈনিক Cron নির্ধারিত সময়ে cleanup করে (Cron সক্রিয় থাকলে); Scheduler না থাকায় Run37 সক্রিয় না হলে Run35 interim mode-এ ৩০ দিনের বেশি Activity/Security log নতুন Event এলে পরিষ্কার হয়, তবে নির্দিষ্ট দৈনিক সময় নিশ্চিত নয়।</li>
               <li>Login/Registration IP Gate অ্যাপের pre-check-এ কাজ করে; সরাসরি Supabase Auth endpoint-এ request পাঠালে এই app gate এড়িয়ে যেতে পারে। একই Wi-Fi/CGNAT network-এর shared IP সাময়িকভাবে block হতে পারে, ফলে একই IP ব্যবহারকারী অন্যরাও প্রভাবিত হতে পারেন।</li>
@@ -1891,13 +2084,21 @@ export function SuperAdminPage({ user }) {
               <div className="platform-security-diagnostic-grid">
                 <span>Telemetry RPC: <strong>সচল · {securityTelemetryStatus.version || 'Version অজানা'}</strong></span>
                 <span>Account Identity RPC: <strong>{securityTelemetryStatus.authenticated_login_writer_ready ? 'Run39 সচল' : 'Run39 Migration প্রয়োজন'}</strong></span>
+                <span>Attempt Email Column: <strong>{securityTelemetryStatus.attempt_email_column_ready ? 'প্রস্তুত' : 'Run39 Migration/Writer যাচাই প্রয়োজন'}</strong></span>
                 <span>Login IP Gate: <strong>{securityTelemetryStatus.auth_gate_ready ? 'সচল' : `যাচাই ব্যর্থ · ${securityTelemetryStatus.auth_gate_code || 'কারণ অজানা'}`}</strong></span>
                 <span>Client IP: <strong>{securityTelemetryStatus.client_ip_available ? 'পাওয়া গেছে' : 'পাওয়া যায়নি'}</strong></span>
                 <span>Country: <strong>{securityTelemetryStatus.country_header_available ? 'পাওয়া গেছে' : 'পাওয়া যায়নি'}</strong></span>
                 <span>City / Region: <strong>{securityTelemetryStatus.city_header_available || securityTelemetryStatus.region_header_available ? 'কমপক্ষে একটি পাওয়া গেছে' : 'এই Health request-এ পাওয়া যায়নি'}</strong></span>
                 <span>Geo Proxy: <strong>{securityTelemetryStatus.geo_proxy_verified && securityTelemetryStatus.auth_gate_geo_proxy_verified ? 'Worker signature যাচাই হয়েছে' : 'Worker signature যাচাই হয়নি / Direct Supabase path'}</strong></span>
+                <span>Signup OTP Route: <strong>{securityTelemetryStatus.signup_otp_ready ? 'সচল' : `যাচাই ব্যর্থ · ${securityTelemetryStatus.signup_otp_code || 'Function/Health অনুপলব্ধ'}`}</strong></span>
+                <span>Signup OTP IP: <strong>{securityTelemetryStatus.signup_otp_ip_available ? 'পাওয়া গেছে' : 'পাওয়া যায়নি'}</strong></span>
+                <span>Signup OTP Geo Proxy: <strong>{securityTelemetryStatus.signup_otp_geo_proxy_verified ? 'যাচাইকৃত' : 'যাচাইকৃত নয়'}</strong></span>
+                <span>Geo Provider: <strong>{securityTelemetryStatus.signup_otp_geo_provider || securityTelemetryStatus.geo_provider || 'Cloudflare/Provider তথ্য অনুপলব্ধ'}</strong></span>
+                <span>OTP Event Writer: <strong>{securityTelemetryStatus.signup_otp_writer_ready ? 'সচল' : 'Run44/Run40 যাচাই প্রয়োজন'}</strong></span>
+                <span>OTP Email Capture: <strong>{securityTelemetryStatus.signup_otp_attempt_email_column_ready ? 'প্রস্তুত' : 'যাচাই প্রয়োজন'}</strong></span>
+                <span>৩০ দিনের Cleanup: <strong>{securityTelemetryStatus.signup_otp_retention_job_active ? 'সক্রিয়' : 'Cron যাচাই প্রয়োজন'}</strong></span>
               </div>
-              <p>Account Identity RPC না থাকলে Run39 Migration চালান। City/Region না এলে Cloudflare Worker Proxy deploy, HOSTEL_GEO_PROXY_HMAC_SECRET-এর দুই পাশের মান, VITE_HOSTEL_SECURITY_WORKER_URL এবং Worker-এর request.cf data পরীক্ষা করুন। কিছু IP-তে City/Region স্বাভাবিকভাবেই অনুপস্থিত থাকতে পারে।</p>
+              <p>Login/Registration/Password Reset-এর মূল Event Writer ও OTP Resend Endpoint আলাদাভাবে যাচাই হয়। Geo Proxy-এর signed metadata না এলে Cloudflare Worker Proxy deploy করা আছে কি না, VITE_HOSTEL_SECURITY_WORKER_URL, Worker route এবং দুই পাশের HOSTEL_GEO_PROXY_HMAC_SECRET মিলিয়ে দেখুন। Cloudflare Country অনুপস্থিত হলে Worker HTTPS-এ IPinfo Lite-এর Country-only fallback ব্যবহার করে; কোনো IP-এর জন্য অবস্থান সবসময় পাওয়া যাবে এমন নিশ্চয়তা নেই।</p>
             </details>
           : <div className="inline-error platform-alert"><Icon name="alert-triangle" size={17}/> Security Telemetry সংযোগ যাচাই ব্যর্থ। Run36 migration, Edge Function Deploy, Origin Allowlist ও Server Secret পরীক্ষা করুন। {securityTelemetryStatus.message || securityTelemetryStatus.code || 'Function অনুপলব্ধ বা পুরোনো সংস্করণে চলছে।'}</div>)}
         {securityOverview && <div className="platform-phase3-stat-grid">
@@ -1914,11 +2115,58 @@ export function SuperAdminPage({ user }) {
           <Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/>
           <Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/>
         </div>}
-        <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityCountryFilter(securityCountryDraft.trim().toUpperCase());setSecurityLocationFilter(securityLocationDraft.trim());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="login_success">সফল Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="signup_verified">ইমেইল OTP যাচাই</option><option value="password_reset_failed">ব্যর্থ Password Reset</option><option value="password_reset_requested">Reset email অনুরোধ গ্রহণ</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><label className="field-label"><span>Country Code</span><input value={securityCountryDraft} maxLength={2} onChange={(event)=>setSecurityCountryDraft(event.target.value.toUpperCase().replace(/[^A-Z]/g,''))} placeholder="BD"/></label><label className="field-label"><span>City / Region</span><input value={securityLocationDraft} maxLength={120} onChange={(event)=>setSecurityLocationDraft(event.target.value)} placeholder="Dhaka / Dhaka Division"/></label><label className="field-label"><span>শুরুর তারিখ (বাংলাদেশ)</span><input type="date" value={securityFromDate} max={securityToDate || undefined} onChange={(event)=>{setSecurityFromDate(event.target.value);setSecurityPage(0);}}/></label><label className="field-label"><span>শেষ তারিখ (বাংলাদেশ)</span><input type="date" value={securityToDate} min={securityFromDate || undefined} onChange={(event)=>{setSecurityToDate(event.target.value);setSecurityPage(0);}}/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button><button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityCountryDraft('');setSecurityCountryFilter('');setSecurityLocationDraft('');setSecurityLocationFilter('');setSecurityEventFilter('all');setSecurityFromDate('');setSecurityToDate('');setSecurityPage(0);}}>ফিল্টার মুছুন</button></form>
+        {securityAnalytics30d && <section className="platform-security-review-center">
+          <div className="platform-security-review-heading"><div><span className="eyebrow">SECURITY REVIEW · LAST 30 DAYS</span><h4>৩০ দিনের নিরাপত্তা পর্যবেক্ষণ</h4><p>Login, Registration, OTP resend ও Password Reset Event-এর সমন্বিত পর্যালোচনা। প্রতিটি সংখ্যায় চাপ দিলে সংশ্লিষ্ট Event দেখা যাবে।</p></div><span className={securityAnalytics30d.retention_job_active ? 'platform-security-retention-ok' : 'platform-security-retention-warning'}>{securityAnalytics30d.retention_job_active ? '৩০ দিনের দৈনিক Cleanup সক্রিয়' : 'Retention Cron যাচাই প্রয়োজন'}</span></div>
+          <div className="platform-security-review-stats">
+            <Stat label="মোট Security Event · ৩০ দিন" value={securityAnalytics30d.events_30d} icon="activity"/>
+            <Stat label="ব্যর্থ Login · ৩০ দিন" value={securityAnalytics30d.login_failed_30d} icon="lock" onClick={()=>{setSecurityEventFilter('login_failed');setSecurityDateRange(30);}}/>
+            <Stat label="সফল Login · ৩০ দিন" value={securityAnalytics30d.login_success_30d} icon="shield-check" onClick={()=>{setSecurityEventFilter('login_success');setSecurityDateRange(30);}}/>
+            <Stat label="ব্যর্থ Registration · ৩০ দিন" value={securityAnalytics30d.signup_failed_30d} icon="user-x" onClick={()=>{setSecurityEventFilter('signup_failed');setSecurityDateRange(30);}}/>
+            <Stat label="OTP পুনরায় পাঠানো · ৩০ দিন" value={securityAnalytics30d.signup_otp_resend_30d} icon="mail" onClick={()=>{setSecurityEventFilter('signup_otp_resend');setSecurityDateRange(30);}}/>
+            <Stat label="রেজিস্ট্রেশন অনুরোধ · ৩০ দিন" value={securityAnalytics30d.signup_submitted_30d} icon="user-plus" onClick={()=>{setSecurityEventFilter('signup_submitted');setSecurityDateRange(30);}}/>
+            <Stat label="ইমেইল যাচাই সম্পন্ন · ৩০ দিন" value={securityAnalytics30d.signup_verified_30d} icon="mail-check" onClick={()=>{setSecurityEventFilter('signup_verified');setSecurityDateRange(30);}}/>
+            <Stat label="Password Reset অনুরোধ · ৩০ দিন" value={securityAnalytics30d.password_reset_requested_30d} icon="mail-check" onClick={()=>{setSecurityEventFilter('password_reset_requested');setSecurityDateRange(30);}}/>
+            <Stat label="Password Reset ব্যর্থ · ৩০ দিন" value={securityAnalytics30d.password_reset_failed_30d} icon="key-round" onClick={()=>{setSecurityEventFilter('password_reset_failed');setSecurityDateRange(30);}}/>
+            <Stat label="ভিন্ন IP · ৩০ দিন" value={securityAnalytics30d.unique_ips_30d} icon="globe"/>
+            <Stat label="Geo City/Region পাওয়া গেছে" value={securityAnalytics30d.events_with_city_region_30d} icon="map-pin"/>
+            <Stat label="লোকেশন অনুপস্থিত" value={securityAnalytics30d.events_without_geo_30d} icon="map-pin-off"/>
+          </div>
+          {!securityAnalytics30d.retention_job_active && <div className="inline-error platform-alert">৩০ দিনের স্বয়ংক্রিয় Cleanup Job সক্রিয় পাওয়া যায়নি। Run37/Run44 Migration এবং Supabase Cron যাচাই করুন। Cleanup নিশ্চিত না হওয়া পর্যন্ত ৩০ দিনের বেশি পুরোনো Log জমে থাকতে পারে।</div>}
+          <div className="platform-security-review-grid">
+            <section className="platform-security-review-card"><div className="platform-security-review-card-heading"><strong>দিনভিত্তিক Request Trend</strong><small>শেষ ৩০ দিন · প্রতিটি বার নির্বাচনযোগ্য</small></div><div className="platform-security-daily-chart">{(securityAnalytics30d.daily_30d||[]).map((item)=>{const maxEvents=Math.max(1,...(securityAnalytics30d.daily_30d||[]).map((day)=>Number(day.events)||0));return <button type="button" key={item.date} className="platform-security-day-bar" title={`${item.date} · ${Number(item.events||0).toLocaleString('bn-BD')} Event`} onClick={()=>{setSecurityFromDate(item.date);setSecurityToDate(item.date);setSecurityPage(0);}}><span className="platform-security-day-bar-track"><i style={{height:`${Math.max(3,(Number(item.events||0)/maxEvents)*100)}%`}}/></span><small>{String(item.date||'').slice(8,10)}</small></button>;})}</div><div className="platform-security-chart-legend"><span>কম Event</span><span>বেশি Event</span><b>{Number(securityAnalytics30d.events_30d||0).toLocaleString('bn-BD')} মোট</b></div></section>
+            <section className="platform-security-review-card"><div className="platform-security-review-card-heading"><strong>Event-এর ধরন</strong><small>৩০ দিনের মোট</small></div>{(securityAnalytics30d.event_types_30d||[]).length===0 ? <p className="platform-empty">এখনো Event নেই।</p> : <div className="platform-security-breakdown-list">{securityAnalytics30d.event_types_30d.map((item)=><button type="button" key={item.event_type} onClick={()=>{setSecurityEventFilter(item.event_type);setSecurityDateRange(30);}}><span>{securityEventLabel(item.event_type)}</span><b>{Number(item.events||0).toLocaleString('bn-BD')}</b></button>)}</div>}</section>
+          </div>
+          <div className="platform-security-review-grid platform-security-review-grid-wide">
+            <section className="platform-security-review-card"><div className="platform-security-review-card-heading"><strong>সবচেয়ে বেশি Request আসা IP</strong><small>Top 10 · ৩০ দিন</small></div>{(securityAnalytics30d.top_ips_30d||[]).length===0 ? <p className="platform-empty">IP-সহ Event পাওয়া যায়নি।</p> : <div className="platform-security-breakdown-list">{securityAnalytics30d.top_ips_30d.map((item)=><div className="platform-security-top-ip" key={item.ip_address}><button type="button" onClick={()=>{setSecurityIpSearchDraft(item.ip_address);setSecurityIpSearch(item.ip_address);setSecurityDateRange(30);}}><strong>{item.ip_address}</strong><small>{[item.city,item.region,item.country_code].filter(Boolean).join(' · ') || 'লোকেশন অনুপস্থিত'} · ব্যর্থ {Number(item.failed_attempts||0).toLocaleString('bn-BD')}</small></button><div><b>{Number(item.events||0).toLocaleString('bn-BD')} Event</b><button type="button" className="text-button" onClick={()=>{setSecurityBlockIp(item.ip_address);setSecurityBlockScope('both');}}>Block প্রস্তুত করুন</button></div></div>)}</div>}</section>
+            <section className="platform-security-review-card"><div className="platform-security-review-card-heading"><strong>Country breakdown</strong><small>Top 10 · ৩০ দিন</small></div>{(securityAnalytics30d.top_countries_30d||[]).length===0 ? <p className="platform-empty">Country তথ্য পাওয়া যায়নি।</p> : <div className="platform-security-breakdown-list">{securityAnalytics30d.top_countries_30d.map((item)=><button type="button" key={item.country_code} onClick={()=>{setSecurityCountryDraft(item.country_code);setSecurityCountryFilter(item.country_code);setSecurityDateRange(30);}}><span>{item.country_code}</span><b>{Number(item.events||0).toLocaleString('bn-BD')} Event</b></button>)}</div>}</section>
+            <section className="platform-security-review-card"><div className="platform-security-review-card-heading"><strong>City / Region breakdown</strong><small>Top 10 · আনুমানিক</small></div>{(securityAnalytics30d.top_locations_30d||[]).length===0 ? <p className="platform-empty">City/Region তথ্য পাওয়া যায়নি। Worker Proxy যাচাই করুন।</p> : <div className="platform-security-breakdown-list">{securityAnalytics30d.top_locations_30d.map((item,index)=><button type="button" key={`${item.city}:${item.region}:${item.country_code}:${index}`} onClick={()=>{const query=item.city||item.region||'';setSecurityLocationDraft(query);setSecurityLocationFilter(query);setSecurityCountryDraft(item.country_code||'');setSecurityCountryFilter(item.country_code||'');setSecurityDateRange(30);}}><span>{[item.city,item.region,item.country_code].filter(Boolean).join(' · ')}</span><b>{Number(item.events||0).toLocaleString('bn-BD')} Event</b></button>)}</div>}</section>
+            <section className="platform-security-review-card"><div className="platform-security-review-card-heading"><strong>Request Origin</strong><small>Top 10 · ৩০ দিন</small></div>{(securityAnalytics30d.top_origins_30d||[]).length===0 ? <p className="platform-empty">Origin তথ্য পাওয়া যায়নি।</p> : <div className="platform-security-breakdown-list">{securityAnalytics30d.top_origins_30d.map((item,index)=><div key={`${item.origin}:${index}`}><span>{item.origin || 'Origin অজানা'}</span><b>{Number(item.events||0).toLocaleString('bn-BD')}</b></div>)}</div>}</section>
+          </div>
+          <div className="platform-security-data-coverage"><span>IP সহ Event: <strong>{Number(securityAnalytics30d.events_with_ip_30d||0).toLocaleString('bn-BD')}</strong></span><span>Country সহ: <strong>{Number(securityAnalytics30d.events_with_country_30d||0).toLocaleString('bn-BD')}</strong></span><span>City/Region সহ: <strong>{Number(securityAnalytics30d.events_with_city_region_30d||0).toLocaleString('bn-BD')}</strong></span><span>IP অনুপস্থিত: <strong>{Number(securityAnalytics30d.events_without_ip_30d||0).toLocaleString('bn-BD')}</strong></span></div>
+        </section>}
+
+        {securityOverview && <div className="platform-phase3-stat-grid">
+          <Stat label="শেষ ২৪ ঘণ্টার Event" value={securityOverview.events_24h} icon="activity"/>
+          <Stat label="শেষ ৭ দিনের Event" value={securityOverview.events_7d} icon="calendar"/>
+          <Stat label="ব্যর্থ Login · ২৪ ঘণ্টা" value={securityOverview.failed_logins_24h} icon="lock" onClick={() => openSecurityEvents('login_failed')}/>
+          <Stat label="সফল Login · ২৪ ঘণ্টা" value={securityOverview.successful_logins_24h} icon="shield-check" onClick={() => openSecurityEvents('login_success')}/>
+          <Stat label="ব্যর্থ Registration · ২৪ ঘণ্টা" value={securityOverview.failed_signups_24h} icon="user-x" onClick={() => openSecurityEvents('signup_failed')}/>
+          <Stat label="Registration অনুরোধ · ২৪ ঘণ্টা" value={securityOverview.signup_submitted_24h} icon="user-plus" onClick={() => openSecurityEvents('signup_submitted')}/>
+          <Stat label="Reset email অনুরোধ গ্রহণ" value={securityOverview.password_reset_requested_24h} icon="mail-check" onClick={() => openSecurityEvents('password_reset_requested')}/>
+          <Stat label="Password Reset ব্যর্থ · ২৪ ঘণ্টা" value={securityOverview.password_reset_failed_24h} icon="key-round" onClick={() => openSecurityEvents('password_reset_failed')}/>
+          <Stat label="সক্রিয় Auth IP Block" value={securityOverview.active_auth_ip_blocks} icon="shield-alert" onClick={() => setSecurityEventFilter('login_failed')}/>
+          <Stat label="সক্রিয় Reset IP Block" value={securityOverview.active_reset_ip_blocks} icon="ban" onClick={() => setSecurityEventFilter('password_reset_requested')}/>
+          <Stat label="বারবার ব্যর্থ IP · ২৪ ঘণ্টা" value={securityOverview.repeat_failure_ips_24h} icon="alert-triangle"/>
+          <Stat label="ভিন্ন IP · ২৪ ঘণ্টা" value={securityOverview.unique_ips_24h} icon="globe"/>
+        </div>}
+        <div className="platform-security-range-presets"><span>Event তালিকার সময়সীমা</span><button type="button" className="secondary-button compact" onClick={()=>setSecurityDateRange(1)}>আজ</button><button type="button" className="secondary-button compact" onClick={()=>setSecurityDateRange(7)}>৭ দিন</button><button type="button" className="secondary-button compact" onClick={()=>setSecurityDateRange(30)}>৩০ দিন</button></div>
+
+        <form className="platform-security-filters" onSubmit={(event)=>{event.preventDefault();setSecurityIpSearch(securityIpSearchDraft.trim());setSecurityCountryFilter(securityCountryDraft.trim().toUpperCase());setSecurityLocationFilter(securityLocationDraft.trim());setSecurityPage(0);}}><label className="field-label"><span>Event Type</span><select value={securityEventFilter} onChange={(event)=>{setSecurityEventFilter(event.target.value);setSecurityPage(0);}}><option value="all">সব Event</option><option value="login_failed">ব্যর্থ Login</option><option value="login_success">সফল Login</option><option value="signup_failed">ব্যর্থ Registration</option><option value="signup_submitted">Registration অনুরোধ</option><option value="signup_otp_resend">OTP পুনরায় পাঠানো</option><option value="signup_verified">ইমেইল OTP যাচাই</option><option value="password_reset_failed">ব্যর্থ Password Reset</option><option value="password_reset_requested">Reset email অনুরোধ গ্রহণ</option></select></label><label className="field-label"><span>IP দিয়ে খুঁজুন</span><input value={securityIpSearchDraft} maxLength={80} onChange={(event)=>setSecurityIpSearchDraft(event.target.value)} placeholder="IPv4 / IPv6"/></label><label className="field-label"><span>Country Code</span><input value={securityCountryDraft} maxLength={2} onChange={(event)=>setSecurityCountryDraft(event.target.value.toUpperCase().replace(/[^A-Z]/g,''))} placeholder="BD"/></label><label className="field-label"><span>City / Region</span><input value={securityLocationDraft} maxLength={120} onChange={(event)=>setSecurityLocationDraft(event.target.value)} placeholder="Dhaka / Dhaka Division"/></label><label className="field-label"><span>শুরুর তারিখ (বাংলাদেশ)</span><input type="date" value={securityFromDate} max={securityToDate || undefined} onChange={(event)=>{setSecurityFromDate(event.target.value);setSecurityPage(0);}}/></label><label className="field-label"><span>শেষ তারিখ (বাংলাদেশ)</span><input type="date" value={securityToDate} min={securityFromDate || undefined} onChange={(event)=>{setSecurityToDate(event.target.value);setSecurityPage(0);}}/></label><button className="primary-button" type="submit" disabled={securityLoading}>খুঁজুন</button><button className="secondary-button" type="button" onClick={()=>{setSecurityIpSearchDraft('');setSecurityIpSearch('');setSecurityCountryDraft('');setSecurityCountryFilter('');setSecurityLocationDraft('');setSecurityLocationFilter('');setSecurityEventFilter('all');setSecurityFromDate('');setSecurityToDate('');setSecurityPage(0);}}>ফিল্টার মুছুন</button></form>
         {securityOverview?.top_countries?.length > 0 && <div className="platform-monitor-country-list"><strong>শেষ ২৪ ঘণ্টার Country breakdown</strong>{securityOverview.top_countries.map((item)=><button type="button" key={item.country_code} className="platform-monitor-country" onClick={()=>{setSecurityCountryDraft(item.country_code);setSecurityCountryFilter(item.country_code);setSecurityPage(0);}}><span>{item.country_code}</span><b>{Number(item.events||0).toLocaleString('bn-BD')} Event</b></button>)}</div>}
         {securityOverview?.top_locations?.length > 0 && <div className="platform-monitor-country-list"><strong>শেষ ২৪ ঘণ্টার আনুমানিক City / Region</strong>{securityOverview.top_locations.map((item,index)=><button type="button" key={`${item.city}:${item.region}:${item.country_code}:${index}`} className="platform-monitor-country" onClick={()=>{const query=item.city || item.region || '';setSecurityLocationDraft(query);setSecurityLocationFilter(query);setSecurityCountryDraft(item.country_code || '');setSecurityCountryFilter(item.country_code || '');setSecurityPage(0);}}><span>{[item.city,item.region,item.country_code].filter(Boolean).join(' · ') || 'লোকেশন অজানা'}</span><b>{Number(item.events||0).toLocaleString('bn-BD')} Event</b></button>)}</div>}
         {securityOverview?.top_origins?.length > 0 && <div className="platform-monitor-country-list"><strong>শেষ ২৪ ঘণ্টার Request Origin</strong>{securityOverview.top_origins.map((item,index)=><div className="platform-monitor-country" key={`${item.origin}:${index}`}><span>{item.origin || 'Origin অজানা'}</span><b>{Number(item.events||0).toLocaleString('bn-BD')} Event</b></div>)}</div>}
-        <section className="card platform-panel platform-monitor-blocks"><div className="platform-panel-heading"><div><h4>সক্রিয় IP Block</h4><p>সার্ভারে বর্তমানে কার্যকর অস্থায়ী block। মেয়াদ শেষে স্বয়ংক্রিয়ভাবে আর block হিসেবে গণ্য হবে না।</p></div><span className="platform-panel-count">{securityIpBlocks.length.toLocaleString('bn-BD')}</span></div>{securityIpBlocksError && <div className="inline-error">{securityIpBlocksError}</div>}{securityIpBlocks.length===0 ? <p className="platform-empty">এখন কোনো সক্রিয় IP Block নেই।</p> : <div className="platform-retention-list">{securityIpBlocks.map((block)=><div className="platform-retention-row" key={`${block.scope}:${block.ip_address}`}><div><strong>{block.ip_address} · {block.scope==='auth'?'Login/Registration':'Password Reset'}</strong><small>{[block.city,block.region,block.country_code].filter(Boolean).join(' · ') || 'লোকেশন অজানা'} · {Number(block.attempt_count||0).toLocaleString('bn-BD')}টি প্রচেষ্টা · {block.block_reason}</small><small>ব্লক শেষ: {formatPlatformDate(block.blocked_until)}</small></div><button type="button" className="text-button" onClick={()=>{setSecurityIpSearchDraft(block.ip_address);setSecurityIpSearch(block.ip_address);setActivityView('security');}}>Event দেখুন <Icon name="external-link" size={14}/></button></div>)}</div>}</section>
+        <section className="card platform-panel platform-security-manual-block"><div className="platform-panel-heading"><div><h4>ম্যানুয়াল IP Block</h4><p>নির্দিষ্ট IPv4/IPv6-কে অস্থায়ীভাবে Login/Registration, Password Reset অথবা দুটো জায়গা থেকেই ব্লক করুন।</p></div></div><form className="platform-security-block-form" onSubmit={submitSecurityIpBlock}><label className="field-label"><span>IP Address</span><input type="text" inputMode="text" autoComplete="off" maxLength={45} value={securityBlockIp} onChange={(event)=>setSecurityBlockIp(event.target.value.trim())} placeholder="IPv4 / IPv6" required/></label><label className="field-label"><span>কোন জায়গায় Block হবে</span><select value={securityBlockScope} onChange={(event)=>setSecurityBlockScope(event.target.value)}><option value="both">Login/Registration + Password Reset</option><option value="auth">শুধু Login/Registration</option><option value="password_reset">শুধু Password Reset</option></select></label><label className="field-label"><span>Block-এর মেয়াদ</span><select value={securityBlockDuration} onChange={(event)=>setSecurityBlockDuration(event.target.value)}><option value="15">১৫ মিনিট</option><option value="60">১ ঘণ্টা</option><option value="360">৬ ঘণ্টা</option><option value="1440">২৪ ঘণ্টা</option><option value="10080">৭ দিন</option><option value="43200">৩০ দিন</option></select></label><label className="field-label"><span>কারণ</span><input type="text" maxLength={180} value={securityBlockReason} onChange={(event)=>setSecurityBlockReason(event.target.value)} placeholder="যেমন: অস্বাভাবিক ব্যর্থ প্রচেষ্টা" required/></label><button type="submit" className="danger-button" disabled={securityBlockBusy || !securityBlockIp.trim() || securityBlockReason.trim().length<3}>{securityBlockBusy?'প্রক্রিয়াধীন...':'IP Block করুন'}</button></form><p className="platform-security-block-warning">সতর্কতা: একই অফিস, হোস্টেল, Wi-Fi বা CGNAT IP ব্যবহারকারী একাধিক ব্যক্তি একসঙ্গে ব্লক হতে পারেন। আগে Event ও কারণ যাচাই করুন। প্রতিটি Block/Unblock Audit Log-এ লেখা হবে।</p></section>
+        <section className="card platform-panel platform-monitor-blocks"><div className="platform-panel-heading"><div><h4>সক্রিয় IP Block</h4><p>সার্ভারে বর্তমানে কার্যকর অস্থায়ী block। মেয়াদ শেষে স্বয়ংক্রিয়ভাবে আর block হিসেবে গণ্য হবে না।</p></div><span className="platform-panel-count">{securityIpBlocks.length.toLocaleString('bn-BD')}</span></div>{securityIpBlocksError && <div className="inline-error">{securityIpBlocksError}</div>}{securityIpBlocks.length===0 ? <p className="platform-empty">এখন কোনো সক্রিয় IP Block নেই।</p> : <div className="platform-retention-list">{securityIpBlocks.map((block)=><div className="platform-retention-row" key={`${block.scope}:${block.ip_address}`}><div><strong>{block.ip_address} · {block.scope==='auth'?'Login/Registration':'Password Reset'}</strong><small>{[block.city,block.region,block.country_code].filter(Boolean).join(' · ') || 'লোকেশন অজানা'} · {Number(block.attempt_count||0).toLocaleString('bn-BD')}টি প্রচেষ্টা · {block.block_reason}</small><small>ব্লক শেষ: {formatPlatformDate(block.blocked_until)}</small></div><div className="platform-security-block-actions"><button type="button" className="text-button" onClick={()=>{setSecurityIpSearchDraft(block.ip_address);setSecurityIpSearch(block.ip_address);setSecurityDateRange(30);setActivityView('security');}}>Event দেখুন <Icon name="external-link" size={14}/></button><button type="button" className="text-button danger-text" disabled={securityBlockBusy} onClick={()=>releaseSecurityIpBlock(block)}>Block তুলে দিন</button></div></div>)}</div>}</section>
         {securityError && <div className="inline-error platform-alert">{securityError}</div>}
         {securityLoading ? <div className="platform-empty"><LoadingSpinner label="Security Event লোড হচ্ছে..."/></div> : securityRows.length===0 ? <div className="platform-empty-state"><Icon name="shield-check" size={27}/><strong>{securityTelemetryStatus?.ready === false ? 'Security Telemetry এখনো যাচাই করা যায়নি' : 'কোনো Security Event নেই'}</strong><span>{securityTelemetryStatus?.ready === false ? 'সংযোগ সচল না হওয়া পর্যন্ত শূন্য সংখ্যাকে প্রকৃত নিরাপত্তা-তথ্য ধরে নেবেন না।' : 'নির্বাচিত সময়সীমায় কোনো সংরক্ষিত Event পাওয়া যায়নি। নতুন Event-এ চেষ্টা করা ইমেইল সংরক্ষিত হবে; পুরোনো Event-এ তথ্য না থাকলে তা পুনরুদ্ধার করা সম্ভব নয়।'}</span></div> : <div className="platform-security-list">{securityRows.map((row)=>{
           const actorName = String(row.actor_name || '').trim();
@@ -2472,6 +2720,16 @@ export function SuperAdminPage({ user }) {
           <div className="platform-retention-list">{expiredArchives.map(entry => <div className="platform-retention-row" key={`${entry.hostel_id}-${entry.period_id}`}><div><strong>{entry.hostel_name || 'মেস'} · {entry.period_label || 'মাস'}</strong><small>মেয়াদ শেষ: {entry.expired_at || 'সার্ভার যাচাইকৃত'}</small></div><div className="platform-archive-actions"><button className="secondary-button compact" type="button" disabled={retentionLoading} onClick={() => prepareArchiveSummary(entry)}>সামারি সংরক্ষণ</button><button className="secondary-button compact" type="button" disabled={retentionLoading || !savedSummaries.some(row => row.period_id === entry.period_id && !row.purged_at) || savedSummaries.some(row => row.period_id === entry.period_id && Boolean(row.verified_at))} onClick={() => verifyArchiveSummary(entry)}>{savedSummaries.some(row => row.period_id === entry.period_id && row.verified_at) ? 'সামারি যাচাইকৃত' : 'সামারি যাচাই'}</button><button className="danger-button" type="button" disabled={retentionLoading || !savedSummaries.some(row => row.period_id === entry.period_id && !row.purged_at && row.verified_at)} onClick={() => deleteExpiredArchive(entry)}>স্থায়ীভাবে মুছুন</button></div></div>)}</div>}
       </div>
     </section>}
+    {tab === 'mfa' && <section className="card platform-panel platform-mfa-settings">
+      <div className="platform-panel-heading"><div><span className="eyebrow">SUPER ADMIN · AAL2</span><h3>দ্বিস্তর নিরাপত্তা ও Authenticator</h3><p>Super Admin-এর সব প্রশাসনিক RPC-তে পাসওয়ার্ড যাচাইয়ের পাশাপাশি Supabase Auth-এর AAL2 বাধ্যতামূলক। Authenticator Secret Supabase Auth নিজেই সংরক্ষণ করে; অ্যাপের নিজস্ব টেবিলে Secret বা OTP রাখা হয় না।</p></div><span className="platform-panel-count">{mfaFactors.length.toLocaleString('bn-BD')}টি</span></div>
+      <div className="platform-mfa-factor-list">{mfaFactors.length===0 ? <div className="platform-empty-state"><Icon name="shield-alert" size={24}/><strong>Authenticator তালিকা পাওয়া যায়নি</strong><span>প্যানেলে প্রবেশের সময় প্রয়োজনীয় Authenticator যাচাই হয়েছে কি না রিফ্রেশ করুন।</span></div> : mfaFactors.map((factor,index)=><article className="platform-mfa-factor" key={factor.id}><span className="platform-mfa-factor-icon"><Icon name="shield-check" size={18}/></span><div><strong>{factor.friendly_name || `Authenticator ${index+1}`}</strong><small>Verified TOTP · যুক্ত: {factor.created_at ? formatPlatformDate(factor.created_at) : 'তারিখ অজানা'}</small></div><span className="platform-security-risk risk-review">সক্রিয়</span></article>)}</div>
+      {mfaFactors.length===1 && <div className="platform-mfa-backup-note"><Icon name="info" size={17}/><span>এখন একটি Authenticator সক্রিয়। ফোন হারালে প্রবেশাধিকার হারানোর ঝুঁকি কমাতে আলাদা ডিভাইস বা নিরাপদ Backup-এ দ্বিতীয় Authenticator যুক্ত করুন। Supabase-এর TOTP MFA-তে built-in recovery code নেই।</span></div>}
+      {mfaFactors.length>=2 && <div className="platform-mfa-backup-note"><Icon name="check-circle" size={17}/><span>একাধিক Verified Authenticator আছে। পরবর্তী Super Admin প্রবেশে তালিকা থেকে যেকোনো একটি ব্যবহার করতে পারবেন।</span></div>}
+      <div className="platform-mfa-actions"><button type="button" className="primary-button" disabled={mfaBusy} onClick={()=>beginMfaEnrollment('backup')}><Icon name="plus" size={15}/> ব্যাকআপ Authenticator যুক্ত করুন</button><span>Google Authenticator, Microsoft Authenticator বা TOTP-সমর্থিত অ্যাপ ব্যবহার করা যাবে।</span></div>
+      {mfaStage==='enroll-backup' && <div className="platform-mfa-enroll-card"><div><strong>ব্যাকআপ Authenticator সেটআপ</strong><p>{mfaFriendlyName} নামে নতুন Factor যুক্ত হচ্ছে। আলাদা ডিভাইসে QR Scan করুন।</p></div><div className="platform-mfa-qr-wrap"><img src={mfaQrCode} alt="Backup Authenticator QR code"/><span>ম্যানুয়ালি যোগ করতে Secret</span><code>{mfaSecret}</code><button type="button" className="secondary-button compact" onClick={async()=>{try{await navigator.clipboard.writeText(mfaSecret);setMfaError('Backup Secret কপি হয়েছে। নিরাপদে রাখুন।');}catch{setMfaError('কপি করা যায়নি। Secret নিজে লিখে নিন।');}}}>Secret কপি করুন</button></div><form className="form-stack" onSubmit={verifySuperAdminMfa}><label className="field-label"><span>Authenticator-এর ৬ সংখ্যার কোড</span><input type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={mfaCode} onChange={(event)=>setMfaCode(event.target.value.replace(/\D/g,'').slice(0,6))} placeholder="000000" required/></label>{mfaError && <div className="inline-error">{mfaError}</div>}<div className="platform-mfa-actions"><button type="submit" className="primary-button" disabled={mfaBusy || mfaCode.length!==6}>{mfaBusy?'যাচাই হচ্ছে...':'Backup Authenticator যাচাই ও যুক্ত করুন'}</button><button type="button" className="secondary-button" disabled={mfaBusy} onClick={()=>{setMfaStage('idle');setMfaQrCode('');setMfaSecret('');setMfaCode('');setMfaError('');}}>বাতিল</button></div></form></div>}
+      {mfaError && mfaStage!=='enroll-backup' && <div className="inline-error platform-alert">{mfaError}</div>}
+    </section>}
+
     {tab === 'security' && <>
       <div className="platform-settings-intro"><span className="eyebrow">ACCESS CONTROL</span><h2>Access Code নিয়ন্ত্রণ</h2><p>Registration ও নতুন মেস তৈরির জন্য নিরাপত্তা কোড পরিচালনা করুন।</p></div>
       <section className="platform-settings-grid">

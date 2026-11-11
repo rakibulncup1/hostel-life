@@ -17,6 +17,7 @@ export type TrustedVisitor = {
   location: VisitorLocation;
   proxyVerified: boolean;
   source: 'cloudflare-worker' | 'supabase-edge' | 'unavailable';
+  geoProvider?: string | null;
   code?: string;
 };
 
@@ -104,6 +105,7 @@ function canonicalPayload(input: {
   city: string;
   region: string;
   regionCode: string;
+  geoProvider: string;
 }): string {
   return JSON.stringify([
     'hostel-life-geo-v1',
@@ -118,12 +120,13 @@ function canonicalPayload(input: {
     input.city,
     input.region,
     input.regionCode,
+    input.geoProvider,
   ]);
 }
 
 async function verifyProxyRequest(request: Request, expectedRoute: string, consumeNonce?: GeoNonceConsumer): Promise<TrustedVisitor> {
   const fail = (code: string): TrustedVisitor => ({
-    ok: false, ip: null, location: EMPTY_LOCATION, proxyVerified: false, source: 'unavailable', code,
+    ok: false, ip: null, location: EMPTY_LOCATION, proxyVerified: false, source: 'unavailable', geoProvider: null, code,
   });
 
   const secret = Deno.env.get('HOSTEL_GEO_PROXY_HMAC_SECRET')?.trim() ?? '';
@@ -138,6 +141,7 @@ async function verifyProxyRequest(request: Request, expectedRoute: string, consu
   const city = request.headers.get('x-hostel-geo-city') ?? '';
   const region = request.headers.get('x-hostel-geo-region') ?? '';
   const regionCode = request.headers.get('x-hostel-geo-region-code') ?? '';
+  const geoProvider = request.headers.get('x-hostel-geo-provider') ?? '';
   const suppliedBodyHash = request.headers.get('x-hostel-geo-body-sha256') ?? '';
 
   const timestampNumber = Number(timestamp);
@@ -145,6 +149,7 @@ async function verifyProxyRequest(request: Request, expectedRoute: string, consu
   if (!/^[0-9a-f-]{36}$/i.test(nonce) || route !== expectedRoute || !ip) return fail('GEO_PROXY_METADATA_INVALID');
   if (country && !/^[A-Z]{2}$/.test(country)) return fail('GEO_PROXY_COUNTRY_INVALID');
   if (city.length > 300 || region.length > 300 || regionCode.length > 60) return fail('GEO_PROXY_LOCATION_INVALID');
+  if (!['cloudflare','ipinfo','cloudflare+ipinfo','unavailable'].includes(geoProvider)) return fail('GEO_PROXY_PROVIDER_INVALID');
   const signatureBytes = hexToBytes(signature);
   if (!signatureBytes) return fail('GEO_PROXY_SIGNATURE_INVALID');
 
@@ -161,7 +166,7 @@ async function verifyProxyRequest(request: Request, expectedRoute: string, consu
   const origin = request.headers.get('origin') ?? '';
   const message = canonicalPayload({
     timestamp, nonce, method: request.method, route, origin, bodyHash, ip,
-    country, city, region, regionCode,
+    country, city, region, regionCode, geoProvider,
   });
 
   try {
@@ -196,6 +201,7 @@ async function verifyProxyRequest(request: Request, expectedRoute: string, consu
     },
     proxyVerified: true,
     source: 'cloudflare-worker',
+    geoProvider,
   };
 }
 
@@ -226,6 +232,7 @@ export async function resolveTrustedVisitor(
       location: EMPTY_LOCATION,
       proxyVerified: false,
       source: 'unavailable',
+      geoProvider: null,
       code: 'GEO_PROXY_REQUIRED',
     };
   }
@@ -246,6 +253,7 @@ export async function resolveTrustedVisitor(
     },
     proxyVerified: false,
     source: ip ? 'supabase-edge' : 'unavailable',
+    geoProvider: null,
     ...(!ip ? { code: 'CLIENT_IP_UNAVAILABLE' } : {}),
   };
 }

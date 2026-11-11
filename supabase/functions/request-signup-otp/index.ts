@@ -45,7 +45,7 @@ function reply(body: Record<string, unknown>, status: number, origin: string, or
   });
   if (origins.includes(origin.replace(/\/$/, ''))) headers.set('Access-Control-Allow-Origin', origin);
   headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   return new Response(JSON.stringify(body), { status, headers });
 }
 
@@ -77,10 +77,10 @@ Deno.serve(async (request) => {
 
   if (request.method === 'OPTIONS') {
     if (!origin || !origins.includes(normalizedOrigin)) return reply({ code: 'ORIGIN_NOT_ALLOWED', message: 'এই ওয়েব ঠিকানা থেকে অনুরোধ গ্রহণ করা হচ্ছে না।' }, 403, origin, origins);
-    const headers = new Headers({ 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Cache-Control': 'no-store', 'Vary': 'Origin' });
+    const headers = new Headers({ 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Cache-Control': 'no-store', 'Vary': 'Origin' });
     return new Response(null, { status: 204, headers });
   }
-  if (request.method !== 'POST') return reply({ code: 'METHOD_NOT_ALLOWED', message: 'শুধু POST অনুরোধ গ্রহণযোগ্য।' }, 405, origin, origins);
+  if (!['GET', 'POST'].includes(request.method)) return reply({ code: 'METHOD_NOT_ALLOWED', message: 'অনুরোধের পদ্ধতি অনুমোদিত নয়।' }, 405, origin, origins);
   if (!origin || !origins.includes(normalizedOrigin)) return reply({ code: 'ORIGIN_NOT_ALLOWED', message: 'এই ওয়েব ঠিকানা থেকে অনুরোধ গ্রহণ করা হচ্ছে না।' }, 403, origin, origins);
 
   const url = Deno.env.get('SUPABASE_URL') ?? '';
@@ -106,8 +106,35 @@ Deno.serve(async (request) => {
   };
 
   const visitor = await resolveTrustedVisitor(request, 'request-signup-otp', consumeNonce);
-  if (!visitor.ok || !visitor.ip) {
-    return reply({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য নেটওয়ার্ক তথ্য যাচাই করা যাচ্ছে না। পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, origins);
+  if (request.method === 'GET') {
+    if (!visitor.ok || !visitor.ip || !visitor.proxyVerified) {
+      return reply({ ready: false, code: visitor.code || 'GEO_PROXY_NOT_VERIFIED', client_ip_available: Boolean(visitor.ip), geo_proxy_verified: visitor.proxyVerified, geo_source: visitor.source, geo_provider: visitor.geoProvider || null, version: 'run44-otp-health' }, 503, origin, origins);
+    }
+    const [eventHealth, otpHealth] = await Promise.all([
+      admin.rpc('hl_security_monitor_writer_health_v1'),
+      admin.rpc('hl_signup_otp_writer_health_v1'),
+    ]);
+    const ready = !eventHealth.error && !otpHealth.error
+      && eventHealth.data?.telemetry_writer_ready === true
+      && eventHealth.data?.attempt_email_column_ready === true
+      && otpHealth.data?.otp_resend_writer_ready === true
+      && otpHealth.data?.attempt_email_column_ready === true
+      && otpHealth.data?.retention_job_active === true;
+    return reply({
+      ready,
+      code: ready ? null : 'SIGNUP_OTP_TELEMETRY_NOT_READY',
+      otp_resend_writer_ready: otpHealth.data?.otp_resend_writer_ready === true,
+      attempt_email_column_ready: eventHealth.data?.attempt_email_column_ready === true && otpHealth.data?.attempt_email_column_ready === true,
+      retention_job_active: otpHealth.data?.retention_job_active === true,
+      client_ip_available: Boolean(visitor.ip),
+      geo_proxy_verified: visitor.proxyVerified,
+      geo_source: visitor.source,
+      geo_provider: visitor.geoProvider || null,
+      city_header_available: Boolean(visitor.location?.city),
+      region_header_available: Boolean(visitor.location?.region),
+      country_header_available: Boolean(visitor.location?.countryCode),
+      version: 'run44-otp-health',
+    }, ready ? 200 : 503, origin, origins);
   }
 
   let body: { email?: unknown };
@@ -121,6 +148,29 @@ Deno.serve(async (request) => {
   if (!validEmail(body.email)) return reply({ code: 'INVALID_EMAIL', message: 'একটি সঠিক ইমেইল ঠিকানা লিখুন।' }, 400, origin, origins);
 
   const email = body.email.trim().toLowerCase();
+  if (!visitor.ok || !visitor.ip) {
+    return reply({ code: visitor.code || 'CLIENT_IP_UNAVAILABLE', message: 'নিরাপত্তার জন্য নির্ভরযোগ্য নেটওয়ার্ক তথ্য যাচাই করা যাচ্ছে না। পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, origins);
+  }
+
+  // Apply the same manual/automatic Login+Registration deny-list to OTP resend.
+  // A blocked IP must not bypass the auth gate by calling this Function directly.
+  const authBlock = await admin.rpc('hl_check_auth_ip_block', { p_request_ip: visitor.ip });
+  if (authBlock.error || authBlock.data?.protection_available === false) {
+    console.error('request-signup-otp auth IP block check failed', { request_id: requestId, code: authBlock.error?.code || 'protection_unavailable' });
+    return reply({ code: 'AUTH_GATE_LOOKUP_FAILED', message: 'নিরাপত্তা যাচাই করা যায়নি। কিছুক্ষণ পরে আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, origins);
+  }
+  if (authBlock.data?.blocked === true) {
+    const retryAt = typeof authBlock.data.blocked_until === 'string' ? authBlock.data.blocked_until : null;
+    const retrySeconds = Math.max(1, Number(authBlock.data.retry_after_seconds) || 900);
+    return reply({
+      code: 'AUTH_IP_TEMPORARILY_BLOCKED',
+      message: 'নিরাপত্তার কারণে এই নেটওয়ার্ক থেকে Login ও Registration সাময়িকভাবে বন্ধ আছে।',
+      retry_at: retryAt,
+      retry_after_seconds: retrySeconds,
+      request_id: requestId,
+    }, 429, origin, origins);
+  }
+
   try {
     const fingerprint = await fingerprintEmail(email, hmacSecret);
     const quota = await admin.rpc('hl_consume_signup_otp_resend', {

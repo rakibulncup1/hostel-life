@@ -142,15 +142,23 @@ Deno.serve(async (request) => {
     return data === true;
   };
   const visitor = await resolveTrustedVisitor(request, 'record-auth-event', consumeGeoNonce);
-  if (!visitor.ok) {
+  const noTrustedIpFallback = !visitor.ok && ['GEO_PROXY_REQUIRED', 'CLIENT_IP_UNAVAILABLE'].includes(visitor.code || '');
+  // Health checks must prove that the signed proxy supplies a real visitor IP.
+  // POST telemetry may still store the attempted email with a NULL IP if the
+  // proxy is missing, but never accepts invalid/replayed signatures.
+  if (!visitor.ok && !noTrustedIpFallback) {
     return response({ accepted: false, ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
+  }
+  if (request.method === 'GET' && noTrustedIpFallback) {
+    return response({ ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', client_ip_available: false, geo_proxy_verified: false, geo_source: 'unavailable', geo_provider: null, version: VERSION }, 503, origin, origins);
   }
   // Only signed Worker metadata may populate City/Region. Direct Supabase
   // ingress can still provide a Cloudflare Country Code, but its geo labels
   // are deliberately ignored because they are not cryptographically bound.
-  const location = visitor.proxyVerified
+  const location = visitor.ok && visitor.proxyVerified
     ? visitor.location
-    : { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null };
+    : visitor.ok ? { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null }
+      : { countryCode: null, city: null, region: null, regionCode: null };
 
   // Read-only health RPC: no synthetic events and no intentional SQL errors
   // are generated when the Super Admin opens the monitor.
@@ -160,15 +168,17 @@ Deno.serve(async (request) => {
       if (error || !health?.telemetry_writer_ready || !health?.event_table_ready) {
         const rpcMissing = error?.code === '42883' || error?.code === 'PGRST202' || /could not find the function|function .* does not exist/i.test(error?.message ?? '');
         const code = rpcMissing ? 'TELEMETRY_HEALTH_RPC_MISSING' : 'TELEMETRY_DATABASE_UNAVAILABLE';
-        return response({ ready: false, code, authenticated_login_writer_ready: Boolean(health?.authenticated_login_writer_ready), version: VERSION }, 503, origin, origins);
+        return response({ ready: false, code, authenticated_login_writer_ready: Boolean(health?.authenticated_login_writer_ready), attempt_email_column_ready: Boolean(health?.attempt_email_column_ready), version: VERSION }, 503, origin, origins);
       }
       return response({
         ready: true,
         database_rpc_ready: true,
         authenticated_login_writer_ready: Boolean(health?.authenticated_login_writer_ready && health?.actor_column_ready),
+        attempt_email_column_ready: Boolean(health?.attempt_email_column_ready),
         client_ip_available: Boolean(visitor.ip),
         geo_proxy_verified: visitor.proxyVerified,
         geo_source: visitor.source,
+        geo_provider: visitor.geoProvider || null,
         city_header_available: Boolean(location.city),
         region_header_available: Boolean(location.region),
         country_header_available: Boolean(location.countryCode),
@@ -194,7 +204,7 @@ Deno.serve(async (request) => {
   }
 
   const eventType = typeof body.event_type === 'string' ? body.event_type : '';
-  const ip = visitor.ip;
+  const ip = visitor.ok ? visitor.ip : null;
   const ipFingerprint = ip ? await hmacFingerprint(`ip:${ip}`, hmacSecret) : null;
 
   // A successful login must be tied to a real Supabase Auth identity. The
@@ -257,7 +267,7 @@ Deno.serve(async (request) => {
   const email = normalizeEmail(body.email);
   const identityFingerprint = email ? await hmacFingerprint(`identity:${email}`, hmacSecret) : null;
   const failureCode = typeof body.failure_code === 'string' && ALLOWED_FAILURE_CODES.has(body.failure_code)
-    ? body.failure_code : null;
+    ? body.failure_code : (!ip ? (visitor.code || 'trusted_ip_unavailable') : null);
 
   try {
     const { data, error } = await admin.rpc('hl_record_public_security_event_v4', {

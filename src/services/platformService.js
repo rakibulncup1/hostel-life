@@ -566,17 +566,46 @@ export async function platformAdminListSecurityIpBlocks({ scope = null, limit = 
   return firstRow(data) || data || { items: [], total_count: 0 };
 }
 
+export async function platformAdminGetSecurityAnalytics30d() {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_get_security_analytics_30d');
+  if (error) throw error;
+  return firstRow(data) || data || {};
+}
+
+export async function platformAdminAddSecurityIpBlock(ipAddress, scope, durationMinutes, reason) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_add_security_ip_block', {
+    p_ip_address: String(ipAddress || '').trim(), p_scope: scope,
+    p_duration_minutes: Number(durationMinutes), p_reason: String(reason || '').trim(),
+  });
+  if (error) throw error;
+  return firstRow(data) || data || {};
+}
+
+export async function platformAdminReleaseSecurityIpBlock(ipAddress, scope) {
+  assertSupabase();
+  const { data, error } = await supabase.rpc('platform_admin_release_security_ip_block', {
+    p_ip_address: String(ipAddress || '').trim(), p_scope: scope,
+  });
+  if (error) throw error;
+  return firstRow(data) || data || {};
+}
+
 export async function platformAdminCheckSecurityTelemetry() {
   assertSupabase();
-  const [telemetryResult, authGateResult] = await Promise.allSettled([
+  const [telemetryResult, authGateResult, signupOtpResult] = await Promise.allSettled([
     supabase.functions.invoke('record-auth-event', { method: 'GET' }),
     supabase.functions.invoke('auth-security-gate', { method: 'GET' }),
+    supabase.functions.invoke('request-signup-otp', { method: 'GET' }),
   ]);
   if (telemetryResult.status === 'rejected') throw telemetryResult.reason;
   if (telemetryResult.value.error) throw telemetryResult.value.error;
   const telemetry = telemetryResult.value.data || { ready: false, code: 'EMPTY_HEALTH_RESPONSE' };
   const authGate = authGateResult.status === 'fulfilled' && !authGateResult.value.error
     ? authGateResult.value.data : null;
+  const signupOtp = signupOtpResult.status === 'fulfilled' && !signupOtpResult.value.error
+    ? signupOtpResult.value.data : null;
   return {
     ...telemetry,
     auth_gate_ready: authGate?.ready === true && authGate?.protection_available === true,
@@ -585,6 +614,17 @@ export async function platformAdminCheckSecurityTelemetry() {
     auth_gate_geo_source: authGate?.geo_source || null,
     auth_gate_version: authGate?.version || null,
     auth_gate_code: authGate?.code || (authGateResult.status === 'rejected' ? 'AUTH_GATE_UNAVAILABLE' : null),
+    signup_otp_ready: signupOtp?.ready === true,
+    signup_otp_ip_available: signupOtp?.client_ip_available === true,
+    signup_otp_geo_proxy_verified: signupOtp?.geo_proxy_verified === true,
+    signup_otp_geo_provider: signupOtp?.geo_provider || null,
+    signup_otp_writer_ready: signupOtp?.otp_resend_writer_ready === true,
+    signup_otp_attempt_email_column_ready: signupOtp?.attempt_email_column_ready === true,
+    signup_otp_retention_job_active: signupOtp?.retention_job_active === true,
+    signup_otp_city_available: signupOtp?.city_header_available === true,
+    signup_otp_region_available: signupOtp?.region_header_available === true,
+    signup_otp_country_available: signupOtp?.country_header_available === true,
+    signup_otp_code: signupOtp?.code || (signupOtpResult.status === 'rejected' ? 'SIGNUP_OTP_HEALTH_UNAVAILABLE' : null),
   };
 }
 

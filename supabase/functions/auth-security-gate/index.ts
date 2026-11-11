@@ -85,6 +85,7 @@ Deno.serve(async (request) => {
       retry_at: data?.blocked_until || null,
       geo_proxy_verified: visitor.proxyVerified,
       geo_source: visitor.source,
+        geo_provider: visitor.geoProvider || null,
       city_header_available: Boolean(visitor.location.city),
       region_header_available: Boolean(visitor.location.region),
       country_header_available: Boolean(visitor.location.countryCode),

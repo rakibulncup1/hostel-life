@@ -10,6 +10,7 @@ const SECURITY_FUNCTION_PATHS = new Set([
   '/functions/v1/auth-security-gate',
   '/functions/v1/record-auth-event',
   '/functions/v1/request-password-reset',
+  '/functions/v1/request-signup-otp',
 ]);
 
 function normalizeWorkerOrigin(value) {
@@ -73,7 +74,7 @@ function createSecurityAwareFetch() {
       throw new TypeError('Hostel Life security proxy could not prepare the protected request.');
     }
 
-    // Route only the three Auth/Security Edge Functions through Cloudflare.
+    // Route all Auth/Security Edge Functions, including signup OTP resend, through Cloudflare.
     // Supabase Auth, PostgREST, Storage, Realtime, and all other Functions keep
     // using the original Supabase origin.
     const target = `${securityWorkerOrigin}${requestUrl.pathname}`;

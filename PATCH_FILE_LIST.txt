@@ -1,10 +1,21 @@
-Hostel Life/src/features/dining/DiningPage.jsx
-Hostel Life/src/features/auth/AuthPage.jsx
-Hostel Life/src/main.jsx
-Hostel Life/src/styles/dining-auth-polish-v44.css
-Hostel Life/tests/run44ManagerDiningAndAuthPolish.test.js
-Hostel Life/tests/run42MenuAndAuthUx.test.js
-Hostel Life/tests/run43FinanceAndAuthVisualRefinement.test.js
-Hostel Life/RUN44_MANAGER_DINING_AUTH_CHANGELOG_BN.md
-Hostel Life/PATCH_FILE_LIST.txt
-Hostel Life/README_RUN44_PATCH_BN.txt
+Hostel Life — Run61 Super Admin Security Review Center Patch
+
+src/features/platform/SuperAdminPage.jsx
+src/lib/supabase.js
+src/services/platformService.js
+src/styles/production-flow-finishing.css
+public/privacy-policy.html
+cloudflare/hostel-life-security-proxy/src/index.js
+supabase/config.toml
+supabase/functions/_shared/geoProxy.ts
+supabase/functions/auth-security-gate/index.ts
+supabase/functions/record-auth-event/index.ts
+supabase/functions/request-password-reset/index.ts
+supabase/functions/request-signup-otp/index.ts
+supabase/migrations/Run44_security_review_center_mfa_ip_controls.sql
+supabase/verify/Verify_Run44_security_review_center_readiness.sql
+tests/cloudflareGeoProxy.test.js
+tests/run39TargetedImprovements.test.js
+tests/securityGeoProxyWiring.test.js
+tests/superAdminSecurityReviewCenterMfa.test.js
+tests/superAdminGeoLocalhostDiagnostics.test.js

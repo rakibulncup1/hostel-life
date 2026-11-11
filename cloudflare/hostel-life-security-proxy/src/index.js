@@ -2,7 +2,7 @@ const ALLOWED_ROUTES = new Map([
   ['/functions/v1/auth-security-gate', new Set(['GET', 'POST'])],
   ['/functions/v1/record-auth-event', new Set(['GET', 'POST'])],
   ['/functions/v1/request-password-reset', new Set(['POST'])],
-  ['/functions/v1/request-signup-otp', new Set(['POST'])],
+  ['/functions/v1/request-signup-otp', new Set(['GET', 'POST'])],
 ]);
 const MAX_BODY_BYTES = 8192;
 const CORS_HEADERS = 'authorization, apikey, x-client-info, content-type';
@@ -82,6 +82,63 @@ async function sha256Hex(bytes) {
   return toHex(await crypto.subtle.digest('SHA-256', bytes));
 }
 
+
+function isPublicClientIp(ip) {
+  if (validIpv4(ip)) {
+    const [a,b,c,d] = ip.split('.').map(Number);
+    if (a===0 || a===10 || a===127 || a>=224 || (a===169 && b===254) || (a===172 && b>=16 && b<=31) || (a===192 && b===168) || (a===100 && b>=64 && b<=127) || (a===192 && b===0 && c===2) || (a===198 && (b===18 || b===19 || (b===51 && c===100))) || (a===203 && b===0 && c===113)) return false;
+    return true;
+  }
+  const lower = ip.toLowerCase();
+  return validIpv6(ip) && lower !== '::' && lower !== '::1' && !lower.startsWith('fc') && !lower.startsWith('fd') && !lower.startsWith('fe8') && !lower.startsWith('fe9') && !lower.startsWith('fea') && !lower.startsWith('feb') && !lower.startsWith('ff') && !lower.startsWith('2001:db8:');
+}
+
+async function lookupIpinfoGeo(ip, token) {
+  // IPinfo Lite's authenticated free tier supplies country-level Geo and basic
+  // ASN with no daily/monthly request cap. Cloudflare remains authoritative
+  // for city/region. Call IPinfo only when Cloudflare omitted country, cache
+  // the coarse result for at most 24h, and never persist third-party data in DB.
+  if (!isPublicClientIp(ip) || !String(token || '').trim()) return null;
+  const cache = globalThis.caches?.default || null;
+  const keyHash = await sha256Hex(new TextEncoder().encode(`ipinfo-lite-country-v1|${ip}`));
+  const cacheRequest = new Request(`https://hostel-life-geo-cache.invalid/ipinfo-lite/${keyHash}`);
+  if (cache) {
+    try {
+      const cached = await cache.match(cacheRequest);
+      if (cached) return await cached.json();
+    } catch { /* Cache is an optimization; never block Auth. */ }
+  }
+
+  try {
+    const endpoint = `https://api.ipinfo.io/lite/${encodeURIComponent(ip)}?token=${encodeURIComponent(String(token).trim())}`;
+    const response = await fetch(endpoint, {
+      headers: { Accept: 'application/json' },
+      cf: { cacheTtl: 0, cacheEverything: false },
+      signal: AbortSignal.timeout(1800),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const returnedIp = String(payload?.ip || '').trim();
+    if (!validClientIp(returnedIp) || returnedIp !== ip) return null;
+    const result = {
+      country: /^[A-Za-z]{2}$/.test(String(payload?.country_code || ''))
+        ? String(payload.country_code).toUpperCase() : '',
+    };
+    if (!result.country) return null;
+    if (cache) {
+      try {
+        await cache.put(cacheRequest, new Response(JSON.stringify(result), {
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
+        }));
+      } catch { /* Cache failures must not block Auth. */ }
+    }
+    return result;
+  } catch {
+    // A third-party outage or exhausted quota must never block authentication.
+    return null;
+  }
+}
+
 function canonicalPayload(input) {
   return JSON.stringify([
     'hostel-life-geo-v1',
@@ -96,6 +153,7 @@ function canonicalPayload(input) {
     input.city,
     input.region,
     input.regionCode,
+    input.geoProvider,
   ]);
 }
 
@@ -126,6 +184,8 @@ export const __test = {
   hmacHex,
   parseAllowedOrigins,
   validClientIp,
+  isPublicClientIp,
+  lookupIpinfoGeo,
 };
 
 export default {
@@ -179,9 +239,21 @@ export default {
     const cf = request.cf || {};
     const countryRaw = String(cf.country || '').trim().toUpperCase();
     const country = /^[A-Z]{2}$/.test(countryRaw) && countryRaw !== 'XX' ? countryRaw : '';
-    const city = encodeLocation(cf.city, 100);
-    const region = encodeLocation(cf.region, 100);
-    const regionCode = encodeLocation(cf.regionCode, 20);
+    let city = safeLocation(cf.city, 100);
+    let region = safeLocation(cf.region, 100);
+    let regionCode = safeLocation(cf.regionCode, 20);
+    let resolvedCountry = country;
+    let geoProvider = (resolvedCountry || city || region || regionCode) ? 'cloudflare' : 'unavailable';
+    if (!resolvedCountry && env.IPINFO_TOKEN) {
+      const fallback = await lookupIpinfoGeo(clientIp, env.IPINFO_TOKEN);
+      if (fallback?.country) {
+        resolvedCountry = fallback.country;
+        geoProvider = (city || region || regionCode) ? 'cloudflare+ipinfo' : 'ipinfo';
+      }
+    }
+    const encodedCity = encodeLocation(city, 100);
+    const encodedRegion = encodeLocation(region, 100);
+    const encodedRegionCode = encodeLocation(regionCode, 20);
     const timestamp = String(Date.now());
     const nonce = crypto.randomUUID();
     const bodyHash = await sha256Hex(bodyBytes);
@@ -194,10 +266,11 @@ export default {
       origin: normalizedOrigin,
       bodyHash,
       ip: clientIp,
-      country,
-      city,
-      region,
-      regionCode,
+      country: resolvedCountry,
+      city: encodedCity,
+      region: encodedRegion,
+      regionCode: encodedRegionCode,
+      geoProvider,
     };
     const signature = await hmacHex(hmacSecret, canonicalPayload(signed));
 
@@ -214,10 +287,11 @@ export default {
     headers.set('x-hostel-geo-timestamp', timestamp);
     headers.set('x-hostel-geo-nonce', nonce);
     headers.set('x-hostel-geo-ip', clientIp);
-    headers.set('x-hostel-geo-country', country);
-    headers.set('x-hostel-geo-city', city);
-    headers.set('x-hostel-geo-region', region);
-    headers.set('x-hostel-geo-region-code', regionCode);
+    headers.set('x-hostel-geo-country', resolvedCountry);
+    headers.set('x-hostel-geo-city', encodedCity);
+    headers.set('x-hostel-geo-region', encodedRegion);
+    headers.set('x-hostel-geo-region-code', encodedRegionCode);
+    headers.set('x-hostel-geo-provider', geoProvider);
     headers.set('x-hostel-geo-body-sha256', bodyHash);
     headers.set('x-hostel-geo-signature', signature);
 
