@@ -5,7 +5,7 @@ import { ArchiveCorrectionPage } from '../features/archive/ArchiveCorrectionPage
 import { DiningPage } from '../features/dining/DiningPage';
 import { HistoryPage } from '../features/history/HistoryPage';
 import { ProfilePage } from '../features/profile/ProfilePage';
-import { AllMembersPage, KhalaMoneyViewPage, TopDepositorsPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage } from '../features/menu/MenuPages';
+import { AllMembersPage, KhalaMoneyViewPage, TopDepositorsPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage, PreviousMonthsPage } from '../features/menu/MenuPages';
 import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, JoinRequestReviewPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
 import { AuthPage } from '../features/auth/AuthPage';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange';
@@ -22,7 +22,6 @@ import { THEME_KEY, THEME_VALUES, applyPlatformDefaultTheme } from './theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { useAuth } from '../contexts/AuthContext';
-import { APP_BACKGROUND_EXIT_KEY, resolveLaunchPath } from './appLaunchPolicy';
 
 const SUPER_ADMIN_RETURN_KEY = 'hostel-life-super-admin-return-v1';
 const SUPER_ADMIN_RETURN_TTL_MS = 10 * 60 * 1000;
@@ -35,21 +34,6 @@ function getPath() {
     return `/invite/${window.location.hash.slice(1)}`;
   }
   return pathname;
-}
-
-
-function getInitialPath() {
-  const currentPath = getPath();
-  let markerPresent = false;
-  try {
-    markerPresent = Boolean(window.localStorage.getItem(APP_BACKGROUND_EXIT_KEY));
-    if (markerPresent) window.localStorage.removeItem(APP_BACKGROUND_EXIT_KEY);
-  } catch { /* Restricted storage should not prevent the app from opening. */ }
-  const launchPath = resolveLaunchPath(currentPath, markerPresent);
-  if (launchPath !== currentPath) {
-    try { window.history.replaceState({}, '', '/app/dashboard'); } catch { /* Router state still falls back to dashboard. */ }
-  }
-  return launchPath;
 }
 
 function resolveAppPage(pathname, isManager) {
@@ -68,11 +52,11 @@ function resolveAppPage(pathname, isManager) {
   if (pathname === '/app/menu/app-download') return <AppDownloadPage />;
   if (pathname === '/app/menu/telegram') return <TelegramConnectionPage />;
   if (pathname === '/app/menu/send-notification') return <SendNotificationPage />;
-  if (pathname === '/app/menu/archive') return <ArchiveCorrectionPage />;
+  if (pathname === '/app/menu/archive') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/reports') return <ReportsPage />;
   if (pathname === '/app/menu/meal-sheet') return <MealSheetPage />;
   // Legacy deep links now resolve to the single Archive entry.
-  if (pathname === '/app/menu/archive-edit-access') return <ArchiveCorrectionPage />;
+  if (pathname === '/app/menu/archive-edit-access') return isManager ? <ArchiveCorrectionPage /> : <PreviousMonthsPage />;
   if (pathname === '/app/menu/current-month-close') return <CloseCurrentMonthPage />;
   if (pathname === '/app/menu/new-month') return <NewMonthPage />;
   if (pathname === '/app/menu/change-manager') return <ChangeManagerPage />;
@@ -85,7 +69,7 @@ function resolveAppPage(pathname, isManager) {
 }
 
 export function App() {
-  const [pathname, setPathname] = useState(getInitialPath);
+  const [pathname, setPathname] = useState(getPath);
   const [publicSettings, setPublicSettings] = useState(null);
   const auth = useAuth();
 
@@ -114,32 +98,6 @@ export function App() {
   }, []);
 
   const withPublicCommunications = (content) => <>{content}<PlatformCommunicationOverlays communications={publicSettings?.communications} /></>;
-
-
-  // A live app returning from background keeps its current React state. If the
-  // browser/PWA process is killed while hidden, the marker makes the next cold
-  // launch start at Dashboard instead of restoring a stale sub-page.
-  useEffect(() => {
-    if (!auth.isAuthenticated || !auth.user?.id || !pathname.startsWith('/app/')) return undefined;
-    const markBackground = () => {
-      if (document.visibilityState !== 'hidden') return;
-      try {
-        window.localStorage.setItem(APP_BACKGROUND_EXIT_KEY, JSON.stringify({ userId: auth.user.id, markedAt: Date.now() }));
-      } catch { /* Storage is optional; a live resumed app still retains its state. */ }
-    };
-    const clearForLiveReturn = () => {
-      if (document.visibilityState !== 'visible') return;
-      try { window.localStorage.removeItem(APP_BACKGROUND_EXIT_KEY); } catch { /* Ignore storage restrictions. */ }
-    };
-    document.addEventListener('visibilitychange', markBackground);
-    document.addEventListener('visibilitychange', clearForLiveReturn);
-    window.addEventListener('pagehide', markBackground);
-    return () => {
-      document.removeEventListener('visibilitychange', markBackground);
-      document.removeEventListener('visibilitychange', clearForLiveReturn);
-      window.removeEventListener('pagehide', markBackground);
-    };
-  }, [pathname, auth.isAuthenticated, auth.user?.id]);
 
   useEffect(() => {
     // The install guide contains no member data and is intentionally public.
@@ -252,10 +210,10 @@ export function App() {
     else if (pathname.includes('/menu/app-download')) title = 'Hostel Life — অ্যাপ ডাউনলোড';
     else if (pathname.includes('/menu/telegram')) title = 'Hostel Life — টেলিগ্রাম সংযোগ';
     else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
-    else if (pathname.includes('/menu/archive')) title = 'Hostel Life — বন্ধ মাসসমূহ';
+    else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
     else if (pathname.includes('/menu/meal-sheet')) title = 'Hostel Life — মিল শিট';
-    else if (pathname.includes('/menu/archive-edit-access')) title = 'Hostel Life — বন্ধ মাসসমূহ';
+    else if (pathname.includes('/menu/archive-edit-access')) title = 'Hostel Life — আর্কাইভ';
     else if (pathname.includes('/menu/current-month-close')) title = 'Hostel Life — বর্তমান মাস শেষ করুন';
     else if (pathname.includes('/menu/new-month')) title = 'Hostel Life — নতুন মাস';
     else if (pathname.includes('/menu/change-manager')) title = 'Hostel Life — ম্যানেজার পরিবর্তন';
@@ -289,15 +247,21 @@ export function App() {
   }
 
   if (auth.authLoading) return withPublicCommunications(<LoadingSpinner label="সেশন যাচাই হচ্ছে..." />);
+  if (!auth.isAuthenticated) return withPublicCommunications(<AuthPage pathname="/auth/login" />);
+
+  // Keep SuperAdminPage mounted while Supabase emits MFA_CHALLENGE_VERIFIED.
+  // AuthContext refreshes the same user's identity after the AAL1 -> AAL2
+  // session upgrade; the general identityReady spinner must not unmount the
+  // local password/TOTP step-up state or it will fall back to the password gate.
+  // SuperAdminPage performs its own direct role/block check and its database
+  // admin RPCs remain protected by the server-side AAL2 guard.
+  if (pathname === '/super-admin') return withPublicCommunications(<SuperAdminPage user={auth.user} />);
+
   if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.identityReady) return withPublicCommunications(<LoadingSpinner label="অ্যাকাউন্ট ও মেসের সংযোগ যাচাই হচ্ছে..." />);
 
   if (pathname.startsWith('/invite/')) {
     return withPublicCommunications(<HostelInvitePage pathname={pathname} />);
   }
-
-  if (!auth.isAuthenticated) return withPublicCommunications(<AuthPage pathname="/auth/login" />);
-
-  if (pathname === '/super-admin') return withPublicCommunications(<SuperAdminPage user={auth.user} />);
 
   if (!auth.identityReady || auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="আপনার মেসের তথ্য লোড হচ্ছে..." />);
 
