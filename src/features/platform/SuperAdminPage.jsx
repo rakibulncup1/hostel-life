@@ -196,6 +196,8 @@ const ACTIVITY_EVENT_LABELS = {
   'membership.insert': 'সদস্য যুক্ত হয়েছে', 'membership.update': 'সদস্যপদ পরিবর্তন', 'membership.delete': 'সদস্যপদ মুছে ফেলা',
   'period.insert': 'নতুন মাস তৈরি', 'period.update': 'মাসের সেটিংস পরিবর্তন', 'period.delete': 'মাস মুছে ফেলা',
   'meal_day.insert': 'মিলের দিন তৈরি', 'meal_day.update': 'মিলের দিনের অবস্থা পরিবর্তন', 'meal_day.delete': 'মিলের দিন মুছে ফেলা',
+  'meal_day.auto_finalized': 'মিলের দিনগুলো স্বয়ংক্রিয়ভাবে চূড়ান্ত',
+  'meal_day.period_closed': 'মাস বন্ধের সময় মিলের দিনগুলোর হিসাব চূড়ান্ত',
   'meal_record.insert': 'মিল রেকর্ড তৈরি', 'meal_record.update': 'মিল রেকর্ড পরিবর্তন', 'meal_record.delete': 'মিল রেকর্ড মুছে ফেলা',
   'meal_request.insert': 'মিল অনুরোধ তৈরি', 'meal_request.update': 'মিল অনুরোধ পর্যালোচনা/পরিবর্তন', 'meal_request.delete': 'মিল অনুরোধ মুছে ফেলা',
   'market_entry.insert': 'বাজার এন্ট্রি তৈরি', 'market_entry.update': 'বাজার এন্ট্রি পরিবর্তন', 'market_entry.delete': 'বাজার এন্ট্রি মুছে ফেলা',
@@ -2222,16 +2224,17 @@ export function SuperAdminPage({ user }) {
             <div className="platform-security-email"><Icon name="mail" size={14}/><span>চেষ্টা করা ইমেইল: <strong>{row.attempt_email || 'এই পুরোনো Event-এ সংরক্ষিত নেই'}</strong></span></div>
             {(row.matched_profile_name || row.matched_phone || (Array.isArray(row.matched_memberships) && row.matched_memberships.length > 0)) && <div className="platform-security-match"><strong>সংশ্লিষ্ট অ্যাকাউন্টের তথ্য</strong>{row.matched_profile_name && <span>নাম: {row.matched_profile_name}</span>}{row.matched_phone && <span>ফোন: {row.matched_phone}</span>}{Array.isArray(row.matched_memberships) && row.matched_memberships.map((membership,index)=><span key={`${membership.hostel_name}:${index}`}>মেস: {membership.hostel_name} · ভূমিকা: {membership.role} · অবস্থা: {membership.status}</span>)}</div>}
             <div className="platform-security-ip"><Icon name="globe" size={14}/> IP: <strong>{row.ip_address || 'IP পাওয়া যায়নি'}</strong></div>
-            {(row.ip_attempts_15m>0 || row.identity_attempts_15m>0) && <small className="platform-security-agent">শেষ ১৫ মিনিটে একই IP: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')} · একই পরিচয়: {Number(row.identity_attempts_15m||0).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}
-            {Number(row.ip_attempts_1m||0)>0 && <small className="platform-security-agent">শেষ ১ মিনিটে একই IP: {Number(row.ip_attempts_1m).toLocaleString('bn-BD')}টি ব্যর্থ Login/Registration</small>}
+            {row.ip_address && <small className="platform-security-agent">একই IP-তে ব্যর্থ Login/Registration · সর্বশেষ ৬০ সেকেন্ডে: {Number(row.ip_attempts_1m||0).toLocaleString('bn-BD')} · সর্বশেষ ১৫ মিনিটে: {Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')}</small>}
+            {Number(row.identity_attempts_15m||0)>0 && <small className="platform-security-agent">একই পরিচয়-রেফারেন্সে সর্বশেষ ১৫ মিনিটে: {Number(row.identity_attempts_15m).toLocaleString('bn-BD')}টি ব্যর্থ প্রচেষ্টা</small>}
             {row.active_block_until && <span className="platform-security-risk risk-high">সক্রিয় Block · শেষ {formatPlatformDate(row.active_block_until)}</span>}
             <details className="platform-security-event-details"><summary>Event-এর বিস্তারিত দেখুন</summary><div className="platform-security-event-details-grid">
               <div><span>ঘটনার সময়</span><strong>{formatPlatformDate(row.created_at)}</strong></div>
               <div><span>চেষ্টা করা ইমেইল</span><strong>{row.attempt_email || 'সংরক্ষিত নেই'}</strong></div>
               <div><span>ম্যাচ হওয়া অ্যাকাউন্ট</span><strong>{row.matched_profile_name || (row.matched_user_id ? `User …${String(row.matched_user_id).slice(-8)}` : 'পাওয়া যায়নি')}</strong></div>
               <div><span>Request Origin:</span><strong>{row.request_origin || 'পাওয়া যায়নি'}</strong></div>
-              <div><span>IP Attempts · ১ মিনিট</span><strong>{Number(row.ip_attempts_1m||0).toLocaleString('bn-BD')}</strong></div>
-              <div><span>IP Attempts · ১৫ মিনিট</span><strong>{Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')}</strong></div>
+              <div><span>একই IP · সর্বশেষ ৬০ সেকেন্ড</span><strong>{Number(row.ip_attempts_1m||0).toLocaleString('bn-BD')}</strong></div>
+              <div><span>একই IP · সর্বশেষ ১৫ মিনিট</span><strong>{Number(row.ip_attempts_15m||0).toLocaleString('bn-BD')}</strong></div>
+              <small className="platform-security-count-note">৬০ সেকেন্ডের হিসাবটি সর্বশেষ এক মিনিটের চলমান গণনা; এটি ১৫ মিনিটের মোট সংখ্যার একটি অংশ।</small>
               <div className="platform-security-event-agent"><span>Browser / User-Agent</span><strong>{row.user_agent || 'পাওয়া যায়নি'}</strong></div>
             </div></details>
           </article>;

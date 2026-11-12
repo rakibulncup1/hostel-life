@@ -305,3 +305,37 @@
     font-size: 7px;
   }
 }
+
+
+/* Desktop-only alignment: keep the reveal control inside the email field. */
+@media (min-width: 621px) {
+  .platform-page.platform-auth-gate-page .platform-reauth-email-field {
+    position: relative !important;
+    display: block !important;
+    width: 100%;
+    min-width: 0;
+  }
+  .platform-page.platform-auth-gate-page .platform-reauth-email-field > input {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding-right: 54px !important;
+  }
+  .platform-page.platform-auth-gate-page .platform-reauth-email-field > .platform-reauth-email-toggle {
+    position: absolute !important;
+    top: 50% !important;
+    right: 6px !important;
+    left: auto !important;
+    z-index: 2;
+    transform: translateY(-50%) !important;
+    margin: 0;
+  }
+}
+
+.platform-page .platform-security-count-note {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
