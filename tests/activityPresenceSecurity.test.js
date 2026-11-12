@@ -211,7 +211,8 @@ test('Presence heartbeat resumes immediately after a prolonged idle period', () 
 });
 
 test('Security event retention notice explains Run35 interim and Run37 scheduled cleanup', () => {
-  assert.match(adminPage, /Run37 সফলভাবে প্রয়োগ হলে দৈনিক Cron/);
+  assert.match(adminPage, /৩০ দিনের দৈনিক Cleanup সক্রিয়/);
+  assert.match(adminPage, /Retention Cron যাচাই প্রয়োজন/);
   assert.match(retentionMigration, /DELETE FROM private\.hl_security_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
   assert.match(retentionMigration, /DELETE FROM private\.hl_activity_events WHERE created_at<pg_catalog\.now\(\)-interval '30 days'/);
 });

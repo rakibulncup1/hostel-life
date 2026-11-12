@@ -25,27 +25,25 @@ const page = read('src/features/platform/SuperAdminPage.jsx');
   assert.match(migration, /Run35 security columns are missing/);
 });
 
-test('Run39 event writer preserves Run36 bounded geo handling and adds attempted-email storage', () => {
+test('Run39 security event writer retains schema compatibility but new telemetry stores no geo values', () => {
   assert.match(migration, /p_event_type IS NULL OR p_event_type NOT IN/);
   assert.match(migration, /hl_security_events\(\s*event_type,ip_address,ip_fingerprint,identity_fingerprint,[\s\S]*?country_code,city,region,region_code/);
   assert.match(migration, /city text/);
   assert.match(telemetry, /hl_record_public_security_event_v5/);
   assert.match(targetedMigration, /hl_record_public_security_event_v4/);
   assert.match(telemetry, /resolveTrustedVisitor/);
-  assert.match(worker, /request\.cf/);
-  assert.match(worker, /cf\.city/);
-  assert.match(worker, /cf\.region/);
-  assert.match(worker, /cf\.regionCode/);
+  assert.doesNotMatch(worker, /request\.cf|cf\.city|cf\.region|cf\.regionCode/);
   assert.match(geoProxy, /HMAC/);
-  assert.match(geoProxy, /display-only/);
+  assert.match(geoProxy, /location: EMPTY_LOCATION/);
+  assert.match(telemetry, /const location = \{ countryCode: null, city: null, region: null, regionCode: null \}/);
 });
 
-test('Password reset Edge Function sends optional display-only location fields to new limiter and event writer', () => {
+test('Password reset keeps its IP limiter but explicitly sends NULL location fields', () => {
   assert.match(reset, /hl_consume_password_reset_ip_request_v3/);
   assert.match(reset, /hl_record_public_security_event_v4/);
+  assert.match(reset, /const location = \{ countryCode: null, city: null, region: null, regionCode: null \}/);
   assert.match(reset, /p_city: location\.city/);
   assert.match(reset, /p_region: location\.region/);
-  assert.match(reset, /visitor\.proxyVerified[\s\S]*?city: null, region: null/);
   assert.match(geoProxy, /proxyVerified: false/);
 });
 
@@ -57,26 +55,46 @@ test('Geo-aware SQL writer and reset limiter remain service-role-only', () => {
   assert.match(verify, /Reset IP limiter service_role only/);
 });
 
-test('Super Admin uses geo-aware event RPC and exposes city, region and request origin', () => {
+test('Super Admin security responses strip legacy location fields and Logs Explorer scans are time-bounded', () => {
+  assert.match(service, /function stripSecurityLocationFields/);
+  assert.match(service, /function stripSecurityListLocationFields/);
+  assert.match(service, /function stripSecurityAnalyticsLocationFields/);
+  assert.match(service, /return stripSecurityListLocationFields\(data\)/);
+  assert.match(service, /return stripSecurityAnalyticsLocationFields\(data\)/);
+  const v4 = service.slice(service.indexOf('export async function platformAdminListSecurityEventsV4'), service.indexOf('// Retain the old export'));
+  assert.match(v4, /p_country_code: null/);
+  assert.match(v4, /p_location_search: null/);
+  for (const file of [
+    'supabase/diagnostics/LogsExplorer_1h_source_summary.sql',
+    'supabase/diagnostics/LogsExplorer_1h_gateway_requests.sql',
+    'supabase/diagnostics/LogsExplorer_1h_postgres_signals.sql',
+  ]) {
+    const diagnostic = read(file);
+    assert.match(diagnostic, /INTERVAL 1 HOUR/);
+    assert.doesNotMatch(diagnostic, /INTERVAL 24 HOUR/);
+  }
+  const guide = read('supabase/diagnostics/Logs_Query_Usage_Guide_BN.md');
+  assert.match(guide, /Logs Query/);
+  assert.match(guide, /Logs Ingest/);
+  assert.match(guide, /স্বয়ংক্রিয়ভাবে চলে না/);
+});
+
+test('Super Admin keeps security event RPC and removes all geo display/filter elements', () => {
   assert.match(service, /platform_admin_list_security_events_v4/);
   assert.match(service, /p_location_search: locationSearch/);
   assert.match(page, /platformAdminListSecurityEventsV4/);
-  assert.match(page, /City \/ Region/);
-  assert.match(page, /top_locations/);
+  assert.match(page, /IP দিয়ে খুঁজুন/);
+  assert.doesNotMatch(page, /Country Code|City \/ Region|top_locations|country_code/);
   assert.match(page, /top_origins/);
   assert.match(read('src/styles/ui-refresh.css'), /platform-monitor-country-list/);
   assert.match(page, /Request Origin:/);
-  assert.match(page, /Direct Supabase path/);
-  assert.match(page, /লোকেশন তথ্য অনুপস্থিত বা unverified হতে পারে/);
+  assert.match(page, /লোকেশন সংগ্রহ/);
+  assert.match(page, /বন্ধ/);
 });
 
-test('Security health reports if upstream Cloudflare city and region headers are absent', () => {
-  assert.match(telemetry, /city_header_available: Boolean\(location\.city\)/);
-  assert.match(telemetry, /region_header_available: Boolean\(location\.region\)/);
-  assert.match(page, /securityTelemetryStatus\.city_header_available/);
-  assert.match(page, /securityTelemetryStatus\.region_header_available/);
-  assert.match(page, /Cloudflare Worker একটি ঐচ্ছিক Geo layer/);
-  assert.match(page, /Direct Supabase path · Worker ঐচ্ছিক/);
+test('Security health explicitly reports that location collection is disabled', () => {
+  assert.match(telemetry, /location_collection_enabled: false/);
+  assert.match(page, /লোকেশন সংগ্রহ: <strong>বন্ধ<\/strong>/);
 });
 
 test('Local Super Admin denial explains project, blocked-profile, and role causes', () => {

@@ -30,7 +30,7 @@ function normalizeWorkerOrigin(value) {
 }
 
 const securityWorkerOrigin = normalizeWorkerOrigin(workerUrlValue);
-// Cloudflare is an optional signed Geo/edge layer. Supabase's own ingress remains
+// Cloudflare is an optional signed IP-security proxy. Supabase ingress remains
 // the direct fallback so a Worker outage can never prevent login or OTP delivery.
 export const securityGeoProxyEnabled = Boolean(securityWorkerOrigin);
 

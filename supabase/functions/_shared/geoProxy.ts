@@ -1,8 +1,8 @@
 /**
  * Verify visitor metadata signed by the Hostel Life Cloudflare Worker.
- * Direct-to-Supabase requests continue to use the Cloudflare ingress IP.
- * Geo labels on the direct path remain display-only and are not trusted for
- * security decisions. A request marked as proxied must carry a valid HMAC.
+ * Direct-to-Supabase and signed Worker requests use trusted IP only.
+ * Location metadata is intentionally discarded and never returned to writers.
+ * A request marked as proxied must still carry a valid HMAC and single-use nonce.
  */
 export type VisitorLocation = {
   countryCode: string | null;
@@ -70,15 +70,6 @@ function clean(value: string | null, maxLength: number): string | null {
   if (!value) return null;
   const cleaned = value.replace(/[\u0000-\u001f\u007f]/g, '').trim();
   return cleaned ? cleaned.slice(0, maxLength) : null;
-}
-
-function decodeLocation(value: string | null, maxLength: number): string | null {
-  if (!value) return null;
-  try {
-    return clean(decodeURIComponent(value), maxLength);
-  } catch {
-    return null;
-  }
 }
 
 function hexToBytes(value: string): Uint8Array | null {
@@ -193,15 +184,10 @@ async function verifyProxyRequest(request: Request, expectedRoute: string, consu
   return {
     ok: true,
     ip,
-    location: {
-      countryCode: country || null,
-      city: decodeLocation(city, 100),
-      region: decodeLocation(region, 100),
-      regionCode: decodeLocation(regionCode, 20),
-    },
+    location: EMPTY_LOCATION,
     proxyVerified: true,
     source: 'cloudflare-worker',
-    geoProvider,
+    geoProvider: 'unavailable',
   };
 }
 
@@ -221,20 +207,13 @@ export async function resolveTrustedVisitor(
     return await verifyProxyRequest(request, expectedRoute, consumeNonce);
   }
 
-  // Direct-to-Supabase is the supported baseline; an optional Worker outage
-  // can never lock users out of Authentication.
-  // City/Region are omitted on this path; only ingress-provided IP/Country are used.
+  // Direct-to-Supabase remains available if the optional Worker is offline.
+  // Country/city/region headers are deliberately not read or persisted.
   const ip = validIp(request.headers.get('cf-connecting-ip'));
-  const countryHeader = request.headers.get('cf-ipcountry')?.trim().toUpperCase() ?? '';
   return {
     ok: Boolean(ip),
     ip,
-    location: {
-      countryCode: /^[A-Z]{2}$/.test(countryHeader) && countryHeader !== 'XX' ? countryHeader : null,
-      city: null,
-      region: null,
-      regionCode: null,
-    },
+    location: EMPTY_LOCATION,
     proxyVerified: false,
     source: ip ? 'supabase-edge' : 'unavailable',
     geoProvider: null,

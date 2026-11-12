@@ -15,6 +15,34 @@ function firstRow(data) {
   return Array.isArray(data) ? data[0] ?? null : data ?? null;
 }
 
+function stripSecurityLocationFields(item) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+  const safeItem = { ...item };
+  for (const key of ['country_code', 'city', 'region', 'region_code', 'geo_provider', 'geo_source']) {
+    delete safeItem[key];
+  }
+  return safeItem;
+}
+
+function stripSecurityListLocationFields(data) {
+  const result = firstRow(data) || data || { items: [], total_count: 0 };
+  if (!result || typeof result !== 'object' || !Array.isArray(result.items)) return result;
+  return { ...result, items: result.items.map(stripSecurityLocationFields) };
+}
+
+function stripSecurityAnalyticsLocationFields(data) {
+  const result = firstRow(data) || data || {};
+  if (!result || typeof result !== 'object') return {};
+  const safeResult = { ...result };
+  for (const key of [
+    'events_with_country_30d', 'events_with_city_region_30d', 'events_without_geo_30d',
+    'top_countries_30d', 'top_locations_30d', 'top_ips_30d',
+  ]) {
+    delete safeResult[key];
+  }
+  return safeResult;
+}
+
 export async function fetchPlatformPublicSettings({ force = false } = {}) {
   assertSupabase();
   if (!force && publicSettingsCache && Date.now() - publicSettingsCachedAt < PUBLIC_SETTINGS_TTL_MS) {
@@ -537,20 +565,20 @@ export async function platformAdminListSecurityEventsV3({ eventType = null, ipSe
 }
 
 // V3 remains available for existing callers; the Super Admin monitor uses the email-enriched V4 reader.
-export async function platformAdminListSecurityEventsV4({ eventType = null, ipSearch = null, countryCode = null, locationSearch = null, from = null, to = null, limit = 30, offset = 0 } = {}) {
+export async function platformAdminListSecurityEventsV4({ eventType = null, ipSearch = null, from = null, to = null, limit = 30, offset = 0 } = {}) {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_list_security_events_v4', {
     p_event_type: eventType || null,
     p_ip_search: ipSearch || null,
-    p_country_code: countryCode || null,
-    p_location_search: locationSearch || null,
+    p_country_code: null,
+    p_location_search: null,
     p_from: from || null,
     p_to: to || null,
     p_limit: Number(limit) || 30,
     p_offset: Number(offset) || 0,
   });
   if (error) throw error;
-  return firstRow(data) || data || { items: [], total_count: 0 };
+  return stripSecurityListLocationFields(data);
 }
 
 
@@ -563,14 +591,14 @@ export async function platformAdminListSecurityIpBlocks({ scope = null, limit = 
     p_scope: scope || null, p_limit: Number(limit) || 30, p_offset: Number(offset) || 0,
   });
   if (error) throw error;
-  return firstRow(data) || data || { items: [], total_count: 0 };
+  return stripSecurityListLocationFields(data);
 }
 
 export async function platformAdminGetSecurityAnalytics30d() {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_get_security_analytics_30d');
   if (error) throw error;
-  return firstRow(data) || data || {};
+  return stripSecurityAnalyticsLocationFields(data);
 }
 
 export async function platformAdminAddSecurityIpBlock(ipAddress, scope, durationMinutes, reason) {

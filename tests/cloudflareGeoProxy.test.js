@@ -54,7 +54,7 @@ test('Worker refuses arbitrary paths, origins, and request methods', async () =>
   assert.equal((await worker.fetch(wrongMethod, env)).status, 405);
 });
 
-test('Worker signs Cloudflare IP and location metadata, overriding all browser-supplied geo headers', async () => {
+test('Worker signs only trusted IP, ignores browser geo headers and never reads Cloudflare location metadata', async () => {
   const originalFetch = globalThis.fetch;
   let captured = null;
   globalThis.fetch = async (input, init) => {
@@ -87,9 +87,11 @@ test('Worker signs Cloudflare IP and location metadata, overriding all browser-s
     assert.equal(captured.headers.get('x-hostel-geo-proxy'), 'v1');
     assert.equal(captured.headers.get('x-hostel-geo-route'), 'record-auth-event');
     assert.equal(captured.headers.get('x-hostel-geo-ip'), '198.51.100.25');
-    assert.equal(captured.headers.get('x-hostel-geo-country'), 'BD');
-    assert.equal(decodeURIComponent(captured.headers.get('x-hostel-geo-city')), 'Dhaka');
-    assert.equal(decodeURIComponent(captured.headers.get('x-hostel-geo-region')), 'Dhaka Division');
+    assert.equal(captured.headers.get('x-hostel-geo-country'), '');
+    assert.equal(captured.headers.get('x-hostel-geo-city'), '');
+    assert.equal(captured.headers.get('x-hostel-geo-region'), '');
+    assert.equal(captured.headers.get('x-hostel-geo-region-code'), '');
+    assert.equal(captured.headers.get('x-hostel-geo-provider'), 'unavailable');
     assert.equal(captured.headers.get('x-hostel-geo-ip'), '198.51.100.25');
     assert.equal(captured.headers.has('cf-connecting-ip'), false);
 
@@ -104,11 +106,11 @@ test('Worker signs Cloudflare IP and location metadata, overriding all browser-s
       origin: 'https://hostellife-bd.vercel.app',
       bodyHash,
       ip: '198.51.100.25',
-      country: 'BD',
-      city: encodeURIComponent('Dhaka'),
-      region: encodeURIComponent('Dhaka Division'),
-      regionCode: encodeURIComponent('BD-C'),
-      geoProvider: 'cloudflare',
+      country: '',
+      city: '',
+      region: '',
+      regionCode: '',
+      geoProvider: 'unavailable',
     };
     const canonical = __test.canonicalPayload(signed);
     const expected = await __test.hmacHex(env.HOSTEL_GEO_PROXY_HMAC_SECRET, canonical);
@@ -137,7 +139,7 @@ test('Worker accepts only the four intended Auth/Security Function routes', () =
 });
 
 
-test('Worker does not call a third-party geolocation provider when Cloudflare country is absent', async () => {
+test('Worker never forwards Cloudflare country, city or region even when edge metadata exists', async () => {
   const originalFetch = globalThis.fetch;
   let upstreamRequest = null;
   globalThis.fetch = async (input, init) => {
@@ -152,8 +154,10 @@ test('Worker does not call a third-party geolocation provider when Cloudflare co
     assert.equal(response.status, 200);
     assert.ok(upstreamRequest);
     assert.equal(upstreamRequest.headers.get('x-hostel-geo-country'), '');
-    assert.equal(decodeURIComponent(upstreamRequest.headers.get('x-hostel-geo-city')), 'Dhaka');
-    assert.equal(upstreamRequest.headers.get('x-hostel-geo-provider'), 'cloudflare');
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-city'), '');
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-region'), '');
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-region-code'), '');
+    assert.equal(upstreamRequest.headers.get('x-hostel-geo-provider'), 'unavailable');
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -166,7 +170,8 @@ test('Worker root and /health return non-sensitive JSON without requiring a cust
     const body = await response.json();
     assert.equal(body.ok, true);
     assert.equal(body.service, 'hostel-life-security-proxy');
-    assert.equal(body.mode, 'optional-signed-proxy');
+    assert.equal(body.mode, 'optional-signed-ip-proxy');
+    assert.equal(body.location_collection_enabled, false);
     assert.equal('secret' in body, false);
   }
 });

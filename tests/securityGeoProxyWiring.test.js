@@ -17,7 +17,7 @@ test('Supabase client routes only the four intended security Functions when Work
   assert.match(source, /requestUrl\.origin === supabaseOrigin && SECURITY_FUNCTION_PATHS\.has\(requestUrl\.pathname\)/);
   assert.match(source, /SECURITY_FUNCTION_PATHS\.has\(requestUrl\.pathname\)/);
   assert.match(source, /securityGeoProxyEnabled = Boolean\(securityWorkerOrigin\)/, 'only a valid optional Worker origin is enabled');
-  assert.match(source, /optional signed Geo\/edge layer/);
+  assert.match(source, /optional signed IP-security proxy/);
   assert.match(source, /requestUrl\.href, request\.clone\(\)/, 'proxy failures can retry through direct Supabase ingress');
 });
 

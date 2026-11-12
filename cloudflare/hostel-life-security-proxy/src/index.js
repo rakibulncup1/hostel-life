@@ -65,15 +65,6 @@ function validClientIp(value) {
   return ip && ip.length <= 45 && (validIpv4(ip) || validIpv6(ip)) ? ip : '';
 }
 
-function safeLocation(value, maxLength) {
-  if (typeof value !== 'string') return '';
-  return value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, maxLength);
-}
-
-function encodeLocation(value, maxLength) {
-  return encodeURIComponent(safeLocation(value, maxLength));
-}
-
 function toHex(bytes) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
@@ -143,8 +134,9 @@ export default {
       return json({
         ok: true,
         service: 'hostel-life-security-proxy',
-        version: 'run45-optional-geo-proxy',
-        mode: 'optional-signed-proxy',
+        version: 'run45-ip-only-proxy',
+        mode: 'optional-signed-ip-proxy',
+        location_collection_enabled: false,
         upstream_configured: Boolean(getUpstreamOrigin(env.SUPABASE_FUNCTIONS_ORIGIN)),
         allowed_routes: [...ALLOWED_ROUTES.keys()],
       }, 200, healthOrigin);
@@ -191,19 +183,14 @@ export default {
       if (bodyBytes.byteLength > MAX_BODY_BYTES) return json({ code: 'REQUEST_TOO_LARGE' }, 413, origin);
     }
 
-    const cf = request.cf || {};
-    const countryRaw = String(cf.country || '').trim().toUpperCase();
-    const country = /^[A-Z]{2}$/.test(countryRaw) && countryRaw !== 'XX' ? countryRaw : '';
-    let city = safeLocation(cf.city, 100);
-    let region = safeLocation(cf.region, 100);
-    let regionCode = safeLocation(cf.regionCode, 20);
-    const resolvedCountry = country;
-    // Use Cloudflare's own edge metadata only. City/Region may be absent for some IPs;
-    // a missing optional location field never affects the signed proxy or authentication.
-    const geoProvider = (resolvedCountry || city || region || regionCode) ? 'cloudflare' : 'unavailable';
-    const encodedCity = encodeLocation(city, 100);
-    const encodedRegion = encodeLocation(region, 100);
-    const encodedRegionCode = encodeLocation(regionCode, 20);
+    // Privacy-by-default: the proxy reads only the trusted client IP from
+    // Cloudflare. Country, city, region and region-code are never collected,
+    // signed, or forwarded to Supabase.
+    const resolvedCountry = '';
+    const encodedCity = '';
+    const encodedRegion = '';
+    const encodedRegionCode = '';
+    const geoProvider = 'unavailable';
     const timestamp = String(Date.now());
     const nonce = crypto.randomUUID();
     const bodyHash = await sha256Hex(bodyBytes);

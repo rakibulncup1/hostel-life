@@ -149,13 +149,9 @@ Deno.serve(async (request) => {
   if (!visitor.ok && !noTrustedIpFallback) {
     return response({ accepted: false, ready: false, code: visitor.code || 'CLIENT_IP_UNAVAILABLE', request_id: requestId, version: VERSION }, 503, origin, origins);
   }
-  // Only signed Worker metadata may populate City/Region. Direct Supabase
-  // ingress can still provide a Cloudflare Country Code, but its geo labels
-  // are deliberately ignored because they are not cryptographically bound.
-  const location = visitor.ok && visitor.proxyVerified
-    ? visitor.location
-    : visitor.ok ? { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null }
-      : { countryCode: null, city: null, region: null, regionCode: null };
+  // Location collection is disabled. Keep the database writer contract
+  // backward-compatible while sending NULL for every geo column.
+  const location = { countryCode: null, city: null, region: null, regionCode: null };
 
   // Read-only health RPC: no synthetic events and no intentional SQL errors
   // are generated when the Super Admin opens the monitor.
@@ -176,9 +172,7 @@ Deno.serve(async (request) => {
         geo_proxy_verified: visitor.proxyVerified,
         geo_source: visitor.source,
         geo_provider: visitor.geoProvider || null,
-        city_header_available: Boolean(location.city),
-        region_header_available: Boolean(location.region),
-        country_header_available: Boolean(location.countryCode),
+        location_collection_enabled: false,
         version: VERSION,
       }, 200, origin, origins);
     } catch (error) {

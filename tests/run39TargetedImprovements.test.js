@@ -32,13 +32,11 @@ test('Security Monitor captures attempted email without ever accepting password 
   assert.doesNotMatch(auth, /body:\s*\{[^}]*\b(?:password|otp|verification_code)\s*:/is);
 });
 
-test('Cloudflare Worker forwards only signed request.cf city and region metadata', () => {
-  assert.match(worker, /let city = safeLocation\(cf\.city/);
-  assert.match(worker, /let region = safeLocation\(cf\.region/);
-  assert.match(worker, /let regionCode = safeLocation\(cf\.regionCode/);
+test('Cloudflare Worker signs only trusted IP and sends blank location metadata', () => {
+  assert.doesNotMatch(worker, /request\.cf|cf\.city|cf\.region|cf\.country/);
   assert.doesNotMatch(worker, /IPINFO_TOKEN|api\.ipinfo\.io/);
-  assert.match(worker, /const resolvedCountry = country/);
-  assert.match(worker, /request\.cf/);
+  assert.match(worker, /const resolvedCountry = ''/);
+  assert.match(worker, /const geoProvider = 'unavailable'/);
   assert.match(worker, /x-hostel-geo-provider/);
   assert.match(worker, /canonicalPayload\(signed\)/);
   assert.match(authEventEdge, /hl_consume_geo_proxy_nonce/);

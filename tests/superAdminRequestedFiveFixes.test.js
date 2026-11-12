@@ -36,9 +36,9 @@ test('successful login telemetry requires a Supabase Auth-verified bearer token'
   assert.match(authService, /trackSuccessfulLogin = true/);
 });
 
-test('City/Region are not persisted from unsigned direct Supabase headers', () => {
-  assert.match(telemetry, /visitor\.proxyVerified[\s\S]*?city: null, region: null, regionCode: null/);
-  assert.match(reset, /visitor\.proxyVerified[\s\S]*?city: null, region: null, regionCode: null/);
+test('New Security Events never persist location metadata, regardless of proxy verification', () => {
+  assert.match(telemetry, /const location = \{ countryCode: null, city: null, region: null, regionCode: null \}/);
+  assert.match(reset, /const location = \{ countryCode: null, city: null, region: null, regionCode: null \}/);
   assert.match(reset, /function isValidEmail\(value: unknown\): value is string/);
   assert.match(reset, /if \(!isValidEmail\(body\.email\)\)/);
 });

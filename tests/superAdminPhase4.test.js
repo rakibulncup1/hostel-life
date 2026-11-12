@@ -85,7 +85,7 @@ test('Security UI discloses direct Auth endpoint bypass and shared-network IP bl
   assert.match(page, /Manual Global IP Block/);
 });
 
-test('Security Monitor exposes success/failure events, country, IP and date-window filters', () => {
+test('Security Monitor exposes success/failure events with IP and date-window filters only', () => {
   for (const event of ['login_failed','login_success','signup_failed','signup_submitted','password_reset_failed','password_reset_requested']) assert.ok(sql.includes(`'${event}'`));
   assert.match(sql, /p_country_code text DEFAULT NULL/);
   assert.match(sql, /e\.country_code=v_country/);
@@ -93,7 +93,8 @@ test('Security Monitor exposes success/failure events, country, IP and date-wind
   assert.match(sql, /e\.created_at<p_to/);
   assert.match(page, /securityFromDate/);
   assert.match(page, /securityToDate/);
-  assert.match(page, /Country Code/);
+  assert.match(page, /IP দিয়ে খুঁজুন/);
+  assert.doesNotMatch(page, /Country Code|City \/ Region|country_code|top_countries|top_locations/);
   assert.match(page, /সফল Login/);
   assert.match(page, /Reset email অনুরোধ গ্রহণ/);
   assert.match(sql, /'successful_logins_24h',count\(\*\) FILTER \(WHERE event_type='login_success'/);
@@ -108,11 +109,12 @@ test('Activity date filters convert Bangladesh-local boundaries and distinguish 
   assert.match(sql, /platform_admin_list_activity_v2/);
 });
 
-test('Country attribution uses only trusted Cloudflare country header and only two-letter ISO-like codes', () => {
+test('Location metadata is disabled for new events while trusted IP validation remains', () => {
   assert.match(telemetry, /resolveTrustedVisitor/);
-  assert.match(geoProxy, /cf-ipcountry/);
-  assert.match(geoProxy, /countryCode/);
-  assert.match(telemetry, /p_country_code: location\.countryCode/);
+  assert.match(geoProxy, /cf-connecting-ip/);
+  assert.doesNotMatch(geoProxy, /cf-ipcountry/);
+  assert.match(geoProxy, /location: EMPTY_LOCATION/);
+  assert.match(telemetry, /const location = \{ countryCode: null, city: null, region: null, regionCode: null \}/);
   assert.doesNotMatch(geoProxy, /x-forwarded-for/i);
   assert.match(geoSql, /v_country !~ '\^\[A-Z\]\{2\}\$'/);
 });
@@ -170,7 +172,8 @@ test('Run35 interim 30-day retention is superseded by Run37 scheduled cleanup wi
   assert.match(sql, /CREATE TRIGGER hl_security_log_retention_30d/);
   assert.match(sql, /opportunistic 30-day retention/i);
   assert.doesNotMatch(sql, /DELETE FROM public\.(market_entries|ledger_transactions|daily_meal_records|monthly_periods)/i);
-  assert.match(page, /Run37 সফলভাবে প্রয়োগ হলে দৈনিক Cron/);
+  assert.match(page, /৩০ দিনের দৈনিক Cleanup সক্রিয়/);
+  assert.match(page, /Retention Cron যাচাই প্রয়োজন/);
   assert.match(page, /Platform Audit Log আলাদা accountability record/);
   assert.match(page, /Password Reset quota হিসাবের HMAC-only row ৩৫ দিন/);
 });

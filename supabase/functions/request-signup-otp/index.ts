@@ -136,9 +136,7 @@ Deno.serve(async (request) => {
       geo_proxy_verified: visitor.proxyVerified,
       geo_source: visitor.source,
       geo_provider: visitor.geoProvider || null,
-      city_header_available: Boolean(visitor.location?.city),
-      region_header_available: Boolean(visitor.location?.region),
-      country_header_available: Boolean(visitor.location?.countryCode),
+      location_collection_enabled: false,
       version: 'run45-otp-health',
     }, ready ? 200 : 503, origin, origins);
   }
@@ -188,10 +186,10 @@ Deno.serve(async (request) => {
       p_email_fingerprint: fingerprint,
       p_attempt_email: email,
       p_request_ip: visitor.ip || null,
-      p_country_code: visitor.ok ? visitor.location?.countryCode || null : null,
-      p_city: visitor.proxyVerified ? visitor.location?.city || null : null,
-      p_region: visitor.proxyVerified ? visitor.location?.region || null : null,
-      p_region_code: visitor.proxyVerified ? visitor.location?.regionCode || null : null,
+      p_country_code: null,
+      p_city: null,
+      p_region: null,
+      p_region_code: null,
       p_user_agent: request.headers.get('user-agent') || null,
       p_request_origin: origin,
     });

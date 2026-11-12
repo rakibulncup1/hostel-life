@@ -16,7 +16,7 @@ const completeTemp = read('supabase/functions/complete-temporary-password/index.
 const config = read('supabase/config.toml');
 const privacy = read('public/privacy-policy.html');
 const dbDiagnostic = read('supabase/diagnostics/Diagnose_database_storage_and_postgres_logging.sql');
-const logsSummary = read('supabase/diagnostics/LogsExplorer_24h_source_summary.sql');
+const logsSummary = read('supabase/diagnostics/LogsExplorer_1h_source_summary.sql');
 
 test('One final Run37 migration preflights pg_cron and all Run35 timestamp dependencies transactionally', () => {
   assert.match(migration, /(?:^|\n)BEGIN;/);
@@ -112,7 +112,7 @@ test('Database and Logs diagnostics are read-only, time-bounded and distinguish 
   assert.match(dbDiagnostic,/extensions\.pg_stat_statements/);
   assert.match(dbDiagnostic,/pg_settings/);
   assert.match(logsSummary,/FROM logs/);
-  assert.match(logsSummary,/INTERVAL 24 HOUR/);
+  assert.match(logsSummary,/INTERVAL 1 HOUR/);
   assert.doesNotMatch(logsSummary,/INSERT|UPDATE|DELETE|ALTER|CREATE|DROP/i);
 });
 

@@ -66,7 +66,7 @@ test('Backup UI links the downloaded .hlbackup to the local Restore & Recovery f
 
 test('Cloudflare Geo Proxy is optional and Direct Supabase mode is not blocked by a missing Worker', () => {
   assert.doesNotMatch(geo, /HOSTEL_GEO_PROXY_REQUIRED|GEO_PROXY_REQUIRED/);
-  assert.match(geo, /Direct-to-Supabase is the supported baseline/);
+  assert.match(geo, /Direct-to-Supabase and signed Worker requests use trusted IP only/);
   assert.match(geo, /proxyMarker === 'v1'/);
 });
 

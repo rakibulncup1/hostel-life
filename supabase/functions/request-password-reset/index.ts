@@ -167,9 +167,7 @@ Deno.serve(async (request) => {
   // shared verifier hashes a clone so the original body remains available.
   const visitor = await resolveTrustedVisitor(request, 'request-password-reset', consumeGeoNonce);
   const requestIp = visitor.ip;
-  const location = visitor.proxyVerified
-    ? visitor.location
-    : { countryCode: visitor.location.countryCode, city: null, region: null, regionCode: null };
+  const location = { countryCode: null, city: null, region: null, regionCode: null };
   if (!visitor.ok && visitor.code !== 'CLIENT_IP_UNAVAILABLE') {
     return jsonResponse({ code: visitor.code || 'GEO_PROXY_INVALID', message: 'ঐচ্ছিক নেটওয়ার্ক যাচাই সেবা সাময়িকভাবে অনুপলব্ধ। আবার চেষ্টা করুন।', request_id: requestId }, 503, origin, allowedOrigins);
   }

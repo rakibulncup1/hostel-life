@@ -65,20 +65,37 @@ test('Signup OTP endpoint is proxied and has a read-only health endpoint', () =>
   assert.match(edge, /hl_check_auth_ip_block/);
 });
 
-test('Optional location uses Cloudflare-native Geo and no third-party lookup', () => {
+test('IP-only Worker and Edge resolver never consume or return location metadata', () => {
   const worker = read('cloudflare/hostel-life-security-proxy/src/index.js');
   const helper = read('supabase/functions/_shared/geoProxy.ts');
   const privacy = read('public/privacy-policy.html');
-  assert.match(worker, /request\.cf/);
+  assert.doesNotMatch(worker, /request\.cf|cf\.city|cf\.region|cf\.country/);
   assert.doesNotMatch(worker, /IPINFO_TOKEN|api\.ipinfo\.io/);
   assert.match(helper, /GEO_PROXY_PROVIDER_INVALID/);
-  assert.doesNotMatch(privacy, /IPinfo Lite/);
+  assert.match(helper, /location: EMPTY_LOCATION/);
+  assert.match(privacy, /দেশ, শহর বা অঞ্চল/);
+  assert.doesNotMatch(privacy, /country code অন্তর্ভুক্ত|শহর বা অঞ্চলও পাওয়া যেতে পারে/);
 });
 
-test('Privacy policy discloses attempted-email and conditional IPinfo Lite geolocation processing', () => {
+test('Privacy policy discloses attempted-email and IP-only security monitoring', () => {
   const privacy = read('public/privacy-policy.html');
   assert.match(privacy, /Security Event/);
   assert.match(privacy, /৩০ দিনের/);
   assert.doesNotMatch(privacy, /IPinfo Lite/);
   assert.match(privacy, /Password, OTP code/);
+});
+
+test('Super Admin login hides the account email until clicked and uses the responsive final polish', () => {
+  const page = read('src/features/platform/SuperAdminPage.jsx');
+  const css = read('src/styles/platform-admin-final-polish.css');
+  const main = read('src/main.jsx');
+  assert.match(page, /type=\{reauthEmailVisible \? 'text' : 'password'\}/);
+  assert.match(page, /setReauthEmailVisible\(\(visible\)=>!visible\)/);
+  assert.match(page, /aria-label=\{reauthEmailVisible \? 'ইমেইল লুকান' : 'ইমেইল দেখান'\}/);
+  assert.match(page, /platform-auth-gate-page/);
+  assert.match(css, /\.platform-panel-heading > div > p\s*\{\s*display: none;/);
+  assert.match(css, /\.platform-mfa-gate input\[autocomplete="one-time-code"\]/);
+  assert.match(css, /@media \(max-width: 620px\)/);
+  assert.match(css, /\.platform-page \.platform-security-filters\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(main, /platform-admin-final-polish\.css/);
 });

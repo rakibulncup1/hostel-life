@@ -95,10 +95,7 @@ Deno.serve(async (request) => {
       retry_at: globalBlock.blocked_until || null,
       geo_proxy_verified: visitor.proxyVerified,
       geo_source: visitor.source,
-      geo_provider: visitor.geoProvider || null,
-      country_header_available: Boolean(visitor.location.countryCode),
-      city_header_available: Boolean(visitor.location.city),
-      region_header_available: Boolean(visitor.location.region),
+      location_collection_enabled: false,
       version: VERSION,
     }, 200, origin, origins);
   }
