@@ -105,7 +105,7 @@ test('legal pages retain user-facing data, age and service terms without exposin
   assert.match(terms, /অ্যাপটি নিজে পেমেন্ট গেটওয়ে নয়/);
   assert.match(terms, /ভূমিকা ও অনুমতি/);
   assert.match(terms, /ওয়েবসাইটের সাধারণ ঠিকানা বা Hostel Life-এর পরিচিতি পেজ প্রকাশ্যে শেয়ার করা যায়/);
-  assert.match(terms, /ব্যক্তিগত Join Code, Invitation Link/);
+  assert.match(terms, /ব্যক্তিগত Join Code ও Invitation Link/);
 });
 
 test('responsive styles cover compact phones and reduced-motion preferences', () => {

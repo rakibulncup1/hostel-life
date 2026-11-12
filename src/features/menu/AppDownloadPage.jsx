@@ -11,18 +11,9 @@ function getManualInstallGuide() {
   const touchPoints = typeof navigator === 'undefined' ? 0 : navigator.maxTouchPoints || 0;
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && touchPoints > 1);
   const isAndroid = /Android/i.test(ua);
-  if (isIOS) return {
-    title: 'iPhone বা iPad-এ ইনস্টল',
-    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Safari-এর Share মেনু থেকে “Add to Home Screen” নির্বাচন করুন।',
-  };
-  if (isAndroid) return {
-    title: 'Android-এ ইনস্টল',
-    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome-এ “Install app” বা “Add to Home screen” নির্বাচন করুন।',
-  };
-  return {
-    title: 'কম্পিউটারে ইনস্টল',
-    message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome বা Edge-এর Address Bar থেকে Install নির্বাচন করুন।',
-  };
+  if (isIOS) return { title: 'iPhone বা iPad-এ ইনস্টল', message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Safari-এর Share মেনু থেকে “Add to Home Screen” নির্বাচন করুন।' };
+  if (isAndroid) return { title: 'Android-এ ইনস্টল', message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome-এ “Install app” বা “Add to Home screen” নির্বাচন করুন।' };
+  return { title: 'কম্পিউটারে ইনস্টল', message: 'এই ব্রাউজার এখন সরাসরি ইনস্টল অনুমতি দিচ্ছে না। Chrome বা Edge-এর Address Bar থেকে Install নির্বাচন করুন।' };
 }
 
 export function AppDownloadPage() {
@@ -40,7 +31,7 @@ export function AppDownloadPage() {
       else toast.info('ইনস্টল সম্পন্ন হয়নি। চাইলে নিচের নির্দেশনা অনুসরণ করুন।');
     } catch (error) {
       console.error('PWA install failed:', error);
-      toast.error('ইনস্টল অনুরোধটি সম্পন্ন হয়নি। নিচের নির্দেশনা অনুসরণ করুন।');
+      toast.error('ইনস্টল অনুরোধটি সম্পন্ন হয়নি। নিচের ধাপগুলো অনুসরণ করুন।');
     } finally {
       setInstalling(false);
     }
@@ -58,17 +49,18 @@ export function AppDownloadPage() {
       </header>
       <section className="card app-download-single-card" aria-labelledby="app-download-title">
         <span className="app-download-single-icon" aria-hidden="true"><BrandMark size={62}/></span>
-        <span className="eyebrow">HOSTEL LIFE · APP</span>
-        <h2 id="app-download-title">{installed ? 'এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে' : 'Hostel Life ডিভাইসে যুক্ত করুন'}</h2>
+        <span className="eyebrow">HOSTEL LIFE · PWA</span>
+        <h2 id="app-download-title">{installed ? 'এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে' : 'Hostel Life ইনস্টল করুন'}</h2>
+        <p className="app-download-install-note">আলাদা APK দরকার নেই—এই ওয়েব অ্যাপটি সরাসরি হোম স্ক্রিনে ইনস্টল হবে।</p>
         {installed ? (
-          <p className="app-download-single-status"><Icon name="check-circle" size={17}/> এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে।</p>
+          <><p className="app-download-single-status"><Icon name="check-circle" size={17}/> এই ডিভাইসে অ্যাপটি ইনস্টল করা আছে।</p><button type="button" className="primary-button large app-download-single-button" onClick={() => navigateTo('/app/dashboard')}><Icon name="external-link" size={18}/> অ্যাপ খুলুন</button></>
         ) : canInstall ? (
           <button className="primary-button large app-download-single-button" type="button" onClick={installNow} disabled={installing}>
             <Icon name="download" size={19}/>{installing ? 'ইনস্টল হচ্ছে...' : 'এখনই ইনস্টল করুন'}
           </button>
         ) : (
           <div className="app-download-manual-guide">
-            <div className="app-download-manual-heading"><Icon name="info" size={18}/><strong>{guide.title}</strong></div>
+            <div className="app-download-manual-heading"><Icon name="smartphone" size={18}/><strong>{guide.title}</strong></div>
             <p>{guide.message}</p>
           </div>
         )}

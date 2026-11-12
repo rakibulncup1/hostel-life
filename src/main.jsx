@@ -28,6 +28,7 @@ import './styles/run50-ui-finish.css';
 import './styles/run52-ui-security-polish.css';
 import './styles/run53_info_box_icon_cleanup.css';
 import './styles/platform-admin-final-polish.css';
+import './styles/app-finish-polish-v61.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();

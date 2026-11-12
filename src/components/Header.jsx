@@ -9,11 +9,14 @@ export function Header({ hostelName = 'Hostel Life', profileName = null, role = 
       </button>
 
       <div className="brand-block">
-        <div className="brand-name">{hostelName}</div>
+        <div className="brand-name-row">
+          <div className="brand-name">{hostelName}</div>
+          {periodLabel && <span className="period-badge header-period-badge"><Icon name="calendar" size={11} /> {periodLabel}</span>}
+        </div>
         <div className="header-context-row">
           {profileName && <span className="header-name-badge" title={profileName}>{profileName}</span>}
           <span className="role-badge"><Icon name="shield" size={12} /> {role}</span>
-          {periodLabel ? <span className="period-badge"><Icon name="calendar" size={11} /> {periodLabel}</span> : <span className="no-period-badge"><Icon name="calendar" size={11} /> এখনো মাস শুরু হয়নি</span>}
+          {!periodLabel && <span className="no-period-badge"><Icon name="calendar" size={11} /> এখনো মাস শুরু হয়নি</span>}
         </div>
       </div>
 

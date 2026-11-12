@@ -59,7 +59,7 @@ test('public pages share a balanced palette, compact centered footer and respons
     assert.match(css, /@media \(max-width: 760px\)/);
     assert.match(css, /\.legal-hero/);
     assert.match(html, /support\.sec1\.info@gmail\.com/);
-    assert.match(html, file.includes('privacy-policy') ? /সর্বশেষ হালনাগাদ: ১১ নভেম্বর ২০২৬/ : /সর্বশেষ হালনাগাদ: ১১ নভেম্বর ২০২৬/);
+    assert.match(html, file.includes('privacy-policy') ? /সর্বশেষ হালনাগাদ: ১২ নভেম্বর ২০২৬/ : /সর্বশেষ হালনাগাদ: ১২ নভেম্বর ২০২৬/);
     assert.doesNotMatch(html, /Supabase|ap-southeast-1|YOUR_PROJECT|প্রকাশের আগে পূরণ করতে হবে|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র|অভিভাবক/);
   }
 });

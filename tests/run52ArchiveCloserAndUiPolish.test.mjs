@@ -20,10 +20,10 @@ test('Telegram privacy note is removed and the menu page always has a return rou
   assert.match(telegram, /const pageIntro/);
 });
 
-test('Dining capability note is shown to members and market-entry guidance is shown for members', () => {
+test('Dining capability note remains while the redundant market-entry helper card is removed', () => {
   const dining = read('src/features/dining/DiningPage.jsx');
   assert.match(dining, /!isManager && !isAssistantManager && \(/);
-  assert.match(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
+  assert.doesNotMatch(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
 });
 
 test('archive correction UI derives edit access only from the closer permission list', () => {
@@ -83,11 +83,11 @@ test('manager archive screen no longer offers temporary edit grants and gates re
   assert.match(block, /selected\?\.can_reopen && isRecordedCloser/);
 });
 
-test('member market entry guidance appears once, without duplicate header copy', () => {
+test('market entry no longer renders a redundant helper box', () => {
   const dining = read('src/features/dining/DiningPage.jsx');
   const form = dining.slice(dining.indexOf('function MarketEntryForm'), dining.indexOf('\nfunction ', dining.indexOf('function MarketEntryForm') + 10));
-  assert.equal((form.match(/তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/g) || []).length, 1);
-  assert.match(form, /<InfoPanel icon="shopping-basket">তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন।<\/InfoPanel>/);
+  assert.equal((form.match(/তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/g) || []).length, 0);
+  assert.doesNotMatch(form, /<InfoPanel icon="shopping-basket"/);
 });
 
 test('archive permission instructions are consistent across History and menu access page', () => {

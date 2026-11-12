@@ -51,10 +51,10 @@ test('Security one-minute and 15-minute counters are rolling windows and remain 
   assert.match(run38, /'ip_attempts_1m'[\s\S]*?interval '1 minute'/);
   assert.match(run38, /'ip_attempts_15m'[\s\S]*?interval '15 minutes'/);
   assert.match(service, /platform_admin_list_security_events_v4/);
-  assert.match(page, /সর্বশেষ ৬০ সেকেন্ডে/);
-  assert.match(page, /সর্বশেষ ১৫ মিনিটে/);
+  assert.match(page, /একই IP · ১ মিনিট/);
+  assert.match(page, /একই IP · ১৫ মিনিট/);
   assert.match(page, /Number\(row\.ip_attempts_1m\|\|0\)/);
-  assert.match(page, /৬০ সেকেন্ডের হিসাবটি সর্বশেষ এক মিনিটের চলমান গণনা/);
+  assert.doesNotMatch(page, /৬০ সেকেন্ডের হিসাবটি সর্বশেষ এক মিনিটের চলমান গণনা/);
 });
 
 test('The Activity Timeline labels the new compact finalization summary', () => {

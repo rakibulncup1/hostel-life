@@ -29,7 +29,7 @@ test('finance feature guidance is rendered as a quiet inline hint rather than a 
   const khalaPage = manager.slice(manager.indexOf('export function KhalaMoneyPage()'), manager.indexOf('export function ', manager.indexOf('export function KhalaMoneyPage()') + 10));
   assert.doesNotMatch(khalaPage, /finance-context-note|সব মাসের হিসাব দেখুন/);
   assert.match(menu, /className="finance-context-note" icon="activity"/);
-  assert.match(menu, /className="closed-month-guidance-panel" icon="archive"/);
+  assert.doesNotMatch(menu, /closed-month-guidance-panel|বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন/);
   assert.match(css, /\.info-panel\.finance-context-note\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
   assert.match(css, /\.finance-context-note-warning/);
 });

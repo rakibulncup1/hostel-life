@@ -55,11 +55,11 @@ test('member and manager Khala pages expose month tabs and only show edit form f
   assert.match(managerPages, /এই মাসের হিসাব দেখা যাবে, তবে এন্ট্রি বা সংশোধনের অনুমতি নেই/);
 });
 
-test('ordinary member market-entry guidance is shown in its own information panel', () => {
+test('ordinary member market entry is uncluttered while required period warnings remain', () => {
   const dining = read('src/features/dining/DiningPage.jsx');
-  assert.match(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
+  assert.doesNotMatch(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
   assert.match(dining, /periodNotStarted \? \([\s\S]*?InfoPanel tone="warning"/);
-  assert.match(dining, /: \([\s\S]*?InfoPanel icon="shopping-basket">তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
+  assert.doesNotMatch(dining, /InfoPanel icon="shopping-basket"/);
   assert.match(dining, /manager-request-review-guide" icon="clipboard-check"/);
   assert.doesNotMatch(dining, /manager-request-review-guide" icon="inbox"/);
 });
@@ -76,15 +76,14 @@ test('market share output trims leading whitespace before every numbered item', 
   assert.match(share, /replace\(\/\^\[\\t \\u00a0\]\+\/gu, ''\)/);
 });
 
-test('history and archive detail views receive responsive guidance and detail styling', () => {
+test('history and archive detail views retain responsive detail styling without extra guidance cards', () => {
   const menuPages = read('src/features/menu/MenuPages.jsx');
   const history = read('src/features/history/HistoryPage.jsx');
   const css = read('src/styles/run50-ui-finish.css');
-  assert.match(menuPages, /closed-month-guidance-panel/);
-  assert.match(menuPages, /document-guidance-panel/);
+  assert.doesNotMatch(menuPages, /closed-month-guidance-panel|document-guidance-panel/);
   assert.match(history, /history-month-detail-modal/);
   assert.match(css, /\.history-month-detail-modal \.archive-detail-grid/);
-  assert.match(css, /\.closed-month-guidance-panel,[\s\S]*?\.document-guidance-panel/);
+  assert.match(css, /\.history-month-detail-modal \.archive-detail-grid/);
 });
 
 test('market history modal retains shared market presentation class', () => {

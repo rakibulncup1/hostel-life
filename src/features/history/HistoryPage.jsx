@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
+import { navigateTo } from '../../app/AppShell';
 import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useToast } from '../../components/Toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -23,6 +24,12 @@ const TABS = [
   { key: 'account', label: 'হিসাব ইতিহাস', icon: 'wallet' },
   { key: 'months', label: 'পূর্ববর্তী মাস', icon: 'history' },
 ];
+
+function hasActualMarketUpdate(row) {
+  const created = Date.parse(row?.created_at || '');
+  const updated = Date.parse(row?.updated_at || '');
+  return Boolean(row?.updated_by_name && Number.isFinite(created) && Number.isFinite(updated) && updated > created);
+}
 
 function formatHistoryPeriodRange(period) {
   const start = period?.start_date ? formatDateBangla(period.start_date) : '';
@@ -51,7 +58,6 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [marketDetail, setMarketDetail] = useState(null);
-  const [monthDetail, setMonthDetail] = useState(null);
   const { isManager, membership, operationalRole } = useAuth();
   // Role flags are useful for quick UI state, but the canonical period context is the
   // source of truth for primary-manager membership. The backend re-checks authorization
@@ -300,11 +306,10 @@ export function HistoryPage() {
     }
   };
 
-  const openMonth = async (period) => {
-    setDetailLoading(true);
-    try { setMonthDetail(await fetchArchivedMonthDetail(period.period_id)); }
-    catch (error) { toast.error(getFriendlySupabaseError(error, 'মাসের বিস্তারিত খোলা যায়নি।')); }
-    finally { setDetailLoading(false); }
+  const openMonth = (period) => {
+    const periodId = String(period?.period_id || period?.id || '');
+    if (!periodId) return;
+    navigateTo(`/app/menu/archive?period_id=${encodeURIComponent(periodId)}`);
   };
 
   const shareMarketDetail = async (detail) => {
@@ -349,7 +354,7 @@ export function HistoryPage() {
           </div>
         </div>
         <div className="history-title-footer">
-          <div className="history-intro-info finance-context-note-inline history-intro-guidance-box"><span>বাজার, জমা-খরচ ও আগের মাসের সংরক্ষিত হিসাব দেখুন। বিস্তারিত খুলতে যেকোনো রেকর্ডে চাপ দিন; সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য।</span></div>
+          <div className="history-intro-info finance-context-note-inline history-intro-guidance-box"><span>সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য।</span></div>
           <div className="history-title-actions"><button className="secondary-button compact" type="button" onClick={load} disabled={loading}><Icon name="refresh" size={15} /> রিফ্রেশ</button>{tab !== 'months' && <button className="secondary-button compact" type="button" onClick={exportCurrentTab} disabled={loading || exportBusy || !accountGrouped.length && tab === 'account' || !visibleMarketRows.length && tab === 'market'}><Icon name="download" size={15} /> PDF / প্রিন্ট</button>}</div>
         </div>
       </div>
@@ -418,7 +423,6 @@ export function HistoryPage() {
 
       {detailLoading && <div className="modal-backdrop"><div className="modal-panel card"><LoadingSpinner label="বিস্তারিত লোড হচ্ছে..." /></div></div>}
       {marketDetail && !detailLoading && <MarketDetailModal detail={marketDetail} isManager={canEditVisibleRows} onShare={() => shareMarketDetail(marketDetail)} onEdit={() => { setMarketEdit(marketDetail); setMarketDetail(null); }} onVoid={() => setMarketVoid(marketDetail)} onClose={() => setMarketDetail(null)} />}
-      {monthDetail && !detailLoading && <MonthDetailModal detail={monthDetail} onClose={() => setMonthDetail(null)} onError={(error) => toast.error(error?.message || 'পূর্ণ মাসিক প্রতিবেদন তৈরি করা যায়নি।')} />}
       {marketEdit && <MarketEditModal detail={marketEdit} members={members} busy={managerBusy} onClose={() => setMarketEdit(null)} onSaved={async () => { setMarketEdit(null); setMarketDetail(null); await load(); }} onBusy={setManagerBusy} />}
       {marketVoid && <ReasonModal title="বাজার এন্ট্রি বাতিল" description="বাতিল করার কারণ লিখুন। ইতিহাস থাকবে, কিন্তু এটি আর active market হিসেবে গণনা হবে না।" busy={managerBusy} onClose={() => setMarketVoid(null)} onConfirm={async (reason) => { setManagerBusy(true); try { await voidMarketEntry(marketVoid.market_entry_id, reason); toast.success('বাজার এন্ট্রি সফলভাবে বাতিল হয়েছে।'); setMarketVoid(null); setMarketDetail(null); await load(); } catch (error) { toast.error(getFriendlySupabaseError(error, 'বাজার বাতিল করা যায়নি।')); } finally { setManagerBusy(false); } }} />}
       {transactionDetail && <TransactionDetailModal row={transactionDetail} canEdit={canEditVisibleRows && transactionDetail.source === 'ledger' && ledgerRowIsEditable(transactionDetail)} onClose={() => setTransactionDetail(null)} onEdit={() => { setTransactionEdit(transactionDetail); setTransactionDetail(null); }} />}
@@ -432,8 +436,13 @@ function MarketHistoryList({ rows, serialById = new Map(), onOpen }) {
   return <div className="history-list">{rows.map((row, index) => (
     <div className="market-history-row-shell" key={row.market_entry_id}>
       <button className={`card history-item-card history-market-entry-card ${row.status === 'void' ? 'is-void' : ''}`} type="button" onClick={() => onOpen(row.market_entry_id)} aria-label={`${row.buyer_name || 'বাজার'} — ${formatDateBangla(row.entry_date)}-এর বিস্তারিত খুলুন`}>
-        <div className="history-leading-icon market-serial-badge history-market-serial" aria-hidden="true"><span>{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
-        <div className="history-item-copy history-market-copy"><strong>{row.buyer_name || 'বাজারকারী'}</strong><small className="history-market-date">{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small><small className="history-market-creator">এন্ট্রি করেছেন: {row.created_by_name || 'নাম সংরক্ষিত নেই'}</small>{row.updated_by_name && <small className="history-market-updated">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}<span className="history-market-item-count">{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span><small className="history-row-open-hint">বিস্তারিত দেখতে চাপ দিন <Icon name="chevron" size={12}/></small></div>
+        <div className="history-item-copy history-market-copy">
+          <div className="history-market-title-row"><strong>{row.buyer_name || 'বাজারকারী'}</strong><span className="market-serial-badge history-market-serial" aria-hidden="true">{formatNumber(serialById.get(row.market_entry_id) || rows.length-index)}</span></div>
+          <small className="history-market-date">{formatDateWithWeekday(row.entry_date)} · তৈরি {formatDateTime12(row.created_at)}</small>
+          <small className="history-market-creator">এন্ট্রি করেছেন: {row.created_by_name || 'নাম সংরক্ষিত নেই'}</small>
+          {hasActualMarketUpdate(row) && <small className="history-market-updated">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}
+          <div className="history-market-bottom-row"><span className="history-market-item-count">{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span><span className="history-row-open-hint">বিস্তারিত <Icon name="chevron" size={12}/></span></div>
+        </div>
         <div className="history-amount history-market-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
         <Icon name="chevron" size={17} className="history-market-chevron" />
       </button>
@@ -518,7 +527,7 @@ function EmptyHistory({ icon, title, text }) {
 
 function MarketDetailModal({ detail, isManager = false, onShare, onEdit, onVoid, onClose }) {
   const items = Array.isArray(detail.items) ? detail.items : [];
-  return <div className="modal-backdrop"><div className="modal-panel card large-modal"><div className="modal-head"><div><span className="eyebrow">বাজারের বিস্তারিত</span><h2>{formatDateBangla(detail.entry_date)}</h2></div><div className="modal-head-actions"><button className="secondary-button compact market-short-share" type="button" onClick={onShare}><Icon name="share-2" size={15}/> শর্ট শেয়ার</button><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button></div></div><div className="market-detail-summary"><div><span>বাজারকারী</span><strong>{detail.buyer_name}</strong></div><div><span>মোট</span><strong>{formatCurrency(detail.total_amount)}</strong></div><div><span>জমায় যুক্ত</span><strong>{detail.credit_to_buyer ? 'হ্যাঁ' : 'না'}</strong></div></div><div className="detail-item-list">{items.map((item) => <div className="detail-item-row" key={item.serial_no}><b>{formatNumber(item.serial_no)}</b><div><strong>{item.item_name}</strong><small>{item.quantity || '—'}</small></div><strong>{formatCurrency(item.amount)}</strong></div>)}</div><div className="detail-total-bar"><span>মোট বাজার</span><strong>{formatCurrency(detail.total_amount)}</strong></div><div className="detail-created-note">এন্ট্রি করেছেন: <strong>{detail.created_by_name || 'নাম সংরক্ষিত নেই'}</strong> · {formatDateTime12(detail.created_at)}{detail.updated_by_name && <><br/>সর্বশেষ সম্পাদনা করেছেন: <strong>{detail.updated_by_name}</strong>{detail.updated_at ? ` · ${formatDateTime12(detail.updated_at)}` : ''}</>}</div>{detail.status === 'void' && <div className="inline-error"><Icon name="warning" size={16} /> এই বাজার এন্ট্রি বাতিল করা হয়েছে। {detail.void_reason ? `কারণ: ${detail.void_reason}` : ''}</div>}{isManager && detail.status !== 'void' && <div className="request-action-row manager-history-actions"><button className="secondary-button" type="button" onClick={onEdit}><Icon name="edit" size={15} /> সম্পাদনা</button><button className="secondary-button danger-outline" type="button" onClick={onVoid}><Icon name="trash" size={15} /> বাতিল</button></div>}</div></div>;
+  return <div className="modal-backdrop"><div className="modal-panel card large-modal"><div className="modal-head"><div><span className="eyebrow">বাজারের বিস্তারিত</span><h2>{formatDateBangla(detail.entry_date)}</h2></div><div className="modal-head-actions"><button className="secondary-button compact market-short-share" type="button" onClick={onShare}><Icon name="share-2" size={15}/> শর্ট শেয়ার</button><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button></div></div><div className="market-detail-summary"><div><span>বাজারকারী</span><strong>{detail.buyer_name}</strong></div><div><span>মোট</span><strong>{formatCurrency(detail.total_amount)}</strong></div><div><span>জমায় যুক্ত</span><strong>{detail.credit_to_buyer ? 'হ্যাঁ' : 'না'}</strong></div></div><div className="detail-item-list">{items.map((item) => <div className="detail-item-row" key={item.serial_no}><b>{formatNumber(item.serial_no)}</b><div><strong>{item.item_name}</strong><small>{item.quantity || '—'}</small></div><strong>{formatCurrency(item.amount)}</strong></div>)}</div><div className="detail-total-bar"><span>মোট বাজার</span><strong>{formatCurrency(detail.total_amount)}</strong></div><div className="detail-created-note">এন্ট্রি করেছেন: <strong>{detail.created_by_name || 'নাম সংরক্ষিত নেই'}</strong> · {formatDateTime12(detail.created_at)}{hasActualMarketUpdate(detail) && <><br/>সর্বশেষ সম্পাদনা করেছেন: <strong>{detail.updated_by_name}</strong>{detail.updated_at ? ` · ${formatDateTime12(detail.updated_at)}` : ''}</>}</div>{detail.status === 'void' && <div className="inline-error"><Icon name="warning" size={16} /> এই বাজার এন্ট্রি বাতিল করা হয়েছে। {detail.void_reason ? `কারণ: ${detail.void_reason}` : ''}</div>}{isManager && detail.status !== 'void' && <div className="request-action-row manager-history-actions"><button className="secondary-button" type="button" onClick={onEdit}><Icon name="edit" size={15} /> সম্পাদনা</button><button className="secondary-button danger-outline" type="button" onClick={onVoid}><Icon name="trash" size={15} /> বাতিল</button></div>}</div></div>;
 }
 
 

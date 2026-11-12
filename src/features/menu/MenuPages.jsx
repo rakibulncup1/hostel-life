@@ -12,7 +12,7 @@ import { fetchMemberDirectory, fetchRunningPeriod } from '../../services/diningS
 import { fetchKhalaPeriods } from '../../services/managerService';
 import { fetchMemberPeriodDetails } from '../../services/dashboardService';
 import { MemberPeriodDetailsModal } from '../dashboard/DashboardPage';
-import { fetchArchivedMonthDetail, fetchKhalaMoneyHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
+import { fetchKhalaMoneyHistory, fetchPreviousMonths, fetchMyArchiveEditablePeriods } from '../../services/historyService';
 import { fetchPinnedManagerAnnouncement, managerClearHostelPinnedAnnouncement, managerSendNotification } from '../../services/notificationService';
 import { fetchTopDepositors, fetchTopEaters, fetchTopShoppers } from '../../services/rankingService';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
@@ -383,7 +383,6 @@ export function DeveloperInfoPage() {
   return (
     <div className="page-stack">
       <PageHeader eyebrow="Hostel Life" title="হেল্প" description="সহায়তা ও যোগাযোগ।" />
-      <InfoPanel icon="info">সহায়তার জন্য নিচের যোগাযোগের মাধ্যম ব্যবহার করুন। সমস্যা জানালে মেসের নাম, ঘটনার তারিখ ও প্রাসঙ্গিক স্ক্রিনের তথ্য দিন; পাসওয়ার্ড বা OTP কখনো পাঠাবেন না।</InfoPanel>
       <section className="card developer-card">
         {photo ? <img className="developer-photo-placeholder developer-photo-image" src={photo} alt={info?.developer_name || 'ডেভেলপার'} loading="lazy" /> : <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>}
         <div className="developer-name">{loading ? 'তথ্য লোড হচ্ছে…' : info?.developer_name || 'Hostel Life Support'}</div>
@@ -401,53 +400,28 @@ export function DeveloperInfoPage() {
 }
 
 export function PrivacyPolicyPage() {
+  const sections = [
+    ['কোন তথ্য ব্যবহৃত হয়', 'অ্যাকাউন্ট পরিচালনার জন্য আপনার নাম, ইমেইল, মোবাইল নম্বর ও প্রোফাইল ছবি ব্যবহার হতে পারে। মেস পরিচালনার জন্য সদস্যতা, ভূমিকা, মিল, বাজার, জমা-খরচ, ব্যালেন্স, হিসাব ইতিহাস, ঐতিহাসিক রেকর্ড, আর্কাইভ, অনুরোধ, নোটিশ ও সংশ্লিষ্ট রেকর্ড সংরক্ষিত হয়। নিরাপত্তার জন্য IP address, লগইন বা নিবন্ধনের সময় দেওয়া ইমেইল, ঘটনার সময়, ডিভাইস/ব্রাউজার-সংক্রান্ত তথ্য, অনুরোধের উৎস এবং সীমিত HMAC fingerprint-ও ব্যবহৃত হতে পারে। অ্যাপ GPS বা ডিভাইসের সুনির্দিষ্ট অবস্থান চায় না; দেশ, শহর বা অঞ্চল শনাক্ত করার তথ্যও বর্তমান নিরাপত্তা-লগে ব্যবহার করা হয় না।'],
+    ['তথ্য কী কাজে ব্যবহার হয়', 'অ্যাকাউন্ট ও সদস্যতা পরিচালনা, মিল ও বাজারের হিসাব, জমা-খরচের রেকর্ড, রিপোর্ট, নোটিফিকেশন, সহায়তা এবং অননুমোদিত প্রবেশ বা অপব্যবহার শনাক্ত করতে প্রয়োজনীয় তথ্য ব্যবহার করা হয়।'],
+    ['কারা কোন তথ্য দেখতে পারেন', 'একই মেসের সদস্যরা তাঁদের ভূমিকা ও অনুমতি অনুযায়ী সদস্য তালিকা, মিল, বাজার, জমা-খরচ ও সংশ্লিষ্ট রেকর্ড দেখতে পারেন। ম্যানেজার ও অনুমোদিত সহকারীর দৃশ্যমানতা এবং সম্পাদনার ক্ষমতা সাধারণ সদস্যের চেয়ে বিস্তৃত হতে পারে। প্ল্যাটফর্ম পরিচালনাকারীরা দৈনন্দিন ব্যক্তিগত হিসাব পর্যালোচনা করেন না; সহায়তা বা নিরাপত্তা তদন্তে প্রয়োজন হলে অনুমোদিত সীমিত প্রবেশাধিকার প্রযোজ্য হতে পারে।'],
+    ['তথ্য শেয়ার ও সংযুক্ত সেবা', 'হোস্টিং, ডেটাবেজ, নিরাপদ নেটওয়ার্ক ও অ্যাপ সচল রাখার জন্য সংশ্লিষ্ট প্রযুক্তিগত সেবাদাতা প্রয়োজনীয় তথ্য প্রক্রিয়া করতে পারে। Google Sign-In সংযুক্ত নেই; Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না। ব্যবহারকারীর তথ্য বিক্রি বা ভাড়া দেওয়া হয় না।'],
+    ['তথ্য সংরক্ষণ ও মেয়াদ', 'নিরাপত্তা ও লগইন-সংক্রান্ত রেকর্ড এবং অ্যাপের সেশন তথ্যে থাকা IP address ও ব্রাউজার/ডিভাইস-সংক্রান্ত তথ্য ৩০ দিনের মেয়াদ পূর্ণ হলে নির্ধারিত দৈনিক স্বয়ংক্রিয় cleanup-এ মুছে ফেলা হয়। Password Reset-এর IP-ভিত্তিক সাময়িক প্রচেষ্টার তথ্য সর্বোচ্চ ৪৮ ঘণ্টা থাকে। পাসওয়ার্ড রিসেটের মাসিক সীমা রক্ষা করতে ইমেইলের একটি ফেরত-নির্ণয় করা যায় না এমন যাচাই-চিহ্ন সর্বোচ্চ ৩৫ দিন রাখা হতে পারে। কোনো IP block সক্রিয় থাকা পর্যন্ত সংশ্লিষ্ট IP রাখা হয়; মেয়াদ শেষ হলে block record পরিষ্কার হয়। হোস্টিং ও প্রমাণীকরণ-সেবাদাতার নিজস্ব অবকাঠামোতে তাদের নীতি অনুযায়ী কিছু প্রযুক্তিগত তথ্য প্রক্রিয়া হতে পারে; সেটি Hostel Life-এর নিজস্ব লগ সংরক্ষণ থেকে আলাদা। প্ল্যাটফর্মের প্রশাসনিক নিরীক্ষা-রেকর্ড আলাদা সংরক্ষণ ব্যবস্থায় রাখা হয়। অ্যাকাউন্ট, মেসের হিসাব ও আর্কাইভের তথ্য তাদের নিজস্ব পরিচালনাগত ও সংরক্ষণ নীতি অনুযায়ী থাকে।'],
+    ['নিরাপত্তা ও আপনার নিয়ন্ত্রণ', 'Password, OTP code বা Authenticator secret Security Event-এ সংরক্ষণ করা হয় না। নিজের পাসওয়ার্ড ও Join Code গোপন রাখুন, শেয়ার করা ডিভাইস থেকে লগআউট করুন এবং ভুল তথ্য সংশোধনে অ্যাপের অনুমোদিত পদ্ধতি বা মেসের ম্যানেজারের সহায়তা নিন। কোনো তথ্য মুছে ফেললে যৌথ হিসাব ও অন্য সদস্যের রেকর্ডে প্রভাব পড়তে পারে; তাই অনুরোধ যাচাই করে ব্যবস্থা নেওয়া হয়।'],
+    ['ঐচ্ছিক টেলিগ্রাম সংযোগ', 'ঐচ্ছিক টেলিগ্রাম সংযোগ স্বেচ্ছামূলক। সংযুক্ত করলে টেলিগ্রাম চ্যাট আইডি, ইউজার আইডি এবং পাওয়া গেলে ইউজারনেম সংরক্ষিত হতে পারে। বিজ্ঞপ্তির শিরোনাম ও বার্তার লেখা সংযুক্ত টেলিগ্রাম অ্যাকাউন্টে পাঠানো হয়। মেনু থেকে যেকোনো সময় বিচ্ছিন্ন করা যাবে; এরপর নতুন বিজ্ঞপ্তি আর পাঠানো হবে না।'],
+    ['বয়স-যোগ্যতা ও নীতির পরিবর্তন', 'বর্তমানে অ্যাকাউন্ট তৈরি করতে বয়স কমপক্ষে ১৮ বছর হতে হবে। সেবার কার্যপ্রণালি বা নিরাপত্তা ব্যবস্থা বদলালে এই নীতি হালনাগাদ হতে পারে। গোপনীয়তা বা অ্যাকাউন্ট-সংক্রান্ত প্রশ্নে Hostel Life Support-এর সঙ্গে যোগাযোগ করুন।'],
+  ];
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা ও নীতিমালা" description="আপনার তথ্য ও গোপনীয়তা।" />
-      <InfoPanel className="document-guidance-panel" icon="shield-check">কোন তথ্য কারা দেখতে বা পরিবর্তন করতে পারেন, তা আপনার মেসের ভূমিকা ও অনুমতির ওপর নির্ভর করে। সংবেদনশীল তথ্য নোটিশ বা হিসাবের বিবরণে লিখবেন না।</InfoPanel>
-      <p className="policy-public-full-link"><a href="/privacy-policy">প্রকাশ্য পূর্ণ গোপনীয়তা নীতি দেখুন</a></p>
+      <PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা নীতি" />
+      <p className="policy-public-full-link"><a href="/privacy-policy">প্রকাশ্য গোপনীয়তা নীতি</a></p>
       <section className="card policy-content-card policy-document-card">
-        <div className="policy-document-lead">
-          <Icon name="shield-check" size={24} />
-          <div><strong>আপনার তথ্যের ব্যবহার সীমিত, প্রয়োজনভিত্তিক ও ভূমিকা-নিয়ন্ত্রিত</strong><p>Hostel Life-এর কাজ চালানো, মেসের হিসাব রাখা এবং সদস্যদের মধ্যে প্রয়োজনীয় সমন্বয়ের জন্যই অ্যাপে দেওয়া তথ্য ব্যবহার করা হয়।</p></div>
-        </div>
-        <div className="policy-section-block">
-          <h2>১. কী ধরনের তথ্য ব্যবহৃত হয়</h2>
-          <p>অ্যাকাউন্টের নাম, ইমেইল, মোবাইল নম্বর ও প্রোফাইল ছবি; মেসের সদস্যতা ও ভূমিকা; মিলের অনুরোধ ও দৈনিক মিলের পরিমাণ; বাজারের তারিখ, আইটেম, পরিমাণ ও টাকা; জমা, অন্যান্য খরচ, খালার পারিশ্রমিক, নোটিফিকেশন এবং মাসিক/পূর্ববর্তী হিসাবের রেকর্ড—ফিচার ব্যবহারের প্রয়োজন অনুযায়ী সংরক্ষিত বা প্রদর্শিত হতে পারে।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>২. তথ্য কী কাজে ব্যবহার হয়</h2>
-          <p>অ্যাকাউন্ট শনাক্ত করা, মেসে যোগদান পরিচালনা, মিলের অনুরোধ ও দৈনিক হিসাব তৈরি, বাজার ও অর্থের হিসাব দেখানো, হিস্টরি/রিপোর্ট প্রস্তুত, নোটিফিকেশন পাঠানো এবং অনুমোদিত ব্যবস্থাপনা কার্যক্রম সম্পন্ন করতে তথ্য ব্যবহার হয়। অপ্রয়োজনীয় ব্যক্তিগত তথ্য চাওয়া উচিত নয়।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>৩. কারা কোন তথ্য দেখতে পারেন</h2>
-          <p>Hostel Life-কে সম্পূর্ণ ব্যক্তিগত ডায়েরি হিসেবে বিবেচনা করবেন না। একই মেসের সদস্যরা সদস্য তালিকা, চলতি মাসের কিছু সদস্যভিত্তিক হিসাব ও ব্যালেন্স, মিল-সংক্রান্ত তথ্য, বাজারের রেকর্ড, র‍্যাঙ্কিং এবং খালার টাকার হিসাব দেখতে পারেন। সাধারণ সদস্যের “হিসাব ইতিহাসে” নিজের প্রাসঙ্গিক লেনদেন দেখানো হয়; ম্যানেজার বা অনুমোদিত সহকারী তাঁদের ভূমিকার সীমার মধ্যে প্রয়োজন অনুযায়ী সদস্য নির্বাচন করে হিসাব দেখতে ও অনুমোদিত রেকর্ড পরিচালনা করতে পারেন। কারও তথ্য দেখা এবং সেটি সম্পাদনা করার অনুমতি এক বিষয় নয়—সম্পাদনার ক্ষমতা সংশ্লিষ্ট ভূমিকা ও ফিচারের অনুমতির মধ্যে সীমিত।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>৪. আপনার তথ্যের দায়িত্ব ও নিয়ন্ত্রণ</h2>
-          <p>প্রোফাইল থেকে নিজের নাম, মোবাইল নম্বর ও ছবি হালনাগাদ করতে পারবেন; নিরাপত্তা অংশ থেকে পাসওয়ার্ড পরিবর্তন এবং থিম নির্বাচন করতে পারবেন। ভুল সদস্য-তথ্য বা হিসাব চোখে পড়লে সংশ্লিষ্ট ম্যানেজারকে জানান এবং অ্যাপে থাকা অনুমোদিত সংশোধন-পদ্ধতি অনুসরণ করুন।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>৫. তথ্যের নিরাপত্তা</h2>
-          <p>নিজের পাসওয়ার্ড, লগইন সেশন ও মেসের যুক্ত হওয়ার কোড গোপন রাখুন। অন্যের অ্যাকাউন্ট ব্যবহার করবেন না, শেয়ার করা ডিভাইস ব্যবহারের পর লগ আউট করুন এবং অপরিচিত কারও কাছে ব্যক্তিগত বা আর্থিক তথ্য পাঠাবেন না। অনুমতি ছাড়া অন্য সদস্যের তথ্য সংগ্রহ, কপি বা বাইরে ছড়াবেন না।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>৬. হিসাব ও পুরোনো তথ্য সংরক্ষণ</h2>
-          <p>মেসের আর্থিক স্বচ্ছতা, মাসিক হিসাব ও বিরোধ যাচাইয়ের জন্য বাজার, জমা-খরচ, মিল এবং বন্ধ মাসের কিছু রেকর্ড আর্কাইভে রাখা হতে পারে। পূর্ববর্তী মাস বিভাগে যে বিস্তারিত ও সারসংক্ষেপ সংরক্ষণ-নীতি দেখানো হয়, সেটিই সংশ্লিষ্ট সময়ের জন্য প্রযোজ্য। কোনো সদস্যকে নিষ্ক্রিয় করা বা মেস থেকে সরানো হলেও হিসাবের ধারাবাহিকতা ও পুরোনো মাসের যাচাইয়ের জন্য সংশ্লিষ্ট ঐতিহাসিক রেকর্ড আর্কাইভে থাকতে পারে।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>৭. Activity, Login ও নিরাপত্তা-তথ্য</h2>
-          <p>সিস্টেমের নিরাপত্তা ও সমস্যা শনাক্ত করতে Login, Logout, Last Seen, ব্যবহৃত Session, IP ঠিকানা এবং ডিভাইস/ব্রাউজারের User-Agent সংরক্ষিত হতে পারে। মেসের গুরুত্বপূর্ণ কার্যক্রম—যেমন সদস্য, মিল, বাজার, হিসাব, প্রোফাইল ও নোটিফিকেশন-সংক্রান্ত পরিবর্তন—Activity Log-এ রেকর্ড হয়। নির্ধারিত Super Admin এই লগ দেখতে পারেন। Activity ও Login History নিরাপত্তা ও অডিটের প্রয়োজনে সংরক্ষিত থাকে; এই সংস্করণে এগুলোর স্বয়ংক্রিয় মেয়াদভিত্তিক মুছে ফেলা চালু করা হয়নি। ব্যর্থ Login/Registration প্রচেষ্টার জন্য আসল পাসওয়ার্ড বা Email সংরক্ষণ করা হয় না; পরিচয়-রেফারেন্স HMAC দিয়ে তৈরি হয়। Security Event ৯০ দিনের বেশি হলে নতুন Event আসার সময় পুরোনো Event পরিষ্কার করা হয়। IP ঠিকানা কোনো ব্যক্তিকে নিশ্চিতভাবে শনাক্ত করে না এবং একা অপরাধের প্রমাণ নয়।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>৮. ঐচ্ছিক টেলিগ্রাম সংযোগ</h2>
-          <p>আপনি নিজে টেলিগ্রাম সংযোগ করলে Hostel Life আপনার টেলিগ্রাম চ্যাট আইডি, ব্যবহারকারী আইডি এবং ঐচ্ছিক ব্যবহারকারীর নাম নিরাপদ সার্ভার-সাইড রেকর্ডে রাখে। আপনার জন্য তৈরি বিজ্ঞপ্তির শিরোনাম ও বার্তার লেখা সংযুক্ত টেলিগ্রাম অ্যাকাউন্টে পাঠানো হয়। বট টোকেন ও ওয়েবহুক সিক্রেট ব্যবহারকারীর ব্রাউজারে প্রকাশ করা হয় না। টেলিগ্রাম সংযোগ সম্পূর্ণ ঐচ্ছিক; মেনুর “টেলিগ্রাম সংযোগ” অংশ থেকে যেকোনো সময় বিচ্ছিন্ন করতে পারবেন। সংযোগ বিচ্ছিন্ন করার পর নতুন বিজ্ঞপ্তি আর টেলিগ্রামে পাঠানো হবে না। টেলিগ্রামের নিজস্ব গোপনীয়তা ও ডেটা-প্রক্রিয়াকরণ নীতি আলাদাভাবে প্রযোজ্য।</p>
-        </div>
-        <div className="policy-section-block">
-          <h2>৯. সহায়তা ও নীতির পরিবর্তন</h2>
-          <p>তথ্যের ভুল, অননুমোদিত ব্যবহার বা গোপনীয়তা-সংক্রান্ত প্রশ্ন থাকলে মেসের ম্যানেজার অথবা থ্রি-লাইন মেনুর “হেল্প” অংশে দেওয়া Hostel Life Support-এর সঙ্গে যোগাযোগ করুন। অ্যাপের কার্যপ্রণালি বদলালে এই নীতিও হালনাগাদ হতে পারে।</p>
-        </div>
-        <div className="policy-note"><Icon name="info" size={18}/><span>মনে রাখবেন: একই মেসের সদস্যদের মধ্যে কিছু মিল ও হিসাবের তথ্য শেয়ার হয়। তাই রেকর্ডে অপ্রয়োজনীয় ব্যক্তিগত তথ্য লিখবেন না।</span></div>
+        <div className="policy-document-lead"><Icon name="shield-check" size={24}/><div><strong>আপনার তথ্য প্রয়োজন অনুযায়ী ব্যবহৃত ও ভূমিকা অনুযায়ী দেখানো হয়</strong><p>অ্যাকাউন্ট, মেসের হিসাব এবং নিরাপত্তা-সংক্রান্ত তথ্যের ব্যবহার ও সংরক্ষণের নিয়ম নিচে দেওয়া হলো।</p></div></div>
+        {sections.map(([title, description], index) => (
+          <div className="policy-section-block" key={title}>
+            <h2>{formatNumber(index + 1, { maximumFractionDigits: 0 })}. {title}</h2>
+            <p>{description}</p>
+          </div>
+        ))}
       </section>
     </div>
   );
@@ -455,26 +429,20 @@ export function PrivacyPolicyPage() {
 
 export function TermsPage() {
   const terms = [
-    ['ব্যক্তিগত আমন্ত্রণ ও Join Code সুরক্ষিত রাখুন', 'Hostel Life-এর সাধারণ ওয়েবসাইটের ঠিকানা প্রকাশ্যে শেয়ার করা যায়। তবে কোনো মেসের ব্যক্তিগত Invitation Link, Join Code বা সদস্য-নির্দিষ্ট প্রবেশ-তথ্য পাবলিক গ্রুপ/ওয়েবসাইটে প্রকাশ করবেন না। এগুলো শুধু সংশ্লিষ্ট ও অনুমোদিত ব্যক্তিকে ব্যক্তিগতভাবে দিন।'],
-    ['সঠিক পরিচয়ে অ্যাকাউন্ট ব্যবহার', 'নিজের প্রকৃত পরিচয়ে অ্যাকাউন্ট ব্যবহার করুন। ভুয়া পরিচয়, অন্যের পরিচয় নকল, প্রতারণামূলক বা বিভ্রান্তিকর অ্যাকাউন্ট, এবং একাধিক অ্যাকাউন্ট দিয়ে নিয়ম এড়ানোর চেষ্টা করা যাবে না।'],
-    ['ভুয়া বা অপব্যবহারকারী অ্যাকাউন্ট অপসারণ', 'ভুয়া, প্রতারণামূলক, অননুমোদিত বা নিয়মভঙ্গকারী অ্যাকাউন্ট শনাক্ত হলে Hostel Life কর্তৃপক্ষ/অনুমোদিত Super Admin প্রয়োজন অনুযায়ী যেকোনো সময় সেটি স্থগিত বা মুছে দিতে পারবেন। গুরুতর নিরাপত্তা বা অপব্যবহারের ক্ষেত্রে আগাম নোটিশ ছাড়াও ব্যবস্থা নেওয়া হতে পারে।'],
-    ['মেসে যোগদান ও মেস তৈরি', 'Join Code শুধু সংশ্লিষ্ট মেসের অনুমোদিত সদস্যের সঙ্গে ব্যক্তিগতভাবে ভাগ করুন। অন্য মেসের কোড ব্যবহার, অনুমতি ছাড়া প্রবেশের চেষ্টা বা মেস তৈরির অনুমতি-কোড অন্যকে দেওয়া যাবে না। মেস তৈরি বা যোগদানের সময় সঠিক তথ্য দিন।'],
-    ['মিলের অনুরোধ ও সময়সীমা', 'সাধারণ মিল অনুরোধ নির্ধারিত কাট-অফের আগে জমা দিতে হবে। সাধারণ সময় পেরিয়ে গেলে Late Request বা Correction Request-এর নির্ধারিত সময় ও অনুমোদন-প্রক্রিয়া প্রযোজ্য হবে। অনুরোধ জমা দিলেই বিশেষ/লেট/সংশোধন আবেদন অনুমোদিত হয়েছে ধরে নেওয়া যাবে না; স্ট্যাটাস যাচাই করতে হবে।'],
-    ['বাজার ও আর্থিক রেকর্ডের সঠিকতা', 'বাজারের আইটেম, পরিমাণ, তারিখ, বাজারকারী, জমা, অন্যান্য খরচ এবং খালার পারিশ্রমিক বাস্তব তথ্য অনুযায়ী লিখুন। ইচ্ছাকৃত ভুল, ডুপ্লিকেট এন্ট্রি, ভুয়া লেনদেন বা অন্য সদস্যের হিসাব ক্ষতিগ্রস্ত করার চেষ্টা নিষিদ্ধ।'],
-    ['অনুমতি ও ব্যবস্থাপনার সীমা', 'সাধারণ সদস্য, সহকারী ম্যানেজার, প্রধান ম্যানেজার ও Super Admin-এর ক্ষমতা এক নয়। নিজের অনুমতির বাইরে কোনো রেকর্ড দেখা, বদলানো, মুছে ফেলা বা অন্যকে অনুমতি দেওয়ার চেষ্টা করা যাবে না। ম্যানেজারও ব্যক্তিগত সুবিধার জন্য ক্ষমতা ব্যবহার করতে পারবেন না।'],
-    ['হিস্টরি, সংশোধন ও আর্কাইভ', 'হিস্টরির রেকর্ড যাচাই করুন এবং ভুল হলে অনুমোদিত সংশোধন-পদ্ধতি অনুসরণ করুন। বন্ধ মাসের চূড়ান্ত হিসাব বা পুরোনো রেকর্ড অনুমতি ছাড়া বদলানো যাবে না। সংশোধনের কারণ চাইলে সত্য ও পূর্ণাঙ্গ কারণ লিখতে হবে।'],
-    ['নিরাপত্তা ও গ্রহণযোগ্য ব্যবহার', 'অ্যাপের নিরাপত্তা এড়ানো, অননুমোদিত প্রবেশ, অন্যের তথ্য সংগ্রহ/কপি, স্বয়ংক্রিয়ভাবে অস্বাভাবিক অনুরোধ পাঠানো, সেবা ব্যাহত করা বা ক্ষতিকর কোড/লিংক ব্যবহার নিষিদ্ধ। নিজের পাসওয়ার্ড ও অ্যাকাউন্ট অন্যকে ব্যবহার করতে দেবেন না।'],
-    ['ইন্টারনেট, অফলাইন তথ্য ও সংরক্ষণের নিশ্চয়তা', 'অফলাইনে দেখা কিছু তথ্য সর্বশেষ সংরক্ষিত কপি হতে পারে। ইন্টারনেট ছাড়া সব পরিবর্তন জমা বা সিঙ্ক হয়েছে ধরে নেওয়া যাবে না। কোনো কাজ সফল হয়েছে বলে দেখালেও প্রয়োজন হলে হিস্টরি/রেকর্ডে যাচাই করুন। গুরুত্বপূর্ণ আর্থিক রেকর্ডের নিজস্ব ব্যাকআপ ও যাচাইয়ের দায় মেস পরিচালনাকারীদের।'],
-    ['সেবা পরিবর্তন ও শর্তাবলী', 'নেটওয়ার্ক, ডিভাইস, রক্ষণাবেক্ষণ বা অনিবার্য কারণে সেবা সাময়িক ব্যাহত হতে পারে। ফিচার বা পরিচালনাপদ্ধতি বদলালে এই শর্তাবলী হালনাগাদ হতে পারে। অ্যাপ ব্যবহার অব্যাহত রাখার আগে নতুন শর্ত পড়ে নিন।'],
+    ['সেবার উদ্দেশ্য', 'Hostel Life মেসের সদস্য, মিল, বাজার, জমা-খরচ, নোটিশ ও সংশ্লিষ্ট হিসাবের রেকর্ড গুছিয়ে রাখতে সহায়তা করে। এটি হিসাব ব্যবস্থাপনার মাধ্যম; অ্যাপটি নিজে পেমেন্ট গেটওয়ে নয় এবং সরাসরি টাকা গ্রহণ বা স্থানান্তর করে না।'],
+    ['ব্যবহারের যোগ্যতা', 'বর্তমানে অ্যাকাউন্ট তৈরি ও ব্যবহার করতে বয়স কমপক্ষে ১৮ বছর হতে হবে। বর্তমানে এই অ্যাপে Google Sign-In নেই; নির্ধারিত নিবন্ধন-পদ্ধতি ব্যবহার করুন। নিবন্ধনের সময় সঠিক তথ্য দিন এবং এই যোগ্যতা পূরণ না হলে অ্যাকাউন্ট তৈরি করবেন না।'],
+    ['অ্যাকাউন্ট ও নিরাপত্তা', 'নিজের অ্যাকাউন্ট, পাসওয়ার্ড ও OTP গোপন রাখুন। অন্যের অ্যাকাউন্ট অনুমতি ছাড়া ব্যবহার করবেন না। ব্যক্তিগত আমন্ত্রণের Join Code ও Invitation Link সুরক্ষিত রাখুন। ব্যক্তিগত Join Code ও Invitation Link কেবল অনুমোদিত ব্যক্তির সঙ্গে ব্যক্তিগতভাবে ভাগ করুন; প্রকাশ্যে দেবেন না। ওয়েবসাইটের সাধারণ ঠিকানা বা Hostel Life-এর পরিচিতি পেজ প্রকাশ্যে শেয়ার করা যায়। ঐচ্ছিক Telegram সংযোগ যেকোনো সময় বিচ্ছিন্ন করা যাবে।'],
+    ['ভূমিকা ও অনুমতি', 'সাধারণ সদস্য, সহকারী ম্যানেজার ও প্রধান ম্যানেজারের ক্ষমতা আলাদা। নিজের অনুমতির বাইরে কোনো রেকর্ড দেখা, পরিবর্তন, মুছে ফেলা বা অন্যকে অনুমতি দেওয়ার চেষ্টা করা যাবে না। সম্পাদনার ক্ষমতা সংশ্লিষ্ট ভূমিকা ও সার্ভার-যাচাইকৃত অনুমতির মধ্যে সীমিত।'],
+    ['দায়িত্বশীল ব্যবহার', 'মিলের অনুরোধ সময়মতো দিন এবং Late Request বা Correction-এর ক্ষেত্রে অনুমোদন ও সময়সীমা মেনে চলুন। বাজার, জমা, খরচ ও খালার পারিশ্রমিকের তথ্য বাস্তব অনুযায়ী লিখুন। ভুয়া অ্যাকাউন্ট তৈরি, ভুয়া/ডুপ্লিকেট এন্ট্রি, প্রতারণা, হয়রানি, অননুমোদিত প্রবেশ, অন্যের তথ্য অপব্যবহার বা সেবা ব্যাহত করা নিষিদ্ধ।'],
+    ['হিসাব ও রেকর্ডের দায়িত্ব', 'অ্যাপের হিসাব ব্যবহারকারীদের দেওয়া তথ্যের ভিত্তিতে তৈরি হয়। গুরুত্বপূর্ণ এন্ট্রি ও রিপোর্ট যাচাই করুন। ভুল রেকর্ড হলে অনুমোদিত সংশোধন-পদ্ধতি অনুসরণ করুন। বন্ধ মাসের রেকর্ডে সম্পাদনার অধিকার কেবল সার্ভার-অনুমোদিত ব্যক্তির থাকে; সংশোধনের কারণ অডিটে সংরক্ষিত হতে পারে। গুরুত্বপূর্ণ হিসাবের নিজস্ব কপি রাখুন।'],
+    ['সেবার প্রাপ্যতা ও পরিবর্তন', 'নেটওয়ার্ক, ডিভাইস বা রক্ষণাবেক্ষণের কারণে কিছু ফিচার সাময়িকভাবে ব্যাহত হতে পারে। অফলাইনে দেখা তথ্য সর্বশেষ সংরক্ষিত কপি হতে পারে; ইন্টারনেট ছাড়া সব পরিবর্তন জমা হয়েছে ধরে নেবেন না। সেবার কার্যপ্রণালি বা শর্তাবলী পরিবর্তিত হলে হালনাগাদ সংস্করণ প্রকাশ করা হবে।'],
   ];
-
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" description="অ্যাপ ব্যবহারের নিয়ম।" />
-      <InfoPanel className="document-guidance-panel" icon="book-open">অ্যাকাউন্ট, মেসের হিসাব ও অন্য সদস্যের তথ্য ব্যবহারের সময় নিচের নিয়মগুলো অনুসরণ করুন। ব্যক্তিগত Invite Link বা Join Code প্রকাশ্যে শেয়ার করবেন না।</InfoPanel>
-      <p className="policy-public-full-link"><a href="/terms-of-service">প্রকাশ্য পূর্ণ ব্যবহারের শর্তাবলী দেখুন</a></p>
+      <PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" />
+      <p className="policy-public-full-link"><a href="/terms-of-service">প্রকাশ্য ব্যবহারের শর্তাবলী</a></p>
       <section className="card policy-content-card policy-document-card">
-        <div className="policy-document-lead"><Icon name="book-open" size={24}/><div><strong>অ্যাপ ব্যবহার করার আগে নিয়মগুলো পড়ুন</strong><p>মেসের তথ্য, সদস্যদের হিসাব ও অ্যাক্সেস সুরক্ষিত রাখতে প্রত্যেক ব্যবহারকারীর জন্য এই নিয়মগুলো প্রযোজ্য।</p></div></div>
+        <div className="policy-document-lead"><Icon name="book-open" size={24}/><div><strong>অ্যাপ ব্যবহারের নিয়ম</strong><p>অ্যাকাউন্ট, মেসের হিসাব এবং অন্য সদস্যের তথ্য ব্যবহারের সময় নিচের শর্তগুলো প্রযোজ্য।</p></div></div>
         {terms.map(([title, description], index) => (
           <div className="policy-section-block" key={title}>
             <h2>{formatNumber(index + 1, { maximumFractionDigits: 0 })}. {title}</h2>
@@ -716,101 +684,52 @@ export function PlaceholderMenuPage({ title, description }) {
   );
 }
 
-function MonthSummaryCard({ item, onClick, canEdit = false }) {
-  const detail = item.detail_available;
-  return (
-    <button className={`card archive-month-card ${detail ? 'detail-month' : 'summary-month'}`} type="button" onClick={onClick}>
-      <div className="archive-month-icon"><Icon name={detail ? 'file-text' : 'history'} size={20} /></div>
-      <div className="archive-month-copy">
-        <strong>{item.label}</strong>
-        <small>{formatDateBangla(item.start_date)} → {formatDateBangla(item.end_date)}</small>
-        <span>{detail ? 'বিস্তারিত ডাটা উপলব্ধ' : 'শুধু মাসিক সারসংক্ষেপ'}</span>
-        <span className={`archive-access-badge ${canEdit ? 'is-editable' : 'is-locked'}`}>{canEdit ? 'সম্পাদনার অনুমতি' : 'শুধু দেখা · লক'}</span>
-      </div>
-      <Icon name="chevron" size={18} />
-    </button>
-  );
-}
-
 export function PreviousMonthsPage() {
   const toast = useToast();
   const [months, setMonths] = useState([]);
-  const [editablePeriodIds, setEditablePeriodIds] = useState([]);
-  const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [detailLoading, setDetailLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [monthRows, editableRows] = await Promise.all([fetchPreviousMonths(), fetchMyArchiveEditablePeriods().catch(() => [])]);
-      setMonths(Array.isArray(monthRows) ? monthRows : []);
-      setEditablePeriodIds((Array.isArray(editableRows) ? editableRows : []).map((row) => String(row.period_id || row.id || '')).filter(Boolean));
+      const rows = await fetchPreviousMonths();
+      setMonths(Array.isArray(rows) ? rows : []);
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'পূর্ববর্তী মাসগুলো লোড করা যায়নি।'));
+    } finally {
+      setLoading(false);
     }
-    catch (error) { toast.error(getFriendlySupabaseError(error, 'পূর্ববর্তী মাসগুলো লোড করা যায়নি।')); }
-    finally { setLoading(false); }
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
 
-  const open = async (item) => {
-    setDetailLoading(true);
-    try { setDetail(await fetchArchivedMonthDetail(item.period_id)); }
-    catch (error) { toast.error(getFriendlySupabaseError(error, 'এই মাসের তথ্য খোলা যায়নি।')); }
-    finally { setDetailLoading(false); }
+  const openMonth = (item) => {
+    const periodId = String(item?.period_id || item?.id || '');
+    if (!periodId) return;
+    navigateTo(`/app/menu/archive?period_id=${encodeURIComponent(periodId)}`);
   };
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="সংরক্ষিত হিসাব" title="বন্ধ মাসসমূহ" description="বন্ধ মাসের হিসাব ও রিপোর্ট দেখুন।" />
-      <InfoPanel className="closed-month-guidance-panel" icon="archive">বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন। মাসভেদে সম্পাদনার অনুমতি আলাদা; লক করা মাস শুধু দেখা যাবে।</InfoPanel>
+      <PageHeader eyebrow="সংরক্ষিত হিসাব" title="বন্ধ মাসসমূহ" />
       {loading ? <LoadingSpinner label="পূর্ববর্তী মাস লোড হচ্ছে..." /> : months.length === 0 ? (
-        <div className="empty-state-card"><Icon name="history" size={28} /><strong>কোনো পূর্ববর্তী মাস নেই</strong><span>মেসে এখনো archive করা মাস পাওয়া যায়নি।</span></div>
+        <div className="empty-state-card"><Icon name="history" size={28} /><strong>কোনো পূর্ববর্তী মাস নেই</strong></div>
       ) : (
         <div className="archive-month-list">
-          {months.map((item) => <MonthSummaryCard key={item.period_id} item={item} canEdit={editablePeriodIds.includes(String(item.period_id || item.id || ''))} onClick={() => open(item)} />)}
+          {months.map((item) => <button className={`card archive-month-card ${item.detail_available ? 'detail-month' : 'summary-month'}`} type="button" key={item.period_id || item.id} onClick={() => openMonth(item)}>
+            <div className="archive-month-icon"><Icon name={item.detail_available ? 'file-text' : 'history'} size={20} /></div>
+            <div className="archive-month-copy">
+              <strong>{item.label}</strong>
+              <small>{formatDateBangla(item.start_date)} → {formatDateBangla(item.end_date)}</small>
+              <span>{item.detail_available ? 'বিস্তারিত রিপোর্ট' : 'মাসিক সারসংক্ষেপ'}</span>
+            </div>
+            <Icon name="chevron" size={18} />
+          </button>)}
         </div>
       )}
-      {detailLoading && <div className="modal-backdrop"><div className="modal-panel card"><LoadingSpinner label="মাসের বিস্তারিত লোড হচ্ছে..." /></div></div>}
-      {detail && !detailLoading && <ArchiveDetailModal detail={detail} onClose={() => setDetail(null)} />}
     </div>
   );
 }
-
-function ArchiveDetailModal({ detail, onClose }) {
-  const markets = Array.isArray(detail.markets) ? detail.markets : [];
-  const meals = Array.isArray(detail.meals) ? detail.meals : [];
-  const ledger = Array.isArray(detail.ledger) ? detail.ledger : [];
-  const isDetail = Array.isArray(detail.markets);
-  return (
-    <div className="modal-backdrop" role="presentation">
-      <div className="modal-panel card large-modal" role="dialog" aria-modal="true" aria-label="মাসের বিস্তারিত">
-        <div className="modal-head"><div><span className="eyebrow">{detail.label}</span><h2>{formatDateBangla(detail.start_date)} → {formatDateBangla(detail.end_date)}</h2></div><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button></div>
-        {isDetail ? (
-          <>
-            <div className="archive-detail-grid">
-              <div className="metric"><span>বাজার</span><strong>{formatCurrency(markets.reduce((s, m) => s + Number(m.total || 0), 0))}</strong></div>
-              <div className="metric"><span>মিল দিন</span><strong>{formatNumber(meals.length)}</strong></div>
-              <div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div>
-            </div>
-            <section className="archive-detail-section"><div className="section-heading"><h3>বাজার</h3><span>{formatNumber(markets.length)}টি</span></div>{markets.slice(0, 50).map((market) => <div className="archive-list-row" key={market.id}><div><strong>{market.member_name}</strong><small>{formatDateWithWeekday(market.entry_date)}</small></div><strong>{formatCurrency(market.total)}</strong></div>)}</section>
-            <section className="archive-detail-section"><div className="section-heading"><h3>মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.slice(0, 60).map((meal) => <div className="archive-list-row" key={meal.date}><div><strong>{formatDateWithWeekday(meal.date)}</strong><small>ব্রেকফাস্ট {formatNumber(meal.breakfast)} · লাঞ্চ {formatNumber(meal.lunch)} · ডিনার {formatNumber(meal.dinner)}</small></div><span className="member-badge subtle">{meal.status}</span></div>)}</section>
-          </>
-        ) : (
-          <div className="archive-summary-grid">
-            <div className="metric"><span>মোট জমা</span><strong>{formatCurrency(detail.total_deposit)}</strong></div>
-            <div className="metric"><span>মোট বাজার</span><strong>{formatCurrency(detail.total_market_expense)}</strong></div>
-            <div className="metric"><span>মোট মিল</span><strong>{formatNumber(detail.total_meals)}</strong></div>
-            <div className="metric"><span>মিল রেট</span><strong>{formatCurrency(detail.meal_rate)}</strong></div>
-            <div className="metric"><span>অন্যান্য খরচ</span><strong>{formatCurrency(detail.total_other_expense)}</strong></div>
-            <div className="metric"><span>অবশিষ্ট ফান্ড</span><strong>{formatCurrency(detail.fund_remaining)}</strong></div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 
 export function ArchiveEditAccessPage() {
   const toast = useToast();

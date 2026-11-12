@@ -17,11 +17,11 @@ test('manager Dining routes use a manager-only presentation scope', () => {
   }
 });
 
-test('Market Entry has one combined period/context guidance panel', () => {
+test('Market Entry keeps only required period-state warnings without extra helper cards', () => {
   const market = dining.slice(dining.indexOf('function MarketEntryForm'), dining.indexOf('function ManagerMealEntry'));
   assert.match(market, /periodNotStarted \? \([\s\S]*?<InfoPanel tone="warning" icon="calendar"/);
-  assert.match(market, /: isManager \? \([\s\S]*?<InfoPanel icon="shopping-basket">বাজারকারীর নাম/);
-  assert.match(market, /: \([\s\S]*?<InfoPanel icon="shopping-basket">তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
+  assert.doesNotMatch(market, /<InfoPanel icon="shopping-basket"/);
+  assert.doesNotMatch(market, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
   assert.doesNotMatch(dining.slice(dining.indexOf('function MarketEntryForm'), dining.indexOf('function ManagerMealEntry')), /<div className="form-hint period-start-notice"/);
 });
 

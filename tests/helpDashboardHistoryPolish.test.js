@@ -35,7 +35,7 @@ test('Dashboard member search filters the already-loaded member array locally', 
 
 test('History keeps the same content and has dedicated mobile Dining-like heading and full-width info layout', () => {
   assert.match(history, /history-title-heading/);
-  assert.match(history, /বাজার, জমা-খরচ ও আগের মাসের সংরক্ষিত হিসাব দেখুন/);
+  assert.match(history, /সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য/);
   assert.match(css, /\.history-title-heading\s*\{[\s\S]*?border-radius: 17px/);
   assert.match(css, /\.history-intro-info\s*\{[\s\S]*?width: 100%/);
   assert.match(css, /@media \(min-width: 851px\)[\s\S]*?\.history-title-actions \.secondary-button/);

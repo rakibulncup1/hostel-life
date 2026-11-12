@@ -20,11 +20,11 @@ test('privacy policy describes Hostel Life user data without exposing implementa
 test('terms protect private invitation links while allowing public sharing of the app URL', async () => {
   const menu = await source('src/features/menu/MenuPages.jsx');
   const terms = menu.split('export function TermsPage() {')[1]?.split('const HOW_TO_USE_GROUPS')[0] || '';
-  assert.match(terms, /ব্যক্তিগত আমন্ত্রণ ও Join Code সুরক্ষিত রাখুন/);
-  assert.match(terms, /ব্যক্তিগত Invitation Link, Join Code/);
-  assert.match(terms, /সাধারণ ওয়েবসাইটের ঠিকানা প্রকাশ্যে শেয়ার করা যায়/);
+  assert.match(terms, /ব্যক্তিগত আমন্ত্রণের Join Code ও Invitation Link সুরক্ষিত রাখুন/);
+  assert.match(terms, /ব্যক্তিগত Join Code ও Invitation Link/);
+  assert.match(terms, /ওয়েবসাইটের সাধারণ ঠিকানা বা Hostel Life-এর পরিচিতি পেজ প্রকাশ্যে শেয়ার করা যায়/);
   assert.match(terms, /ভুয়া.*অ্যাকাউন্ট/);
-  assert.match(terms, /যেকোনো সময়/);
+  assert.match(terms, /যেকোনো সময়/);
 });
 
 test('how-to guide includes grouped questions and current Bangladesh meal/month deadlines', async () => {

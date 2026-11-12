@@ -55,7 +55,8 @@ test('menu and operational feature guidance is concise and uses shared compact s
   assert.match(managerPages, /description="মাসিক হিসাব PDF হিসেবে সংরক্ষণ করুন।"/);
   assert.match(dining, /!managerMode && <InfoPanel icon="calendar-clock">তারিখ ও মিল বেছে অনুরোধ দিন। Late\/Correction-এ অনুমোদন লাগবে।/);
   assert.match(dining, /managerPageStackClass/);
-  assert.match(dining, /বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।/);
+  assert.doesNotMatch(dining, /বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।/);
+  assert.doesNotMatch(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
   assert.match(css, /\.info-panel \{/);
   assert.match(css, /\.form-hint,/);
 });

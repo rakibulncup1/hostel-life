@@ -1,5 +1,5 @@
 import { confirmAction, confirmTypedAction } from '../../utils/actionDialogs';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useManagementContext } from '../../hooks/useManagementContext';
 import { useToast } from '../../components/Toast';
@@ -79,11 +79,15 @@ function ReadOnlyReport({ detail }) {
   const markets = arr(detail.markets);
   const meals = arr(detail.meals);
   const ledger = arr(detail.ledger);
+  const members = arr(detail.members);
+  const khala = arr(detail.khala_entries);
   const visibleAudit = arr(detail.edit_audit).slice(0, 10);
   const detailed = Array.isArray(detail.markets) || Array.isArray(detail.meals) || Array.isArray(detail.ledger);
   const tabs = [
     ['overview', 'সারাংশ', null],
     ...(detailed ? [['market', 'বাজার', markets.length], ['meals', 'ফাইনাল মিল', meals.length], ['ledger', 'লেনদেন', ledger.length]] : []),
+    ...(Array.isArray(detail.members) ? [['members', 'সদস্যের হিসাব', members.length]] : []),
+    ...(Array.isArray(detail.khala_entries) ? [['khala', 'খালার টাকা', khala.length]] : []),
     ...(visibleAudit.length ? [['audit', 'সংশোধন ইতিহাস', visibleAudit.length]] : []),
   ];
   const Empty = ({ title }) => <div className="archive-category-empty"><span><Icon name="check-circle" size={19}/></span><div><strong>{title}</strong></div></div>;
@@ -93,11 +97,21 @@ function ReadOnlyReport({ detail }) {
     </nav>
     {activeTab === 'overview' && <>
       <SummaryMetrics detail={detail}/>
-      {detailed ? <Section title="এই মাসের রিপোর্ট"><div className="archive-correction-metrics archive-readonly-counts"><div className="metric"><span>বাজার এন্ট্রি</span><strong>{formatNumber(markets.length)}</strong></div><div className="metric"><span>মিলের দিন</span><strong>{formatNumber(meals.length)}</strong></div><div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div></div></Section> : <div className="state-card"><Icon name="file-text" size={20}/><div><strong>মাসের সারসংক্ষেপ</strong><p>এই মাসের বিস্তারিত লেনদেন সংরক্ষণনীতি অনুযায়ী সীমিত হতে পারে।</p></div></div>}
+      {detail.manager_at_close_name && <Section title="মাস বন্ধের তথ্য"><div className="archive-record-main"><strong>{detail.manager_at_close_name}</strong><small>এই মাসটি বন্ধ করেছেন</small></div></Section>}
+      {detailed ? <Section title="এই মাসের রিপোর্ট"><div className="archive-correction-metrics archive-readonly-counts"><div className="metric"><span>বাজার এন্ট্রি</span><strong>{formatNumber(markets.length)}</strong></div><div className="metric"><span>মিলের দিন</span><strong>{formatNumber(meals.length)}</strong></div><div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div>{Array.isArray(detail.members) && <div className="metric"><span>সদস্য</span><strong>{formatNumber(members.length)}</strong></div>}{Array.isArray(detail.khala_entries) && <div className="metric"><span>খালার এন্ট্রি</span><strong>{formatNumber(khala.length)}</strong></div>}</div></Section> : <div className="state-card"><Icon name="file-text" size={20}/><div><strong>মাসের সারসংক্ষেপ</strong><p>এই মাসের বিস্তারিত লেনদেন সংরক্ষণনীতি অনুযায়ী সীমিত হতে পারে।</p></div></div>}
       {visibleAudit.length > 0 && <Section title="সাম্প্রতিক সংশোধন"><div className="archive-correction-records">{visibleAudit.slice(0, 3).map((entry, index) => <article className="archive-correction-record archive-audit-record" key={entry.id || index}><span className="archive-record-kind-icon"><Icon name="history" size={18}/></span><div className="archive-record-main"><strong>{entry.summary || entry.action || 'হিসাব সংশোধন'}</strong><small>{entry.actor_name || 'ম্যানেজার'} · {entry.created_at ? formatDateTime12(entry.created_at) : ''}</small></div></article>)}</div></Section>}
     </>}
     {activeTab === 'market' && <Section title={`বাজার (${formatNumber(markets.length)}টি)`}>
-      {markets.length ? <div className="archive-correction-records">{markets.map((row, index) => <article className="archive-correction-record" key={row.id || index}><span className="archive-record-kind-icon"><Icon name="shopping-basket" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || row.buyer_name || row.name || 'বাজার এন্ট্রি'}</strong><small>{formatDateWithWeekday(row.entry_date || row.date)} · {formatCurrency(row.total ?? row.total_amount ?? 0)} · {row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</small></div></article>)}</div> : <Empty title="এই মাসে বাজার এন্ট্রি নেই"/>}
+      {markets.length ? <div className="archive-correction-records">{markets.map((row, index) => {
+        const items = arr(row.items);
+        return <article className="archive-correction-record archive-readonly-market-record" key={row.id || index}><span className="archive-record-kind-icon"><Icon name="shopping-basket" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || row.buyer_name || row.name || 'বাজার এন্ট্রি'}</strong><small>{formatDateWithWeekday(row.entry_date || row.date)} · {formatCurrency(row.total ?? row.total_amount ?? 0)} · {row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</small>{items.length > 0 && <div className="archive-readonly-market-items">{items.map((item, itemIndex) => <span key={item.serial_no || item.id || itemIndex}>{item.item_name || item.name} · {item.quantity || '—'} · {formatCurrency(item.amount || 0)}</span>)}</div>}</div></article>;
+      })}</div> : <Empty title="এই মাসে বাজার এন্ট্রি নেই"/>}
+    </Section>}
+    {activeTab === 'members' && <Section title={`সদস্যভিত্তিক হিসাব (${formatNumber(members.length)} জন)`}>
+      {members.length ? <div className="archive-correction-records">{members.map((row, index) => <article className="archive-correction-record archive-readonly-member-record" key={row.membership_id || row.member_id || index}><span className="archive-record-kind-icon"><Icon name="user" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || row.name || 'সদস্য'}</strong><small>{row.member_status === 'inactive' ? 'নিষ্ক্রিয় সদস্য' : 'সদস্য'} · {formatNumber(row.final_meals ?? row.meals ?? 0)} মিল</small><div className="archive-readonly-member-metrics"><span>জমা <b>{formatCurrency(row.deposit || 0)}</b></span><span>মিল খরচ <b>{formatCurrency(row.meal_cost || 0)}</b></span><span>অন্যান্য খরচ <b>{formatCurrency(row.other_expense || 0)}</b></span><span>ব্যালেন্স <b>{formatCurrency(row.balance || 0)}</b></span></div></div></article>)}</div> : <Empty title="সদস্যের হিসাব নেই"/>}
+    </Section>}
+    {activeTab === 'khala' && <Section title={`খালার টাকা (${formatNumber(khala.length)}টি)`}>
+      {khala.length ? <div className="archive-correction-records">{khala.map((row, index) => <article className="archive-correction-record" key={row.entry_id || row.id || index}><span className="archive-record-kind-icon"><Icon name="hand-coins" size={18}/></span><div className="archive-record-main"><strong>{row.member_name || 'প্রাপক উল্লেখ নেই'}</strong><small>{formatDateWithWeekday(row.payment_date || row.entry_date)} · {formatCurrency(row.amount || 0)} · {row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</small>{row.description && <small>{row.description}</small>}</div></article>)}</div> : <Empty title="খালার টাকার এন্ট্রি নেই"/>}
     </Section>}
     {activeTab === 'meals' && <Section title={`দৈনিক ফাইনাল মিল (${formatNumber(meals.length)} দিন)`}>
       {meals.length ? <div className="archive-correction-records">{meals.map((row, index) => <article className="archive-correction-record" key={row.date || row.meal_date || index}><span className="archive-record-kind-icon"><Icon name="utensils" size={18}/></span><div className="archive-record-main"><strong>{formatDateWithWeekday(row.date || row.meal_date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} + লাঞ্চ {formatNumber(row.lunch)} + ডিনার {formatNumber(row.dinner)} = {formatNumber(Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0))} মিল</small></div></article>)}</div> : <Empty title="ফাইনাল মিলের তথ্য নেই"/>}
@@ -129,6 +143,9 @@ export function ArchiveCorrectionPage() {
   const [busy, setBusy] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeKind, setActiveKind] = useState('all');
+  const [archiveView, setArchiveView] = useState('correction');
+  const [requestedPeriodId] = useState(() => new URLSearchParams(window.location.search).get('period_id') || '');
+  const autoOpenedPeriodRef = useRef(false);
 
   const reloadMonths = useCallback(async () => {
     setLoadingMonths(true);
@@ -164,7 +181,7 @@ export function ArchiveCorrectionPage() {
     const id = String(row?.period_id || row?.id || '');
     if (!id) return;
     setSelectedPeriodId(id);
-    setActiveKind('all');
+    setActiveKind('all'); setArchiveView('correction');
     setDetail(null); setBundle(null); setEditing(null); setBackendMissing(false); setReadOnlyReason('');
     setLoadingDetail(true);
     try {
@@ -188,6 +205,14 @@ export function ArchiveCorrectionPage() {
       }
     } finally { setLoadingDetail(false); }
   }, [editablePeriods, toast]);
+
+  useEffect(() => {
+    if (loadingMonths || !requestedPeriodId || autoOpenedPeriodRef.current) return;
+    const requested = months.find((row) => String(row.period_id || row.id || '') === requestedPeriodId);
+    if (!requested) return;
+    autoOpenedPeriodRef.current = true;
+    openMonth(requested);
+  }, [loadingMonths, months, editablePeriods, requestedPeriodId, openMonth]);
 
   const restoreMonth = async () => {
     if (!selected?.can_reopen || !closerAccess || busy) return;
@@ -275,7 +300,7 @@ export function ArchiveCorrectionPage() {
 
     {selectedPeriodId && <>
       <div className="archive-detail-toolbar">
-        <button type="button" className="secondary-button compact" onClick={() => { setSelectedPeriodId(''); setDetail(null); setBundle(null); setEditing(null); setActiveKind('all'); }}><Icon name="arrow-left" size={15}/> সব মাস</button>
+        <button type="button" className="secondary-button compact" onClick={() => { setSelectedPeriodId(''); setDetail(null); setBundle(null); setEditing(null); setActiveKind('all'); setArchiveView('correction'); }}><Icon name="arrow-left" size={15}/> সব মাস</button>
         <div className="archive-detail-title"><span className="archive-eyebrow">নির্বাচিত মাসের হিসাব</span><h2>{detailLabel}</h2><p>{formatDateBangla(detailStart)} – {formatDateBangla(detailEnd)}</p></div>
         <span className="archive-correction-status"><i className="archive-status-dot"/> মাস বন্ধ</span>
         <button type="button" className="secondary-button compact archive-month-pdf-button" disabled={!Array.isArray(detail?.members)} title={!Array.isArray(detail?.members) ? 'পূর্ণ রিপোর্টের জন্য Run41 migration প্রয়োজন' : 'পূর্ণ মাসিক প্রতিবেদন PDF / প্রিন্ট'} onClick={() => { try { printArchivedMonthlyReport(detail); } catch (error) { toast.error(error?.message || 'রিপোর্ট তৈরি করা যায়নি।'); } }}><Icon name="file-text" size={15}/> পূর্ণ রিপোর্ট PDF</button>
@@ -286,8 +311,13 @@ export function ArchiveCorrectionPage() {
       {!loadingDetail && readOnlyReason && <div className="state-card state-card-warning archive-readonly-warning"><Icon name={backendMissing ? 'info' : 'shield'} size={20}/><div><strong>{backendMissing ? 'এখন শুধু রিপোর্ট দেখা যাবে' : 'সংশোধন বন্ধ আছে'}</strong><p>{readOnlyReason}</p></div></div>}
       {!loadingDetail && bundle && <>
         <div className="archive-correction-access-note"><div><strong>{canEditSelected && closerAccess ? 'আপনার বন্ধ করা মাস · সীমিত সংশোধন' : 'রিড-অনলি রিপোর্ট'}</strong><p>{canEditSelected && closerAccess ? 'প্রতিটি সংশোধনের কারণ ও পরিবর্তন অডিট লগে সংরক্ষিত হবে।' : 'এই মাসের হিসাব দেখা যাবে; সম্পাদনা করতে পারবেন শুধু মাস বন্ধকারী।'}</p></div></div>
+        <nav className="archive-primary-view-tabs" aria-label="আর্কাইভ ভিউ">
+          <button type="button" className={archiveView === 'correction' ? 'is-active' : ''} aria-pressed={archiveView === 'correction'} onClick={() => setArchiveView('correction')}><Icon name="pencil" size={15}/> সংশোধন</button>
+          <button type="button" className={archiveView === 'report' ? 'is-active' : ''} aria-pressed={archiveView === 'report'} onClick={() => setArchiveView('report')}><Icon name="file-text" size={15}/> পূর্ণ রিপোর্ট</button>
+        </nav>
+        {archiveView === 'correction' ? <>
         <SummaryMetrics detail={detail}/>
-        <nav className="archive-kind-tabs" aria-label="আর্কাইভ রিপোর্ট বিভাগ">
+        <nav className="archive-kind-tabs" aria-label="সংশোধনের বিভাগ">
           <button type="button" className={activeKind === 'all' ? 'is-active' : ''} aria-pressed={activeKind === 'all'} onClick={() => setActiveKind('all')}><span>সব বিভাগ</span><b>{formatNumber(correctionTotal)}</b></button>
           {EDIT_KINDS.map(([kind, label]) => <button type="button" key={kind} className={activeKind === kind ? 'is-active' : ''} aria-pressed={activeKind === kind} onClick={() => setActiveKind(kind)}><span>{label}</span><b>{formatNumber(correctionCounts[kind])}</b></button>)}
           <button type="button" className={activeKind === 'audit' ? 'is-active' : ''} aria-pressed={activeKind === 'audit'} onClick={() => setActiveKind('audit')}><span>সংশোধন ইতিহাস</span><b>{formatNumber(arr(bundle.audit).length)}</b></button>
@@ -312,6 +342,7 @@ export function ArchiveCorrectionPage() {
             {arr(bundle.audit).length ? <div className="archive-correction-records">{bundle.audit.map((entry, index) => <article className="archive-correction-record archive-audit-record" key={entry.id || index}><span className="archive-record-kind-icon"><Icon name="history" size={18}/></span><div className="archive-record-main"><strong>{entry.summary || entry.action || 'সংশোধন'}</strong><small>{entry.actor_name || 'ম্যানেজার'}{entry.created_at ? ` · ${formatDateTime12(entry.created_at)}` : ''}</small>{entry.reason && <p>{entry.reason}</p>}</div></article>)}</div> : <div className="archive-category-empty"><span><Icon name="history" size={19}/></span><div><strong>এখনো সংশোধন করা হয়নি</strong></div></div>}
           </Section>}
         </div>
+        </> : <div className="archive-readonly-report archive-full-report"><ReadOnlyReport detail={detail}/></div>}
       </>}
       {!loadingDetail && !bundle && <div className="archive-readonly-report"><ReadOnlyReport detail={detail}/></div>}
     </>}

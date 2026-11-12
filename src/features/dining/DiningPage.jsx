@@ -1026,11 +1026,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       </div>
       {periodNotStarted ? (
         <InfoPanel tone="warning" icon="calendar">{periodStartNotice}</InfoPanel>
-      ) : isManager ? (
-        <InfoPanel icon="shopping-basket">বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।</InfoPanel>
-      ) : (
-        <InfoPanel icon="shopping-basket">তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন।</InfoPanel>
-      )}
+      ) : null}
 
       <div className="market-top-fields">
         <label className="field-label">
@@ -1058,7 +1054,6 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
       )}
 
       <div className="market-table-card">
-        <div className="market-paste-hint market-paste-hint-boxed"><Icon name="file-text" size={15} /><span>Excel/Sheets থেকে <strong>আইটেম · পরিমাণ · টাকা</strong>—এই ৩ কলাম কপি করে প্রথম আইটেমের ঘরে পেস্ট করলে সারিগুলো একসঙ্গে যোগ হবে।</span></div>
         <div className="market-table-head">
           <span>ক্রম</span><span>আইটেমের নাম</span><span>পরিমাণ</span><span>টাকার পরিমাণ</span><span aria-hidden="true" />
         </div>
