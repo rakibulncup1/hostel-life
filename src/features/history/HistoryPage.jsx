@@ -443,7 +443,13 @@ function MarketHistoryList({ rows, serialById = new Map(), onOpen }) {
           {hasActualMarketUpdate(row) && <small className="history-market-updated">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}
           <div className="history-market-bottom-row"><span className="history-market-item-count">{Array.isArray(row.items) ? `${formatNumber(row.items.length)}টি আইটেম` : 'বাজারের বিস্তারিত'}{row.status === 'void' ? ' · বাতিল' : ''}</span><span className="history-row-open-hint">বিস্তারিত <Icon name="chevron" size={12}/></span></div>
         </div>
-        <div className="history-amount history-market-amount"><strong>{formatCurrency(row.total_amount)}</strong><small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small></div>
+        <div className="history-amount history-market-amount">
+          <span className="history-market-amount-label">মোট বাজার</span>
+          <div className="history-market-amount-value">
+            <strong>{formatCurrency(row.total_amount)}</strong>
+            <small>{row.credit_to_buyer ? 'জমায় যুক্ত' : 'জমায় নয়'}</small>
+          </div>
+        </div>
         <Icon name="chevron" size={17} className="history-market-chevron" />
       </button>
     </div>

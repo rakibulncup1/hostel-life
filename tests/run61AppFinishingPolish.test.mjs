@@ -57,10 +57,12 @@ test('market edit metadata is hidden until a genuine later edit and card layout 
   assert.match(finishCss, /\.history-market-serial/);
 });
 
-test('mobile market entry keeps serial beside the item name', () => {
+test('mobile market entry keeps the serial in a dedicated grid gutter above the item-name line', () => {
   assert.match(dining, /market-serial/);
-  assert.match(finishCss, /\.market-item-row \.market-serial[\s\S]*?grid-column:\s*1/);
-  assert.match(finishCss, /\.market-item-row \.market-input-item[\s\S]*?grid-column:\s*2\s*\/\s*5/);
+  assert.match(finishCss, /market-item-row > \.market-serial[\s\S]*?position:\s*relative !important[\s\S]*?inset:\s*auto !important/);
+  assert.match(finishCss, /market-item-row > \.market-serial[\s\S]*?grid-column:\s*1 !important[\s\S]*?grid-row:\s*1 !important/);
+  assert.match(finishCss, /market-item-row > \.market-serial[\s\S]*?transform:\s*translateY\(-4px\)/);
+  assert.match(finishCss, /market-item-row > \.market-input-item[\s\S]*?grid-column:\s*2 \/ 5/);
   assert.match(finishCss, /@media \(max-width: 560px\)/);
 });
 

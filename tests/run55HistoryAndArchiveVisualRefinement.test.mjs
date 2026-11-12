@@ -52,7 +52,7 @@ test('market card presentation improves hierarchy and keeps existing data fields
 test('history market cards remain responsive on narrow phones and respect reduced motion', () => {
   const css = read('src/features/history/history-page-visual-refinement.css');
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.history-list \.history-market-entry-card/);
-  assert.match(css, /@media \(max-width: 390px\)[\s\S]*?grid-template-columns:\s*32px minmax\(0, 1fr\)/);
+  assert.match(css, /@media \(max-width: 380px\)[\s\S]*?\.history-market-amount-value > strong[\s\S]*?font-size:\s*12\.5px/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
 

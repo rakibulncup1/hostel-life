@@ -65,40 +65,94 @@
   .header-context-row .no-period-badge { padding: 2px 6px; font-size: 9px; line-height: 1.2; }
 }
 
-/* Market entry: place the serial beside the item name on the same row. */
+/* Market entry: keep the serial in its own grid gutter, aligned with the first
+   line of the item name. Explicitly reset the older absolute-positioned badge. */
 @media (max-width: 560px) {
   .dining-panel .market-table-card { overflow: visible; }
   .dining-panel .market-item-row,
   .manager-dining-view .dining-panel .market-item-row {
     display: grid !important;
-    grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 32px !important;
+    grid-template-columns: 29px minmax(0, 1fr) minmax(0, 1fr) 32px !important;
     grid-template-rows: auto auto !important;
-    align-items: center !important;
+    align-items: start !important;
     gap: 7px !important;
     padding: 9px !important;
   }
-  .dining-panel .market-item-row .market-serial,
-  .manager-dining-view .dining-panel .market-item-row .market-serial {
-    grid-column: 1 !important; grid-row: 1 !important;
-    display: grid; place-items: center;
-    width: 25px; height: 34px; padding: 0 !important;
-    border: 1px solid var(--line); border-radius: 9px;
-    background: var(--surface-2); color: var(--muted);
-    font-size: 10px; line-height: 1;
+  .dining-panel .market-item-row > .market-serial,
+  .manager-dining-view .dining-panel .market-item-row > .market-serial {
+    position: relative !important;
+    inset: auto !important;
+    z-index: auto !important;
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: grid !important;
+    place-items: center;
+    justify-self: center;
+    align-self: start !important;
+    width: 24px !important;
+    height: 24px !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: translateY(-4px);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1;
   }
-  .dining-panel .market-item-row .market-input-item,
-  .manager-dining-view .dining-panel .market-item-row .market-input-item {
-    grid-column: 2 / 5 !important; grid-row: 1 !important;
-    min-width: 0; min-height: 36px; height: 36px; resize: vertical;
-    padding: 7px 9px; font-size: 12px; line-height: 1.35;
+  .dining-panel .market-item-row > .market-input-item,
+  .manager-dining-view .dining-panel .market-item-row > .market-input-item {
+    grid-column: 2 / 5 !important;
+    grid-row: 1 !important;
+    min-width: 0;
+    min-height: 60px;
+    height: auto;
+    resize: vertical;
+    padding: 7px 9px !important;
+    font-size: 12px;
+    line-height: 1.4;
   }
-  .dining-panel .market-item-row .market-input-quantity,
-  .manager-dining-view .dining-panel .market-item-row .market-input-quantity { grid-column: 1 / 3 !important; grid-row: 2 !important; }
-  .dining-panel .market-item-row .market-input-amount,
-  .manager-dining-view .dining-panel .market-item-row .market-input-amount { grid-column: 3 !important; grid-row: 2 !important; }
+  .dining-panel .market-item-row > .market-input-quantity,
+  .manager-dining-view .dining-panel .market-item-row > .market-input-quantity {
+    grid-column: 1 / 3 !important;
+    grid-row: 2 !important;
+  }
+  .dining-panel .market-item-row > .market-input-amount,
+  .manager-dining-view .dining-panel .market-item-row > .market-input-amount {
+    grid-column: 3 !important;
+    grid-row: 2 !important;
+  }
   .dining-panel .market-item-row > .icon-button,
-  .manager-dining-view .dining-panel .market-item-row > .icon-button { grid-column: 4 !important; grid-row: 2 !important; justify-self: end; align-self: center; }
+  .manager-dining-view .dining-panel .market-item-row > .icon-button {
+    grid-column: 4 !important;
+    grid-row: 2 !important;
+    justify-self: end;
+    align-self: center;
+  }
+  .dining-panel .market-item-row > :is(.market-input-quantity, .market-input-amount),
+  .manager-dining-view .dining-panel .market-item-row > :is(.market-input-quantity, .market-input-amount) {
+    min-width: 0;
+    width: 100%;
+  }
 }
+
+@media (max-width: 380px) {
+  .dining-panel .market-item-row,
+  .manager-dining-view .dining-panel .market-item-row {
+    grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 30px !important;
+    gap: 6px !important;
+    padding: 8px !important;
+  }
+  .dining-panel .market-item-row > .market-serial,
+  .manager-dining-view .dining-panel .market-item-row > .market-serial {
+    width: 23px !important;
+    height: 23px !important;
+    transform: translateY(-3px);
+  }
+}
+
 
 /* Market history: the title line uses its right edge for the serial; the lower row
    pairs item count and open action instead of leaving a full-width instruction. */
@@ -260,3 +314,116 @@
 @media (max-width: 540px) {
   .archive-primary-view-tabs button { min-height: 36px; padding-inline: 9px; font-size: 10px; }
 }
+
+/* Run63: History market card full-width amount footer.
+   This intentionally overrides the earlier shared Run61 two-column card rules. */
+.history-list .history-market-entry-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18px;
+  grid-template-areas: "copy chevron" "amount amount" !important;
+  align-items: start;
+  gap: 10px 12px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+.history-list .history-market-entry-card > .history-market-copy {
+  grid-area: copy !important;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+.history-list .history-market-entry-card > .history-market-amount {
+  grid-area: amount !important;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 1px 0 0;
+  padding: 10px 13px;
+  border: 1px solid color-mix(in srgb, var(--primary) 17%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary-soft) 52%, var(--surface));
+  text-align: left;
+}
+.history-list .history-market-entry-card > .history-market-chevron {
+  grid-area: chevron;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  align-self: start;
+  margin-top: 4px;
+  color: var(--muted);
+}
+.history-market-amount-label {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+.history-market-amount-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px 9px;
+  min-width: 0;
+  text-align: right;
+}
+.history-market-amount-value > strong {
+  color: var(--primary-strong);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.history-market-amount-value > small {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+.history-list .history-market-entry-card.is-void .history-market-amount-value > strong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+@media (max-width: 640px) {
+  .history-list .history-market-entry-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "copy" "amount" !important;
+    gap: 9px;
+    padding: 12px;
+  }
+  .history-list .history-market-entry-card > .history-market-copy {
+    grid-area: copy !important;
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .history-list .history-market-entry-card > .history-market-amount {
+    grid-area: amount !important;
+    grid-column: 1;
+    grid-row: 2;
+    gap: 8px;
+    margin-top: 0;
+    padding: 9px 11px;
+  }
+  .history-list .history-market-entry-card > .history-market-chevron { display: none; }
+  .history-market-amount-label { font-size: 9.5px; }
+  .history-market-amount-value { gap: 4px 7px; }
+  .history-market-amount-value > strong { font-size: 13.5px; }
+  .history-market-amount-value > small { font-size: 8.5px; }
+}
+@media (max-width: 380px) {
+  .history-list .history-market-entry-card { gap: 8px; padding: 10px; }
+  .history-list .history-market-entry-card > .history-market-amount { padding-inline: 9px; }
+  .history-market-amount-value { gap: 3px 5px; }
+  .history-market-amount-value > strong { font-size: 12.5px; }
+  .history-market-amount-value > small { font-size: 8px; }
+}
+

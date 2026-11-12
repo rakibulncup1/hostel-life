@@ -26,10 +26,11 @@ test('Info box copy remains regular-weight, readable and theme-muted', () => {
   assert.doesNotMatch(infoBlock, /border:\s*0/);
 });
 
-test('the same mobile stylesheet still keeps the market amount on its established full-width row', () => {
-  assert.match(run59, /grid-template-areas:[\s\S]*?"serial copy chevron"\s*"amount amount amount"/);
-  assert.match(run59, /\.history-market-entry-card\s*>\s*\.history-market-amount\s*\{[\s\S]*?grid-area:\s*amount/);
-  assert.match(run59, /content:\s*"মোট বাজার"/);
+test('History market cards use the buyer details first and a full-width amount footer', () => {
+  assert.match(css, /grid-template-columns:\s*minmax\(0,\s*1fr\) 18px/);
+  assert.match(css, /grid-template-areas:[\s\S]*?"copy chevron"[\s\S]*?"amount amount"/);
+  assert.match(css, /\.history-market-amount\s*\{[\s\S]*?grid-area:\s*amount[\s\S]*?width:\s*100%/);
+  assert.doesNotMatch(css, /grid-template-columns:[\s\S]{0,90}104px/);
 });
 
 test('Run59 override is scoped only to the History info box', () => {
