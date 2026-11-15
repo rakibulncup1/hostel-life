@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const migration = read('../supabase/migrations/Run39_targeted_hostel_life_improvements.sql');
+const notificationPolicy = read('../supabase/migrations/Run48_notification_recipient_policy_and_telegram_format.sql');
 const verify = read('../supabase/verify/Verify_Run39_targeted_improvements.sql');
 const auth = read('../src/services/authService.js');
 const authPage = read('../src/features/auth/AuthPage.jsx');
@@ -49,13 +50,19 @@ test('Creator and editor identities are exposed for finance history and Khala en
   assert.match(migration, /'updated_by_name'/);
 });
 
-test('Market, deposit, Khala, and period notifications include actor and target details', () => {
-  assert.match(migration, /নতুন বাজার · /);
-  assert.match(migration, /নতুন জমা · /);
-  assert.match(migration, /খালার পারিশ্রমিক · /);
-  assert.match(migration, /FROM public\.hostel_memberships m JOIN public\.profiles p ON p\.id=m\.user_id\s+WHERE m\.hostel_id=NEW\.hostel_id AND m\.status='active'/);
-  assert.match(telegram, /🏠 Hostel Life/);
-  assert.match(telegram, /line\.replace\(/);
+test('Market, deposit, Khala, and period notifications use recipient-safe routing and the shared Telegram format', () => {
+  // Run39 remains the historical source; Run48 intentionally replaces only
+  // the market/ledger/khala trigger-function bodies with the final policy.
+  assert.match(migration, /CREATE OR REPLACE FUNCTION private\.hl_notify_period_lifecycle/);
+  assert.match(notificationPolicy, /v_member_user_id/);
+  assert.match(notificationPolicy, /'category', 'market_entry'/);
+  assert.match(notificationPolicy, /'category', 'deposit'/);
+  assert.match(notificationPolicy, /'category', 'khala_money'/);
+  assert.match(notificationPolicy, /FROM public\.hostel_memberships m[\s\S]*?JOIN public\.profiles p ON p\.id = m\.user_id/);
+  assert.match(telegram, /🏡 \$\{hostel\}/);
+  assert.match(telegram, /notificationLabel\(kind\)/);
+  assert.match(telegram, /HOSTEL - LIFE/);
+  assert.match(telegram, /banglaDate/);
   assert.match(notifications, /archive_correction|Hostel Life আপডেট/);
 });
 

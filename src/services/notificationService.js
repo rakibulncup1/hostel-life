@@ -1,22 +1,26 @@
 import { supabase } from '../lib/supabase';
+import { cachedRequest, invalidateRequestCache } from '../lib/requestCache';
 
 function assertSupabase() {
   if (!supabase) throw new Error('Supabase configuration পাওয়া যাচ্ছে না।');
 }
 
-export async function fetchNotifications(limit = 50) {
+export async function fetchNotifications(limit = 50, { force = false } = {}) {
   assertSupabase();
-  const { data, error } = await supabase.rpc('get_notifications', { p_limit: limit });
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  return cachedRequest(`notifications:inbox:${limit}`, async () => {
+    const { data, error } = await supabase.rpc('get_notifications', { p_limit: limit });
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  }, { ttlMs: 30000, force });
 }
 
-
-export async function fetchPinnedManagerAnnouncement() {
+export async function fetchPinnedManagerAnnouncement({ force = false } = {}) {
   assertSupabase();
-  const { data, error } = await supabase.rpc('get_hostel_pinned_announcement');
-  if (error) throw error;
-  return data && typeof data === 'object' ? data : null;
+  return cachedRequest('notifications:pinned-announcement', async () => {
+    const { data, error } = await supabase.rpc('get_hostel_pinned_announcement');
+    if (error) throw error;
+    return data && typeof data === 'object' ? data : null;
+  }, { ttlMs: 60000, force });
 }
 
 export async function markNotificationSeen(notificationId) {
@@ -25,6 +29,7 @@ export async function markNotificationSeen(notificationId) {
     p_notification_id: notificationId,
   });
   if (error) throw error;
+  invalidateRequestCache('notifications:');
 }
 
 export async function deleteMyNotification(notificationId) {
@@ -33,6 +38,7 @@ export async function deleteMyNotification(notificationId) {
     p_notification_id: notificationId,
   });
   if (error) throw error;
+  invalidateRequestCache('notifications:');
 }
 
 export async function managerSendNotification(title, body) {
@@ -42,6 +48,7 @@ export async function managerSendNotification(title, body) {
     p_body: body,
   });
   if (error) throw error;
+  invalidateRequestCache('notifications:');
   return data ?? null;
 }
 
@@ -51,12 +58,14 @@ export async function managerDeleteNotification(notificationId) {
     p_notification_id: notificationId,
   });
   if (error) throw error;
+  invalidateRequestCache('notifications:');
 }
 
 export async function managerClearHostelPinnedAnnouncement() {
   assertSupabase();
   const { data, error } = await supabase.rpc('manager_clear_hostel_pinned_announcement');
   if (error) throw error;
+  invalidateRequestCache('notifications:');
   return data ?? null;
 }
 
@@ -65,5 +74,6 @@ export async function deleteAllMyNotifications() {
   assertSupabase();
   const { data, error } = await supabase.rpc('delete_all_my_notifications');
   if (error) throw error;
+  invalidateRequestCache('notifications:');
   return data;
 }

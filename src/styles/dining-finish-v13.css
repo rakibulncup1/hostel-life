@@ -1,0 +1,229 @@
+/* Hostel Life v13 — focused dining finishing fixes. Presentation only. */
+
+/* Request history: fixed three-column meal summary inside each day card.
+   Read-only cards intentionally do not render disabled steppers; labels and values
+   remain visible at 320px and wider without clipping or sideways overflow. */
+:is(.dining-experience, .dining-stack) .mini-day-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+  align-items: start;
+  min-width: 0;
+}
+
+:is(.dining-experience, .dining-stack) .request-history-expanded {
+  min-width: 0;
+  overflow: hidden;
+}
+
+:is(.dining-experience, .dining-stack) .compact-day-card {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 12px;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  margin-top: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-readonly-value {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 57px;
+  box-sizing: border-box;
+  padding: 8px 4px;
+  border: 1px solid var(--din-blue-line);
+  border-radius: 11px;
+  background: var(--din-blue-bg);
+  text-align: center;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-readonly-value small {
+  display: block;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: clamp(8px, 2.4vw, 10px);
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-readonly-value strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-readonly-value.meal-breakfast {
+  border-color: var(--din-green-line);
+  background: color-mix(in srgb, var(--din-green-bg) 75%, var(--surface));
+}
+:is(.dining-experience, .dining-stack) .meal-day-readonly-value.meal-lunch {
+  border-color: var(--din-blue-line);
+  background: color-mix(in srgb, var(--din-blue-bg) 75%, var(--surface));
+}
+:is(.dining-experience, .dining-stack) .meal-day-readonly-value.meal-dinner {
+  border-color: var(--din-violet-line);
+  background: color-mix(in srgb, var(--din-violet-bg) 75%, var(--surface));
+}
+
+/* The “আমার মিল” entry is a normal member experience, even when shown to a manager. */
+:is(.dining-experience, .dining-stack) .dining-access-badge.is-general {
+  border-color: #cfe4db;
+  background: #edf7f2;
+  color: #39785d;
+}
+
+/* Admin Entry options get distinct, restrained Dashboard-aligned accents. */
+:is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:first-child {
+  border: 1px solid #cfdef1;
+  background: linear-gradient(125deg, #eef5ff 0%, #f8fbff 100%);
+}
+:is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:first-child .dining-option-icon {
+  border: 1px solid #ccdcf2;
+  background: #e2edfb;
+  color: #416f9f;
+}
+:is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:nth-child(2) {
+  border: 1px solid #ddd6f0;
+  background: linear-gradient(125deg, #f3f0fc 0%, #faf9fe 100%);
+}
+:is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:nth-child(2) .dining-option-icon {
+  border: 1px solid #ddd5f0;
+  background: #eae5f8;
+  color: #7969a8;
+}
+
+:root[data-theme="blue"] :is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:first-child {
+  border-color: #c7dced;
+  background: linear-gradient(125deg, #eaf3fc, #f7fbff);
+}
+:root[data-theme="blue"] :is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:nth-child(2) {
+  border-color: #d8d5ed;
+  background: linear-gradient(125deg, #f0effa, #fafaff);
+}
+
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-readonly-value {
+  border-color: #35495d;
+  background: #1b2936;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-readonly-value.meal-breakfast {
+  border-color: #345345;
+  background: #1c2d25;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-readonly-value.meal-lunch {
+  border-color: #354b62;
+  background: #1d2b39;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-readonly-value.meal-dinner {
+  border-color: #49415f;
+  background: #292438;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-readonly-value small { color: #b9c7d5; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-readonly-value strong { color: #f0f4f8; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-access-badge.is-general {
+  border-color: #365849;
+  background: #1d3028;
+  color: #afd8c1;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:first-child {
+  border-color: #354b62;
+  background: #1b2a39;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:first-child .dining-option-icon {
+  border-color: #3a526c;
+  background: #25384b;
+  color: #b4cde7;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:nth-child(2) {
+  border-color: #49415f;
+  background: #272337;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .admin-entry-choice-grid > .request-choice-card:nth-child(2) .dining-option-icon {
+  border-color: #51486c;
+  background: #332d48;
+  color: #c4b9e6;
+}
+
+@media (max-width: 390px) {
+  :is(.dining-experience, .dining-stack) .compact-day-card { padding: 10px; }
+  :is(.dining-experience, .dining-stack) .meal-day-readonly-grid { gap: 5px; }
+  :is(.dining-experience, .dining-stack) .meal-day-readonly-value { min-height: 52px; padding: 7px 3px; }
+  :is(.dining-experience, .dining-stack) .meal-day-readonly-value strong { font-size: 13px; }
+}
+
+/* Request landing: strengthen the tomorrow summary and keep the three actions
+   visually secondary, with the shared Dashboard color language. */
+:is(.dining-experience, .dining-stack) .personal-tomorrow-meal-card {
+  border: 1px solid var(--din-blue-line);
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--din-blue-bg) 24%, var(--surface));
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--din-blue-text) 5%, transparent);
+}
+:is(.dining-experience, .dining-stack) .personal-tomorrow-head {
+  align-items: flex-start;
+  gap: 12px;
+}
+:is(.dining-experience, .dining-stack) .personal-tomorrow-head h2 {
+  color: var(--text);
+  font-size: clamp(14px, 1.5vw, 17px);
+  font-weight: 820;
+  line-height: 1.45;
+  letter-spacing: -.01em;
+}
+:is(.dining-experience, .dining-stack) .personal-tomorrow-head .eyebrow {
+  color: var(--din-blue-text);
+  font-size: 10px;
+  font-weight: 780;
+}
+:is(.dining-experience, .dining-stack) .personal-meal-cutoff-note {
+  border-color: var(--din-amber-line);
+  background: color-mix(in srgb, var(--din-amber-bg) 54%, var(--surface));
+  color: #765a2f;
+}
+:is(.dining-experience, .dining-stack) .request-choice-card {
+  border-width: 1px;
+  box-shadow: 0 2px 7px rgba(31, 56, 79, .035);
+}
+:is(.dining-experience, .dining-stack) .request-choice-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  outline-offset: 2px;
+}
+:is(.dining-experience, .dining-stack) .request-choice-card small {
+  color: #596d80;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+:root[data-theme="blue"] :is(.dining-experience, .dining-stack) .personal-tomorrow-meal-card {
+  background: color-mix(in srgb, var(--din-blue-bg) 32%, var(--surface));
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .personal-tomorrow-meal-card {
+  border-color: #354d67;
+  background: #1b2937;
+  box-shadow: none;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .personal-tomorrow-head h2 { color: #edf4fb; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .personal-tomorrow-head .eyebrow { color: #b6cce2; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .personal-meal-cutoff-note {
+  border-color: #574931;
+  background: #2b261d;
+  color: #d7c095;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-card small { color: #b4c1ce; }
+
+@media (max-width: 520px) {
+  :is(.dining-experience, .dining-stack) .personal-tomorrow-head { flex-direction: column; align-items: stretch; }
+  :is(.dining-experience, .dining-stack) .personal-tomorrow-head .status-chip { align-self: flex-start; }
+  :is(.dining-experience, .dining-stack) .request-entry-choice-grid { gap: 9px; }
+  :is(.dining-experience, .dining-stack) .request-choice-card { min-height: 76px; padding: 11px 12px; }
+}

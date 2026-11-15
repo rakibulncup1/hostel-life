@@ -18,25 +18,27 @@ test('auth brand uses the centered English wordmark and no extra brand copy', ()
   assert.match(css, /\.auth-page \.auth-brand-mark \{/);
 });
 
-test('finance feature guidance is rendered as a quiet inline hint rather than a card', () => {
+test('required finance guidance remains concise while redundant single-line panels are removed', () => {
   for (const snippet of [
-    'className="finance-context-note" icon="calendar-check"',
+    'className="new-month-policy-note"',
     'className="finance-context-note finance-context-note-warning" tone="warning"',
     'className="finance-context-note finance-context-note-warning" tone="warning" icon="archive"',
-    'className="finance-context-note" icon="book-open"',
-    'className="finance-context-note" icon="download"',
-  ]) assert.ok(manager.includes(snippet), `missing finance note: ${snippet}`);
+  ]) assert.ok(manager.includes(snippet), `missing required finance guidance: ${snippet}`);
+  assert.doesNotMatch(manager, /className="finance-context-note" icon="book-open"/);
+  assert.doesNotMatch(manager, /className="finance-context-note" icon="download"/);
   const khalaPage = manager.slice(manager.indexOf('export function KhalaMoneyPage()'), manager.indexOf('export function ', manager.indexOf('export function KhalaMoneyPage()') + 10));
   assert.doesNotMatch(khalaPage, /finance-context-note|সব মাসের হিসাব দেখুন/);
-  assert.match(menu, /className="finance-context-note" icon="activity"/);
+  assert.doesNotMatch(menu, /className="finance-context-note" icon="activity"/);
   assert.doesNotMatch(menu, /closed-month-guidance-panel|বন্ধ মাসের রিপোর্ট, দৈনিক মিল ও লেনদেন এক জায়গায় দেখুন/);
   assert.match(css, /\.info-panel\.finance-context-note\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
   assert.match(css, /\.finance-context-note-warning/);
 });
 
-test('history accounting intro is no longer a large colored callout', () => {
-  assert.match(history, /history-intro-info finance-context-note-inline/);
-  assert.match(css, /\.history-intro-info\.finance-context-note-inline\s*\{[\s\S]*?border: 0;[\s\S]*?background: transparent;/);
+test('history heading removes the redundant instruction callout and uses the shared theme layer', () => {
+  assert.doesNotMatch(history, /history-intro-info finance-context-note-inline|history-intro-guidance-box/);
+  assert.match(history, /history-title-actions/);
+  assert.match(main, /styles\/history-finish-v13\.css/);
+  assert.match(main, /styles\/history-finish-v13\.css[\s\S]*?styles\/profile-finish-v13\.css/);
 });
 
 test('verification remains email-visible with one OTP input and existing return/resend flow', () => {

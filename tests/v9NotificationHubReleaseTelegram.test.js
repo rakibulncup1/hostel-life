@@ -14,7 +14,7 @@ const telegramService = read('src/services/telegramService.js');
 const botWebhook = read('supabase/functions/telegram-bot-webhook/index.ts');
 const delivery = read('supabase/functions/telegram-notification-dispatch/index.ts');
 const config = read('supabase/config.toml');
-const privacy = read('src/features/menu/MenuPages.jsx');
+const privacy = read('src/content/legalDocuments.js');
 const css = read('src/styles/notification-center.css');
 const notificationPopover = read('src/components/NotificationsPopover.jsx');
 
@@ -165,5 +165,5 @@ test('privacy policy explains Telegram identity data and how to disconnect', () 
   assert.match(privacy, /ঐচ্ছিক টেলিগ্রাম সংযোগ/);
   assert.match(privacy, /টেলিগ্রাম চ্যাট আইডি/);
   assert.match(privacy, /বিজ্ঞপ্তির শিরোনাম ও বার্তার লেখা সংযুক্ত টেলিগ্রাম অ্যাকাউন্টে পাঠানো হয়/);
-  assert.match(privacy, /যেকোনো সময় বিচ্ছিন্ন/);
+  assert.match(privacy, /যেকোনো সময় বিচ্ছিন্ন|যেকোনো সময় বিচ্ছিন্ন/);
 });

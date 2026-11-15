@@ -15,7 +15,7 @@ function initials(name) {
 }
 
 export function ProfilePage() {
-  const { profile, membership, isManager, refreshIdentity, user } = useAuth();
+  const { profile, membership, isManager, operationalRole, refreshIdentity, user } = useAuth();
   const toast = useToast();
   const fileRef = useRef(null);
   const [editingInfo, setEditingInfo] = useState(false);
@@ -38,7 +38,9 @@ export function ProfilePage() {
   }, [profile]);
 
   const displayName = profile?.full_name || name || 'ব্যবহারকারী';
-  const role = isManager ? 'ম্যানেজার' : 'সদস্য';
+  const isPrimaryManager = Boolean(isManager || operationalRole?.is_primary_manager);
+  const isAssistantManager = Boolean(!isPrimaryManager && operationalRole?.is_assistant_manager);
+  const role = isPrimaryManager ? 'ম্যানেজার' : isAssistantManager ? 'সহকারী ম্যানেজার' : 'সদস্য';
   const themeLabels = useMemo(() => ({ system: 'সিস্টেম অনুযায়ী', light: 'লাইট', dark: 'ডার্ক', blue: 'আকাশি নীল' }), []);
 
   const saveProfile = async (event) => {
@@ -79,7 +81,7 @@ export function ProfilePage() {
       await refreshIdentity();
       toast.success('প্রোফাইল ছবি সফলভাবে আপলোড হয়েছে।');
     } catch (error) {
-      toast.error(getFriendlySupabaseError(error, 'প্রোফাইল ছবি আপলোড করা যায়নি।')); 
+      toast.error(getFriendlySupabaseError(error, 'প্রোফাইল ছবি আপলোড করা যায়নি।'));
     } finally {
       setUploading(false);
     }
@@ -120,46 +122,133 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="page-stack">
-      <div className="card profile-overview-card">
+    <div className="page-stack profile-experience">
+      <section className="card profile-overview-card profile-identity-card" aria-label="প্রোফাইল পরিচিতি">
         <div className="profile-avatar-wrap">
-          {avatarUrl ? <img className="profile-avatar-image" src={avatarUrl} alt="প্রোফাইল" onError={() => setAvatarUrl('')} /> : <div className="avatar avatar-xl">{initials(displayName)}</div>}
-          <button className={`avatar-camera-button ${uploading ? 'uploading' : ''}`} type="button" onClick={chooseAvatar} disabled={uploading} aria-label="প্রোফাইল ছবি পরিবর্তন"><Icon name={uploading ? 'loader-circle' : 'camera'} size={16} /></button>
+          {avatarUrl ? (
+            <img className="profile-avatar-image" src={avatarUrl} alt="প্রোফাইল" onError={() => setAvatarUrl('')} />
+          ) : (
+            <div className="avatar avatar-xl">{initials(displayName)}</div>
+          )}
+          <button className={`avatar-camera-button ${uploading ? 'uploading' : ''}`} type="button" onClick={chooseAvatar} disabled={uploading} aria-label="প্রোফাইল ছবি পরিবর্তন">
+            <Icon name={uploading ? 'loader-circle' : 'camera'} size={17} />
+          </button>
           <input ref={fileRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadAvatar} />
         </div>
-        <div className="profile-overview-copy"><span className="eyebrow">আপনার অ্যাকাউন্ট</span><h1>{displayName}</h1><div className="profile-role-line"><span className="member-badge active">{role}</span><span>{membership?.hostel_name || 'মেস'}</span></div><small className="profile-avatar-format">ছবির ফরম্যাট: JPG, PNG, WEBP{uploading ? ' · আপলোড হচ্ছে…' : ''}</small></div>
+        <div className="profile-overview-copy">
+          <span className="eyebrow">প্রোফাইল</span>
+          <h1>{displayName}</h1>
+          <div className="profile-role-line">
+            <span className={`member-badge active ${isAssistantManager ? 'assistant' : isPrimaryManager ? 'manager' : ''}`}>{role}</span>
+            <span className="profile-identity-hostel"><Icon name="home" size={14} />{membership?.hostel_name || 'মেস'}</span>
+          </div>
+          <small className="profile-avatar-format">ছবির ফরম্যাট: JPG, PNG, WEBP{uploading ? ' · আপলোড হচ্ছে…' : ''}</small>
+        </div>
+      </section>
+
+      <div className="profile-settings-grid profile-primary-grid">
+        <section className="card profile-section-card profile-personal-section">
+          <div className="profile-section-head">
+            <div className="profile-section-heading">
+              <span className="profile-section-icon"><Icon name="user-round" size={18} /></span>
+              <div><span className="eyebrow">অ্যাকাউন্ট</span><h2>ব্যক্তিগত তথ্য</h2></div>
+            </div>
+            <button className="secondary-button compact profile-section-action" type="button" aria-expanded={editingInfo} onClick={() => setEditingInfo((value) => !value)}>
+              <Icon name={editingInfo ? 'x' : 'edit'} size={15} />{editingInfo ? 'বন্ধ করুন' : 'এডিট'}
+            </button>
+          </div>
+          {editingInfo ? (
+            <form id="profile-personal-form" className="profile-form" onSubmit={saveProfile}>
+              <div className="profile-form-grid profile-personal-form-grid">
+                <label className="field-label"><span>নাম</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="name" required /></label>
+                <label className="field-label"><span>মোবাইল নম্বর</span><input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} autoComplete="tel" placeholder="ঐচ্ছিক" /></label>
+              </div>
+              <div className="profile-email-readonly">
+                <span className="profile-readonly-icon"><Icon name="mail" size={17} /></span>
+                <div><small>ইমেইল</small><strong>{profile?.email || user?.email || '—'}</strong><span>নিরাপত্তার কারণে ইমেইল পরিবর্তন করা যাবে না।</span></div>
+              </div>
+              <div className="profile-form-actions">
+                <button className="primary-button" type="submit" disabled={savingInfo}>
+                  <Icon name={savingInfo ? 'loader-circle' : 'check'} size={16} />{savingInfo ? 'সংরক্ষণ হচ্ছে...' : 'পরিবর্তন সংরক্ষণ'}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="profile-detail-list profile-personal-details">
+              <div><span>নাম</span><strong>{profile?.full_name || '—'}</strong></div>
+              <div><span>মোবাইল নম্বর</span><strong>{profile?.phone || 'যোগ করা হয়নি'}</strong></div>
+              <div><span>ইমেইল</span><strong>{profile?.email || user?.email || '—'}</strong></div>
+            </div>
+          )}
+        </section>
+
+        <section className={`card profile-section-card profile-security-section ${passwordOpen ? 'is-expanded' : ''}`}>
+          <div className="profile-section-head">
+            <div className="profile-section-heading">
+              <span className="profile-section-icon"><Icon name="shield-check" size={18} /></span>
+              <div><span className="eyebrow">নিরাপত্তা</span><h2>পাসওয়ার্ড</h2></div>
+            </div>
+            <button className="secondary-button compact profile-section-action" type="button" aria-expanded={passwordOpen} onClick={() => setPasswordOpen((value) => !value)}>
+              <Icon name={passwordOpen ? 'x' : 'lock'} size={15} />{passwordOpen ? 'বন্ধ করুন' : 'পরিবর্তন'}
+            </button>
+          </div>
+          {passwordOpen && (
+            <form id="profile-password-form" className="profile-form" onSubmit={savePassword}>
+              <div className="profile-form-grid profile-password-form-grid">
+                <label className="field-label"><span>বর্তমান পাসওয়ার্ড</span><input type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required /></label>
+                <label className="field-label"><span>নতুন পাসওয়ার্ড</span><input type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={8} required /></label>
+                <label className="field-label"><span>নতুন পাসওয়ার্ড আবার</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} minLength={8} required /></label>
+              </div>
+              <div className="profile-form-actions">
+                <button className="primary-button" type="submit" disabled={savingPassword}>
+                  <Icon name={savingPassword ? 'loader-circle' : 'lock'} size={16} />{savingPassword ? 'পাসওয়ার্ড পরিবর্তন হচ্ছে...' : 'পাসওয়ার্ড পরিবর্তন'}
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
       </div>
 
-      <section className="card profile-section-card">
-        <div className="profile-section-head"><div><span className="eyebrow">ব্যক্তিগত তথ্য</span><h2>আমার তথ্য</h2></div><button className="secondary-button compact" type="button" onClick={() => setEditingInfo((value) => !value)}><Icon name={editingInfo ? 'x' : 'edit'} size={15} /> {editingInfo ? 'বন্ধ করুন' : 'এডিট'}</button></div>
-        {editingInfo ? (
-          <form className="profile-form" onSubmit={saveProfile}>
-            <label className="field-label"><span>নাম</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required /></label>
-            <label className="field-label"><span>মোবাইল নম্বর</span><input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} placeholder="ঐচ্ছিক" /></label>
-            <div className="profile-email-readonly"><Icon name="mail" size={16} /><div><small>ইমেইল</small><strong>{profile?.email || user?.email || '—'}</strong><span>নিরাপত্তার কারণে ইমেইল পরিবর্তন করা যাবে না।</span></div></div>
-            <button className="primary-button" type="submit" disabled={savingInfo}>{savingInfo ? 'সংরক্ষণ হচ্ছে...' : 'পরিবর্তন সংরক্ষণ করুন'}</button>
-          </form>
-        ) : (
-          <div className="profile-detail-list"><div><span>নাম</span><strong>{profile?.full_name || '—'}</strong></div><div><span>মোবাইল</span><strong>{profile?.phone || 'যোগ করা হয়নি'}</strong></div><div><span>ইমেইল</span><strong>{profile?.email || user?.email || '—'}</strong></div></div>
-        )}
-      </section>
+      <div className="profile-settings-grid profile-secondary-grid">
+        <section className="card profile-section-card profile-hostel-section">
+          <div className="profile-section-head">
+            <div className="profile-section-heading">
+              <span className="profile-section-icon"><Icon name="home" size={18} /></span>
+              <div><span className="eyebrow">সদস্যতা</span><h2>মেসের তথ্য</h2></div>
+            </div>
+          </div>
+          <div className="profile-detail-list profile-hostel-details">
+            <div><span>মেসের নাম</span><strong>{membership?.hostel_name || '—'}</strong></div>
+            <div><span>Join Code</span><strong className="monospace-value">{membership?.join_code || '—'}</strong></div>
+            <div><span>আমার ভূমিকা</span><strong>{role}</strong></div>
+            <div><span>যুক্ত হওয়ার সময়</span><strong>{formatDateTime12(membership?.joined_at)}</strong></div>
+          </div>
+        </section>
 
-      <section className="card profile-section-card">
-        <div className="profile-section-head"><div><span className="eyebrow">নিরাপত্তা</span><h2>পাসওয়ার্ড</h2></div><button className="secondary-button compact" type="button" onClick={() => setPasswordOpen((value) => !value)}><Icon name="lock" size={15} /> {passwordOpen ? 'বন্ধ করুন' : 'পরিবর্তন করুন'}</button></div>
-        {passwordOpen ? <form className="profile-form" onSubmit={savePassword}><label className="field-label"><span>বর্তমান পাসওয়ার্ড</span><input type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required /></label><label className="field-label"><span>নতুন পাসওয়ার্ড</span><input type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={8} required /></label><label className="field-label"><span>নতুন পাসওয়ার্ড আবার</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} minLength={8} required /></label><div className="form-hint"><Icon name="info" size={15} /> Forgot Password প্রয়োজন হলে লগইন পেজ থেকে ব্যবহার করতে পারবেন।</div><button className="primary-button" type="submit" disabled={savingPassword}>{savingPassword ? 'পাসওয়ার্ড পরিবর্তন হচ্ছে...' : 'পাসওয়ার্ড পরিবর্তন করুন'}</button></form> : <div className="profile-inline-note"><Icon name="shield" size={17} /><span>পাসওয়ার্ড পরিবর্তনের সময় বর্তমান পাসওয়ার্ড যাচাই করা হবে।</span></div>}
-      </section>
+        <section className="card profile-section-card profile-theme-section">
+          <div className="profile-section-head">
+            <div className="profile-section-heading">
+              <span className="profile-section-icon"><Icon name="monitor" size={18} /></span>
+              <div><span className="eyebrow">অভিজ্ঞতা</span><h2>থিম পছন্দ</h2></div>
+            </div>
+          </div>
+          <div className="theme-choice-grid profile-theme-choice-grid">
+            {Object.keys(themeLabels).map((key) => (
+              <button className={`theme-choice theme-choice-${key} ${theme === key ? 'selected' : ''}`} key={key} type="button" onClick={() => setThemeChoice(key)} aria-pressed={theme === key}>
+                <Icon name={key === 'dark' ? 'moon' : key === 'light' ? 'sun' : key === 'blue' ? 'droplet' : 'monitor'} size={18} />
+                <span>{themeLabels[key]}</span>
+                {theme === key && <Icon name="check" size={16} />}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
 
-      <section className="card profile-section-card">
-        <div className="profile-section-head"><div><span className="eyebrow">মেস তথ্য</span><h2>মেসের তথ্য</h2></div></div>
-        <div className="profile-detail-list"><div><span>মেসের নাম</span><strong>{membership?.hostel_name || '—'}</strong></div><div><span>Join Code</span><strong className="monospace-value">{membership?.join_code || '—'}</strong></div><div><span>আমার ভূমিকা</span><strong>{role}</strong></div><div><span>যুক্ত হওয়ার সময়</span><strong>{formatDateTime12(membership?.joined_at)}</strong></div></div>
-      </section>
-
-      <section className="card profile-section-card">
-        <div className="profile-section-head"><div><span className="eyebrow">ব্যক্তিগত পছন্দ</span><h2>থিম</h2></div></div>
-        <div className="theme-choice-grid">{Object.keys(themeLabels).map((key) => <button className={`theme-choice theme-choice-${key} ${theme === key ? 'selected' : ''}`} key={key} type="button" onClick={() => setThemeChoice(key)} aria-pressed={theme === key}><Icon name={key === 'dark' ? 'moon' : key === 'light' ? 'sun' : key === 'blue' ? 'droplet' : 'monitor'} size={18} /><span>{themeLabels[key]}</span>{theme === key && <Icon name="check" size={16} />}</button>)}</div>
-      </section>
-
-      <div className="profile-footer-links"><button type="button" className="text-button" onClick={() => navigateTo('/app/menu/developer')}>হোস্টেল লাইফ সাপোর্ট <Icon name="arrow-right" size={14} /></button></div>
+      <div className="profile-footer-links">
+        <button type="button" className="text-button profile-support-link" onClick={() => navigateTo('/app/menu/developer')}>
+          <Icon name="heart-handshake" size={16} />হোস্টেল লাইফ সাপোর্ট<Icon name="arrow-right" size={14} />
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,43 @@
+HOSTEL LIFE RUN64 PATCH MANIFEST
+Patch type: reconciled overlay (Run49 + Run63)
+Baseline: user-uploaded Hostel Life(1).zip + the two prior patch ZIPs
+Database migrations: none (Run49 migration is intentionally not re-included)
+
+Project files included:
+  package.json
+  public/landing-assets/public-experience.css
+  public/privacy-policy.html
+  public/terms-of-service.html
+  scripts/generate-public-legal-pages.mjs
+  src/app/App.jsx
+  src/content/legalDocuments.js
+  src/features/auth/AuthPage.jsx
+  src/features/dashboard/DashboardPage.jsx
+  src/features/manager/ManagerPages.jsx
+  src/features/menu/AppDownloadPage.jsx
+  src/features/menu/MenuPages.jsx
+  src/features/onboarding/OnboardingPage.jsx
+  src/features/telegram/TelegramConnectionPage.jsx
+  src/main.jsx
+  src/services/managerService.js
+  src/styles/run49-ui-refinement.css
+  src/styles/run63_focused_fixes.css
+  src/utils/mealCountModes.js
+  src/utils/mealCountModes.test.js
+  tests/activityPresenceSecurity.test.js
+  tests/googleOauthPublicInfoPages.test.js
+  tests/internalExperiencePolish.test.js
+  tests/platformCommunicationsReleaseNotices.test.js
+  tests/publicLandingPolish.test.js
+  tests/run42MenuAndAuthUx.test.js
+  tests/run43FinanceAndAuthVisualRefinement.test.js
+  tests/run49UiAndMealModes.test.js
+  tests/run61AppFinishingPolish.test.mjs
+  tests/run63-focused-followup.test.mjs
+  tests/run64Run49Run63MergeCompatibility.test.mjs
+  tests/superAdminRun37OperationalFinish.test.js
+  tests/superAdminSettingsJoinUXV1.test.js
+  tests/systemInfoHelpNavigation.test.js
+  tests/v16_auth_market_notice.test.js
+  tests/v19_auth_onboarding_theme.test.js
+  tests/v9NotificationHubReleaseTelegram.test.js

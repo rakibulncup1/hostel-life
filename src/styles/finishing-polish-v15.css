@@ -1,0 +1,406 @@
+/* Hostel Life v15 — final visual and interaction polish.
+   Presentation-only overrides; no service, RPC, cache or business rules are changed. */
+
+/* ---------- Shared Menu page headings and back navigation ---------- */
+.menu-route .menu-page-intro-card,
+.app-download-menu-intro {
+  box-sizing: border-box;
+  padding: clamp(14px, 2vw, 19px) !important;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line)) !important;
+  border-radius: 17px !important;
+  background: linear-gradient(125deg,
+    color-mix(in srgb, var(--primary-soft) 68%, var(--surface)),
+    var(--surface) 76%) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--text) 4%, transparent) !important;
+}
+.menu-route .menu-page-title-copy,
+.app-download-menu-intro .menu-page-title-copy {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  min-width: 0;
+}
+.menu-route .menu-page-intro-card .back-button,
+.app-download-menu-intro .back-button,
+.menu-route .manager-page-title .back-button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 34px !important;
+  margin: 0 0 5px !important;
+  padding: 6px 11px !important;
+  border: 1px solid color-mix(in srgb, var(--primary) 23%, var(--line)) !important;
+  border-radius: 10px !important;
+  background: color-mix(in srgb, var(--primary-soft) 68%, var(--surface)) !important;
+  box-shadow: none !important;
+  color: var(--primary-strong) !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+  text-decoration: none !important;
+}
+.menu-route .menu-page-intro-card .back-button:hover,
+.app-download-menu-intro .back-button:hover {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--line)) !important;
+  background: var(--primary-soft) !important;
+  text-decoration: none !important;
+}
+.menu-route .menu-page-intro-card .eyebrow,
+.app-download-menu-intro .eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-soft) 76%, var(--surface));
+  color: var(--primary-strong);
+  font-weight: 800;
+}
+.menu-route .menu-page-intro-card .menu-page-title-copy > p,
+.app-download-menu-intro .menu-page-title-copy > p {
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(100%, 76ch);
+  margin: 3px 0 0;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+:root[data-theme="dark"] .menu-route .menu-page-intro-card,
+:root[data-theme="dark"] .app-download-menu-intro {
+  background: linear-gradient(125deg, color-mix(in srgb, var(--primary-soft) 80%, var(--surface)), var(--surface) 78%) !important;
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line)) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14) !important;
+}
+:root[data-theme="dark"] .menu-route .menu-page-intro-card .menu-page-title-copy > p,
+:root[data-theme="dark"] .app-download-menu-intro .menu-page-title-copy > p {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+/* ---------- Help / How-to cards ---------- */
+.menu-route .howto-page .howto-time-card::before,
+.howto-page .howto-time-card::before {
+  content: none !important;
+  display: none !important;
+}
+.menu-route .howto-page .howto-time-card,
+.howto-page .howto-time-card {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--primary-soft) 34%, var(--surface));
+}
+.menu-route .howto-page .howto-time-card.is-final,
+.howto-page .howto-time-card.is-final {
+  border-color: color-mix(in srgb, #328568 30%, var(--line));
+  background: color-mix(in srgb, #edf8f2 72%, var(--surface));
+}
+.menu-route .howto-page .howto-time-card.is-late,
+.howto-page .howto-time-card.is-late {
+  border-color: color-mix(in srgb, #b86b5c 28%, var(--line));
+  background: color-mix(in srgb, #fff1ed 72%, var(--surface));
+}
+.menu-route .howto-page .howto-time-card.is-month,
+.howto-page .howto-time-card.is-month {
+  border-color: color-mix(in srgb, #7567a9 28%, var(--line));
+  background: color-mix(in srgb, #f3f0fc 72%, var(--surface));
+}
+.howto-page .howto-faq-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 17px;
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--line));
+  border-radius: 15px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--primary-soft) 74%, var(--surface)), var(--surface));
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--text) 4%, transparent);
+}
+.howto-page .howto-faq-intro .eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 5px;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 10px;
+  font-weight: 800;
+}
+.howto-page .howto-faq-intro h2 { margin: 0; color: var(--text); font-size: 15px; line-height: 1.45; }
+.howto-page .howto-faq-intro p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+:root[data-theme="dark"] .howto-page .howto-time-card,
+:root[data-theme="dark"] .howto-page .howto-time-card.is-final,
+:root[data-theme="dark"] .howto-page .howto-time-card.is-late,
+:root[data-theme="dark"] .howto-page .howto-time-card.is-month { background: var(--surface-2); border-color: var(--line); }
+:root[data-theme="dark"] .howto-page .howto-faq-intro { background: var(--surface); border-color: var(--line); }
+:root[data-theme="dark"] .howto-page .howto-faq-intro .eyebrow { background: var(--surface-2); border-color: var(--line); color: var(--primary-strong); }
+@media (max-width: 560px) {
+  .howto-page .howto-faq-intro { align-items: flex-start; padding: 12px 13px; border-radius: 13px; }
+  .howto-page .howto-faq-intro h2 { font-size: 13px; }
+}
+
+/* ---------- Closed month report and correction dialog ---------- */
+.archive-correction-page .archive-hero-guidance,
+.archive-correction-page .archive-hero-guidance p {
+  font-weight: 500 !important;
+}
+.archive-correction-page .archive-hero-guidance p { color: var(--archive-muted) !important; }
+.archive-correction-page .archive-correction-access-note p { overflow-wrap: anywhere; }
+.archive-correction-page .archive-correction-dialog {
+  box-sizing: border-box;
+  width: min(100%, 560px);
+  max-height: min(88dvh, 820px);
+  padding: clamp(18px, 2.5vw, 25px);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--archive-line));
+  border-radius: 19px;
+  background: var(--archive-card);
+  box-shadow: 0 24px 70px rgba(0,0,0,.28);
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.archive-correction-page .archive-correction-dialog > h2,
+.archive-correction-page .archive-correction-dialog .section-heading h2 { color: var(--archive-text); }
+.archive-correction-page .archive-correction-dialog .field-label > span { color: var(--archive-text); font-weight: 700; }
+.archive-correction-page .archive-correction-dialog .field-label input,
+.archive-correction-page .archive-correction-dialog .field-label textarea,
+.archive-correction-page .archive-correction-dialog .field-label select {
+  border-color: var(--archive-line);
+  background: var(--archive-soft);
+  color: var(--archive-text);
+}
+:root[data-theme="dark"] .archive-correction-page .archive-correction-dialog {
+  border-color: var(--archive-line);
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(0,0,0,.48);
+}
+:root[data-theme="dark"] .archive-correction-page .archive-correction-dialog .field-label input,
+:root[data-theme="dark"] .archive-correction-page .archive-correction-dialog .field-label textarea,
+:root[data-theme="dark"] .archive-correction-page .archive-correction-dialog .field-label select { background: var(--surface-2); }
+
+/* ---------- Khala selected-period total ---------- */
+.menu-route .khala-total-heading {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  min-width: 150px;
+  padding: 10px 13px;
+}
+.menu-route .khala-total-heading > small { color: var(--muted); font-size: 10px; font-weight: 650; }
+.menu-route .khala-total-heading > strong { font-size: clamp(16px, 1.6vw, 20px); line-height: 1.25; }
+.menu-route .khala-total-heading > span { color: var(--menu-page-green, var(--primary-strong)); font-size: 10px; font-weight: 700; }
+
+/* ---------- History title, action buttons and current-day badges ---------- */
+.history-experience .history-title-row {
+  padding: clamp(14px, 1.9vw, 19px);
+  border: 1px solid var(--history-blue-border);
+  border-radius: 17px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--history-blue-bg) 74%, var(--surface)), var(--surface) 76%);
+  box-shadow: 0 3px 13px color-mix(in srgb, var(--history-blue-ink) 5%, transparent);
+}
+.history-experience .history-page-intro-copy h1 { color: var(--text); letter-spacing: -.035em; }
+.history-experience .history-page-intro-copy > p { color: var(--muted); font-weight: 500; }
+.history-experience .history-title-actions .secondary-button {
+  border-color: color-mix(in srgb, var(--history-blue-ink) 34%, var(--line));
+  background: color-mix(in srgb, var(--history-blue-bg) 84%, var(--surface));
+  color: var(--history-blue-ink);
+  font-weight: 750;
+}
+.history-experience .history-title-actions .secondary-button:hover:not(:disabled) {
+  border-color: var(--history-blue-ink);
+  background: var(--history-blue-bg);
+  color: var(--history-blue-ink);
+}
+.history-day-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: 21px;
+  padding: 3px 7px;
+  border: 1px solid var(--history-green-border);
+  border-radius: 999px;
+  background: var(--history-green-bg);
+  color: var(--history-green-ink);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.history-day-badge.is-yesterday {
+  border-color: var(--history-amber-border);
+  background: var(--history-amber-bg);
+  color: var(--history-amber-ink);
+}
+.history-market-buyer-cell,
+.history-account-title-line {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.history-experience .history-market-title-row > .history-market-buyer-cell { min-width: 0; }
+.history-market-buyer-cell > strong { min-width: 0; color: var(--text); font-size: 13px; font-weight: 820; overflow-wrap: anywhere; }
+.history-account-title-line > strong { min-width: 0; color: var(--text); font-size: 13px; font-weight: 800; overflow-wrap: anywhere; }
+.history-experience .account-history-row {
+  border-color: color-mix(in srgb, var(--history-blue-border) 76%, var(--line));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--history-blue-ink) 4%, transparent);
+}
+.history-experience .history-list .history-market-entry-card { border-color: color-mix(in srgb, var(--history-blue-border) 88%, var(--line)); }
+:root[data-theme="dark"] .history-experience .history-title-row { background: var(--surface); border-color: var(--line); }
+:root[data-theme="dark"] .history-experience .history-title-actions .secondary-button { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+:root[data-theme="dark"] .history-day-badge { background: #1c3028; border-color: #395a48; color: #b4dcc4; }
+:root[data-theme="dark"] .history-day-badge.is-yesterday { background: #332b1f; border-color: #5a4c33; color: #e1c18b; }
+
+@media (max-width: 640px) {
+  .history-experience .history-title-footer { width: 100%; }
+  .history-experience .history-title-actions.has-export-action {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 8px;
+  }
+  .history-experience .history-title-actions.has-export-action .secondary-button {
+    display: inline-flex;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 8px;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .history-experience .history-market-title-row { grid-template-columns: minmax(0, 1fr) auto 27px; }
+  .history-market-buyer-cell > strong,
+  .history-account-title-line > strong { font-size: 12px; }
+  .history-day-badge { min-height: 19px; padding: 2px 6px; font-size: 8px; }
+}
+
+/* ---------- Dashboard desktop balance and equal primary cards ---------- */
+@media (min-width: 921px) {
+  .dashboard-reimagined .dashboard-primary-grid.has-late-request {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch;
+  }
+  .dashboard-reimagined .dashboard-primary-grid.has-late-request > .meal-card,
+  .dashboard-reimagined .dashboard-primary-grid.has-late-request > .late-request-card,
+  .dashboard-reimagined .dashboard-primary-grid.has-late-request > * {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+  .dashboard-reimagined .my-account-card .account-grid { margin-bottom: 9px; }
+  .dashboard-reimagined .my-account-card .account-balance-row { margin-top: auto; }
+}
+.dashboard-reimagined .member-period-detail-modal {
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: 20px;
+}
+.dashboard-reimagined .member-period-detail-modal > .modal-head {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  width: calc(100% - 28px);
+  margin: 0 14px 10px;
+  border: 1px solid var(--dash-violet-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.dashboard-reimagined .member-period-summary-grid,
+.dashboard-reimagined .member-period-balance,
+.dashboard-reimagined .member-period-detail-modal > .archive-detail-section {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal > .modal-head { border-color: var(--line); }
+
+/* ---------- Profile card spacing; the Profile page remains the theme selector ---------- */
+@media (min-width: 761px) {
+  .profile-experience .profile-primary-grid,
+  .profile-experience .profile-secondary-grid {
+    column-gap: clamp(18px, 2vw, 24px) !important;
+    row-gap: 18px !important;
+  }
+}
+
+/* ---------- Mobile market item serial: align it to the first text baseline ---------- */
+@media (max-width: 560px) {
+  :is(.dining-experience, .dining-stack) .market-item-name-field .market-input-item {
+    padding-left: 27px !important;
+    font-size: 12px;
+    line-height: 1.55;
+  }
+  :is(.dining-experience, .dining-stack) .market-item-index {
+    display: block !important;
+    top: 10px !important;
+    left: 9px !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    transform: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--text) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    line-height: 1.55 !important;
+    box-shadow: none !important;
+  }
+  :root[data-theme="dark"] :is(.dining-experience, .dining-stack) .market-item-index { color: var(--text) !important; }
+}
+
+/* ---------- Consistent background-scroll locking for every accessible modal ---------- */
+@supports selector(body:has([aria-modal="true"])) {
+  html:has(body [aria-modal="true"]) {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+  }
+  body:has([aria-modal="true"]) {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+  }
+}
+.modal-backdrop,
+.archive-correction-overlay,
+.install-nudge-backdrop,
+.late-request-modal-backdrop {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+.modal-backdrop > .modal-panel,
+.modal-backdrop > .modal-card,
+.modal-backdrop > section[role="dialog"],
+.archive-correction-overlay > .archive-correction-dialog,
+.install-nudge-dialog,
+.late-request-modal-backdrop > * {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.modal-backdrop > .modal-panel,
+.modal-backdrop > .modal-card {
+  max-height: min(92dvh, 900px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+/* Hide the floating desktop theme bar; profile settings remain available. */
+@media (min-width: 768px) {
+  .desktop-theme-bar { display: none !important; }
+}

@@ -96,8 +96,9 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
           </div>}
         </div>
         <div className="auth-form-panel">
+          {compact && !minimal && <div className="auth-compact-brand"><BrandMark size={34} /><span>Hostel Life</span></div>}
           <div className="auth-form-toolbar">
-            <span className="auth-form-toolbar-label"><Icon name={minimal ? 'mail-check' : 'shield-check'} size={15} /> {minimal ? 'ইমেইল যাচাই' : 'নিরাপদ অ্যাকাউন্ট'}</span>
+            <span className="auth-form-toolbar-label auth-toolbar-pill"><Icon name={minimal ? 'mail-check' : 'shield-check'} size={15} /> {minimal ? 'ইমেইল যাচাই' : 'নিরাপদ অ্যাকাউন্ট'}</span>
             <EntryThemeSwitcher />
           </div>
           <div className="auth-header">
@@ -173,7 +174,7 @@ function LoginForm() {
   };
 
   return (
-    <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="চালিয়ে যেতে আপনার তথ্য দিন।">
+    <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার ইমেইল ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।">
       {sessionPolicyNotice && <div className="auth-session-dialog-backdrop" role="presentation"><section className="auth-session-dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-session-dialog-title" aria-describedby="auth-session-dialog-description"><span className="auth-session-dialog-icon"><Icon name="shield-alert" size={25}/></span><h3 id="auth-session-dialog-title">নিরাপত্তার কারণে লগআউট</h3><p id="auth-session-dialog-description">{sessionPolicyNotice}</p><button type="button" className="primary-button large" onClick={() => setSessionPolicyNotice('')}>বুঝেছি, আবার লগইন করব</button></section></div>}
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
@@ -366,7 +367,7 @@ function RegisterForm() {
       compact={otpStep}
       minimal={otpStep}
       title={otpStep ? 'ইমেইল যাচাই' : 'একটি অ্যাকাউন্ট তৈরি করুন'}
-      subtitle={otpStep ? 'আপনার ইমেইলে পাঠানো ছয় সংখ্যার কোডটি লিখুন।' : 'কয়েকটি তথ্য দিয়ে নিরাপদে অ্যাকাউন্ট তৈরি করুন।'}
+      subtitle={otpStep ? 'আপনার ইমেইলে পাঠানো ছয় সংখ্যার কোডটি লিখুন।' : 'নাম, মোবাইল ও ইমেইল দিয়ে অ্যাকাউন্ট তৈরি করুন।'}
     >
       <form className={`form-stack auth-register-form ${otpStep ? 'auth-verification-form' : ''}`} onSubmit={submit}>
         {otpStep ? (
@@ -419,13 +420,12 @@ function RegisterForm() {
               </label>
               <label className="field-label">
                 <span>মোবাইল নম্বর</span>
-                <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01XXXXXXXXX" autoComplete="tel" required minLength={8} maxLength={20} />
+                <input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="01 234 567 890" autoComplete="tel" required minLength={8} maxLength={20} />
               </label>
             </div>
             <label className="field-label">
-              <span>ইমেইল</span>
+              <span>ইমেইল <small className="register-email-label-note">(সঠিক ইমেইল ব্যবহার করুন)</small></span>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
-              <small className="register-email-note"><Icon name="mail" size={13} /> অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন।</small>
             </label>
             <label className="field-label">
               <span>পাসওয়ার্ড</span>

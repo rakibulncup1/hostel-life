@@ -26,6 +26,7 @@ import {
   setPeriodAssistants,
   startNewMonth,
   updateHostel,
+  updateMealCountModes,
   updateKhalaMoney,
   voidKhalaMoney,
 } from '../../services/managerService';
@@ -37,6 +38,7 @@ import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { getDhakaBusinessDate, getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
+import { DEFAULT_MEAL_COUNT_MODES, normalizeMealCountModes } from '../../utils/mealCountModes';
 import {
   managerCreateHostelInviteLink,
   managerListHostelJoinRequests,
@@ -83,7 +85,7 @@ function currentPeriodRange(period) {
     : `${start} থেকে চলমান`;
 }
 
-function PageHeader({ title, description, icon = 'shield', eyebrow = 'ম্যানেজার ফিচার' }) {
+function PageHeader({ title, description, icon = 'shield', eyebrow = '' }) {
   const managerOnly = eyebrow === 'ম্যানেজার ফিচার';
   return (
     <div className="page-title-row manager-page-title card menu-page-intro-card">
@@ -91,7 +93,7 @@ function PageHeader({ title, description, icon = 'shield', eyebrow = 'ম্য�
         <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}>
           <Icon name="arrow-left" size={15} /> ফিরে যান
         </button>
-        <div className={`manager-eyebrow ${managerOnly ? '' : 'neutral-page-eyebrow'}`}>{managerOnly && <Icon name={icon} size={13} />} {eyebrow}</div>
+        {eyebrow && <div className={`manager-eyebrow ${managerOnly ? '' : 'neutral-page-eyebrow'}`}>{managerOnly && <Icon name={icon} size={13} />} {eyebrow}</div>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>
@@ -273,7 +275,7 @@ export function NewMonthPage() {
     <PrimaryManagerGuard>
       <div className="page-stack">
         <PageHeader title="নতুন মাস শুরু" icon="calendar" description="নতুন মাসের শুরুর তারিখ সিস্টেম নির্ধারণ করে।" />
-        <InfoPanel className="finance-context-note" icon="calendar-check">রাত ৮টার পর নতুন মাস চালু করা যাবে। তারিখ সিস্টেম নির্ধারণ করে; আগের মাস আর্কাইভে থাকবে।</InfoPanel>
+        <aside className="new-month-policy-note"><span className="new-month-policy-icon"><Icon name="calendar-check" size={17} /></span><span>রাত ৮টার পর নতুন মাস চালু করা যাবে। শুরুর তারিখ সিস্টেম নির্ধারণ করবে।</span></aside>
         <section className="card manager-form-card">
           {periodDateError && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>নতুন মাসের তারিখ যাচাই করা যায়নি।</strong><p>{periodDateError}</p><button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {!periodStatusKnown ? (
@@ -586,11 +588,28 @@ export function HostelSettingsPage() {
   const { membership, refreshIdentity } = useAuth();
   const [name, setName] = useState(membership?.hostel_name || '');
   const [joinCode, setJoinCode] = useState(membership?.join_code || '');
+  const [mealCountModes, setMealCountModes] = useState(() => normalizeMealCountModes(membership?.meal_count_modes));
+  const [mealModesBusy, setMealModesBusy] = useState(false);
   const [busy, setBusy] = useState(false);
   const [codeBusy, setCodeBusy] = useState(false);
   const [confirmCode, setConfirmCode] = useState(false);
   const [inviteLinkBusy, setInviteLinkBusy] = useState(false);
   const [createdInviteUrl, setCreatedInviteUrl] = useState('');
+
+  useEffect(() => {
+    setMealCountModes(normalizeMealCountModes(membership?.meal_count_modes));
+  }, [membership?.meal_count_modes]);
+
+  const saveMealModes = async () => {
+    setMealModesBusy(true);
+    try {
+      await updateMealCountModes(mealCountModes);
+      await refreshIdentity();
+      toast.success('মিল গণনার পদ্ধতি সংরক্ষণ হয়েছে।');
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'মিল গণনার পদ্ধতি সংরক্ষণ করা যায়নি।'));
+    } finally { setMealModesBusy(false); }
+  };
 
   const createInviteLink = async () => {
     setInviteLinkBusy(true);
@@ -663,13 +682,30 @@ export function HostelSettingsPage() {
     <ManagerGuard>
       <div className="page-stack">
         <PageHeader title="মেস সেটিংস" icon="lock" description="মেসের নাম ও Join Link পরিচালনা করুন।" />
-        <InfoPanel icon="link">Join Code ও Invitation Link ব্যক্তিগতভাবে শেয়ার করুন। নতুন লিংক পুরোনোটিকে বাতিল করতে পারে।</InfoPanel>
+        <aside className="hostel-settings-note"><Icon name="info" size={16}/><span>Join Code ও Invitation Link দিয়ে নতুন সদস্য যুক্ত করা যাবে।</span></aside>
         <form className="card manager-form-card" onSubmit={saveName}>
           <label className="field-label"><span>মেসের নাম</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} /></label>
           <button className="primary-button" type="submit" disabled={busy}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'মেসের নাম সংরক্ষণ করুন'}</button>
         </form>
+        <section className="card manager-form-card meal-count-modes-card" aria-labelledby="meal-count-modes-title">
+          <div className="panel-header"><div><span className="eyebrow">মিল গণনা</span><h2 id="meal-count-modes-title">মিল কীভাবে পরিচালিত হয়</h2></div></div>
+          <div className="meal-count-mode-list">
+            {[['breakfast', 'ব্রেকফাস্ট'], ['lunch', 'লাঞ্চ'], ['dinner', 'ডিনার']].map(([key, label]) => (
+              <div className="meal-count-mode-row" key={key}>
+                <strong>{label}</strong>
+                <div className="meal-count-mode-options" role="group" aria-label={`${label} গণনার ধরন`}>
+                  <button type="button" className={mealCountModes[key] === 'half' ? 'is-active' : ''} aria-pressed={mealCountModes[key] === 'half'} onClick={() => setMealCountModes((current) => ({ ...current, [key]: 'half' }))}>হাফ মিল</button>
+                  <button type="button" className={mealCountModes[key] === 'full' ? 'is-active' : ''} aria-pressed={mealCountModes[key] === 'full'} onClick={() => setMealCountModes((current) => ({ ...current, [key]: 'full' }))}>ফুল মিল</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className="primary-button" type="button" disabled={mealModesBusy || JSON.stringify(mealCountModes) === JSON.stringify(normalizeMealCountModes(membership?.meal_count_modes))} onClick={saveMealModes}>
+            {mealModesBusy ? 'সংরক্ষণ হচ্ছে...' : 'মিল গণনার পদ্ধতি সংরক্ষণ করুন'}
+          </button>
+        </section>
         <section className="card manager-form-card">
-          <div className="panel-header"><div><span className="eyebrow">যুক্ত হওয়ার কোড</span><h2>মেসে সদস্য যুক্ত করার কোড</h2><p>নতুন সদস্যকে এই কোড দিন। নতুন কোড তৈরি করলে আগের কোডটি আর কাজ করবে না।</p></div></div>
+          <div className="panel-header"><div><span className="eyebrow">যুক্ত হওয়ার কোড</span><h2>মেসে সদস্য যুক্ত করার কোড</h2><p>নতুন কোড তৈরি করলে আগের কোডটি বাতিল হবে।</p></div></div>
           <div className="join-code-display"><strong>{joinCode || '—'}</strong><button className="secondary-button compact" type="button" onClick={async () => { try { await copyText(joinCode); toast.success('যুক্ত হওয়ার কোড কপি হয়েছে।'); } catch { toast.warning('কপি করা যায়নি।'); } }}>কপি</button></div>
           <button className="secondary-button" type="button" disabled={codeBusy} onClick={() => setConfirmCode(true)}><Icon name="refresh" size={15} /> নতুন যুক্ত হওয়ার কোড তৈরি করুন</button>
         </section>
@@ -782,7 +818,7 @@ export function JoinRequestReviewPage() {
   const online = useOnlineStatus();
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="Join Request পর্যালোচনার জন্য অনলাইন সংযোগ প্রয়োজন।" />;
   return <ManagerGuard><div className="page-stack">
-    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের আবেদন যাচাই করুন।" eyebrow="ম্যানেজার ফিচার" />
+    <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের আবেদন যাচাই করুন।" />
     <InfoPanel icon="user-check">পরিচয় যাচাই করে আবেদন অনুমোদন বা প্রত্যাখ্যান করুন।</InfoPanel>
     <JoinRequestQueue />
   </div></ManagerGuard>;
@@ -943,7 +979,8 @@ export function KhalaMoneyPage() {
   const selectedPeriod = visiblePeriods.find((p) => p.period_id === periodId) || null;
   const periodStartNotice = getPeriodStartNotice(selectedPeriod, 'খালার টাকার এন্ট্রি');
   const visibleRows = selectedPeriod ? rows.filter((row) => row.period_id === selectedPeriod.period_id) : [];
-  const total = visibleRows.filter((row) => row.status !== 'void').reduce((sum, row) => sum + Number(row.amount || 0), 0);
+  const effectiveVisibleRows = visibleRows.filter((row) => row.status !== 'void');
+  const total = effectiveVisibleRows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
   // The selected accounting period and the actual payment date are different concepts.
   // A payment may belong to a closed month while being paid on any later day up to
   // today's Bangladesh date; the period_id remains the selected month.
@@ -1069,7 +1106,7 @@ export function KhalaMoneyPage() {
             </form>}
 
             <section className="card manager-form-card">
-              <div className="section-heading"><div><span className="eyebrow">নির্বাচিত কাজের মাস</span><h2>{selectedPeriod?.label || '—'}</h2></div><div className="khala-total-heading"><small>মোট কার্যকর পারিশ্রমিক</small><strong>{formatCurrency(total)}</strong></div></div>
+              <div className="section-heading"><div><span className="eyebrow">নির্বাচিত কাজের মাস</span><h2>{selectedPeriod?.label || '—'}</h2></div><div className="khala-total-heading"><small>মোট কার্যকর পারিশ্রমিক</small><strong>{formatCurrency(total)}</strong><span>{formatNumber(effectiveVisibleRows.length)}টি কার্যকর এন্ট্রি</span></div></div>
               <div className="manager-list-stack">
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
                   <article className={`card manager-ledger-row khala-manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
@@ -1278,8 +1315,7 @@ export function MealSheetPage() {
   };
 
   return (
-    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" eyebrow="মিলের বিস্তারিত" description={`${bundle.period.label} · চূড়ান্ত মিলের সারসংক্ষেপ।`} />
-      <InfoPanel className="finance-context-note" icon="book-open">চূড়ান্ত মিল ও সদস্যভিত্তিক হিসাব দেখুন।</InfoPanel>
+    <div className="page-stack"><PageHeader title="মিল শিট" icon="history" description={`${bundle.period.label} · চূড়ান্ত মিলের সারসংক্ষেপ।`} />
       <section className="card report-toolbar"><div><strong>{bundle.period.label}</strong><small>{currentPeriodRange(bundle.period)}</small></div><div className="report-actions"><label className="field-label report-member-filter"><span>সদস্য</span><select value={selectedMemberId} onChange={(e) => setSelectedMemberId(e.target.value)}><option value="">সবাই</option>{bundle.members.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label><button className="secondary-button compact report-pdf-button" type="button" disabled={printBusy} onClick={print}><Icon name="file-text" size={15} /> পিডিএফ সংরক্ষণ</button></div></section>
       <section className="card report-section-card"><div className="section-heading"><h2>দৈনিক মিল{selectedMember ? ` — ${selectedMember.member_name}` : ''}</h2><span>{formatNumber(filteredDailyTotals.length)} দিন</span></div><Table columns={[{key:'date',label:'তারিখ',render:(r)=>formatDateWithWeekday(r.date)},{key:'status',label:'অবস্থা',render:(r)=>reportStatusLabel(r.status)},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(Number(r.breakfast)+Number(r.lunch)+Number(r.dinner))}]} rows={filteredDailyTotals} /></section>
       <section className="card report-section-card"><div className="section-heading"><h2>সদস্যভিত্তিক মোট</h2><span>{formatNumber(memberTotals.length)} জন</span></div><Table columns={[{key:'name',label:'সদস্য'},{key:'breakfast',label:'সকালের মিল',render:(r)=>formatNumber(r.breakfast)},{key:'lunch',label:'দুপুরের মিল',render:(r)=>formatNumber(r.lunch)},{key:'dinner',label:'রাতের মিল',render:(r)=>formatNumber(r.dinner)},{key:'total',label:'মোট',render:(r)=>formatNumber(r.breakfast+r.lunch+r.dinner)}]} rows={memberTotals} /></section>
@@ -1424,8 +1460,7 @@ export function ReportsPage() {
 
   return (
     <div className="page-stack reports-page">
-      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" eyebrow="রিপোর্ট" description="মাসিক হিসাব PDF হিসেবে সংরক্ষণ করুন।" />
-      <InfoPanel className="finance-context-note" icon="download">PDF তৈরির আগে নির্বাচিত মাস ও হিসাবের সারসংক্ষেপ যাচাই করুন।</InfoPanel>
+      <PageHeader title="রিপোর্ট কেন্দ্র" icon="download" description="মাসিক হিসাব PDF হিসেবে সংরক্ষণ করুন।" />
       <section className="report-summary-strip card" aria-label="মাসের সারসংক্ষেপ">
         <div><small>মোট মিল</small><strong>{formatNumber(meals.total)}</strong></div>
         <div><small>মোট বাজার</small><strong>{formatCurrency(totalMarket)}</strong></div>

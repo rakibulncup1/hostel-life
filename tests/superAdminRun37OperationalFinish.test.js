@@ -100,11 +100,11 @@ test('Public security gates remain pre-auth and continue to use shared signed vi
 
 test('Privacy policy states security telemetry and operational retention boundaries', () => {
   assert.match(privacy,/IP address/);
-  assert.match(privacy,/HMAC/);
+  assert.doesNotMatch(privacy,/HMAC|fingerprint|identity_fingerprint|service_role|schema|trigger/i);
   assert.match(privacy,/৩০ দিন/);
   assert.match(privacy,/৩৫ দিন/);
   assert.match(privacy,/৪৮ ঘণ্টা/);
-  assert.match(privacy,/প্রশাসনিক নিরীক্ষা-রেকর্ড আলাদা সংরক্ষণ ব্যবস্থায় রাখা হয়/);
+  assert.match(privacy,/প্রশাসনিক নিরীক্ষা-রেকর্ড .*আলাদা সংরক্ষণ ব্যবস্থায় রাখা হয়/);
 });
 
 test('Database and Logs diagnostics are read-only, time-bounded and distinguish Postgres from ClickHouse Logs', () => {

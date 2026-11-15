@@ -1,0 +1,250 @@
+/* Run63 — focused follow-up fixes only. Theme tokens keep all four themes aligned. */
+
+/* Dashboard: the figures remain the original meal quantities; add only a readable unit. */
+.dashboard-reimagined .meal-card.hero-card .meal-stat strong .meal-unit-label,
+.dashboard-reimagined .late-delta-stat > strong .meal-unit-label {
+  display: inline;
+  margin-inline-start: 2px;
+  color: inherit;
+  font-size: .54em;
+  font-weight: 720;
+  letter-spacing: 0;
+  vertical-align: .08em;
+  white-space: nowrap;
+}
+
+/* Entry pages: pair the security chip with the theme selector. */
+.auth-page .auth-form-toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  max-width: 150px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.auth-page .auth-form-toolbar-label svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--primary-strong); }
+.auth-page .auth-form-panel .auth-header .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-bottom: 5px;
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .015em;
+}
+.auth-page .auth-form-panel .auth-header h2 {
+  margin-top: 3px;
+  font-size: clamp(27px, 2.45vw, 32px);
+  line-height: 1.32;
+  letter-spacing: -.025em;
+}
+.auth-page .auth-form-panel .auth-header p {
+  max-width: 43ch;
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.75;
+}
+.auth-page .auth-register-form .register-email-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.auth-page .auth-register-form .register-email-note > svg { flex: 0 0 auto; margin-top: 1px; color: var(--primary-strong); }
+
+/* Onboarding: a calmer desktop width and a concise creation-complete state. */
+.onboarding-page { align-items: start; }
+.onboarding-shell { width: min(880px, 100%); margin-inline: auto; }
+.onboarding-main-card {
+  width: 100%;
+  padding: clamp(22px, 3.2vw, 38px);
+  border-radius: 25px;
+}
+.onboarding-page .onboarding-topbar { margin-bottom: 13px; }
+.onboarding-page .onboarding-topbar > span {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+.onboarding-page .onboarding-topbar > span svg { color: var(--primary-strong); }
+.onboarding-page .onboarding-brand-header { padding: 5px 8px 22px; text-align: center; }
+.onboarding-page .onboarding-brand-header h1 { margin-top: 9px; font-size: clamp(24px, 3vw, 31px); line-height: 1.35; }
+.onboarding-page .onboarding-brand-header p { margin: 6px auto 0; font-size: 13px; line-height: 1.7; }
+.onboarding-page .onboarding-choice-intro { margin-top: 4px; }
+.onboarding-page .onboarding-action-panel {
+  width: min(100%, 680px);
+  margin: 15px auto 0;
+  padding: clamp(15px, 2.3vw, 22px);
+  border-radius: 17px;
+}
+.onboarding-page .onboarding-entry-form { width: 100%; }
+.onboarding-page .onboarding-entry-form-create { grid-template-columns: minmax(0, 1fr); }
+.onboarding-page .onboarding-entry-form-create .primary-button { grid-column: 1 / -1; }
+.onboarding-page .onboarding-note {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 18px auto 0;
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+}
+.run63-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+.onboarding-shell-success { width: min(720px, 100%); }
+.onboarding-shell-success .onboarding-brand-header { padding-bottom: 14px; }
+.onboarding-shell-success .creation-success-card {
+  display: grid;
+  justify-items: center;
+  gap: 13px;
+  width: min(540px, 100%);
+  margin: 0 auto;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  text-align: center;
+}
+.onboarding-shell-success .creation-success-card > h2 {
+  margin: -4px 0 0;
+  color: var(--text);
+  font-size: clamp(19px, 2.5vw, 24px);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.onboarding-shell-success .creation-success-card > .primary-button,
+.onboarding-shell-success .creation-success-card > .secondary-button { width: min(100%, 360px); justify-content: center; }
+.onboarding-shell-success .creation-success-card > .onboarding-switch-account { margin-top: 1px; }
+
+/* Public legal documents share the same content source as the in-app pages. */
+.run63-legal-document .policy-document-lead { align-items: flex-start; }
+.run63-legal-document .policy-document-lead small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.run63-legal-document .policy-section-block { padding: 13px 15px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); }
+.run63-legal-document .policy-section-block + .policy-section-block { margin-top: 1px; }
+.run63-legal-document .policy-section-block h2 { margin-top: 0; color: var(--text); font-size: 14px; line-height: 1.6; }
+.run63-legal-document .policy-section-block p { margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.85; }
+
+/* Platform notices: vertically scrollable viewport and bounded, shrink-safe dialog. */
+.system-notice-backdrop {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.system-notice-dialog {
+  width: min(100%, 580px);
+  min-width: 0;
+  min-height: 0;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
+}
+.system-notice-dialog > * { min-width: 0; }
+.system-notice-dialog h2 { max-width: 100%; }
+.system-notice-dialog .system-notice-actions { width: 100%; }
+.system-notice-dialog .system-notice-actions > button { min-width: 0; max-width: 100%; }
+.system-notice-feature-list { min-width: 0; }
+.system-notice-image-backdrop { overflow: hidden; }
+.system-notice-image-dialog { max-width: 100%; min-width: 0; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); }
+.system-notice-image-dialog img { max-width: 100%; max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px); }
+
+@media (min-width: 900px) {
+  .auth-page .auth-form-panel { padding: 42px clamp(34px, 4vw, 54px); }
+  .auth-page .auth-form-panel .auth-header { margin-bottom: 25px; }
+  .auth-page .auth-form-panel .auth-header p { font-size: 14.5px; }
+  .auth-page .auth-register-form { gap: 14px; }
+  .onboarding-shell { width: min(880px, 100%); }
+}
+
+@media (max-width: 640px) {
+  .auth-page .auth-form-toolbar-label {
+    min-height: 36px;
+    max-width: 124px;
+    gap: 5px;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+  .auth-page .auth-form-toolbar-label svg { width: 14px; height: 14px; }
+  .auth-page .auth-form-panel .auth-header h2 { font-size: clamp(22px, 6vw, 27px); }
+  .auth-page .auth-form-panel .auth-header p { font-size: 12px; line-height: 1.65; }
+  .auth-page .auth-register-form .register-email-note { margin-top: 5px; padding: 0; font-size: 11px; line-height: 1.6; }
+  .onboarding-main-card { padding: 17px 15px 18px; border-radius: 21px; }
+  .onboarding-page .onboarding-brand-header { padding: 4px 4px 17px; }
+  .onboarding-page .onboarding-brand-header h1 { font-size: clamp(21px, 6vw, 26px); }
+  .onboarding-page .onboarding-brand-header p { font-size: 11px; }
+  .onboarding-page .onboarding-action-panel { padding: 13px; }
+  .onboarding-page .onboarding-note { margin-top: 13px; padding: 8px 10px; font-size: 10px; }
+  .onboarding-shell-success { width: min(540px, 100%); }
+  .onboarding-shell-success .creation-success-card { padding: 17px 13px; }
+  .system-notice-backdrop { align-items: center; padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)); }
+  .system-notice-dialog {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 20px);
+    padding: 21px 15px 16px;
+    border-radius: 18px;
+    gap: 10px;
+  }
+  .system-notice-dialog h2 { padding-right: 34px; font-size: 20px; }
+  .system-notice-description { font-size: 12px; line-height: 1.7; }
+  .system-notice-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .system-notice-actions > button { width: 100%; }
+  .system-notice-feature-list { max-height: min(38dvh, 270px); }
+  .system-notice-image-backdrop { padding: 8px; }
+  .system-notice-image-dialog,
+  .system-notice-image-dialog img { max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); }
+}
+
+@media (max-width: 360px) {
+  .auth-page .auth-form-toolbar-label { max-width: 112px; font-size: 9.5px; }
+  .onboarding-main-card { padding-inline: 12px; }
+  .system-notice-dialog { padding-inline: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-notice-backdrop,
+  .system-notice-dialog { scroll-behavior: auto; }
+}

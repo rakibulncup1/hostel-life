@@ -69,7 +69,10 @@ export function useRealtimeRefresh({ enabled = true, hostelId, tables = [], onRe
 
     const scheduleRefresh = (table, reason = 'realtime') => {
       if (table) pendingTables.add(table);
-      if (reason !== 'realtime') pendingReason = reason;
+      // If a real database event arrives while a resume refresh is queued, the
+      // data-change reason must win so consumers invalidate cached RPC results.
+      if (reason === 'realtime' && table && !String(table).startsWith('__')) pendingReason = 'realtime';
+      else if (reason !== 'realtime' && pendingReason !== 'realtime') pendingReason = reason;
       if (!isPageActive()) return;
       if (debounceTimer) window.clearTimeout(debounceTimer);
       // Realtime, focus, visibility, and online events all share the same throttle.

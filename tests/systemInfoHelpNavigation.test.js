@@ -8,8 +8,7 @@ async function source(path) {
 }
 
 test('privacy policy describes Hostel Life user data without exposing implementation details', async () => {
-  const menu = await source('src/features/menu/MenuPages.jsx');
-  const privacy = menu.split('export function PrivacyPolicyPage() {')[1]?.split('export function TermsPage() {')[0] || '';
+  const privacy = await source('src/content/legalDocuments.js');
   assert.ok(privacy.includes('সদস্য তালিকা'));
   assert.ok(privacy.includes('ব্যালেন্স'));
   assert.ok(privacy.includes('হিসাব ইতিহাস'));
@@ -18,8 +17,7 @@ test('privacy policy describes Hostel Life user data without exposing implementa
 });
 
 test('terms protect private invitation links while allowing public sharing of the app URL', async () => {
-  const menu = await source('src/features/menu/MenuPages.jsx');
-  const terms = menu.split('export function TermsPage() {')[1]?.split('const HOW_TO_USE_GROUPS')[0] || '';
+  const terms = await source('src/content/legalDocuments.js');
   assert.match(terms, /ব্যক্তিগত আমন্ত্রণের Join Code ও Invitation Link সুরক্ষিত রাখুন/);
   assert.match(terms, /ব্যক্তিগত Join Code ও Invitation Link/);
   assert.match(terms, /ওয়েবসাইটের সাধারণ ঠিকানা বা Hostel Life-এর পরিচিতি পেজ প্রকাশ্যে শেয়ার করা যায়/);

@@ -60,8 +60,8 @@ test('ordinary member market entry is uncluttered while required period warnings
   assert.doesNotMatch(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
   assert.match(dining, /periodNotStarted \? \([\s\S]*?InfoPanel tone="warning"/);
   assert.doesNotMatch(dining, /InfoPanel icon="shopping-basket"/);
-  assert.match(dining, /manager-request-review-guide" icon="clipboard-check"/);
-  assert.doesNotMatch(dining, /manager-request-review-guide" icon="inbox"/);
+  assert.doesNotMatch(dining, /manager-request-review-guide/);
+  assert.match(dining, /function ManagerMealRequests/);
 });
 
 test('market edit rows use stable keys instead of item-name-dependent keys', () => {

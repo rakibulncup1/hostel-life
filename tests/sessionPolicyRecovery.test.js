@@ -69,9 +69,9 @@ test('Super Admin policy update retains the admin current session and expires/re
 });
 
 test('Client checks session status frequently and signs out locally with a clear expiry notice', () => {
-  assert.match(authContext, /SESSION_POLICY_CACHE_MS = 15 \* 1000/);
+  assert.match(authContext, /SESSION_POLICY_CACHE_MS = 55 \* 1000/);
   assert.match(authContext, /setInterval\(verifySessionPolicy, 60 \* 1000\)/);
-  assert.match(authContext, /setInterval\(touchPresence, 5 \* 60 \* 1000\)/);
+  assert.match(authContext, /setInterval\(touchPresence, 11 \* 60 \* 1000\)/);
   assert.match(authContext, /sessionExpiryAt/);
   assert.match(authContext, /endCurrentSessionWithNotice/);
   assert.match(authContext, /নিরাপত্তার কারণে আপনার লগইন সেশনের নির্ধারিত সময় শেষ হয়েছে/);

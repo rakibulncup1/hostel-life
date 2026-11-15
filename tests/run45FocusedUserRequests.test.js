@@ -132,9 +132,10 @@ test('Run45 light theme is green-tinted but token based; Telegram nudge is compa
   assert.match(css, /telegram-nudge-dialog/);
   assert.match(css, /width: min\(100%, 360px\)/);
   assert.match(shell, /মেসের নোটিশ টেলিগ্রামে পান/);
-  assert.match(dining, /manager-request-review-guide/);
+  assert.doesNotMatch(dining, /manager-request-review-guide/);
   assert.doesNotMatch(dining, /market-paste-hint-boxed|Excel\/Sheets থেকে/);
   assert.match(manager, /month-close-primary-guidance/);
-  assert.match(history, /history-intro-guidance-box/);
+  assert.doesNotMatch(history, /history-intro-guidance-box|সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য/);
+  assert.match(history, /history-title-actions/);
   assert.match(main, /styles\/ui-polish-v45\.css/);
 });

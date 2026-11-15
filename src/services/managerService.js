@@ -85,6 +85,10 @@ export async function updateHostel(name) {
   return unwrap(await rpc('manager_update_hostel', { p_name: name }));
 }
 
+export async function updateMealCountModes(modes) {
+  return unwrap(await rpc('manager_update_meal_count_modes', { p_modes: modes }));
+}
+
 export async function regenerateJoinCode() {
   const data = await rpc('regenerate_join_code', {});
   return typeof data === 'string' ? data : unwrap(data);

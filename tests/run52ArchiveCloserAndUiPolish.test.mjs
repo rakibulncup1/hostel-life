@@ -22,7 +22,8 @@ test('Telegram privacy note is removed and the menu page always has a return rou
 
 test('Dining capability note remains while the redundant market-entry helper card is removed', () => {
   const dining = read('src/features/dining/DiningPage.jsx');
-  assert.match(dining, /!isManager && !isAssistantManager && \(/);
+  assert.match(dining, /!isManager && !isAssistantManager && <DiningOptionCard icon="history"/);
+  assert.doesNotMatch(dining, /manager-dining-note/);
   assert.doesNotMatch(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
 });
 
@@ -38,9 +39,11 @@ test('archive correction UI derives edit access only from the closer permission 
   assert.doesNotMatch(context, /archive_grant/);
 });
 
-test('history displays a lock note for months not closed by the current account', () => {
+test('history shows the closer-only permission note inside the selected archived month, not as a redundant page callout', () => {
   const history = read('src/features/history/HistoryPage.jsx');
-  assert.match(history, /সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে/);
+  assert.match(history, /archive-scope-note is-readonly/);
+  assert.match(history, /সম্পাদনা শুধু যিনি মাসটি বন্ধ করেছেন তিনিই করতে পারবেন/);
+  assert.doesNotMatch(history, /history-intro-guidance-box|সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য/);
   assert.match(history, /period\.access_kind === 'closed_by'/);
 });
 
@@ -93,7 +96,9 @@ test('market entry no longer renders a redundant helper box', () => {
 test('archive permission instructions are consistent across History and menu access page', () => {
   const history = read('src/features/history/HistoryPage.jsx');
   const menu = read('src/features/menu/MenuPages.jsx');
-  assert.match(history, /সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে/);
+  assert.match(history, /archive-scope-note is-readonly/);
+  assert.match(history, /সম্পাদনা শুধু যিনি মাসটি বন্ধ করেছেন তিনিই করতে পারবেন/);
+  assert.doesNotMatch(history, /history-intro-guidance-box/);
   assert.match(menu, /আপনি যে মাসগুলো বন্ধ করবেন/);
   assert.doesNotMatch(menu, /বর্তমান প্রধান ম্যানেজার তাকে ওই নির্দিষ্ট মাসের জন্য অস্থায়ী অনুমতি দিতে পারবেন/);
 });

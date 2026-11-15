@@ -15,6 +15,7 @@ import { useManagementContext } from '../hooks/useManagementContext';
 import { fetchNotifications, fetchPinnedManagerAnnouncement, markNotificationSeen } from '../services/notificationService';
 import { APP_RELEASE } from './release';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+import { invalidateRequestCache } from '../lib/requestCache';
 import { fetchPlatformPublicSettings, PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT } from '../services/platformService';
 import { getMyTelegramNotificationStatus } from '../services/telegramService';
 import { TelegramLogo } from '../components/TelegramLogo';
@@ -54,9 +55,10 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   useRealtimeRefresh({
     enabled: isOnline,
     hostelId: membership?.hostel_id,
+    minRefreshIntervalMs: 60000,
     tables: ['monthly_periods', 'hostel_memberships'],
-    immediateTables: ['monthly_periods', 'hostel_memberships'],
-    onRefresh: () => refreshManagementContext({ force: true }),
+    immediateTables: ['monthly_periods'],
+    onRefresh: ({ reason = 'realtime' } = {}) => refreshManagementContext({ force: reason === 'realtime' }),
   });
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -95,14 +97,14 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         if (active) setPlatformSettingsReadyForUser('');
       }
     };
-    loadSettings(true);
+    loadSettings();
     const refreshLocal = () => { loadSettings(true); };
     const refreshWhenVisible = () => {
       const now = Date.now();
       // Refresh only when a user returns to the app; no background polling or Realtime channel.
       if (now - platformSettingsRefreshAtRef.current < 30_000) return;
       platformSettingsRefreshAtRef.current = now;
-      loadSettings(true);
+      loadSettings();
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') refreshWhenVisible();
@@ -296,8 +298,12 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   useRealtimeRefresh({
     enabled: isOnline,
     hostelId: membership?.hostel_id,
+    minRefreshIntervalMs: 60000,
     tables: ['notifications'],
-    onRefresh: () => loadUnread(),
+    onRefresh: ({ reason = 'realtime' } = {}) => {
+      if (reason === 'realtime') invalidateRequestCache('notifications:');
+      return loadUnread();
+    },
   });
 
   const handleNavigate = (key) => {
@@ -446,7 +452,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         <NotificationsPopover isManager={isManager} onUnreadChange={setUnreadCount} onClose={closeNotifications} />
       )}
 
-      <main className="app-main">
+      <main className={`app-main ${pathname.startsWith('/app/menu/') ? 'menu-route' : ''}`}>
         {!isOnline && active !== 'dashboard' && !pathname.startsWith('/app/menu/privacy-policy') && !pathname.startsWith('/app/menu/terms') && !pathname.startsWith('/app/menu/how-to-use') && !pathname.startsWith('/app/menu/developer') && !pathname.startsWith('/app/menu/app-download') ? <OfflineState onBack={() => navigateTo('/app/dashboard')} /> : children}
         <footer className="app-copyright-footer">
           <span>Copyright © {new Date().getFullYear()} Hostel-Life. All rights reserved.</span>

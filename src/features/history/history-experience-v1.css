@@ -1,0 +1,912 @@
+/* Hostel Life — History Experience v1
+   Presentation-only refinement for market history, account history and archived months. */
+
+.history-experience {
+  --history-card-radius: 16px;
+  gap: 14px;
+  min-width: 0;
+}
+
+.history-experience .history-title-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--soft-shadow);
+}
+
+.history-experience .history-title-heading {
+  align-items: center;
+  gap: 12px;
+}
+
+.history-experience .history-page-brand-mark {
+  flex-basis: 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-2);
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.history-experience .history-page-intro-copy {
+  gap: 2px;
+}
+
+.history-experience .history-page-intro-copy .eyebrow {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .045em;
+}
+
+.history-experience .history-page-intro-copy h1 {
+  font-size: clamp(21px, 2.3vw, 27px);
+  font-weight: 760;
+  line-height: 1.22;
+  letter-spacing: -.025em;
+}
+
+.history-experience .history-page-intro-copy p {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.history-experience .history-title-footer {
+  align-items: center;
+  gap: 8px;
+}
+
+.history-experience .history-intro-guidance-box {
+  min-height: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.history-experience .history-title-actions {
+  gap: 7px;
+}
+
+.history-experience .history-title-actions .secondary-button {
+  min-height: 38px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+.history-experience .history-archive-scope {
+  gap: 11px;
+  padding: 13px;
+  border-radius: var(--history-card-radius);
+  box-shadow: none;
+}
+
+.history-experience .history-period-overview {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.history-experience .history-period-overview.is-running {
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
+.history-experience .history-period-overview.is-archive {
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
+.history-experience .history-period-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.history-experience .history-period-overview-copy .eyebrow {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.history-experience .history-period-overview-copy strong {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.history-experience .history-period-state {
+  padding: 5px 9px;
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.history-experience .history-period-state.is-running,
+.history-experience .history-period-state.is-editable {
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 42%, var(--surface));
+  color: var(--primary-strong);
+}
+
+.history-experience .history-period-select {
+  gap: 5px;
+}
+
+.history-experience .history-period-select > span {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.history-experience .history-period-select select {
+  min-height: 41px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.history-experience .archive-scope-note {
+  padding: 9px 11px;
+  border-color: var(--line) !important;
+  border-radius: 10px;
+  background: var(--surface-2) !important;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.history-experience .history-tabbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-2);
+}
+
+.history-experience .history-tabbar button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+
+.history-experience .history-tabbar button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.history-experience .history-filter-card {
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--history-card-radius);
+  box-shadow: none;
+}
+
+.history-experience .history-filter-card > div:first-child {
+  gap: 3px;
+}
+
+.history-experience .history-filter-card strong {
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.history-experience .history-filter-card small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.history-experience .market-history-filters .history-filter-controls {
+  grid-template-columns: minmax(170px, 1.2fr) repeat(2, minmax(135px, 1fr)) auto;
+  gap: 8px;
+}
+
+.history-experience .market-history-filters .history-filter-controls > select,
+.history-experience .market-history-filters .compact-field input {
+  min-height: 40px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.history-experience .market-history-filters .history-filter-controls > button {
+  min-height: 40px;
+  border-radius: 10px;
+}
+
+.history-experience .history-list {
+  gap: 9px;
+}
+
+.history-experience .history-list .history-market-entry-card {
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.history-experience .history-list .history-market-entry-card:hover {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--line));
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text) 5%, transparent);
+  transform: translateY(-1px);
+}
+
+.history-experience .history-market-serial {
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.history-experience .history-market-copy .history-market-item-count,
+.history-experience .history-market-copy .history-row-open-hint {
+  min-height: 23px;
+  padding: 4px 8px;
+  border-color: var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--muted) !important;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.history-experience .history-market-copy .history-row-open-hint {
+  background: transparent;
+}
+
+.history-experience .history-market-amount {
+  padding: 9px 12px;
+  border-color: var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.history-experience .history-market-amount-value > strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.history-experience .history-market-amount-value > small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.history-experience .account-history-filter-card {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 260px);
+  align-items: center;
+}
+
+.history-experience .account-history-filter-card > div:first-child {
+  gap: 3px;
+}
+
+.history-experience .account-history-filter-card > div:first-child strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.history-experience .account-history-filter-card > div:first-child small {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.history-experience .account-history-scope-controls select {
+  width: 100%;
+  min-width: 0;
+  min-height: 41px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.history-experience .account-summary-grid {
+  gap: 9px;
+}
+
+.history-experience .account-summary-filter-grid .account-summary-card {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  min-height: 94px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.history-experience .account-summary-card span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.history-experience .account-summary-card strong {
+  margin: 1px 0;
+  color: var(--text) !important;
+  font-size: clamp(15px, 1.8vw, 19px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-experience .account-summary-card small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.history-experience .account-summary-filter-grid .account-summary-card.is-selected {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 28%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.history-experience .account-history-row {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 11px;
+  padding: 12px 13px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.history-experience .history-leading-icon {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2) !important;
+  color: var(--muted) !important;
+}
+
+.history-experience .history-item-copy {
+  gap: 4px;
+}
+
+.history-experience .history-item-copy strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.history-experience .history-item-copy small,
+.history-experience .history-item-copy span {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.history-experience .history-item-copy .history-row-open-indicator {
+  display: none;
+}
+
+.history-experience .history-amount-value {
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-experience .archive-month-list {
+  gap: 9px;
+}
+
+.history-experience .archive-month-card {
+  min-width: 0;
+  min-height: 72px;
+  grid-template-columns: 39px minmax(0, 1fr) 16px;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.history-experience .archive-month-icon {
+  width: 39px;
+  height: 39px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.history-experience .archive-month-copy {
+  gap: 4px;
+}
+
+.history-experience .archive-month-copy strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.history-experience .archive-month-copy small,
+.history-experience .archive-month-copy span {
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.history-experience .archive-month-card > svg:last-child {
+  color: var(--muted);
+}
+
+.history-experience .history-retention-policy {
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.history-experience .history-retention-policy-icon {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.history-experience .history-final-summary-list {
+  gap: 8px;
+}
+
+.history-experience .history-final-summary-list details {
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.history-experience .history-final-summary-list summary {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.history-experience .history-final-summary-body {
+  padding: 10px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.history-experience .history-final-summary-body p {
+  margin: 4px 0;
+}
+
+.history-experience .empty-state-card {
+  border-radius: 15px;
+  box-shadow: none;
+}
+
+.history-experience .empty-state-card > svg {
+  color: var(--muted);
+}
+
+.history-experience .market-detail-summary > div,
+.history-experience .detail-total-bar,
+.history-experience .transaction-detail-amount {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.history-experience .market-detail-summary > div {
+  border-radius: 11px;
+}
+
+.history-experience .detail-item-row {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 10px 4px;
+}
+
+.history-experience .detail-item-row > b {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.history-experience .detail-created-note {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.history-experience .history-month-detail-modal .archive-detail-grid,
+.history-experience .history-month-detail-modal .archive-summary-grid {
+  gap: 8px;
+}
+
+.history-experience .history-month-detail-modal .metric {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.history-experience .history-month-detail-modal .metric span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.history-experience .history-month-detail-modal .metric strong {
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.history-experience .archive-detail-section {
+  margin-top: 17px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+.history-experience .archive-detail-section .section-heading {
+  margin-bottom: 4px;
+}
+
+.history-experience .archive-detail-section .section-heading h3 {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.history-experience .archive-list-row {
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.history-experience .archive-list-row:last-child {
+  border-bottom: 0;
+}
+
+.history-experience .archive-list-row strong {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.history-experience .archive-list-row small {
+  font-size: 9px;
+}
+
+.history-experience .transaction-detail-modal {
+  border-radius: 17px;
+}
+
+.history-experience .transaction-detail-fields > div,
+.history-experience .transaction-detail-description {
+  border-radius: 11px;
+}
+
+.history-experience .transaction-detail-modal .confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.history-experience .transaction-detail-modal .confirm-actions > button {
+  flex: 1 1 130px;
+}
+
+@media (min-width: 641px) {
+  .history-experience .archive-month-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 920px) {
+  .history-experience .history-title-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 11px;
+  }
+
+  .history-experience .history-title-footer {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .history-experience .history-intro-guidance-box {
+    flex: 1 1 260px;
+  }
+
+  .history-experience .market-history-filters .history-filter-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .history-experience .market-history-filters .history-filter-controls > select {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .history-experience {
+    gap: 11px;
+  }
+
+  .history-experience .history-title-row {
+    padding: 13px;
+    border-radius: 15px;
+  }
+
+  .history-experience .history-title-heading {
+    align-items: center;
+  }
+
+  .history-experience .history-page-brand-mark {
+    flex-basis: 39px;
+    width: 39px;
+    height: 39px;
+    border-radius: 11px;
+  }
+
+  .history-experience .history-page-intro-copy h1 {
+    font-size: 21px;
+  }
+
+  .history-experience .history-page-intro-copy p {
+    max-width: 42ch;
+    font-size: 10px;
+  }
+
+  .history-experience .history-title-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .history-experience .history-intro-guidance-box {
+    width: 100%;
+    min-height: 0;
+    padding: 9px 11px;
+    border-radius: 10px;
+    font-size: 9.5px;
+  }
+
+  .history-experience .history-title-actions {
+    justify-content: stretch;
+  }
+
+  .history-experience .history-title-actions .secondary-button {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 39px;
+  }
+
+  .history-experience .history-period-overview {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .history-experience .history-period-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .history-experience .history-period-state {
+    grid-column: 2;
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .history-experience .history-period-select select {
+    min-height: 40px;
+  }
+
+  .history-experience .history-tabbar {
+    gap: 3px;
+    padding: 3px;
+    border-radius: 11px;
+  }
+
+  .history-experience .history-tabbar button {
+    min-height: 39px;
+    gap: 5px;
+    padding: 7px 5px;
+    font-size: 10px;
+  }
+
+  .history-experience .history-tabbar button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .history-experience .market-history-filters .history-filter-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .history-experience .market-history-filters .history-filter-controls > select {
+    grid-column: 1 / -1;
+  }
+
+  .history-experience .market-history-filters .history-filter-controls > button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .history-experience .account-history-filter-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .history-experience .account-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .history-experience .account-summary-filter-grid .account-summary-card {
+    min-height: 83px;
+    padding: 10px 11px;
+  }
+
+  .history-experience .account-summary-filter-grid .account-summary-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .history-experience .account-summary-card strong {
+    font-size: 16px;
+  }
+
+  .history-experience .account-history-row {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .history-experience .history-leading-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .history-experience .history-item-copy {
+    gap: 3px;
+  }
+
+  .history-experience .history-item-copy small,
+  .history-experience .history-item-copy span {
+    font-size: 8.5px;
+  }
+
+  .history-experience .history-amount-value {
+    max-width: 100px;
+    font-size: 10.5px;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+  .history-experience .archive-month-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .history-experience .history-retention-policy {
+    padding: 12px;
+  }
+
+  .history-experience .history-month-detail-modal .archive-detail-grid,
+  .history-experience .history-month-detail-modal .archive-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-experience .archive-detail-section {
+    padding: 11px;
+  }
+
+  .history-experience .archive-list-row {
+    align-items: flex-start;
+  }
+
+  .history-experience .archive-list-row > div:last-child {
+    text-align: right;
+  }
+
+  .history-experience .modal-backdrop {
+    align-items: end;
+    padding: 8px;
+  }
+
+  .history-experience .modal-panel {
+    width: 100%;
+    max-height: min(92dvh, 850px);
+    padding: 13px;
+    border-radius: 17px 17px 13px 13px;
+  }
+
+  .history-experience .modal-head h2 {
+    font-size: 16px;
+  }
+
+  .history-experience .market-detail-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-experience .market-detail-summary > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .history-experience .detail-item-row {
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    gap: 7px;
+    padding: 9px 2px;
+  }
+
+  .history-experience .detail-item-row > b {
+    width: 25px;
+    height: 25px;
+  }
+
+  .history-experience .transaction-detail-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+}
+
+@media (max-width: 390px) {
+  .history-experience .history-tabbar button {
+    font-size: 9px;
+    padding-inline: 3px;
+  }
+
+  .history-experience .history-tabbar button svg {
+    display: none;
+  }
+
+  .history-experience .account-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .history-experience .account-summary-filter-grid .account-summary-card:last-child {
+    grid-column: auto;
+  }
+
+  .history-experience .account-history-row {
+    grid-template-columns: 29px minmax(0, 1fr);
+  }
+
+  .history-experience .account-history-row .history-amount-value {
+    grid-column: 2;
+    justify-self: start;
+    max-width: none;
+    text-align: left;
+  }
+
+  .history-experience .history-leading-icon {
+    width: 29px;
+    height: 29px;
+  }
+
+  .history-experience .history-month-detail-modal .archive-detail-grid,
+  .history-experience .history-month-detail-modal .archive-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-experience .history-tabbar button,
+  .history-experience .history-market-entry-card,
+  .history-experience .account-history-row-editable,
+  .history-experience .archive-month-card {
+    transition: none;
+  }
+}

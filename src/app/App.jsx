@@ -121,6 +121,11 @@ export function App() {
     const inSharedLink = pathname.startsWith('/invite/');
     if (inSharedLink) return;
 
+    // Recovery links establish a temporary password-update session. Keep this
+    // route out of every automatic membership/onboarding redirect until the
+    // user has explicitly completed the password change.
+    if (pathname.startsWith('/auth/reset-password')) return;
+
     // Wait for the first profile + membership read after a new login.
     // A momentarily-null membership is not evidence that the account is unlinked.
     if (auth.isAuthenticated && !auth.identityReady && pathname !== '/auth/reset-password') return;
@@ -167,8 +172,6 @@ export function App() {
       else if (!inAuth) navigateTo('/auth/login', true);
       return;
     }
-
-    if (pathname.startsWith('/auth/reset-password')) return;
 
     // A failed identity fetch is not proof that the user has no hostel membership.
     // Keep the current route/session and let the recovery screen handle the retry.

@@ -1,0 +1,1489 @@
+/* Hostel Life — Dining Experience v1
+   Presentation-only refinement for the complete Dining section.
+   All selectors are scoped to :is(.dining-experience, .dining-stack); business logic is untouched. */
+
+:is(.dining-experience, .dining-stack) {
+  --dining-card-radius: 19px;
+  --dining-soft-shadow: 0 8px 26px rgba(20, 34, 28, .055);
+  display: grid;
+  gap: clamp(14px, 1.8vw, 21px);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  align-content: start;
+}
+
+:is(.dining-experience, .dining-stack),
+:is(.dining-experience, .dining-stack) * {
+  box-sizing: border-box;
+}
+
+:is(.dining-experience, .dining-stack) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Section identity and sub-page navigation */
+:is(.dining-experience, .dining-stack) .dining-section-title {
+  align-items: center;
+  gap: 15px;
+  min-width: 0;
+  padding: 3px 0 5px;
+}
+
+:is(.dining-experience, .dining-stack) .dining-brand-mark {
+  display: grid;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--primary) 19%, var(--line));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--primary-soft) 76%, var(--surface));
+  color: var(--primary-strong);
+}
+
+:is(.dining-experience, .dining-stack) .dining-section-title-copy {
+  min-width: 0;
+}
+
+:is(.dining-experience, .dining-stack) .dining-section-title-copy .eyebrow,
+:is(.dining-experience, .dining-stack) .panel-header .eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .075em;
+}
+
+:is(.dining-experience, .dining-stack) .dining-section-title h1 {
+  margin: 2px 0 0;
+  font-size: clamp(23px, 3.4vw, 30px);
+  line-height: 1.22;
+  letter-spacing: -.04em;
+}
+
+:is(.dining-experience, .dining-stack) .dining-section-title p {
+  max-width: 60ch;
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+:is(.dining-experience, .dining-stack) .subpage-back-row {
+  min-height: 34px;
+  margin: 0;
+}
+
+:is(.dining-experience, .dining-stack) .subpage-back-row .secondary-button {
+  min-height: 36px;
+  padding: 7px 11px;
+  border-radius: 11px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+:is(.dining-experience, .dining-stack) .subpage-back-row .secondary-button:hover:not(:disabled) {
+  color: var(--primary-strong);
+}
+
+/* Main Dining feature launcher */
+:is(.dining-experience, .dining-stack) .dining-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 13px;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card {
+  --dining-option-accent: var(--primary-strong);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 91px;
+  padding: 15px 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  box-shadow: 0 3px 13px rgba(18, 32, 25, .025);
+  transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--dining-option-accent);
+  opacity: .78;
+  content: '';
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-shield { --dining-option-accent: #687fbd; }
+:is(.dining-experience, .dining-stack) .dining-option-user { --dining-option-accent: #8b70b6; }
+:is(.dining-experience, .dining-stack) .dining-option-calendar { --dining-option-accent: #478da7; }
+:is(.dining-experience, .dining-stack) .dining-option-dining { --dining-option-accent: #b9854f; }
+:is(.dining-experience, .dining-stack) .dining-option-wallet { --dining-option-accent: #438d7e; }
+:is(.dining-experience, .dining-stack) .dining-option-history { --dining-option-accent: #78869b; }
+
+:is(.dining-experience, .dining-stack) .dining-option-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--dining-option-accent) 36%, var(--line));
+  background: color-mix(in srgb, var(--dining-option-accent) 3.5%, var(--surface));
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--dining-option-accent) 10%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card:focus-visible,
+:is(.dining-experience, .dining-stack) .request-choice-card:focus-visible,
+:is(.dining-experience, .dining-stack) .request-history-head:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 72%, #fff);
+  outline-offset: 3px;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-icon {
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--dining-option-accent, var(--primary)) 20%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--dining-option-accent, var(--primary)) 11%, var(--surface));
+  color: var(--dining-option-accent, var(--primary-strong));
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-copy strong {
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-copy small {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+:is(.dining-experience, .dining-stack) .dining-access-badge {
+  align-self: start;
+  margin-top: 1px;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--primary) 15%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 78%, var(--surface));
+  color: var(--primary-strong);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+:is(.dining-experience, .dining-stack) .dining-period-empty-note {
+  margin: 0;
+}
+
+/* Shared panel, form and control language */
+:is(.dining-experience, .dining-stack) .dining-panel {
+  min-width: 0;
+  padding: clamp(15px, 2.1vw, 23px);
+  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+  border-radius: var(--dining-card-radius);
+  background: var(--surface);
+  box-shadow: var(--dining-soft-shadow);
+}
+
+:is(.dining-experience, .dining-stack) .panel-header {
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  margin-bottom: 3px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+:is(.dining-experience, .dining-stack) .panel-header > div {
+  min-width: 0;
+}
+
+:is(.dining-experience, .dining-stack) .panel-header h2 {
+  margin: 4px 0 0;
+  font-size: clamp(18px, 2.3vw, 22px);
+  font-weight: 850;
+  line-height: 1.32;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+
+:is(.dining-experience, .dining-stack) .panel-header p {
+  max-width: 68ch;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+:is(.dining-experience, .dining-stack) .panel-header > .icon-button {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .field-label {
+  min-width: 0;
+  gap: 7px;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+:is(.dining-experience, .dining-stack) .field-label input,
+:is(.dining-experience, .dining-stack) .field-label select,
+:is(.dining-experience, .dining-stack) .field-label textarea {
+  min-width: 0;
+  min-height: 44px;
+  border-radius: 11px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+:is(.dining-experience, .dining-stack) .field-label textarea {
+  min-height: 86px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+:is(.dining-experience, .dining-stack) .field-label :is(input, select, textarea):focus-visible,
+:is(.dining-experience, .dining-stack) .mini-field input:focus-visible,
+:is(.dining-experience, .dining-stack) .market-item-row :is(input, textarea):focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary) 64%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 11%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .primary-button,
+:is(.dining-experience, .dining-stack) .secondary-button {
+  min-height: 42px;
+  border-radius: 11px;
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+:is(.dining-experience, .dining-stack) .primary-button.large {
+  min-height: 48px;
+}
+
+:is(.dining-experience, .dining-stack) .dining-submit {
+  margin-top: 16px;
+}
+
+:is(.dining-experience, .dining-stack) .icon-button {
+  border-radius: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .icon-button:focus-visible,
+:is(.dining-experience, .dining-stack) .primary-button:focus-visible,
+:is(.dining-experience, .dining-stack) .secondary-button:focus-visible,
+:is(.dining-experience, .dining-stack) .segmented-control button:focus-visible,
+:is(.dining-experience, .dining-stack) .meal-stepper button:focus-visible,
+:is(.dining-experience, .dining-stack) .toggle-control:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 70%, #fff);
+  outline-offset: 2px;
+}
+
+/* Request range, defaults, day cards and meal steppers */
+:is(.dining-experience, .dining-stack) .request-range-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 205px), 1fr));
+  align-items: end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+:is(.dining-experience, .dining-stack) .request-range-grid > button {
+  align-self: end;
+  min-height: 44px;
+}
+
+:is(.dining-experience, .dining-stack) .default-meal-box {
+  gap: 13px;
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--surface-2) 75%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .default-meal-box > div:first-child {
+  gap: 4px;
+}
+
+:is(.dining-experience, .dining-stack) .default-meal-box > div:first-child strong {
+  font-size: 12px;
+  font-weight: 850;
+}
+
+:is(.dining-experience, .dining-stack) .default-meal-box > div:first-child small {
+  max-width: 70ch;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+:is(.dining-experience, .dining-stack) .default-meal-controls {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+:is(.dining-experience, .dining-stack) .mini-field {
+  min-width: 0;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+:is(.dining-experience, .dining-stack) .mini-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .request-summary-strip {
+  min-height: 48px;
+  margin-top: 15px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--primary-soft) 78%, var(--surface));
+  font-size: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .request-summary-strip strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .meal-days-stack {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 11px;
+  margin-top: 14px;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-card {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-card.weekend-day {
+  border-color: color-mix(in srgb, var(--warning) 26%, var(--line));
+  background: color-mix(in srgb, var(--warning-soft) 18%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-card-header {
+  align-items: center;
+  min-width: 0;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-card-header strong {
+  font-size: 11.5px;
+  font-weight: 850;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-card-header small {
+  font-size: 9px;
+}
+
+:is(.dining-experience, .dining-stack) .weekend-badge {
+  padding: 4px 7px;
+  font-size: 8px;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .meal-stepper-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px 5px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+:is(.dining-experience, .dining-stack) .meal-stepper-row > span {
+  width: 100%;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+}
+
+:is(.dining-experience, .dining-stack) .meal-stepper {
+  display: grid;
+  grid-template-columns: 28px minmax(24px, 1fr) 28px;
+  align-items: center;
+  justify-items: center;
+  gap: 3px;
+  width: 100%;
+}
+
+:is(.dining-experience, .dining-stack) .meal-stepper button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 17px;
+}
+
+:is(.dining-experience, .dining-stack) .meal-stepper button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+:is(.dining-experience, .dining-stack) .meal-stepper button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+:is(.dining-experience, .dining-stack) .meal-stepper strong {
+  min-width: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-total {
+  margin-top: 9px;
+  padding-top: 8px;
+  font-size: 9px;
+}
+
+:is(.dining-experience, .dining-stack) .request-footer-note {
+  gap: 9px;
+  margin-top: 13px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 10px;
+}
+
+/* Request history and manager review queue */
+:is(.dining-experience, .dining-stack) .request-history-list,
+:is(.dining-experience, .dining-stack) .manager-request-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+:is(.dining-experience, .dining-stack) .request-history-card,
+:is(.dining-experience, .dining-stack) .manager-request-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: 0 2px 9px rgba(20, 34, 28, .025);
+}
+
+:is(.dining-experience, .dining-stack) .request-history-head {
+  min-height: 58px;
+  padding: 13px 14px;
+  transition: background .16s ease;
+}
+
+:is(.dining-experience, .dining-stack) .request-history-head:hover,
+:is(.dining-experience, .dining-stack) .manager-request-head-button:hover {
+  background: color-mix(in srgb, var(--surface-2) 75%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .request-history-head strong,
+:is(.dining-experience, .dining-stack) .manager-request-head strong {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+:is(.dining-experience, .dining-stack) .request-history-head small,
+:is(.dining-experience, .dining-stack) .manager-request-head small {
+  font-size: 9.5px;
+}
+
+:is(.dining-experience, .dining-stack) .request-history-meta {
+  align-items: center;
+  padding: 0 14px 12px;
+  font-size: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .request-history-expanded,
+:is(.dining-experience, .dining-stack) .manager-request-expanded {
+  padding: 13px 14px 14px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 28%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .request-status {
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+:is(.dining-experience, .dining-stack) .request-status-approved {
+  border-color: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .request-status-submitted {
+  border-color: color-mix(in srgb, var(--warning) 18%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .request-status-rejected,
+:is(.dining-experience, .dining-stack) .request-status-cancelled {
+  border-color: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .request-status-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+:is(.dining-experience, .dining-stack) .mini-day-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+:is(.dining-experience, .dining-stack) .compact-day-card {
+  padding: 10px;
+  border-radius: 12px;
+}
+
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-day-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-stepper-row {
+  gap: 5px;
+  padding: 7px 3px;
+}
+
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-stepper-row > span {
+  font-size: 8px;
+}
+
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-stepper {
+  grid-template-columns: 23px minmax(18px, 1fr) 23px;
+  gap: 1px;
+}
+
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-stepper button {
+  width: 23px;
+  height: 23px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+:is(.dining-experience, .dining-stack) .compact-request-day {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+}
+
+:is(.dining-experience, .dining-stack) .compact-request-day > strong {
+  font-size: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .request-action-row {
+  gap: 8px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-head-button {
+  min-height: 48px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-date {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-day-summary {
+  gap: 8px;
+  margin-top: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-review-guide {
+  margin-top: 13px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-active-period {
+  margin: 12px 0 13px;
+  border-color: color-mix(in srgb, #6676b8 22%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, #6676b8 7%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-active-period > svg {
+  flex: 0 0 auto;
+  color: #7182bd;
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 12px;
+  padding: 4px;
+  border-radius: 12px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-request-tabs button {
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+/* Market entry and finance forms */
+:is(.dining-experience, .dining-stack) .market-top-fields,
+:is(.dining-experience, .dining-stack) .form-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 15px;
+}
+
+:is(.dining-experience, .dining-stack) .market-table-card {
+  min-width: 0;
+  margin-top: 15px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+}
+
+:is(.dining-experience, .dining-stack) .market-table-head,
+:is(.dining-experience, .dining-stack) .market-item-row {
+  grid-template-columns: 34px minmax(0, 1.4fr) minmax(90px, .8fr) minmax(100px, .9fr) 36px;
+  gap: 9px;
+}
+
+:is(.dining-experience, .dining-stack) .market-table-head {
+  padding: 11px 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: .015em;
+}
+
+:is(.dining-experience, .dining-stack) .market-item-row {
+  padding: 10px 12px;
+}
+
+:is(.dining-experience, .dining-stack) .market-item-row > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:is(.dining-experience, .dining-stack) .market-item-row input,
+:is(.dining-experience, .dining-stack) .market-item-row textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .market-item-row textarea {
+  min-height: 42px;
+  padding: 8px 9px;
+  line-height: 1.45;
+}
+
+:is(.dining-experience, .dining-stack) .market-serial {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .add-market-item {
+  min-height: 38px;
+  margin: 10px 12px;
+}
+
+:is(.dining-experience, .dining-stack) .market-total-row {
+  min-height: 57px;
+  padding: 12px 15px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .market-total-row span {
+  font-size: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .market-total-row strong {
+  color: var(--text);
+  font-size: clamp(19px, 2.5vw, 23px);
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .deposit-toggle-card {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+:is(.dining-experience, .dining-stack) .deposit-toggle-card.enabled {
+  border-color: color-mix(in srgb, var(--primary) 37%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 65%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .toggle-control {
+  min-height: 42px;
+}
+
+:is(.dining-experience, .dining-stack) .toggle-control strong {
+  font-size: 11.5px;
+}
+
+:is(.dining-experience, .dining-stack) .toggle-control small {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+:is(.dining-experience, .dining-stack) .toggle-warning {
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+:is(.dining-experience, .dining-stack) .manager-entry-toolbar {
+  grid-template-columns: minmax(180px, .85fr) minmax(260px, 1.15fr);
+  align-items: end;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-entry-toolbar .segmented-control {
+  min-width: 0;
+  min-height: 44px;
+  align-items: center;
+}
+
+:is(.dining-experience, .dining-stack) .manager-entry-toolbar .segmented-control button {
+  min-height: 34px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-member-select {
+  margin-top: 13px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-default-entry-box {
+  margin-top: 14px;
+}
+
+:is(.dining-experience, .dining-stack) .entry-status-note {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 10.5px;
+}
+
+:is(.dining-experience, .dining-stack) .entry-status-note.is-finalized {
+  border-color: color-mix(in srgb, var(--danger) 22%, var(--line));
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-entry-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 11px;
+  margin-top: 15px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-card {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-card-head {
+  min-width: 0;
+  gap: 9px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-card-head .avatar {
+  flex: 0 0 auto;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-card-head > div {
+  min-width: 0;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-card-head strong {
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-grid .meal-stepper-row {
+  min-width: 0;
+  padding: 8px 4px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-grid .meal-stepper-row > span {
+  font-size: 8.5px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-grid .meal-stepper {
+  grid-template-columns: 25px minmax(18px, 1fr) 25px;
+  gap: 2px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-meal-grid .meal-stepper button {
+  width: 25px;
+  height: 25px;
+}
+
+/* Personal meal summary and final meal audit */
+:is(.dining-experience, .dining-stack) .personal-tomorrow-meal-card {
+  gap: 12px;
+  padding: clamp(14px, 1.8vw, 18px);
+  border-color: color-mix(in srgb, var(--primary) 23%, var(--line));
+  border-radius: 17px;
+  box-shadow: none;
+}
+
+:is(.dining-experience, .dining-stack) .personal-tomorrow-head {
+  align-items: center;
+}
+
+:is(.dining-experience, .dining-stack) .personal-tomorrow-head h2 {
+  font-size: clamp(14px, 2vw, 17px);
+}
+
+:is(.dining-experience, .dining-stack) .personal-tomorrow-grid {
+  gap: 8px;
+}
+
+:is(.dining-experience, .dining-stack) .personal-tomorrow-grid > div {
+  min-width: 0;
+  padding: 10px 8px;
+  border-radius: 12px;
+}
+
+:is(.dining-experience, .dining-stack) .personal-tomorrow-grid span {
+  font-size: 9px;
+}
+
+:is(.dining-experience, .dining-stack) .personal-tomorrow-grid strong {
+  font-size: clamp(15px, 2vw, 19px);
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .manager-my-meal-card,
+:is(.dining-experience, .dining-stack) .manager-override-card {
+  margin-top: 0;
+}
+
+:is(.dining-experience, .dining-stack) .manager-warning-box,
+:is(.dining-experience, .dining-stack) .late-request-warning-box {
+  gap: 10px;
+  padding: 12px 13px;
+  border-radius: 13px;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+:is(.dining-experience, .dining-stack) .manager-warning-box strong {
+  font-size: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .manager-warning-box p {
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-card {
+  gap: 13px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--surface-2) 36%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-heading {
+  align-items: center;
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-heading h3 {
+  font-size: 13px;
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-stats {
+  gap: 8px;
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-stats > div {
+  border-radius: 11px;
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-stats strong {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-lists {
+  gap: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .final-meal-audit-list {
+  min-width: 0;
+  padding: 11px;
+  border-color: var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+/* Secondary flows, confirmations and feedback */
+:is(.dining-experience, .dining-stack) .request-entry-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card {
+  position: relative;
+  min-width: 0;
+  min-height: 132px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgba(20, 34, 28, .025);
+  transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--line));
+  box-shadow: 0 7px 18px rgba(20, 34, 28, .05);
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card .dining-option-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card strong {
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card small {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-late .dining-option-icon {
+  background: color-mix(in srgb, #b9854f 13%, var(--surface));
+  color: #b9854f;
+}
+
+:is(.dining-experience, .dining-stack) .meal-policy-note,
+:is(.dining-experience, .dining-stack) .state-card,
+:is(.dining-experience, .dining-stack) .info-panel,
+:is(.dining-experience, .dining-stack) .manager-warning-box {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:is(.dining-experience, .dining-stack) .meal-policy-note {
+  padding: 11px 13px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  line-height: 1.6;
+}
+
+:is(.dining-experience, .dining-stack) .info-panel {
+  border-radius: 12px;
+}
+
+:is(.dining-experience, .dining-stack) .state-card-warning {
+  border-radius: 13px;
+}
+
+:is(.dining-experience, .dining-stack) .reject-reason-box {
+  padding: 13px;
+  border-radius: 13px;
+}
+
+:is(.dining-experience, .dining-stack) .modal-backdrop {
+  z-index: 120;
+  padding: clamp(10px, 3vh, 26px) 12px;
+  overflow-y: auto;
+}
+
+:is(.dining-experience, .dining-stack) .modal-panel {
+  width: min(100%, 720px);
+  max-height: min(92dvh, 900px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(15px, 2.5vw, 22px);
+  border-radius: 18px;
+  box-shadow: 0 22px 64px rgba(9, 19, 14, .22);
+}
+
+:is(.dining-experience, .dining-stack) .modal-head {
+  align-items: flex-start;
+  gap: 12px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+:is(.dining-experience, .dining-stack) .modal-head h2 {
+  margin: 4px 0 0;
+  font-size: clamp(17px, 2vw, 20px);
+  line-height: 1.35;
+}
+
+:is(.dining-experience, .dining-stack) .modal-head p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+:is(.dining-experience, .dining-stack) .confirm-actions {
+  gap: 8px;
+}
+
+:is(.dining-experience, .dining-stack) .confirm-actions > * {
+  min-width: 120px;
+}
+
+:is(.dining-experience, .dining-stack) .market-share-preview {
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+:is(.dining-experience, .dining-stack) .late-request-form .manager-meal-grid {
+  margin-top: 14px;
+}
+
+:is(.dining-experience, .dining-stack) .late-request-form > .field-label {
+  margin-top: 14px;
+}
+
+/* Responsive layouts */
+@media (min-width: 1080px) {
+  :is(.dining-experience, .dining-stack) .dining-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  :is(.dining-experience, .dining-stack) .manager-meal-entry-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  :is(.dining-experience, .dining-stack) .manager-request-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :is(.dining-experience, .dining-stack) .manager-entry-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :is(.dining-experience, .dining-stack) .manager-meal-entry-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :is(.dining-experience, .dining-stack) .final-meal-audit-lists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  :is(.dining-experience, .dining-stack) {
+    gap: 14px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-section-title {
+    gap: 12px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-brand-mark {
+    flex-basis: 47px;
+    width: 47px;
+    height: 47px;
+    border-radius: 14px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-brand-mark svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-action-grid,
+  :is(.dining-experience, .dining-stack) .request-entry-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-option-card {
+    min-height: 78px;
+    padding: 12px 13px;
+    border-radius: 15px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-option-icon {
+    width: 41px;
+    height: 41px;
+    border-radius: 12px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-option-copy strong {
+    font-size: 12.5px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-option-copy small {
+    font-size: 10px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-panel {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  :is(.dining-experience, .dining-stack) .panel-header {
+    gap: 10px;
+    padding-bottom: 12px;
+  }
+
+  :is(.dining-experience, .dining-stack) .panel-header h2 {
+    font-size: 18px;
+  }
+
+  :is(.dining-experience, .dining-stack) .panel-header p {
+    font-size: 10.5px;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-top-fields,
+  :is(.dining-experience, .dining-stack) .form-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-table-card {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-table-head {
+    display: none;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-item-list {
+    gap: 9px;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-item-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px;
+    gap: 8px;
+    padding: 11px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    background: var(--surface);
+  }
+
+  :is(.dining-experience, .dining-stack) .market-serial {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    text-align: left;
+    padding-bottom: 1px;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-input-item {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-input-quantity {
+    grid-column: 1 / 2;
+    grid-row: 3;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-input-amount {
+    grid-column: 2 / 3;
+    grid-row: 3;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-item-row > .icon-button {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+  }
+
+  :is(.dining-experience, .dining-stack) .add-market-item {
+    width: 100%;
+    margin: 10px 0 0;
+  }
+
+  :is(.dining-experience, .dining-stack) .market-total-row {
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: 13px;
+  }
+
+  :is(.dining-experience, .dining-stack) .meal-days-stack,
+  :is(.dining-experience, .dining-stack) .mini-day-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :is(.dining-experience, .dining-stack) .meal-day-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  :is(.dining-experience, .dining-stack) .meal-stepper-row {
+    padding: 8px 3px;
+  }
+
+  :is(.dining-experience, .dining-stack) .manager-request-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  :is(.dining-experience, .dining-stack) .manager-request-tabs button {
+    min-height: 38px;
+    padding: 7px 5px;
+    font-size: 9.5px;
+  }
+
+  :is(.dining-experience, .dining-stack) .personal-tomorrow-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :is(.dining-experience, .dining-stack) .final-meal-audit-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :is(.dining-experience, .dining-stack) .request-action-row > * {
+    flex: 1 1 100%;
+  }
+
+  :is(.dining-experience, .dining-stack) .confirm-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :is(.dining-experience, .dining-stack) .confirm-actions > * {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 390px) {
+  :is(.dining-experience, .dining-stack) .dining-option-card {
+    grid-template-columns: 39px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 11px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-option-icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  :is(.dining-experience, .dining-stack) .dining-access-badge {
+    padding: 3px 6px;
+    font-size: 8px;
+  }
+
+  :is(.dining-experience, .dining-stack) .default-meal-box {
+    padding: 12px;
+  }
+
+  :is(.dining-experience, .dining-stack) .default-meal-controls {
+    gap: 6px;
+  }
+
+  :is(.dining-experience, .dining-stack) .mini-field input {
+    padding-inline: 7px;
+    font-size: 11px;
+  }
+
+  :is(.dining-experience, .dining-stack) .meal-stepper {
+    grid-template-columns: 25px minmax(19px, 1fr) 25px;
+    gap: 2px;
+  }
+
+  :is(.dining-experience, .dining-stack) .meal-stepper button {
+    width: 25px;
+    height: 25px;
+  }
+
+  :is(.dining-experience, .dining-stack) .manager-meal-grid .meal-stepper {
+    grid-template-columns: 23px minmax(16px, 1fr) 23px;
+  }
+
+  :is(.dining-experience, .dining-stack) .manager-meal-grid .meal-stepper button {
+    width: 23px;
+    height: 23px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.dining-experience, .dining-stack) .dining-option-card,
+  :is(.dining-experience, .dining-stack) .request-choice-card,
+  :is(.dining-experience, .dining-stack) .request-history-head {
+    transition: none;
+  }
+}
+
+
+:is(.dining-experience, .dining-stack) .manager-dining-note {
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 3px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+:is(.dining-experience, .dining-stack) .manager-dining-note > svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+/* Dining v2 refinement: remove per-feature accent colors for a quieter, consistent menu. */
+:is(.dining-experience, .dining-stack) .dining-option-card {
+  --dining-option-accent: var(--muted);
+  box-shadow: none;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card::before {
+  display: none;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 5px 15px color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-icon,
+:is(.dining-experience, .dining-stack) .request-choice-card .dining-option-icon,
+:is(.dining-experience, .dining-stack) .request-choice-late .dining-option-icon {
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+  background: var(--surface);
+}
+
+:is(.dining-experience, .dining-stack) .admin-entry-choice-grid .request-choice-card {
+  min-height: 112px;
+  align-content: start;
+  gap: 10px;
+  padding: 17px;
+}
+
+:is(.dining-experience, .dining-stack) .admin-entry-choice-grid .request-choice-card strong {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+:is(.dining-experience, .dining-stack) .admin-entry-choice-grid .request-choice-card small {
+  margin-top: -3px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  :is(.dining-experience, .dining-stack) .admin-entry-choice-grid .request-choice-card {
+    min-height: 0;
+    padding: 14px;
+  }
+}

@@ -33,11 +33,10 @@ test('Dashboard member search filters the already-loaded member array locally', 
   assert.match(dashboard, /অনুসন্ধান মুছুন/);
 });
 
-test('History keeps the same content and has dedicated mobile Dining-like heading and full-width info layout', () => {
-  assert.match(history, /history-title-heading/);
-  assert.match(history, /সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য/);
-  assert.match(css, /\.history-title-heading\s*\{[\s\S]*?border-radius: 17px/);
-  assert.match(css, /\.history-intro-info\s*\{[\s\S]*?width: 100%/);
+test('History keeps a clean heading and practical actions without the redundant permission callout', () => {
+  assert.match(history, /history-page-intro-copy/);
+  assert.match(history, /history-title-actions/);
+  assert.doesNotMatch(history, /history-intro-guidance-box|সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য/);
   assert.match(css, /@media \(min-width: 851px\)[\s\S]*?\.history-title-actions \.secondary-button/);
 });
 

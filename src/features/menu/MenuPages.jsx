@@ -17,6 +17,7 @@ import { fetchPinnedManagerAnnouncement, managerClearHostelPinnedAnnouncement, m
 import { fetchTopDepositors, fetchTopEaters, fetchTopShoppers } from '../../services/rankingService';
 import { formatDateBangla, formatDateWithWeekday } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
+import { LEGAL_DOCUMENTS, LEGAL_LAST_UPDATED } from '../../content/legalDocuments.js';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
 
@@ -25,7 +26,7 @@ function PageHeader({ eyebrow = 'হোস্টেল লাইফ', title, des
     <div className="page-title-row menu-page-title card menu-page-intro-card">
       <div className="menu-page-title-copy">
         {back && <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15} /> ফিরে যান</button>}
-        <span className="eyebrow">{eyebrow}</span>
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>
@@ -108,7 +109,7 @@ export function AllMembersPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="মেসের সবাই" title="সকল সদস্য" description="সদস্য ও তাঁদের হিসাব।" />
+      <PageHeader eyebrow="" title="সকল সদস্য" />
       {!hasRunningPeriod && <div className="no-active-period-inline"><Icon name="calendar" size={18} /><div><strong>এখনো নতুন মাস শুরু হয়নি</strong><span>সদস্য তালিকা অক্ষত আছে। নতুন মাস শুরু হলে হিসাব আবার দেখানো হবে।</span></div></div>}
       {loading ? <LoadingSpinner label="সদস্য তালিকা লোড হচ্ছে..." /> : members.length === 0 ? (
         <div className="empty-state-card"><Icon name="users" size={28} /><strong>কোনো সদস্য পাওয়া যায়নি</strong><span>মেসে এখনো কোনো সদস্যের তথ্য নেই।</span></div>
@@ -313,15 +314,9 @@ function RankingPage({ kind }) {
   return (
     <div className="page-stack">
       <PageHeader
-        eyebrow="চলতি মাসের মজার হিসাব"
+        eyebrow=""
         title={depositor ? 'বেশি ডিপোজিটকারী' : shopper ? 'বেশি বাজারকারী' : 'শীর্ষ খাদক'}
-        description={depositor ? 'সদস্যের নামে জমা হওয়া মোট টাকা।' : shopper ? 'কার্যকর বাজারের মোট টাকার তালিকা।' : 'চূড়ান্ত হওয়া মোট মিলের তালিকা।'}
       />
-      <InfoPanel className="finance-context-note" icon="activity">{depositor
-        ? 'সদস্যের নামে জমা হওয়া মোট টাকা দেখানো হয়।'
-        : shopper
-          ? 'মোট বাজারের ভিত্তিতে তালিকা; বাজারকারী ও এন্ট্রিকারী আলাদা হতে পারেন।'
-          : 'শুধু চূড়ান্ত হওয়া মিল গণনা করা হয়।'}</InfoPanel>
       <section className="card ranking-card">
         <div className="ranking-card-head">
           <div className={`ranking-hero-icon ${depositor ? 'depositor' : shopper ? 'shopper' : 'eater'}`}><Icon name={depositor ? 'wallet' : shopper ? 'shopping-bag' : 'trophy'} size={25} /></div>
@@ -382,7 +377,7 @@ export function DeveloperInfoPage() {
   const photo = info?.developer_photo_url || '';
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="Hostel Life" title="হেল্প" description="সহায়তা ও যোগাযোগ।" />
+      <PageHeader eyebrow="" title="হেল্প" description="সহায়তা ও যোগাযোগ।" />
       <section className="card developer-card">
         {photo ? <img className="developer-photo-placeholder developer-photo-image" src={photo} alt={info?.developer_name || 'ডেভেলপার'} loading="lazy" /> : <div className="developer-photo-placeholder" aria-label="ডেভেলপার"><Icon name="user" size={42} /></div>}
         <div className="developer-name">{loading ? 'তথ্য লোড হচ্ছে…' : info?.developer_name || 'Hostel Life Support'}</div>
@@ -400,26 +395,23 @@ export function DeveloperInfoPage() {
 }
 
 export function PrivacyPolicyPage() {
-  const sections = [
-    ['কোন তথ্য ব্যবহৃত হয়', 'অ্যাকাউন্ট পরিচালনার জন্য আপনার নাম, ইমেইল, মোবাইল নম্বর ও প্রোফাইল ছবি ব্যবহার হতে পারে। মেস পরিচালনার জন্য সদস্যতা, ভূমিকা, মিল, বাজার, জমা-খরচ, ব্যালেন্স, হিসাব ইতিহাস, ঐতিহাসিক রেকর্ড, আর্কাইভ, অনুরোধ, নোটিশ ও সংশ্লিষ্ট রেকর্ড সংরক্ষিত হয়। নিরাপত্তার জন্য IP address, লগইন বা নিবন্ধনের সময় দেওয়া ইমেইল, ঘটনার সময়, ডিভাইস/ব্রাউজার-সংক্রান্ত তথ্য, অনুরোধের উৎস এবং সীমিত HMAC fingerprint-ও ব্যবহৃত হতে পারে। অ্যাপ GPS বা ডিভাইসের সুনির্দিষ্ট অবস্থান চায় না; দেশ, শহর বা অঞ্চল শনাক্ত করার তথ্যও বর্তমান নিরাপত্তা-লগে ব্যবহার করা হয় না।'],
-    ['তথ্য কী কাজে ব্যবহার হয়', 'অ্যাকাউন্ট ও সদস্যতা পরিচালনা, মিল ও বাজারের হিসাব, জমা-খরচের রেকর্ড, রিপোর্ট, নোটিফিকেশন, সহায়তা এবং অননুমোদিত প্রবেশ বা অপব্যবহার শনাক্ত করতে প্রয়োজনীয় তথ্য ব্যবহার করা হয়।'],
-    ['কারা কোন তথ্য দেখতে পারেন', 'একই মেসের সদস্যরা তাঁদের ভূমিকা ও অনুমতি অনুযায়ী সদস্য তালিকা, মিল, বাজার, জমা-খরচ ও সংশ্লিষ্ট রেকর্ড দেখতে পারেন। ম্যানেজার ও অনুমোদিত সহকারীর দৃশ্যমানতা এবং সম্পাদনার ক্ষমতা সাধারণ সদস্যের চেয়ে বিস্তৃত হতে পারে। প্ল্যাটফর্ম পরিচালনাকারীরা দৈনন্দিন ব্যক্তিগত হিসাব পর্যালোচনা করেন না; সহায়তা বা নিরাপত্তা তদন্তে প্রয়োজন হলে অনুমোদিত সীমিত প্রবেশাধিকার প্রযোজ্য হতে পারে।'],
-    ['তথ্য শেয়ার ও সংযুক্ত সেবা', 'হোস্টিং, ডেটাবেজ, নিরাপদ নেটওয়ার্ক ও অ্যাপ সচল রাখার জন্য সংশ্লিষ্ট প্রযুক্তিগত সেবাদাতা প্রয়োজনীয় তথ্য প্রক্রিয়া করতে পারে। Google Sign-In সংযুক্ত নেই; Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না। ব্যবহারকারীর তথ্য বিক্রি বা ভাড়া দেওয়া হয় না।'],
-    ['তথ্য সংরক্ষণ ও মেয়াদ', 'নিরাপত্তা ও লগইন-সংক্রান্ত রেকর্ড এবং অ্যাপের সেশন তথ্যে থাকা IP address ও ব্রাউজার/ডিভাইস-সংক্রান্ত তথ্য ৩০ দিনের মেয়াদ পূর্ণ হলে নির্ধারিত দৈনিক স্বয়ংক্রিয় cleanup-এ মুছে ফেলা হয়। Password Reset-এর IP-ভিত্তিক সাময়িক প্রচেষ্টার তথ্য সর্বোচ্চ ৪৮ ঘণ্টা থাকে। পাসওয়ার্ড রিসেটের মাসিক সীমা রক্ষা করতে ইমেইলের একটি ফেরত-নির্ণয় করা যায় না এমন যাচাই-চিহ্ন সর্বোচ্চ ৩৫ দিন রাখা হতে পারে। কোনো IP block সক্রিয় থাকা পর্যন্ত সংশ্লিষ্ট IP রাখা হয়; মেয়াদ শেষ হলে block record পরিষ্কার হয়। হোস্টিং ও প্রমাণীকরণ-সেবাদাতার নিজস্ব অবকাঠামোতে তাদের নীতি অনুযায়ী কিছু প্রযুক্তিগত তথ্য প্রক্রিয়া হতে পারে; সেটি Hostel Life-এর নিজস্ব লগ সংরক্ষণ থেকে আলাদা। প্ল্যাটফর্মের প্রশাসনিক নিরীক্ষা-রেকর্ড আলাদা সংরক্ষণ ব্যবস্থায় রাখা হয়। অ্যাকাউন্ট, মেসের হিসাব ও আর্কাইভের তথ্য তাদের নিজস্ব পরিচালনাগত ও সংরক্ষণ নীতি অনুযায়ী থাকে।'],
-    ['নিরাপত্তা ও আপনার নিয়ন্ত্রণ', 'Password, OTP code বা Authenticator secret Security Event-এ সংরক্ষণ করা হয় না। নিজের পাসওয়ার্ড ও Join Code গোপন রাখুন, শেয়ার করা ডিভাইস থেকে লগআউট করুন এবং ভুল তথ্য সংশোধনে অ্যাপের অনুমোদিত পদ্ধতি বা মেসের ম্যানেজারের সহায়তা নিন। কোনো তথ্য মুছে ফেললে যৌথ হিসাব ও অন্য সদস্যের রেকর্ডে প্রভাব পড়তে পারে; তাই অনুরোধ যাচাই করে ব্যবস্থা নেওয়া হয়।'],
-    ['ঐচ্ছিক টেলিগ্রাম সংযোগ', 'ঐচ্ছিক টেলিগ্রাম সংযোগ স্বেচ্ছামূলক। সংযুক্ত করলে টেলিগ্রাম চ্যাট আইডি, ইউজার আইডি এবং পাওয়া গেলে ইউজারনেম সংরক্ষিত হতে পারে। বিজ্ঞপ্তির শিরোনাম ও বার্তার লেখা সংযুক্ত টেলিগ্রাম অ্যাকাউন্টে পাঠানো হয়। মেনু থেকে যেকোনো সময় বিচ্ছিন্ন করা যাবে; এরপর নতুন বিজ্ঞপ্তি আর পাঠানো হবে না।'],
-    ['বয়স-যোগ্যতা ও নীতির পরিবর্তন', 'বর্তমানে অ্যাকাউন্ট তৈরি করতে বয়স কমপক্ষে ১৮ বছর হতে হবে। সেবার কার্যপ্রণালি বা নিরাপত্তা ব্যবস্থা বদলালে এই নীতি হালনাগাদ হতে পারে। গোপনীয়তা বা অ্যাকাউন্ট-সংক্রান্ত প্রশ্নে Hostel Life Support-এর সঙ্গে যোগাযোগ করুন।'],
-  ];
+  const document = LEGAL_DOCUMENTS.privacy;
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="সিস্টেম তথ্য" title="গোপনীয়তা নীতি" />
-      <p className="policy-public-full-link"><a href="/privacy-policy">প্রকাশ্য গোপনীয়তা নীতি</a></p>
-      <section className="card policy-content-card policy-document-card">
-        <div className="policy-document-lead"><Icon name="shield-check" size={24}/><div><strong>আপনার তথ্য প্রয়োজন অনুযায়ী ব্যবহৃত ও ভূমিকা অনুযায়ী দেখানো হয়</strong><p>অ্যাকাউন্ট, মেসের হিসাব এবং নিরাপত্তা-সংক্রান্ত তথ্যের ব্যবহার ও সংরক্ষণের নিয়ম নিচে দেওয়া হলো।</p></div></div>
-        {sections.map(([title, description], index) => (
-          <div className="policy-section-block" key={title}>
-            <h2>{formatNumber(index + 1, { maximumFractionDigits: 0 })}. {title}</h2>
-            <p>{description}</p>
+      <PageHeader eyebrow="" title={document.title} />
+      <section className="card policy-content-card policy-document-card run63-legal-document">
+        <div className="policy-document-lead">
+          <Icon name="shield-check" size={24} />
+          <div>
+            <strong>{document.eyebrow}</strong>
+            <p>{document.intro}</p>
+            <small>সর্বশেষ হালনাগাদ: {LEGAL_LAST_UPDATED}</small>
+          </div>
+        </div>
+        {document.sections.map((section, index) => (
+          <div className="policy-section-block" key={section.id}>
+            <h2>{formatNumber(index + 1, { maximumFractionDigits: 0 })}. {section.title}</h2>
+            {section.paragraphs.map((paragraph, paragraphIndex) => <p key={`${section.id}-${paragraphIndex}`}>{paragraph}</p>)}
           </div>
         ))}
       </section>
@@ -428,25 +420,23 @@ export function PrivacyPolicyPage() {
 }
 
 export function TermsPage() {
-  const terms = [
-    ['সেবার উদ্দেশ্য', 'Hostel Life মেসের সদস্য, মিল, বাজার, জমা-খরচ, নোটিশ ও সংশ্লিষ্ট হিসাবের রেকর্ড গুছিয়ে রাখতে সহায়তা করে। এটি হিসাব ব্যবস্থাপনার মাধ্যম; অ্যাপটি নিজে পেমেন্ট গেটওয়ে নয় এবং সরাসরি টাকা গ্রহণ বা স্থানান্তর করে না।'],
-    ['ব্যবহারের যোগ্যতা', 'বর্তমানে অ্যাকাউন্ট তৈরি ও ব্যবহার করতে বয়স কমপক্ষে ১৮ বছর হতে হবে। বর্তমানে এই অ্যাপে Google Sign-In নেই; নির্ধারিত নিবন্ধন-পদ্ধতি ব্যবহার করুন। নিবন্ধনের সময় সঠিক তথ্য দিন এবং এই যোগ্যতা পূরণ না হলে অ্যাকাউন্ট তৈরি করবেন না।'],
-    ['অ্যাকাউন্ট ও নিরাপত্তা', 'নিজের অ্যাকাউন্ট, পাসওয়ার্ড ও OTP গোপন রাখুন। অন্যের অ্যাকাউন্ট অনুমতি ছাড়া ব্যবহার করবেন না। ব্যক্তিগত আমন্ত্রণের Join Code ও Invitation Link সুরক্ষিত রাখুন। ব্যক্তিগত Join Code ও Invitation Link কেবল অনুমোদিত ব্যক্তির সঙ্গে ব্যক্তিগতভাবে ভাগ করুন; প্রকাশ্যে দেবেন না। ওয়েবসাইটের সাধারণ ঠিকানা বা Hostel Life-এর পরিচিতি পেজ প্রকাশ্যে শেয়ার করা যায়। ঐচ্ছিক Telegram সংযোগ যেকোনো সময় বিচ্ছিন্ন করা যাবে।'],
-    ['ভূমিকা ও অনুমতি', 'সাধারণ সদস্য, সহকারী ম্যানেজার ও প্রধান ম্যানেজারের ক্ষমতা আলাদা। নিজের অনুমতির বাইরে কোনো রেকর্ড দেখা, পরিবর্তন, মুছে ফেলা বা অন্যকে অনুমতি দেওয়ার চেষ্টা করা যাবে না। সম্পাদনার ক্ষমতা সংশ্লিষ্ট ভূমিকা ও সার্ভার-যাচাইকৃত অনুমতির মধ্যে সীমিত।'],
-    ['দায়িত্বশীল ব্যবহার', 'মিলের অনুরোধ সময়মতো দিন এবং Late Request বা Correction-এর ক্ষেত্রে অনুমোদন ও সময়সীমা মেনে চলুন। বাজার, জমা, খরচ ও খালার পারিশ্রমিকের তথ্য বাস্তব অনুযায়ী লিখুন। ভুয়া অ্যাকাউন্ট তৈরি, ভুয়া/ডুপ্লিকেট এন্ট্রি, প্রতারণা, হয়রানি, অননুমোদিত প্রবেশ, অন্যের তথ্য অপব্যবহার বা সেবা ব্যাহত করা নিষিদ্ধ।'],
-    ['হিসাব ও রেকর্ডের দায়িত্ব', 'অ্যাপের হিসাব ব্যবহারকারীদের দেওয়া তথ্যের ভিত্তিতে তৈরি হয়। গুরুত্বপূর্ণ এন্ট্রি ও রিপোর্ট যাচাই করুন। ভুল রেকর্ড হলে অনুমোদিত সংশোধন-পদ্ধতি অনুসরণ করুন। বন্ধ মাসের রেকর্ডে সম্পাদনার অধিকার কেবল সার্ভার-অনুমোদিত ব্যক্তির থাকে; সংশোধনের কারণ অডিটে সংরক্ষিত হতে পারে। গুরুত্বপূর্ণ হিসাবের নিজস্ব কপি রাখুন।'],
-    ['সেবার প্রাপ্যতা ও পরিবর্তন', 'নেটওয়ার্ক, ডিভাইস বা রক্ষণাবেক্ষণের কারণে কিছু ফিচার সাময়িকভাবে ব্যাহত হতে পারে। অফলাইনে দেখা তথ্য সর্বশেষ সংরক্ষিত কপি হতে পারে; ইন্টারনেট ছাড়া সব পরিবর্তন জমা হয়েছে ধরে নেবেন না। সেবার কার্যপ্রণালি বা শর্তাবলী পরিবর্তিত হলে হালনাগাদ সংস্করণ প্রকাশ করা হবে।'],
-  ];
+  const document = LEGAL_DOCUMENTS.terms;
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="সিস্টেম তথ্য" title="ব্যবহারের শর্তাবলী" />
-      <p className="policy-public-full-link"><a href="/terms-of-service">প্রকাশ্য ব্যবহারের শর্তাবলী</a></p>
-      <section className="card policy-content-card policy-document-card">
-        <div className="policy-document-lead"><Icon name="book-open" size={24}/><div><strong>অ্যাপ ব্যবহারের নিয়ম</strong><p>অ্যাকাউন্ট, মেসের হিসাব এবং অন্য সদস্যের তথ্য ব্যবহারের সময় নিচের শর্তগুলো প্রযোজ্য।</p></div></div>
-        {terms.map(([title, description], index) => (
-          <div className="policy-section-block" key={title}>
-            <h2>{formatNumber(index + 1, { maximumFractionDigits: 0 })}. {title}</h2>
-            <p>{description}</p>
+      <PageHeader eyebrow="" title={document.title} />
+      <section className="card policy-content-card policy-document-card run63-legal-document">
+        <div className="policy-document-lead">
+          <Icon name="book-open" size={24} />
+          <div>
+            <strong>{document.eyebrow}</strong>
+            <p>{document.intro}</p>
+            <small>সর্বশেষ হালনাগাদ: {LEGAL_LAST_UPDATED}</small>
+          </div>
+        </div>
+        {document.sections.map((section, index) => (
+          <div className="policy-section-block" key={section.id}>
+            <h2>{formatNumber(index + 1, { maximumFractionDigits: 0 })}. {section.title}</h2>
+            {section.paragraphs.map((paragraph, paragraphIndex) => <p key={`${section.id}-${paragraphIndex}`}>{paragraph}</p>)}
           </div>
         ))}
       </section>
@@ -536,15 +526,15 @@ const HOW_TO_USE_GROUPS = [
 export function HowToUsePage() {
   return (
     <div className="page-stack howto-page">
-      <PageHeader eyebrow="সহায়তা কেন্দ্র" title="কীভাবে ব্যবহার করব" description="প্রয়োজনীয় প্রশ্নের উত্তর খুঁজুন।" />
+      <PageHeader eyebrow="" title="কীভাবে ব্যবহার করব" description="প্রয়োজনীয় প্রশ্নের উত্তর খুঁজুন।" />
 
       <section className="card howto-timing-panel" aria-label="গুরুত্বপূর্ণ সময়সীমা">
         <div className="howto-timing-topline">
           <div className="howto-timing-heading">
             <span className="howto-timing-pin"><Icon name="calendar-check" size={19}/></span>
-            <div><span className="eyebrow">সময় মনে রাখুন</span><h2>মিল অনুরোধ ও মাস পরিচালনার সময়</h2><p>সব সময় বাংলাদেশ সময় অনুযায়ী।</p></div>
+            <div><span className="eyebrow">সময় মনে রাখুন</span><h2>মিল অনুরোধ ও মাস পরিচালনার সময়</h2></div>
           </div>
-          <span className="howto-timezone-pill"><Icon name="clock" size={14}/> বাংলাদেশ সময়</span>
+
         </div>
         <div className="howto-time-grid">
           <article className="howto-time-card howto-time-card-request"><div className="howto-time-card-top"><span className="howto-time-step">০১</span><span>সাধারণ মিল অনুরোধ</span></div><strong>রাত ১০টা</strong><small>মিলের আগের দিন এই সময়ের আগে সাধারণ অনুরোধ দিন।</small></article>
@@ -655,7 +645,7 @@ export function SendNotificationPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" description="সদস্যদের জন্য নোটিশ প্রকাশ করুন।" />
+      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" />
       {!loadingPinned && !pinFeatureReady && <div className="state-card state-card-warning"><Icon name="info" size={20} /><div><strong>মেস নোটিশের ডাটাবেস আপডেট বাকি</strong><p>{pinFeatureError || 'Supabase-এ Run21 migration প্রয়োগের পর এই ফিচার ব্যবহার করা যাবে।'}</p></div></div>}
       {loadingPinned ? <div className="loading-wrap"><span className="spinner" /><span>বর্তমান নোটিশ যাচাই হচ্ছে...</span></div> : currentPinned && (
         <section className="card current-hostel-notice-card">

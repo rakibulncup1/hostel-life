@@ -1,0 +1,28 @@
+HOSTEL LIFE RUN49 PATCH MANIFEST
+Baseline: user-uploaded Hostel Life(1).zip
+Patch type: overlay / replacement files
+
+The following project files are included:
+  src/app/App.jsx
+  src/features/auth/AuthPage.jsx
+  src/features/dashboard/DashboardPage.jsx
+  src/features/manager/ManagerPages.jsx
+  src/features/menu/AppDownloadPage.jsx
+  src/features/menu/MenuPages.jsx
+  src/features/onboarding/OnboardingPage.jsx
+  src/features/telegram/TelegramConnectionPage.jsx
+  src/main.jsx
+  src/services/managerService.js
+  src/styles/run49-ui-refinement.css
+  src/utils/mealCountModes.js
+  src/utils/mealCountModes.test.js
+  supabase/migrations/Run49_hostel_meal_count_modes.sql
+  supabase/verify/Verify_Run49_hostel_meal_count_modes.sql
+  tests/internalExperiencePolish.test.js
+  tests/platformCommunicationsReleaseNotices.test.js
+  tests/run42MenuAndAuthUx.test.js
+  tests/run43FinanceAndAuthVisualRefinement.test.js
+  tests/superAdminSettingsJoinUXV1.test.js
+  tests/v16_auth_market_notice.test.js
+  tests/v19_auth_onboarding_theme.test.js
+  tests/run49UiAndMealModes.test.js

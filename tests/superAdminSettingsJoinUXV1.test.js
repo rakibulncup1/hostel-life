@@ -17,7 +17,9 @@ test('onboarding starts with a compact choice screen and no expanded join-code f
   assert.match(onboarding, /\{mode && <section id="onboarding-action-panel"/);
   assert.match(onboarding, /aria-expanded=\{mode === 'join'\}/);
   assert.match(onboarding, /aria-expanded=\{mode === 'create'\}/);
-  assert.match(onboarding, /অন্য পদ্ধতি বেছে নিন/);
+  assert.match(onboarding, /<strong>মেসে যুক্ত হন<\/strong>/);
+  assert.match(onboarding, /<strong>নতুন মেস তৈরি<\/strong>/);
+  assert.doesNotMatch(onboarding, /অন্য পদ্ধতি বেছে নিন|ম্যানেজারের দেওয়া ১২ অক্ষরের Join Code/);
   assert.doesNotMatch(onboarding, /const \[mode, setMode\] = useState\('join'\)/);
 });
 

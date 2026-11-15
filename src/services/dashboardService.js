@@ -1,7 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { cachedRequest } from '../lib/requestCache';
 import { normalizeRunningPeriodPayload } from '../utils/period';
-import { ensureRunningPeriodDays } from './diningService';
 import { buildUpcomingMealDays } from '../utils/sevenDayMeals';
 
 function assertSupabase() {
@@ -11,13 +10,12 @@ function assertSupabase() {
 export async function fetchDashboardData({ force = false } = {}) {
   assertSupabase();
   return cachedRequest('dashboard:data', async () => {
-    await ensureRunningPeriodDays();
     const { data, error } = await supabase.rpc('get_dashboard_data');
     if (error) throw error;
     if (!data || typeof data !== 'object') return data ?? null;
     const normalizedPeriod = normalizeRunningPeriodPayload({ period: data.period });
     return normalizedPeriod ? { ...data, period: normalizedPeriod } : data;
-  }, { ttlMs: 45000, force });
+  }, { ttlMs: 60000, force });
 }
 
 export async function fetchMealDetails(mealDate, { force = false } = {}) {
@@ -32,7 +30,6 @@ export async function fetchMealDetails(mealDate, { force = false } = {}) {
 export async function fetchOfflineMealBundle({ force = false } = {}) {
   assertSupabase();
   return cachedRequest('dashboard:offlineMealBundle', async () => {
-    await ensureRunningPeriodDays();
     const { data, error } = await supabase.rpc('get_offline_meal_bundle');
     if (error) throw error;
     if (!data || typeof data !== 'object') return data ?? null;

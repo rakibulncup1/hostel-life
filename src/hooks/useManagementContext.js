@@ -35,7 +35,7 @@ export function useManagementContext() {
       const { data, error, functionName } = await cachedRequest('manager:context', () => rpcWithFallback(supabase, [
         { name: 'get_month_management_context' },
         { name: 'get_running_period_context' },
-      ]), { ttlMs: 30000, force });
+      ]), { ttlMs: 60000, force });
       if (error) throw error;
       const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
 
@@ -54,18 +54,25 @@ export function useManagementContext() {
           return normalized;
         }
 
-        // Some deployed RPC versions can return a successful but stale/partial
-        // management payload with no period even though the canonical period RPC
-        // still finds a running month. Verify before rendering “no month started”.
-        const { data: verifiedPayload, error: verifiedError } = await cachedRequest(
-          'manager:running-period-verification',
-          () => rpcWithFallback(supabase, [{ name: 'get_running_period_context' }]),
-          { ttlMs: 10000, force },
-        );
-        // A verified empty result is different from a failed verification: the first
-        // may say no month is running; the second must stay unknown and block month-start.
+        // The current get_month_management_context contract explicitly returns
+        // has_running_period=false when no month exists. Trust that canonical flag
+        // instead of issuing a second get_running_period_context request.
+        const hasAuthoritativeNoPeriod = data?.has_running_period === false;
+        let verifiedPayload = null;
+        let verificationSucceeded = hasAuthoritativeNoPeriod;
+        if (!hasAuthoritativeNoPeriod) {
+          const { data: verificationData, error: verifiedError } = await cachedRequest(
+            'manager:running-period-verification',
+            () => rpcWithFallback(supabase, [{ name: 'get_running_period_context' }]),
+            { ttlMs: 60000, force },
+          );
+          verifiedPayload = verificationData;
+          verificationSucceeded = !verifiedError;
+        }
+        // A verified empty result is different from a failed compatibility lookup:
+        // failures remain unknown and cannot accidentally enable month-start.
         const reconciled = reconcileManagementContextWithPeriod(data, verifiedPayload, {
-          verificationSucceeded: !verifiedError,
+          verificationSucceeded,
           today,
           canManageMonth: Boolean(isManager || operationalRole?.can_manage_month),
         });
@@ -111,7 +118,7 @@ export function useManagementContext() {
     if (!online || !membership?.hostel_id) return undefined;
     refresh().catch(() => undefined);
     const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') refresh({ force: true }).catch(() => undefined);
+      if (document.visibilityState === 'visible') refresh().catch(() => undefined);
     };
     window.addEventListener('focus', refreshIfVisible);
     window.addEventListener('online', refreshIfVisible);
@@ -132,7 +139,7 @@ export function useManagementContext() {
       }
       try {
         const { data, error } = await cachedRequest('manager:closed-month-access',
-          () => supabase.rpc('get_khala_entry_periods_v2'), { ttlMs: 15000 });
+          () => supabase.rpc('get_khala_entry_periods_v2'), { ttlMs: 60000 });
         if (error) throw error;
         if (active) setHasClosedMonthAccess(Array.isArray(data) && data.some((period) =>
           ['closed', 'archived'].includes(period?.status) && period?.access_kind === 'closed_by'

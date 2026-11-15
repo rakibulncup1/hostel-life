@@ -1,0 +1,1465 @@
+/* Hostel Life — Dashboard Color System v9
+   Scoped to Dashboard only. Light theme is the primary visual reference;
+   dark and blue themes inherit readable semantic surfaces below. */
+
+.dashboard-reimagined {
+  --dash-ink: #203247;
+  --dash-muted: #65758a;
+  --dash-line: #dce5ef;
+  --dash-shadow: 0 5px 18px rgba(33, 55, 82, .055);
+  --dash-blue: #527fb7;
+  --dash-blue-bg: #eef5ff;
+  --dash-blue-line: #cbdcf3;
+  --dash-green: #328568;
+  --dash-green-bg: #edf8f2;
+  --dash-green-line: #cce9d9;
+  --dash-amber: #a96e2e;
+  --dash-amber-bg: #fff5e9;
+  --dash-amber-line: #f1ddc1;
+  --dash-violet: #7567a9;
+  --dash-violet-bg: #f3f0fc;
+  --dash-violet-line: #ded7f1;
+  --dash-coral: #b86b5c;
+  --dash-coral-bg: #fff1ed;
+  --dash-coral-line: #f1d4cc;
+  --dash-teal: #397f83;
+  --dash-teal-bg: #edf7f7;
+  --dash-teal-line: #cce5e5;
+  width: 100%;
+  min-width: 0;
+  gap: 15px;
+  color: var(--text);
+}
+
+.dashboard-reimagined > *,
+.dashboard-reimagined .dashboard-primary-grid > *,
+.dashboard-reimagined .dashboard-finance-grid > * { min-width: 0; }
+
+.dashboard-reimagined .dashboard-primary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 13px;
+}
+
+/* Today's meal: clear, light-blue identity with three distinct meal colours. */
+.dashboard-reimagined .meal-card.hero-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px 19px 14px;
+  border: 1px solid var(--dash-blue-line);
+  border-radius: 17px;
+  background: #f0f6ff;
+  color: var(--dash-ink);
+  box-shadow: 0 5px 16px rgba(49, 91, 143, .075);
+}
+.dashboard-reimagined .meal-card.hero-card::before,
+.dashboard-reimagined .meal-card.hero-card::after { display: none; }
+.dashboard-reimagined .meal-card.hero-card[role="button"] { cursor: pointer; }
+.dashboard-reimagined .meal-card.hero-card[role="button"]:hover {
+  border-color: #a9c4e6;
+  background: #edf4ff;
+  box-shadow: 0 9px 22px rgba(49, 91, 143, .11);
+}
+.dashboard-reimagined .meal-card.hero-card[role="button"]:focus-visible,
+.dashboard-reimagined .late-request-card[role="button"]:focus-visible,
+.dashboard-reimagined .my-account-card:focus-visible,
+.dashboard-reimagined .detailed-member-card:focus-visible,
+.dashboard-reimagined .upcoming-meal-day-card[role="button"]:focus-visible {
+  outline: 3px solid rgba(72, 124, 183, .32);
+  outline-offset: 2px;
+}
+.dashboard-reimagined .meal-card.hero-card .card-topline { align-items: flex-start; gap: 12px; }
+.dashboard-reimagined .meal-card.hero-card .eyebrow { color: #54759c; font-size: 10px; letter-spacing: .035em; }
+.dashboard-reimagined .meal-card.hero-card .meal-date-line {
+  margin-top: 4px;
+  color: #647f9d;
+  font-size: 10px;
+  font-weight: 700;
+}
+.dashboard-reimagined .meal-card.hero-card .status-chip {
+  padding: 5px 9px;
+  border: 1px solid #d1e0f0;
+  background: #e5effb;
+  color: #4a6d95;
+  font-size: 9px;
+}
+.dashboard-reimagined .meal-card.hero-card .status-chip.live-chip {
+  border-color: #c8e6d7;
+  background: #e9f6ef;
+  color: #2f7c5c;
+}
+.dashboard-reimagined .meal-card.hero-card .status-chip.offline-chip {
+  border-color: #efd9b8;
+  background: #fff4e4;
+  color: #936326;
+}
+.dashboard-reimagined .meal-card.hero-card .pulse-dot { width: 6px; height: 6px; box-shadow: none; }
+.dashboard-reimagined .meal-card.hero-card .meal-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 15px 0 14px;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-heading-copy { min-width: 0; }
+.dashboard-reimagined .meal-card.hero-card .meal-card-heading h1 {
+  margin: 0;
+  color: #263d57;
+  font-size: clamp(20px, 2vw, 25px);
+  font-weight: 820;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-card-heading p {
+  margin: 5px 0 0;
+  color: #69809b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-total-spotlight {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: center;
+  gap: 2px;
+  min-width: 88px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid #c9d9ee;
+  border-radius: 12px;
+  background: #e1ecfa;
+  color: #557399;
+  font-size: 9px;
+  font-weight: 750;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-total-spotlight strong {
+  color: #294e78;
+  font-size: 26px;
+  line-height: 1.08;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.03em;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 7px;
+  min-width: 0;
+  min-height: 66px;
+  padding: 10px 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat-breakfast {
+  border-color: var(--dash-green-line);
+  background: var(--dash-green-bg);
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat-lunch {
+  border-color: var(--dash-amber-line);
+  background: var(--dash-amber-bg);
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat-dinner {
+  border-color: var(--dash-violet-line);
+  background: var(--dash-violet-bg);
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat span { color: #65778b; font-size: 9px; font-weight: 750; }
+.dashboard-reimagined .meal-card.hero-card .meal-stat-breakfast strong { color: #2d7659; }
+.dashboard-reimagined .meal-card.hero-card .meal-stat-lunch strong { color: #9b672c; }
+.dashboard-reimagined .meal-card.hero-card .meal-stat-dinner strong { color: #6e61a1; }
+.dashboard-reimagined .meal-card.hero-card .meal-stat strong {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 820;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-reimagined .meal-card.hero-card .sync-placeholder {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 9px;
+  border-top: 1px solid #d8e4f1;
+  color: #72869b;
+  font-size: 9px;
+}
+.dashboard-reimagined .meal-card.hero-card .sync-label { color: #627e9b; }
+.dashboard-reimagined .meal-card.hero-card .network-dot.online-dot { color: #4f9a78; background: #4f9a78; }
+.dashboard-reimagined .meal-card.hero-card .network-dot.offline-dot { color: #c18a45; background: #c18a45; }
+.dashboard-reimagined .meal-card.hero-card .meal-detail-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid #d9e4f0;
+  color: #426f9f;
+  font-size: 10px;
+  font-weight: 800;
+}
+.dashboard-reimagined .meal-card.hero-card .offline-meal-note {
+  margin-top: 9px;
+  padding: 7px 9px;
+  border: 1px solid #efdcb9;
+  border-radius: 9px;
+  background: #fff6e8;
+  color: #8f642d;
+  font-size: 9px;
+}
+
+/* Loading, empty and no-period states use a quieter blue surface. */
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card,
+.dashboard-reimagined .meal-card.hero-card.meal-empty-card,
+.dashboard-reimagined .meal-card.hero-card.meal-card-loading {
+  border-color: var(--dash-blue-line);
+  background: #f5f8fd;
+  color: var(--dash-ink);
+  box-shadow: var(--dash-shadow);
+}
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .eyebrow,
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-date-line { color: #64809d; }
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-card-heading h1,
+.dashboard-reimagined .meal-card.hero-card.meal-empty-card .meal-card-heading h1 { color: #2a4058; font-size: 19px; }
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-card-heading p,
+.dashboard-reimagined .meal-card.hero-card.meal-empty-card .meal-card-heading p { color: #6b7f94; }
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-stat {
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid var(--dash-blue-line);
+  background: #edf4fd;
+}
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-stat strong { color: #416a96; font-size: 18px; }
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-total-row { margin-top: 9px; padding-top: 9px; border-top: 1px solid #dce6f2; color: #5f7893; }
+.dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-total-row strong { color: #315f8d; font-size: 19px; }
+.dashboard-reimagined .meal-card.hero-card.meal-empty-card .meal-empty-note {
+  border: 1px solid #f0dfc3;
+  border-radius: 10px;
+  background: #fff8ec;
+  color: #906b38;
+}
+.dashboard-reimagined .meal-card.hero-card.meal-card-loading { min-height: 188px; }
+.dashboard-reimagined .meal-card.hero-card .meal-loading-lines { gap: 8px; margin-top: 18px; }
+.dashboard-reimagined .meal-card.hero-card .meal-loading-lines span { height: 58px; border-radius: 11px; background: #e4edf8; }
+
+/* Late request: companion coral surface, same scale and finish as today's meal. */
+.dashboard-reimagined .dashboard-late-request-wrap { display: grid; align-content: stretch; gap: 7px; min-width: 0; }
+.dashboard-reimagined .late-request-card.late-request-summary-card {
+  height: 100%;
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--dash-coral-line);
+  border-radius: 17px;
+  background: #fff5f1;
+  box-shadow: 0 5px 16px rgba(141, 84, 68, .055);
+  transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+}
+.dashboard-reimagined .late-request-card.late-request-summary-card:hover {
+  border-color: #e6b9ae;
+  background: #fff2ed;
+  box-shadow: 0 9px 21px rgba(141, 84, 68, .09);
+}
+.dashboard-reimagined .late-request-title { gap: 9px; }
+.dashboard-reimagined .late-request-title h2 { margin: 2px 0 0; color: #754e47; font-size: 14px; line-height: 1.35; }
+.dashboard-reimagined .late-request-title .eyebrow { color: #a56e60; }
+.dashboard-reimagined .late-request-icon {
+  width: 35px;
+  height: 35px;
+  border: 1px solid #efcfc7;
+  border-radius: 11px;
+  background: #fbe7e1;
+  color: #ac6556;
+}
+.dashboard-reimagined .late-request-card .count-badge {
+  padding: 5px 8px;
+  border: 1px solid #efcfc7;
+  background: #fce8e2;
+  color: #995d51;
+  font-size: 10px;
+}
+.dashboard-reimagined .late-request-compact-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  color: #916d64;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.dashboard-reimagined .late-request-compact-note svg { flex: 0 0 auto; margin-top: 1px; color: #b17a67; }
+.dashboard-reimagined .late-request-delta-grid { gap: 6px; margin-top: 10px; }
+.dashboard-reimagined .late-delta-stat {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid #efdad3;
+  border-radius: 10px;
+  background: #fffaf8;
+}
+.dashboard-reimagined .late-delta-stat > span { color: #8d746d; font-size: 9px; font-weight: 750; }
+.dashboard-reimagined .late-delta-stat > strong { font-size: 17px; }
+.dashboard-reimagined .late-delta-stat.positive > strong { color: #2c8a67; }
+.dashboard-reimagined .late-delta-stat.negative > strong { color: #c35e54; }
+.dashboard-reimagined .late-delta-stat.neutral > strong { color: #6b7886; }
+.dashboard-reimagined .late-request-net-total {
+  margin-top: 9px;
+  padding: 9px 0;
+  border-top: 1px solid #ecd3cb;
+  border-bottom: 1px solid #ecd3cb;
+  color: #8c6e65;
+  font-size: 10px;
+}
+.dashboard-reimagined .late-request-net-total > strong { font-size: 16px; }
+.dashboard-reimagined .late-request-net-total > strong.positive { color: #2c8a67; }
+.dashboard-reimagined .late-request-net-total > strong.negative { color: #c35e54; }
+.dashboard-reimagined .late-request-sync { margin-top: 8px; padding-top: 8px; color: #96796f; font-size: 9px; }
+.dashboard-reimagined .late-request-card .meal-detail-hint { margin-top: 8px; padding-top: 8px; border-top: 1px solid #ecd3cb; color: #a05e52; font-size: 10px; }
+.dashboard-reimagined .late-request-counting-compact { display: none; }
+
+/* Two principal financial panels each receive a complete, coloured outline. */
+.dashboard-reimagined .dashboard-finance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 13px;
+  min-width: 0;
+}
+.dashboard-reimagined .dashboard-finance-grid.account-only > .my-account-card { grid-column: 1 / -1; width: min(660px, 100%); }
+.dashboard-reimagined .summary-card,
+.dashboard-reimagined .my-account-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1.5px solid #cfe0e8;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 15px rgba(42, 75, 98, .045);
+}
+.dashboard-reimagined .summary-card { border-color: #c9e1d9; background: #fdfffe; }
+.dashboard-reimagined .my-account-card { border-color: #ddd5ef; background: #fffefe; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.dashboard-reimagined .summary-card h2,
+.dashboard-reimagined .my-account-card h2 { margin-top: 3px; font-size: 16px; line-height: 1.35; }
+.dashboard-reimagined .summary-card .eyebrow { color: #43816e; }
+.dashboard-reimagined .my-account-card .eyebrow { color: #786aa7; }
+.dashboard-reimagined .summary-card .status-chip,
+.dashboard-reimagined .my-account-card .status-chip { padding: 5px 8px; border: 1px solid #d9e5ec; font-size: 9px; }
+.dashboard-reimagined .summary-card .metric-grid { gap: 7px; margin-top: 13px; }
+.dashboard-reimagined .summary-card .metric,
+.dashboard-reimagined .account-grid > div,
+.dashboard-reimagined .member-stats-grid > div {
+  display: grid;
+  align-content: space-between;
+  gap: 7px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: #f7f9fc;
+}
+.dashboard-reimagined .summary-card .metric:nth-child(1),
+.dashboard-reimagined .account-grid > div:nth-child(1),
+.dashboard-reimagined .member-stats-grid > div:nth-child(1) { border-color: var(--dash-green-line); background: var(--dash-green-bg); }
+.dashboard-reimagined .summary-card .metric:nth-child(2),
+.dashboard-reimagined .account-grid > div:nth-child(2),
+.dashboard-reimagined .member-stats-grid > div:nth-child(2) { border-color: var(--dash-amber-line); background: var(--dash-amber-bg); }
+.dashboard-reimagined .summary-card .metric:nth-child(3),
+.dashboard-reimagined .account-grid > div:nth-child(3),
+.dashboard-reimagined .member-stats-grid > div:nth-child(3) { border-color: var(--dash-blue-line); background: var(--dash-blue-bg); }
+.dashboard-reimagined .summary-card .metric:nth-child(4),
+.dashboard-reimagined .account-grid > div:nth-child(4),
+.dashboard-reimagined .member-stats-grid > div:nth-child(4) { border-color: var(--dash-violet-line); background: var(--dash-violet-bg); }
+.dashboard-reimagined .summary-card .metric span,
+.dashboard-reimagined .account-grid > div > span,
+.dashboard-reimagined .member-stats-grid > div > span { color: #68788b; font-size: 9px; font-weight: 750; }
+.dashboard-reimagined .summary-card .metric:nth-child(1) strong,
+.dashboard-reimagined .account-grid > div:nth-child(1) strong,
+.dashboard-reimagined .member-stats-grid > div:nth-child(1) strong { color: #2e765a; }
+.dashboard-reimagined .summary-card .metric:nth-child(2) strong,
+.dashboard-reimagined .account-grid > div:nth-child(2) strong,
+.dashboard-reimagined .member-stats-grid > div:nth-child(2) strong { color: #9a682f; }
+.dashboard-reimagined .summary-card .metric:nth-child(3) strong,
+.dashboard-reimagined .account-grid > div:nth-child(3) strong,
+.dashboard-reimagined .member-stats-grid > div:nth-child(3) strong { color: #426f9d; }
+.dashboard-reimagined .summary-card .metric:nth-child(4) strong,
+.dashboard-reimagined .account-grid > div:nth-child(4) strong,
+.dashboard-reimagined .member-stats-grid > div:nth-child(4) strong { color: #71639f; }
+.dashboard-reimagined .summary-card .metric strong,
+.dashboard-reimagined .account-grid strong,
+.dashboard-reimagined .member-stats-grid strong { margin: 0; font-size: clamp(14px, 1.2vw, 17px); line-height: 1.16; font-weight: 820; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.dashboard-reimagined .summary-card .rate-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 11px;
+  border: 1px solid var(--dash-teal-line);
+  border-radius: 11px;
+  background: var(--dash-teal-bg);
+  color: #477b7e;
+  font-size: 10px;
+}
+.dashboard-reimagined .summary-card .rate-strip > div { display: grid; gap: 3px; min-width: 0; }
+.dashboard-reimagined .summary-card .rate-strip > div > span { color: #39767b; font-weight: 800; }
+.dashboard-reimagined .summary-card .rate-strip small { color: #718b8c; font-size: 9px; }
+.dashboard-reimagined .summary-card .rate-strip strong { color: #2e777a; font-size: 17px; white-space: nowrap; }
+.dashboard-reimagined .summary-card .offline-snapshot-note { margin-top: 9px; padding: 8px 9px; border: 1px solid #d1e5dc; border-radius: 9px; background: #f0f8f3; color: #427a62; font-size: 9px; }
+.dashboard-reimagined .my-account-card:hover { border-color: #bfb2df; background: #fdfcff; box-shadow: 0 8px 20px rgba(103, 83, 151, .08); }
+.dashboard-reimagined .my-account-card .section-heading { align-items: center; }
+.dashboard-reimagined .my-account-card .avatar-large {
+  width: 43px;
+  height: 43px;
+  border: 1px solid #d8d0eb;
+  border-radius: 13px;
+  background: #f1edfa;
+  color: #70619f;
+  font-size: 14px;
+}
+.dashboard-reimagined .my-account-card .avatar-large img { border-radius: inherit; }
+.dashboard-reimagined .account-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 12px; }
+.dashboard-reimagined .account-grid > div { min-height: 60px; }
+.dashboard-reimagined .account-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  padding: 10px 11px;
+  border: 1px solid var(--dash-green-line);
+  border-radius: 10px;
+  background: var(--dash-green-bg);
+  color: #397b60;
+  font-size: 10px;
+  font-weight: 750;
+}
+.dashboard-reimagined .account-balance-row strong { color: #2f795a; font-size: 17px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.dashboard-reimagined .account-balance-row.balance-negative { border-color: var(--dash-coral-line); background: var(--dash-coral-bg); color: #a45f54; }
+.dashboard-reimagined .account-balance-row.balance-negative strong { color: #b6574d; }
+
+/* Member directory: each card has a full border; its four facts are individually coded. */
+.dashboard-reimagined .dashboard-directory {
+  min-width: 0;
+  padding: 15px;
+  border: 1.5px solid #cfe2df;
+  border-radius: 17px;
+  background: #fdffff;
+  box-shadow: 0 4px 15px rgba(40, 91, 87, .045);
+}
+.dashboard-reimagined .dashboard-directory .section-heading.outside { align-items: center; gap: 12px; padding: 0; margin: 0 0 12px; }
+.dashboard-reimagined .dashboard-member-title { display: grid; gap: 2px; min-width: 0; }
+.dashboard-reimagined .dashboard-member-title .eyebrow { color: #43817a; font-size: 9px; }
+.dashboard-reimagined .dashboard-member-title h2 { margin: 0; color: #2b4f50; font-size: 16px; }
+.dashboard-reimagined .dashboard-member-tools { gap: 8px; }
+.dashboard-reimagined .dashboard-member-search {
+  min-height: 36px;
+  width: min(250px, 32vw);
+  padding: 0 10px;
+  border: 1px solid #d5e5e4;
+  border-radius: 10px;
+  background: #f4f9f8;
+}
+.dashboard-reimagined .dashboard-member-search:focus-within { border-color: #76aaa5; box-shadow: 0 0 0 3px rgba(74, 143, 137, .11); }
+.dashboard-reimagined .dashboard-member-search > svg { color: #588c87; }
+.dashboard-reimagined .dashboard-member-search input { min-width: 0; height: 34px; font-size: 11px; }
+.dashboard-reimagined .dashboard-member-tools > .count-badge { padding: 6px 9px; border: 1px solid #d6e6e3; background: #edf6f4; color: #497c75; font-size: 9px; white-space: nowrap; }
+.dashboard-reimagined .member-preview-grid.member-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 0; }
+.dashboard-reimagined .detailed-member-card {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1.5px solid #d6e3ec;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(35, 69, 94, .035);
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.dashboard-reimagined .detailed-member-card:hover { border-color: #a9c6d8; box-shadow: 0 7px 16px rgba(35, 69, 94, .075); transform: translateY(-1px); }
+.dashboard-reimagined .member-card-top { display: flex; align-items: center; gap: 9px; }
+.dashboard-reimagined .dashboard-directory .avatar {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #d0e0f1;
+  border-radius: 12px;
+  background: #edf4fd;
+  color: #4b729c;
+  font-size: 12px;
+}
+.dashboard-reimagined .member-copy { min-width: 0; }
+.dashboard-reimagined .member-copy h3 { color: #344c63; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.dashboard-reimagined .member-badge-row { gap: 4px; margin-top: 4px; }
+.dashboard-reimagined .member-badge,
+.dashboard-reimagined .role-mini-badge { padding: 3px 6px; font-size: 8px; }
+.dashboard-reimagined .member-badge.active { border-color: #cde8d8; background: #eef8f2; color: #39805e; }
+.dashboard-reimagined .role-mini-badge { border-color: #d8dff0; background: #f0f3fb; color: #6472a0; }
+.dashboard-reimagined .role-mini-badge.assistant { border-color: #d5e7ee; background: #eff7fa; color: #4c8293; }
+.dashboard-reimagined .activity-badge { margin: 0; padding: 4px 7px; border: 1px solid transparent; font-size: 8px; }
+.dashboard-reimagined .activity-badge.has-meals { border-color: #cde8d8; background: #eff8f2; color: #3b8060; }
+.dashboard-reimagined .activity-badge.no-meals { border-color: #f0dfc4; background: #fff8ec; color: #936c35; }
+.dashboard-reimagined .activity-badge.no-period-activity { border-color: #dbe3ed; background: #f4f6fa; color: #69798c; }
+.dashboard-reimagined .member-stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.dashboard-reimagined .member-stats-grid > div { min-height: 53px; padding: 8px 9px; }
+.dashboard-reimagined .member-stats-grid span { font-size: 8px; }
+.dashboard-reimagined .member-stats-grid strong { margin-top: 3px; font-size: 13px; line-height: 1.18; }
+.dashboard-reimagined .member-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--dash-green-line);
+  border-radius: 9px;
+  background: var(--dash-green-bg);
+  color: #397b60;
+  font-size: 9px;
+  font-weight: 750;
+}
+.dashboard-reimagined .member-balance-row strong { color: #2f795a; font-size: 14px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.dashboard-reimagined .member-balance-row.balance-negative { border-color: var(--dash-coral-line); background: var(--dash-coral-bg); color: #a45f54; }
+.dashboard-reimagined .member-balance-row.balance-negative strong { color: #b6574d; }
+.dashboard-reimagined .member-inactive-card { opacity: .76; }
+
+/* Meal details and next-seven-day view. */
+.dashboard-reimagined .meal-details-modal,
+.dashboard-reimagined .member-period-detail-modal,
+.dashboard-reimagined .late-request-details-modal {
+  border: 1px solid #d7e2ed;
+  border-radius: 18px;
+  background: #fff;
+  color: #2d4054;
+  box-shadow: 0 22px 58px rgba(19, 40, 62, .20);
+}
+.dashboard-reimagined .meal-details-modal .modal-header,
+.dashboard-reimagined .member-period-detail-modal .modal-head,
+.dashboard-reimagined .late-request-details-modal .modal-header {
+  padding: 15px 17px 12px;
+  border-bottom: 1px solid #dce6ef;
+  background: #f1f6fd;
+}
+.dashboard-reimagined .meal-details-modal .modal-header .eyebrow,
+.dashboard-reimagined .member-period-detail-modal .modal-head .eyebrow,
+.dashboard-reimagined .late-request-details-modal .modal-header .eyebrow { color: #597da3; }
+.dashboard-reimagined .meal-details-modal .modal-header h2,
+.dashboard-reimagined .member-period-detail-modal .modal-head h2,
+.dashboard-reimagined .late-request-details-modal .modal-header h2 { color: #2c435c; }
+.dashboard-reimagined .meal-detail-header-actions { gap: 7px; }
+.dashboard-reimagined .meal-details-modal .upcoming-meal-toggle { border-color: #cbdcf0; background: #eaf2fc; color: #476d98; }
+.dashboard-reimagined .detail-total-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; padding: 13px 14px 10px; }
+.dashboard-reimagined .detail-total-strip > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 9px 8px;
+  border: 1px solid var(--dash-green-line);
+  border-radius: 10px;
+  background: var(--dash-green-bg);
+}
+.dashboard-reimagined .detail-total-strip > div:nth-child(2) { border-color: var(--dash-amber-line); background: var(--dash-amber-bg); }
+.dashboard-reimagined .detail-total-strip > div:nth-child(3) { border-color: var(--dash-violet-line); background: var(--dash-violet-bg); }
+.dashboard-reimagined .detail-total-strip > div:nth-child(4) { border-color: var(--dash-blue-line); background: var(--dash-blue-bg); }
+.dashboard-reimagined .detail-total-strip span { color: #6d7b8c; font-size: 9px; font-weight: 750; }
+.dashboard-reimagined .detail-total-strip strong { color: #37775b; font-size: 16px; font-weight: 850; font-variant-numeric: tabular-nums; }
+.dashboard-reimagined .detail-total-strip > div:nth-child(2) strong { color: #95652e; }
+.dashboard-reimagined .detail-total-strip > div:nth-child(3) strong { color: #6f62a0; }
+.dashboard-reimagined .detail-total-strip > div:nth-child(4) strong { color: #416f9e; }
+.dashboard-reimagined .meal-detail-list,
+.dashboard-reimagined .late-request-detail-list { display: grid; gap: 8px; padding: 0 14px 14px; }
+.dashboard-reimagined .meal-member-row {
+  display: grid;
+  grid-template-columns: auto minmax(100px, .65fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #dce5ee;
+  border-radius: 12px;
+  background: #fff;
+}
+.dashboard-reimagined .meal-member-row .avatar { border: 1px solid #d2e0f0; background: #edf4fd; color: #4a7098; }
+.dashboard-reimagined .meal-member-name strong { color: #344c63; font-size: 11px; }
+.dashboard-reimagined .meal-member-values { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.dashboard-reimagined .meal-member-values > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 6px 5px;
+  border: 1px solid var(--dash-green-line);
+  border-radius: 8px;
+  background: var(--dash-green-bg);
+  text-align: center;
+}
+.dashboard-reimagined .meal-member-values > span:nth-child(2) { border-color: var(--dash-amber-line); background: var(--dash-amber-bg); }
+.dashboard-reimagined .meal-member-values > span:nth-child(3) { border-color: var(--dash-violet-line); background: var(--dash-violet-bg); }
+.dashboard-reimagined .meal-member-values > span:nth-child(4) { border-color: var(--dash-blue-line); background: var(--dash-blue-bg); }
+.dashboard-reimagined .meal-member-values small { color: #718094; font-size: 8px; }
+.dashboard-reimagined .meal-member-values strong { color: #37775b; font-size: 12px; font-variant-numeric: tabular-nums; }
+.dashboard-reimagined .meal-member-values > span:nth-child(2) strong { color: #95652e; }
+.dashboard-reimagined .meal-member-values > span:nth-child(3) strong { color: #6f62a0; }
+.dashboard-reimagined .meal-member-values > span:nth-child(4) strong { color: #416f9e; }
+
+.dashboard-reimagined .upcoming-meal-overview { min-height: 0; overflow: auto; padding: 13px 14px 15px; }
+.dashboard-reimagined .upcoming-meal-sync-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.dashboard-reimagined .upcoming-meal-sync-row > small { color: #74869a; font-size: 10px; text-align: right; }
+.dashboard-reimagined .upcoming-meal-days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.dashboard-reimagined .upcoming-meal-day-card {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #d7e4ee;
+  border-radius: 12px;
+  background: #fbfdff;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.dashboard-reimagined .upcoming-meal-day-card:hover { border-color: #a9c8dc; background: #f4f9fd; box-shadow: 0 4px 12px rgba(47, 91, 124, .06); }
+.dashboard-reimagined .upcoming-meal-day-card.outside-period { cursor: default; opacity: .65; }
+.dashboard-reimagined .upcoming-meal-day-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 27px; padding-bottom: 8px; border-bottom: 1px solid #e0e8ef; }
+.dashboard-reimagined .upcoming-meal-day-heading strong { color: #3d5d7d; font-size: 12px; font-weight: 850; }
+.dashboard-reimagined .upcoming-meal-day-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; padding: 9px 0; }
+.dashboard-reimagined .upcoming-meal-day-stats > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 6px 5px; border: 1px solid var(--dash-green-line); border-radius: 8px; background: var(--dash-green-bg); }
+.dashboard-reimagined .upcoming-meal-day-stats > div:nth-child(2) { border-color: var(--dash-amber-line); background: var(--dash-amber-bg); }
+.dashboard-reimagined .upcoming-meal-day-stats > div:nth-child(3) { border-color: var(--dash-violet-line); background: var(--dash-violet-bg); }
+.dashboard-reimagined .upcoming-meal-day-stats span { color: #778597; font-size: 8px; line-height: 1.3; }
+.dashboard-reimagined .upcoming-meal-day-stats strong { color: #37775b; font-size: 13px; font-weight: 850; }
+.dashboard-reimagined .upcoming-meal-day-stats > div:nth-child(2) strong { color: #95652e; }
+.dashboard-reimagined .upcoming-meal-day-stats > div:nth-child(3) strong { color: #6f62a0; }
+.dashboard-reimagined .upcoming-meal-day-total { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 8px; border-top: 1px solid #e0e8ef; }
+.dashboard-reimagined .upcoming-meal-day-total span { color: #57789c; font-size: 10px; font-weight: 800; }
+.dashboard-reimagined .upcoming-meal-day-total strong { color: #416f9e; font-size: 16px; font-weight: 900; }
+.dashboard-reimagined .upcoming-meal-footnote { margin: 11px 2px 1px; color: #77879a; font-size: 9px; line-height: 1.55; }
+.dashboard-reimagined .dashboard-offline-detail-empty {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  margin: 14px;
+  padding: 20px 17px;
+  border: 1px solid #d5e4f0;
+  border-radius: 13px;
+  background: #f3f8fd;
+  color: #55738f;
+  text-align: center;
+}
+.dashboard-reimagined .dashboard-offline-detail-empty > svg { color: #5981a8; }
+.dashboard-reimagined .dashboard-offline-detail-empty strong { color: #395a7a; font-size: 12px; }
+.dashboard-reimagined .dashboard-offline-detail-empty span { max-width: 56ch; color: #70849a; font-size: 10px; line-height: 1.6; }
+.dashboard-reimagined .dashboard-offline-day-summary { margin: 0 14px 15px; }
+.dashboard-reimagined .dashboard-offline-saved-at { display: block; margin-top: 4px; color: #6e8ba4; font-size: 9px; }
+
+/* Late-request detail is styled as a complete sub-flow, not just a coloured card. */
+.dashboard-reimagined .late-request-details-modal .modal-header { background: #fff4f0; border-bottom-color: #f0dbd4; }
+.dashboard-reimagined .late-request-details-modal .modal-header .eyebrow { color: #a66a5e; }
+.dashboard-reimagined .late-request-details-modal .modal-header h2 { color: #744b44; }
+.dashboard-reimagined .late-request-details-modal .modal-header p { color: #98756d; font-size: 10px; line-height: 1.5; }
+.dashboard-reimagined .late-request-detail-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; padding: 12px 14px; }
+.dashboard-reimagined .late-request-detail-totals .late-delta-stat { border-color: var(--dash-coral-line); background: #fff7f4; }
+.dashboard-reimagined .late-request-detail-totals .late-delta-stat:nth-child(2) { border-color: var(--dash-amber-line); background: var(--dash-amber-bg); }
+.dashboard-reimagined .late-request-detail-totals .late-delta-stat:nth-child(3) { border-color: var(--dash-violet-line); background: var(--dash-violet-bg); }
+.dashboard-reimagined .late-request-detail-member {
+  padding: 11px;
+  border: 1px solid #f0d9d2;
+  border-radius: 12px;
+  background: #fffaf8;
+}
+.dashboard-reimagined .late-request-detail-member-head { gap: 8px; }
+.dashboard-reimagined .late-request-detail-member-head strong { color: #644d49; font-size: 11px; }
+.dashboard-reimagined .late-request-detail-member-head small { color: #9a7d75; font-size: 9px; }
+.dashboard-reimagined .late-request-member-meals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 9px; }
+.dashboard-reimagined .late-request-member-meal { border-color: #f0d9d2; background: #fff4f0; }
+.dashboard-reimagined .late-request-member-meal:nth-child(2) { border-color: var(--dash-amber-line); background: var(--dash-amber-bg); }
+.dashboard-reimagined .late-request-member-meal:nth-child(3) { border-color: var(--dash-violet-line); background: var(--dash-violet-bg); }
+.dashboard-reimagined .late-request-member-meal > span { color: #8d716b; }
+.dashboard-reimagined .late-request-member-meal > small { color: #776e70; }
+.dashboard-reimagined .late-request-member-meal > strong.positive { color: #2e8764; }
+.dashboard-reimagined .late-request-member-meal > strong.negative { color: #bd5a52; }
+.dashboard-reimagined .late-request-member-reason { color: #775d56; }
+.dashboard-reimagined .late-request-modal-warning { border-color: #efdfbd; background: #fff8e9; color: #8e6a32; }
+
+/* Member account detail: six semantic metric colours and sectioned records. */
+.dashboard-reimagined .member-period-detail-modal .modal-head { background: #f3f0fb; border-bottom-color: #e2dcf1; }
+.dashboard-reimagined .member-period-detail-modal .modal-head .eyebrow { color: #7769a5; }
+.dashboard-reimagined .member-period-detail-modal .modal-head h2 { color: #493f6b; }
+.dashboard-reimagined .member-period-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding: 13px 14px 8px; }
+.dashboard-reimagined .member-period-summary-grid .metric { min-width: 0; min-height: 61px; padding: 9px; border: 1px solid var(--dash-blue-line); border-radius: 10px; background: var(--dash-blue-bg); }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(1) { border-color: var(--dash-blue-line); background: var(--dash-blue-bg); }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(2) { border-color: var(--dash-green-line); background: var(--dash-green-bg); }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(3) { border-color: var(--dash-amber-line); background: var(--dash-amber-bg); }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(4) { border-color: var(--dash-violet-line); background: var(--dash-violet-bg); }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(5) { border-color: var(--dash-coral-line); background: var(--dash-coral-bg); }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(6) { border-color: var(--dash-teal-line); background: var(--dash-teal-bg); }
+.dashboard-reimagined .member-period-summary-grid .metric span { color: #718093; font-size: 9px; font-weight: 750; }
+.dashboard-reimagined .member-period-summary-grid .metric strong { color: #456f9b; font-size: 15px; font-weight: 850; overflow-wrap: anywhere; }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(2) strong { color: #2f795a; }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(3) strong { color: #9a682f; }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(4) strong { color: #71639f; }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(5) strong { color: #ad6256; }
+.dashboard-reimagined .member-period-summary-grid .metric:nth-child(6) strong { color: #397f83; }
+.dashboard-reimagined .member-period-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 14px 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--dash-green-line);
+  border-radius: 11px;
+  background: var(--dash-green-bg);
+  color: #3b7c61;
+  font-size: 10px;
+  font-weight: 800;
+}
+.dashboard-reimagined .member-period-balance strong { color: #2f795a; font-size: 18px; }
+.dashboard-reimagined .member-period-balance.balance-negative { border-color: var(--dash-coral-line); background: var(--dash-coral-bg); color: #a45f54; }
+.dashboard-reimagined .member-period-balance.balance-negative strong { color: #b6574d; }
+.dashboard-reimagined .archive-detail-section { margin: 0 14px 12px; padding: 11px; border: 1px solid #dfe6ef; border-radius: 12px; background: #fbfcfe; }
+.dashboard-reimagined .archive-detail-section .section-heading { padding-bottom: 8px; border-bottom: 1px solid #e6ebf2; }
+.dashboard-reimagined .archive-detail-section .section-heading h3 { color: #405a75; font-size: 12px; }
+.dashboard-reimagined .archive-detail-section .section-heading > span { color: #7a8ba0; font-size: 9px; }
+.dashboard-reimagined .archive-list-row { margin-top: 7px; padding: 8px 9px; border: 1px solid #e4eaf1; border-radius: 9px; background: #fff; }
+.dashboard-reimagined .archive-list-row > div { min-width: 0; }
+.dashboard-reimagined .archive-list-row strong { color: #435b73; font-size: 10px; }
+.dashboard-reimagined .archive-list-row small { color: #7a8999; font-size: 9px; }
+.dashboard-reimagined .archive-list-row > strong.positive { color: #2f8863; }
+.dashboard-reimagined .archive-list-row > strong.negative { color: #bd5b54; }
+
+/* Offline/read-only status panels. */
+.dashboard-reimagined .dashboard-offline-lock {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #d4e4f1;
+  border-radius: 13px;
+  background: #f3f8fd;
+  box-shadow: none;
+}
+.dashboard-reimagined .dashboard-offline-lock .state-icon { background: #e5effb; color: #547da5; }
+.dashboard-reimagined .dashboard-offline-lock h2 { color: #395b7d; font-size: 13px; }
+.dashboard-reimagined .dashboard-offline-lock p { color: #72879d; font-size: 10px; line-height: 1.6; }
+.dashboard-reimagined .state-card,
+.dashboard-reimagined .empty-state-card { border-radius: 12px; }
+
+/* Desktop: two balanced top panels, two outlined financial panels, three members across. */
+@media (min-width: 760px) {
+  .dashboard-reimagined .member-preview-grid.member-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-reimagined .member-period-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1020px) {
+  .dashboard-reimagined .dashboard-primary-grid.has-late-request { grid-template-columns: minmax(0, 1.25fr) minmax(290px, .9fr); }
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .dashboard-reimagined .summary-card .metric-grid.four-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 1220px) {
+  .dashboard-reimagined .member-preview-grid.member-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 759px) {
+  .dashboard-reimagined { gap: 12px; }
+  .dashboard-reimagined .dashboard-finance-grid { gap: 11px; }
+  .dashboard-reimagined .detail-total-strip { padding: 11px 11px 9px; }
+  .dashboard-reimagined .meal-member-row { grid-template-columns: auto minmax(0, 1fr); }
+  .dashboard-reimagined .meal-member-values { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .dashboard-reimagined .meal-card.hero-card { padding: 15px 14px 12px; border-radius: 15px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-card-heading { gap: 10px; margin: 12px 0 11px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-card-heading h1 { font-size: 20px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight { min-width: 76px; padding: 7px 9px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight strong { font-size: 23px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-stat { min-height: 59px; padding: 8px 8px; border-radius: 10px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-stat span { font-size: 8px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-stat strong { font-size: 19px; }
+  .dashboard-reimagined .late-request-card.late-request-summary-card { padding: 13px; border-radius: 15px; }
+  .dashboard-reimagined .dashboard-finance-grid { gap: 10px; }
+  .dashboard-reimagined .summary-card,
+  .dashboard-reimagined .my-account-card { padding: 13px; border-radius: 14px; }
+  .dashboard-reimagined .summary-card .metric { min-height: 58px; padding: 8px; }
+  .dashboard-reimagined .account-grid > div { min-height: 55px; padding: 8px; }
+  .dashboard-reimagined .dashboard-directory { padding: 12px; border-radius: 15px; }
+  .dashboard-reimagined .dashboard-directory .section-heading.outside { align-items: flex-start; flex-direction: column; gap: 9px; }
+  .dashboard-reimagined .dashboard-member-tools { display: flex; width: 100%; justify-content: space-between; gap: 7px; }
+  .dashboard-reimagined .dashboard-member-search { width: auto; flex: 1 1 auto; min-width: 0; }
+  .dashboard-reimagined .dashboard-member-tools > .count-badge { flex: 0 0 auto; }
+  .dashboard-reimagined .detailed-member-card { padding: 10px; gap: 8px; }
+  .dashboard-reimagined .upcoming-meal-days { grid-template-columns: 1fr; }
+  .dashboard-reimagined .upcoming-meal-day-card { padding: 10px; }
+}
+@media (max-width: 390px) {
+  .dashboard-reimagined .meal-card.hero-card .meal-card-heading h1 { font-size: 18px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight { min-width: 70px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight strong { font-size: 21px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-stat { padding-inline: 6px; }
+  .dashboard-reimagined .meal-card.hero-card .meal-stat span { font-size: 8px; }
+  .dashboard-reimagined .detail-total-strip { gap: 5px; padding-inline: 9px; }
+  .dashboard-reimagined .detail-total-strip > div { padding: 8px 5px; }
+  .dashboard-reimagined .detail-total-strip strong { font-size: 13px; }
+  .dashboard-reimagined .member-period-summary-grid { gap: 6px; padding-inline: 10px; }
+  .dashboard-reimagined .member-period-summary-grid .metric { padding: 8px; }
+  .dashboard-reimagined .member-period-balance { margin-inline: 10px; }
+  .dashboard-reimagined .archive-detail-section { margin-inline: 10px; padding: 9px; }
+}
+
+/* Dark theme keeps the same information hierarchy with dark semantic surfaces. */
+:root[data-theme="dark"] .dashboard-reimagined {
+  --dash-shadow: 0 6px 20px rgba(0, 0, 0, .18);
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card {
+  border-color: #344b66;
+  background: #1b2b40;
+  color: #edf3fa;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .eyebrow,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-date-line { color: #b2c4d9; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-card-heading h1 { color: #f1f6fc; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-card-heading p,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .sync-placeholder { color: #b0bfd0; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight { border-color: #405a78; background: #263d58; color: #c5d5e8; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight strong { color: #fff; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-breakfast { border-color: #315e50; background: #203d35; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-lunch { border-color: #6f5638; background: #403323; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-dinner { border-color: #50476f; background: #302b48; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat span { color: #c0ccda; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat strong { color: #f6f8fc; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-detail-hint { border-top-color: #344a64; color: #a5d4c6; }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-card.late-request-summary-card { border-color: #704a45; background: #352622; }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-title h2 { color: #f2d9d2; }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-title .eyebrow,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-compact-note { color: #d3aaa0; }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-icon,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-card .count-badge { border-color: #79524c; background: #4b302c; color: #f0c7bc; }
+:root[data-theme="dark"] .dashboard-reimagined .late-delta-stat { border-color: #684944; background: #422c28; }
+:root[data-theme="dark"] .dashboard-reimagined .late-delta-stat > span,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-net-total,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-sync { color: #d0b0a8; }
+:root[data-theme="dark"] .dashboard-reimagined .late-delta-stat > strong,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-net-total > strong { color: #f5e8e4; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card,
+:root[data-theme="dark"] .dashboard-reimagined .my-account-card,
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-directory { background: var(--surface); }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card { border-color: #315e4c; }
+:root[data-theme="dark"] .dashboard-reimagined .my-account-card { border-color: #514975; }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-directory { border-color: #315d5d; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(1),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(1),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(1) { border-color: #315e50; background: #203c33; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(2),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(2),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(2) { border-color: #6b5337; background: #3e3325; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(3),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(3),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(3) { border-color: #3d5878; background: #263a53; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(4),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(4),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(4) { border-color: #514975; background: #312d48; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric span,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div > span,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div > span { color: #c2ccda; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric strong,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div > strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div > strong { color: #edf3fa; }
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-positive { border-color: #315e50; background: #203c33; color: #a8ddc3; }
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-positive strong { color: #a8ddc3; }
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row.balance-negative,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-negative { border-color: #704a45; background: #3b2624; color: #f0b1a7; }
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row.balance-negative strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-negative strong { color: #f0b1a7; }
+:root[data-theme="dark"] .dashboard-reimagined .detailed-member-card { border-color: #37495d; background: var(--surface); }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-directory .avatar { border-color: #3b526d; background: #293d55; color: #c2d7ee; }
+:root[data-theme="dark"] .dashboard-reimagined .member-copy h3,
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-title h2 { color: var(--text); }
+:root[data-theme="dark"] .dashboard-reimagined .meal-details-modal,
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-details-modal { border-color: var(--line); background: var(--surface); color: var(--text); }
+:root[data-theme="dark"] .dashboard-reimagined .meal-details-modal .modal-header,
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal .modal-head { background: #202e40; border-color: var(--line); }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-details-modal .modal-header { background: #382824; border-color: #664640; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-details-modal .modal-header h2,
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal .modal-head h2 { color: var(--text); }
+:root[data-theme="dark"] .dashboard-reimagined .detail-total-strip > div,
+:root[data-theme="dark"] .dashboard-reimagined .meal-member-values > span,
+:root[data-theme="dark"] .dashboard-reimagined .upcoming-meal-day-stats > div,
+:root[data-theme="dark"] .dashboard-reimagined .member-period-summary-grid .metric { background: var(--surface-2); border-color: var(--line); }
+:root[data-theme="dark"] .dashboard-reimagined .meal-member-row,
+:root[data-theme="dark"] .dashboard-reimagined .upcoming-meal-day-card,
+:root[data-theme="dark"] .dashboard-reimagined .archive-detail-section,
+:root[data-theme="dark"] .dashboard-reimagined .archive-list-row { border-color: var(--line); background: var(--surface-2); }
+:root[data-theme="dark"] .dashboard-reimagined .meal-member-name strong,
+:root[data-theme="dark"] .dashboard-reimagined .archive-detail-section .section-heading h3,
+:root[data-theme="dark"] .dashboard-reimagined .archive-list-row strong { color: var(--text); }
+:root[data-theme="dark"] .dashboard-reimagined .meal-member-values small,
+:root[data-theme="dark"] .dashboard-reimagined .archive-list-row small { color: var(--muted); }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-offline-detail-empty { border-color: var(--line); background: var(--surface-2); color: var(--text); }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-offline-detail-empty strong { color: var(--text); }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-offline-detail-empty span { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-reimagined .meal-card.hero-card,
+  .dashboard-reimagined .late-request-summary-card,
+  .dashboard-reimagined .summary-card,
+  .dashboard-reimagined .my-account-card,
+  .dashboard-reimagined .detailed-member-card,
+  .dashboard-reimagined .upcoming-meal-day-card { transition: none !important; }
+}
+
+/* Dark-theme finishing: keep the colour system while avoiding bright light-mode chips. */
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .rate-strip {
+  border-color: #315d60;
+  background: #1d393b;
+  color: #b8d5d4;
+}
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .rate-strip > div > span,
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .rate-strip small { color: #a7c5c5; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .rate-strip strong { color: #9ed6d2; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .offline-snapshot-note {
+  border-color: #315d4d;
+  background: #1d392e;
+  color: #a8d2ba;
+}
+:root[data-theme="dark"] .dashboard-reimagined .my-account-card .avatar-large {
+  border-color: #514975;
+  background: #302b47;
+  color: #c5b9eb;
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search {
+  border-color: #344b4b;
+  background: #172a29;
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search input,
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search input::placeholder { color: #c0d1d0; }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search > svg { color: #8db8b3; }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-tools > .count-badge {
+  border-color: #345a55;
+  background: #203c37;
+  color: #a9d2c6;
+}
+:root[data-theme="dark"] .dashboard-reimagined .member-badge.active {
+  border-color: #315d4b;
+  background: #203b30;
+  color: #a8d8bd;
+}
+:root[data-theme="dark"] .dashboard-reimagined .role-mini-badge {
+  border-color: #46506e;
+  background: #2b3047;
+  color: #c0c6ed;
+}
+:root[data-theme="dark"] .dashboard-reimagined .role-mini-badge.assistant {
+  border-color: #365866;
+  background: #203942;
+  color: #a7d3df;
+}
+:root[data-theme="dark"] .dashboard-reimagined .activity-badge.has-meals {
+  border-color: #315d4b;
+  background: #203b30;
+  color: #a8d8bd;
+}
+:root[data-theme="dark"] .dashboard-reimagined .activity-badge.no-meals {
+  border-color: #6b5738;
+  background: #3b3223;
+  color: #e3c58d;
+}
+:root[data-theme="dark"] .dashboard-reimagined .activity-badge.no-period-activity {
+  border-color: #3a4b5d;
+  background: #273646;
+  color: #b7c7d8;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .offline-meal-note {
+  border-color: #6d5334;
+  background: #3a3021;
+  color: #e4c48c;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-member {
+  border-color: #65453f;
+  background: #302522;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-member-head strong { color: #f0d6ce; }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-member-head small,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-member-reason { color: #c4a79f; }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-member-meal {
+  border-color: #684941;
+  background: #3b2925;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-request-member-meal > span,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-member-meal > small { color: #d1b4ac; }
+
+/* Typography refinement: keep compact cards readable, especially for Bengali labels. */
+.dashboard-reimagined .meal-card.hero-card .meal-stat span { font-size: 10px; }
+.dashboard-reimagined .summary-card .metric span,
+.dashboard-reimagined .account-grid > div > span,
+.dashboard-reimagined .member-stats-grid > div > span { font-size: 10px; }
+.dashboard-reimagined .member-copy h3 { font-size: 13px; }
+.dashboard-reimagined .member-badge,
+.dashboard-reimagined .role-mini-badge,
+.dashboard-reimagined .activity-badge { font-size: 9px; }
+.dashboard-reimagined .member-stats-grid strong { font-size: 14px; }
+.dashboard-reimagined .meal-member-name strong { font-size: 12px; }
+.dashboard-reimagined .meal-member-values small { font-size: 9px; }
+.dashboard-reimagined .upcoming-meal-day-stats span { font-size: 9px; }
+.dashboard-reimagined .member-period-summary-grid .metric span { font-size: 10px; }
+.dashboard-reimagined .archive-list-row small { font-size: 10px; }
+@media (max-width: 640px) {
+  .dashboard-reimagined .meal-card.hero-card .meal-stat span { font-size: 9px; }
+  .dashboard-reimagined .member-stats-grid > div > span { font-size: 9px; }
+  .dashboard-reimagined .member-stats-grid strong { font-size: 13px; }
+  .dashboard-reimagined .member-badge,
+  .dashboard-reimagined .role-mini-badge,
+  .dashboard-reimagined .activity-badge { font-size: 8.5px; }
+}
+
+/* Dashboard finishing v11: stronger light-theme contrast, quieter dark surfaces,
+   compact member identity rows and consistent recovery feedback. */
+.dashboard-reimagined {
+  --dash-muted: #53677c;
+  --dash-muted-soft: #5d7084;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-date-line,
+.dashboard-reimagined .meal-card.hero-card .sync-placeholder,
+.dashboard-reimagined .meal-card.hero-card .meal-card-heading p,
+.dashboard-reimagined .meal-card.hero-card .meal-stat span,
+.dashboard-reimagined .late-request-compact-note,
+.dashboard-reimagined .late-request-sync,
+.dashboard-reimagined .summary-card .metric span,
+.dashboard-reimagined .account-grid > div > span,
+.dashboard-reimagined .member-stats-grid > div > span,
+.dashboard-reimagined .detail-total-strip span,
+.dashboard-reimagined .meal-member-values small,
+.dashboard-reimagined .upcoming-meal-day-stats span,
+.dashboard-reimagined .member-period-summary-grid .metric span,
+.dashboard-reimagined .archive-list-row small,
+.dashboard-reimagined .upcoming-meal-sync-row > small {
+  color: var(--dash-muted);
+}
+.dashboard-reimagined .member-badge-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+.dashboard-reimagined .member-badge-row .activity-badge {
+  flex: 0 0 auto;
+  max-width: 100%;
+  margin: 0 0 0 auto;
+  white-space: nowrap;
+}
+.dashboard-reimagined .dashboard-sync-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid #e4d4b8;
+  border-radius: 11px;
+  background: #fffaf0;
+  color: #765d32;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.dashboard-reimagined .dashboard-sync-recovery > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.dashboard-reimagined .dashboard-sync-recovery > span svg { flex: 0 0 auto; color: #a77b35; }
+.dashboard-reimagined .dashboard-sync-retry,
+.dashboard-reimagined .meal-retry-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 31px;
+  padding: 6px 10px;
+  border: 1px solid #d9c49d;
+  border-radius: 8px;
+  background: #fff;
+  color: #785b2b;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.dashboard-reimagined .dashboard-sync-retry:hover,
+.dashboard-reimagined .meal-retry-button:hover { border-color: #c7a970; background: #fff7e8; }
+.dashboard-reimagined .dashboard-sync-retry:focus-visible,
+.dashboard-reimagined .meal-retry-button:focus-visible { outline: 3px solid rgba(167, 123, 53, .22); outline-offset: 2px; }
+.dashboard-reimagined .dashboard-sync-retry:disabled { cursor: wait; opacity: .65; }
+.dashboard-reimagined .meal-empty-note-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-color: #ead5c8;
+  background: #fff8f3;
+  color: #80594b;
+}
+.dashboard-reimagined .meal-empty-note-error > span { flex: 1 1 180px; min-width: 0; }
+.dashboard-reimagined .meal-empty-note-error > svg { flex: 0 0 auto; color: #a96b52; }
+.dashboard-reimagined .member-period-detail-modal > .modal-head {
+  border-top-left-radius: 17px;
+  border-top-right-radius: 17px;
+  overflow: hidden;
+}
+
+/* The two finance panels share one grid track and use their footer rows to align. */
+@media (min-width: 1020px) {
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary > .summary-card,
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary > .my-account-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 100%;
+  }
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary > .summary-card .rate-strip,
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary > .my-account-card .account-balance-row {
+    margin-top: auto;
+  }
+}
+
+/* Light blue stays very close to Light; only the page-level surfaces are cooler. */
+:root[data-theme="blue"] .dashboard-reimagined {
+  --dash-muted: #536d84;
+  --dash-muted-soft: #60788e;
+  --dash-blue-bg: #edf5fd;
+  --dash-blue-line: #cbddec;
+  --dash-green-bg: #eff7f2;
+  --dash-amber-bg: #fff6eb;
+  --dash-violet-bg: #f4f2fb;
+  --dash-coral-bg: #fff3ef;
+  --dash-teal-bg: #eff7f7;
+}
+:root[data-theme="blue"] .dashboard-reimagined .dashboard-directory { background: #fbfdff; }
+:root[data-theme="blue"] .dashboard-reimagined .summary-card { background: #fcfefd; }
+:root[data-theme="blue"] .dashboard-reimagined .my-account-card { background: #fdfcff; }
+
+/* Dark theme: subdued tinted surfaces instead of bright coloured mini-cards. */
+:root[data-theme="dark"] .dashboard-reimagined {
+  --dash-muted: #aab8c6;
+  --dash-muted-soft: #9eafbe;
+  --dash-green-bg: #1a2b25;
+  --dash-green-line: #304b40;
+  --dash-amber-bg: #30291f;
+  --dash-amber-line: #564833;
+  --dash-blue-bg: #1d2c3d;
+  --dash-blue-line: #354b63;
+  --dash-violet-bg: #27243a;
+  --dash-violet-line: #48415f;
+  --dash-coral-bg: #302321;
+  --dash-coral-line: #59413b;
+  --dash-teal-bg: #1c2d31;
+  --dash-teal-line: #355158;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card {
+  border-color: #30445b;
+  background: #182638;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight {
+  border-color: #354b64;
+  background: #202f43;
+  color: #c4d2e1;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-breakfast {
+  border-color: #30483d;
+  background: #1b2d27;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-lunch {
+  border-color: #4e4230;
+  background: #2a251d;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-dinner {
+  border-color: #403a57;
+  background: #242238;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-breakfast strong { color: #b5d7c4; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-lunch strong { color: #ddc69c; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-dinner strong { color: #c6bee4; }
+:root[data-theme="dark"] .dashboard-reimagined .late-request-card.late-request-summary-card {
+  border-color: #55403b;
+  background: #292120;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-request-icon,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-card .count-badge {
+  border-color: #59433d;
+  background: #342724;
+  color: #d4aaa0;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-delta-stat,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-totals .late-delta-stat,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-member {
+  border-color: #51403b;
+  background: #2b2321;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-delta-stat:nth-child(2),
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-totals .late-delta-stat:nth-child(2) {
+  border-color: #554833;
+  background: #30291f;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-delta-stat:nth-child(3),
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-totals .late-delta-stat:nth-child(3) {
+  border-color: #48415f;
+  background: #27243a;
+}
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(1),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(1),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(1) { border-color: #304b40; background: #1a2b25; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(2),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(2),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(2) { border-color: #564833; background: #30291f; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(3),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(3),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(3) { border-color: #354b63; background: #1d2c3d; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(4),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(4),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(4) { border-color: #48415f; background: #27243a; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(1) strong,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(1) strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(1) strong { color: #b5d7c4; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(2) strong,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(2) strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(2) strong { color: #ddc69c; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(3) strong,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(3) strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(3) strong { color: #b8cfe6; }
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric:nth-child(4) strong,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div:nth-child(4) strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div:nth-child(4) strong { color: #c6bee4; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-empty-note-error,
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-sync-recovery {
+  border-color: #554733;
+  background: #2b261e;
+  color: #ddc99f;
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-sync-recovery > span svg { color: #c5a66d; }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-sync-retry,
+:root[data-theme="dark"] .dashboard-reimagined .meal-retry-button {
+  border-color: #66573d;
+  background: #342d22;
+  color: #e4d1a8;
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-sync-retry:hover,
+:root[data-theme="dark"] .dashboard-reimagined .meal-retry-button:hover { background: #3a3226; }
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal > .modal-head {
+  border-top-left-radius: 17px;
+  border-top-right-radius: 17px;
+}
+
+@media (max-width: 640px) {
+  .dashboard-reimagined .dashboard-sync-recovery { align-items: flex-start; flex-direction: column; }
+  .dashboard-reimagined .dashboard-sync-retry { align-self: flex-start; }
+  .dashboard-reimagined .member-badge-row .activity-badge { margin-left: auto; }
+}
+
+/* Dashboard v11.1 — finish theme contrast and recovery surfaces without
+   changing any request, cache, or realtime behavior. */
+.dashboard-reimagined {
+  --dash-muted: #4f6277;
+  --dash-muted-soft: #596d82;
+}
+.dashboard-reimagined .meal-card.hero-card {
+  border-color: #d7e3f0;
+  background: #f7faff;
+  box-shadow: 0 4px 14px rgba(49, 91, 143, .055);
+}
+.dashboard-reimagined .meal-card.hero-card[role="button"]:hover {
+  border-color: #c7d8eb;
+  background: #f3f8ff;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-total-spotlight {
+  border-color: #d7e3f0;
+  background: #edf3fb;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat-breakfast {
+  border-color: #d7e9de;
+  background: #f3f9f5;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat-lunch {
+  border-color: #efe2ce;
+  background: #fffaf2;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-stat-dinner {
+  border-color: #e3def0;
+  background: #f8f6fc;
+}
+.dashboard-reimagined .late-request-card.late-request-summary-card {
+  border-color: #efddd7;
+  background: #fffaf8;
+  box-shadow: 0 4px 14px rgba(141, 84, 68, .04);
+}
+.dashboard-reimagined .late-request-card.late-request-summary-card:hover {
+  border-color: #e8d0c8;
+  background: #fff7f4;
+}
+.dashboard-reimagined .late-request-icon,
+.dashboard-reimagined .late-request-card .count-badge {
+  border-color: #f0ddd7;
+  background: #fff2ed;
+}
+.dashboard-reimagined .late-delta-stat,
+.dashboard-reimagined .late-request-detail-totals .late-delta-stat {
+  border-color: #f0e4df;
+  background: #fffdfc;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-date-line,
+.dashboard-reimagined .meal-card.hero-card .sync-placeholder,
+.dashboard-reimagined .meal-card.hero-card .meal-card-heading p,
+.dashboard-reimagined .late-request-title .eyebrow,
+.dashboard-reimagined .late-request-compact-note,
+.dashboard-reimagined .late-request-sync,
+.dashboard-reimagined .summary-card .rate-strip small,
+.dashboard-reimagined .summary-card .rate-strip > div > span,
+.dashboard-reimagined .my-account-card .account-balance-row > span,
+.dashboard-reimagined .member-period-detail-modal .modal-head small,
+.dashboard-reimagined .member-period-summary-grid .metric span,
+.dashboard-reimagined .archive-detail-section .section-heading > span,
+.dashboard-reimagined .archive-list-row small,
+.dashboard-reimagined .late-request-details-modal .modal-header p,
+.dashboard-reimagined .late-request-detail-member-head small,
+.dashboard-reimagined .late-request-member-reason,
+.dashboard-reimagined .late-request-approved-at {
+  color: #53677c;
+}
+.dashboard-reimagined .meal-card.hero-card .meal-card-heading h1,
+.dashboard-reimagined .summary-card h2,
+.dashboard-reimagined .my-account-card h2,
+.dashboard-reimagined .member-copy h3,
+.dashboard-reimagined .dashboard-member-title h2,
+.dashboard-reimagined .member-period-detail-modal .modal-head h2,
+.dashboard-reimagined .archive-detail-section .section-heading h3 {
+  color: #263b51;
+}
+.dashboard-reimagined .member-period-detail-modal > .modal-head {
+  border-top-left-radius: 17px;
+  border-top-right-radius: 17px;
+  overflow: hidden;
+}
+
+/* The Sky theme follows Light closely, with only a cooler page canvas. */
+:root[data-theme="blue"] .dashboard-reimagined {
+  --dash-muted: #526a80;
+  --dash-muted-soft: #5d748a;
+}
+:root[data-theme="blue"] .dashboard-reimagined .meal-card.hero-card { background: #f6faff; }
+:root[data-theme="blue"] .dashboard-reimagined .late-request-card.late-request-summary-card { background: #fffaf8; }
+
+/* Dark theme is intentionally distinct: nested metrics are subdued, not vivid. */
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card {
+  border-color: #344658;
+  background: #1b2938;
+  color: #e8eef5;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight {
+  border-color: #3a4b5e;
+  background: #243240;
+  color: #c0ccd8;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight strong { color: #edf3f8; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-breakfast {
+  border-color: #354a41;
+  background: #24332d;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-lunch {
+  border-color: #514638;
+  background: #302b24;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat-dinner {
+  border-color: #464258;
+  background: #2b2938;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-request-card.late-request-summary-card {
+  border-color: #4e403c;
+  background: #262321;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-request-icon,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-card .count-badge {
+  border-color: #53433e;
+  background: #302825;
+  color: #d3b0a5;
+}
+:root[data-theme="dark"] .dashboard-reimagined .late-delta-stat,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-totals .late-delta-stat,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-member,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-member-meal {
+  border-color: #49413d;
+  background: #2b2826;
+}
+:root[data-theme="dark"] .dashboard-reimagined .member-period-summary-grid .metric,
+:root[data-theme="dark"] .dashboard-reimagined .detail-total-strip > div,
+:root[data-theme="dark"] .dashboard-reimagined .upcoming-meal-day-stats > div,
+:root[data-theme="dark"] .dashboard-reimagined .meal-member-values > span {
+  border-color: #3b4855;
+  background: #242e38;
+}
+:root[data-theme="dark"] .dashboard-reimagined .archive-detail-section,
+:root[data-theme="dark"] .dashboard-reimagined .archive-list-row,
+:root[data-theme="dark"] .dashboard-reimagined .upcoming-meal-day-card,
+:root[data-theme="dark"] .dashboard-reimagined .meal-member-row {
+  border-color: #394856;
+  background: #202a34;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-date-line,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .sync-placeholder,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-card-heading p,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-compact-note,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-sync,
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .rate-strip small,
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal .modal-head small,
+:root[data-theme="dark"] .dashboard-reimagined .archive-list-row small,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-details-modal .modal-header p,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-detail-member-head small,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-member-reason,
+:root[data-theme="dark"] .dashboard-reimagined .late-request-approved-at {
+  color: #aab8c6;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-card-heading h1,
+:root[data-theme="dark"] .dashboard-reimagined .summary-card h2,
+:root[data-theme="dark"] .dashboard-reimagined .my-account-card h2,
+:root[data-theme="dark"] .dashboard-reimagined .member-copy h3,
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-title h2,
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal .modal-head h2,
+:root[data-theme="dark"] .dashboard-reimagined .archive-detail-section .section-heading h3 {
+  color: #e8eef5;
+}
+:root[data-theme="dark"] .dashboard-reimagined .member-period-detail-modal > .modal-head {
+  background: #202b36;
+  border-color: #3b4958;
+}
+
+@media (min-width: 1020px) {
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary { align-items: stretch; }
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary > .summary-card,
+  .dashboard-reimagined .dashboard-finance-grid.has-period-summary > .my-account-card { align-self: stretch; }
+}
+@media (max-width: 640px) {
+  .dashboard-reimagined .member-badge-row { row-gap: 4px; }
+  .dashboard-reimagined .member-badge-row .activity-badge { margin-left: auto; }
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-stat {
+  border-color: #394b5d;
+  background: #243240;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-total-row {
+  border-top-color: #3a4a59;
+  color: #b2c0ce;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-total-row strong,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card.no-running-meal-card .meal-stat strong { color: #d4e0eb; }
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card.meal-empty-card .meal-empty-note {
+  border-color: #4b5159;
+  background: #292f36;
+  color: #c1cbd5;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card.meal-card-loading .meal-loading-lines span {
+  background: #2b3946;
+}

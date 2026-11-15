@@ -7,7 +7,7 @@ import { readIdentitySnapshot, requestPersistentStorage, saveIdentitySnapshot } 
 const AuthContext = createContext(null);
 
 const LOGOUT_AUDIT_TIMEOUT_MS = 1500;
-const SESSION_POLICY_CACHE_MS = 15 * 1000;
+const SESSION_POLICY_CACHE_MS = 55 * 1000;
 const SESSION_LIMIT_NOTICE_KEY = 'hostel-life-session-limit-notice-v1';
 const SESSION_LIMIT_NOTICE_EVENT = 'hostel-life-session-limit-notice';
 
@@ -358,17 +358,29 @@ export function AuthProvider({ children }) {
         }
       }
     };
+    let lastPresenceTouchAt = 0;
+    const PRESENCE_TOUCH_MIN_INTERVAL_MS = 10 * 60 * 1000;
     const touchPresence = async () => {
       if (!heartbeatAllowed()) return;
+      const now = Date.now();
+      // Run47 already refuses presence writes more often than every ten minutes.
+      // Apply the same throttle in the client so redundant RPCs never reach Gateway.
+      if (now - lastPresenceTouchAt < PRESENCE_TOUCH_MIN_INTERVAL_MS) return;
+      lastPresenceTouchAt = now;
       try {
         const { error } = await supabase.rpc('hl_touch_my_presence');
-        if (error && active) console.warn('Hostel Life presence heartbeat could not be recorded:', error.message);
+        if (error) {
+          // Permit one retry after a short backoff instead of waiting another ten minutes.
+          lastPresenceTouchAt = Date.now() - PRESENCE_TOUCH_MIN_INTERVAL_MS + 60 * 1000;
+          if (active) console.warn('Hostel Life presence heartbeat could not be recorded:', error.message);
+        }
       } catch (error) {
+        lastPresenceTouchAt = Date.now() - PRESENCE_TOUCH_MIN_INTERVAL_MS + 60 * 1000;
         if (active) console.warn('Hostel Life presence heartbeat could not be recorded:', error?.message || 'unknown_error');
       }
     };
-    // Keep the security/session-revocation check at one minute. Presence has a
-    // server-side ten-minute write throttle, so its network touch runs every five.
+    // Keep the security/session-revocation check at one minute. Presence is
+    // sent every eleven minutes, slightly beyond the server's ten-minute throttle.
     const heartbeat = async () => {
       await verifySessionPolicy();
       await touchPresence();
@@ -387,7 +399,7 @@ export function AuthProvider({ children }) {
     interactionEvents.forEach((eventName) => window.addEventListener(eventName, markInteraction, { passive: true }));
     heartbeat();
     const sessionInterval = window.setInterval(verifySessionPolicy, 60 * 1000);
-    const presenceInterval = window.setInterval(touchPresence, 5 * 60 * 1000);
+    const presenceInterval = window.setInterval(touchPresence, 11 * 60 * 1000);
     window.addEventListener('focus', onInteraction);
     document.addEventListener('visibilitychange', onVisible);
     return () => {

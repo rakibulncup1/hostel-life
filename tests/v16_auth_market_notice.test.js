@@ -62,7 +62,8 @@ test('auth and onboarding public screens respect the saved theme without changin
   assert.match(onboarding, /<EntryThemeSwitcher/);
   assert.match(auth, /<BrandMark size=\{64\}/);
   assert.match(onboarding, /<BrandMark size=\{62\}/);
-  assert.match(auth, /অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন/);
+  assert.match(auth, /ইমেইল <small className="register-email-label-note">\(সঠিক ইমেইল ব্যবহার করুন\)<\/small>/);
+  assert.doesNotMatch(auth, /অ্যাকাউন্ট যাচাই ও পাসওয়ার্ড পুনরুদ্ধারের জন্য সচল ইমেইল ব্যবহার করুন/);
 });
 
 test('hostel notice migration scopes the banner to one hostel and limits it to managers', () => {

@@ -109,9 +109,9 @@ export function TelegramConnectionPage() {
   const pageIntro = (
     <header className="page-heading telegram-heading card menu-page-intro-card telegram-menu-intro-card">
       <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15}/> ফিরে যান</button>
-      <span className="eyebrow">ব্যক্তিগত বিজ্ঞপ্তি</span>
+      
       <h1>টেলিগ্রাম সংযোগ</h1>
-      <p>মেসের গুরুত্বপূর্ণ বিজ্ঞপ্তি সরাসরি আপনার টেলিগ্রাম অ্যাকাউন্টে পান।</p>
+      <p>টেলিগ্রাম সংযোগ চালু করে মেসের বিজ্ঞপ্তি পান।</p>
     </header>
   );
 

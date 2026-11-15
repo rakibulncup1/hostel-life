@@ -51,9 +51,11 @@ test('all menu groups remain present through logout', () => {
 });
 
 test('menu and operational feature guidance is concise and uses shared compact styling', () => {
-  assert.match(menuPages, /description=\{depositor \? 'সদস্যের নামে জমা হওয়া মোট টাকা।' : shopper \? 'কার্যকর বাজারের মোট টাকার তালিকা।'/);
+  assert.doesNotMatch(menuPages, /description=\{depositor \? 'সদস্যের নামে জমা হওয়া মোট টাকা।' : shopper \? 'কার্যকর বাজারের মোট টাকার তালিকা।'/);
   assert.match(managerPages, /description="মাসিক হিসাব PDF হিসেবে সংরক্ষণ করুন।"/);
-  assert.match(dining, /!managerMode && <InfoPanel icon="calendar-clock">তারিখ ও মিল বেছে অনুরোধ দিন। Late\/Correction-এ অনুমোদন লাগবে।/);
+  assert.match(dining, /mode !== 'new' && !managerMode && <InfoPanel icon="calendar-clock">সংশোধন ও অনুমোদনের নিয়ম অনুযায়ী দিন নির্বাচন করুন।/);
+  assert.doesNotMatch(dining, /!managerMode && <InfoPanel icon="calendar-clock">তারিখ ও মিল বেছে অনুরোধ দিন/);
+  assert.match(dining, /mode !== 'new' && period\?\.start_date/);
   assert.match(dining, /managerPageStackClass/);
   assert.doesNotMatch(dining, /বাজারকারীর নাম, তারিখ ও প্রতিটি আইটেমের পরিমাণ ও টাকা যাচাই করে সংরক্ষণ করুন।/);
   assert.doesNotMatch(dining, /তারিখ ও বাজারকারীর তথ্য দিয়ে আইটেম যোগ করুন/);
@@ -61,8 +63,9 @@ test('menu and operational feature guidance is concise and uses shared compact s
   assert.match(css, /\.form-hint,/);
 });
 
-test('app download instructions are short and theme-native styles are token-based', () => {
-  assert.match(appDownload, /হোম স্ক্রিন থেকে এক ট্যাপে Hostel Life খুলুন।/);
+test('app download page keeps a clean title without redundant introductory instruction copy', () => {
+  assert.match(appDownload, /<h1>অ্যাপ ইনস্টল<\/h1>/);
+  assert.doesNotMatch(appDownload, /ডিভাইস ও অ্যাপ|হোম স্ক্রিন থেকে এক ট্যাপে Hostel Life খুলুন/);
   assert.match(css, /var\(--surface-2\)/);
   assert.match(css, /var\(--primary-soft\)/);
 });

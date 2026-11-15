@@ -1,0 +1,746 @@
+/* Hostel Life — Dining Experience v2
+   Full Dining presentation aligned with Dashboard v11.
+   Presentation-only: no data, permission, cache, realtime or network behavior. */
+
+:is(.dining-experience, .dining-stack) {
+  --din-blue: #416f9f;
+  --din-blue-bg: #eef5ff;
+  --din-blue-line: #cfdef1;
+  --din-blue-text: #315f91;
+  --din-green: #398665;
+  --din-green-bg: #edf8f2;
+  --din-green-line: #cce7d8;
+  --din-coral: #ad6859;
+  --din-coral-bg: #fff1ed;
+  --din-coral-line: #efd5ce;
+  --din-violet: #7969a8;
+  --din-violet-bg: #f3f0fc;
+  --din-violet-line: #ddd6f0;
+  --din-amber: #a7793d;
+  --din-amber-bg: #fff7e9;
+  --din-amber-line: #f0dfbf;
+  --din-teal: #397f82;
+  --din-teal-bg: #edf7f7;
+  --din-teal-line: #cce5e5;
+  --din-slate: #68798d;
+  --din-slate-bg: #f1f4f8;
+  --din-slate-line: #d9e1e9;
+  --din-panel-shadow: 0 8px 24px rgba(33, 56, 78, .045);
+  gap: clamp(15px, 1.8vw, 22px);
+  color: var(--text);
+}
+
+:is(.dining-experience, .dining-stack) :is(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+:is(.dining-experience, .dining-stack) :is(.dining-panel, .request-history-card, .manager-request-card, .market-table-card, .meal-day-card, .manager-meal-card, .final-meal-audit-card, .personal-tomorrow-meal-card, .weekday-exceptions-card) {
+  min-width: 0;
+}
+
+/* Main section identity */
+:is(.dining-stack) > .dining-section-title {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  min-height: 104px;
+  padding: 19px 22px;
+  border: 1px solid #d5e4f2;
+  border-radius: 21px;
+  background: linear-gradient(112deg, #f0f6ff 0%, #f8fbff 58%, #f2f8f7 100%);
+  box-shadow: 0 7px 22px rgba(42, 78, 116, .045);
+}
+
+:is(.dining-experience, .dining-stack) .dining-brand-mark {
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  border: 1px solid #cbdcf0;
+  border-radius: 17px;
+  background: #e2edfb;
+  color: #416f9f;
+}
+
+:is(.dining-experience, .dining-stack) .dining-section-title-copy .eyebrow {
+  color: #58799a;
+  font-size: 10px;
+  letter-spacing: .09em;
+}
+
+:is(.dining-experience, .dining-stack) .dining-section-title h1 {
+  color: #1e344b;
+  font-size: clamp(23px, 2.7vw, 29px);
+  letter-spacing: -.045em;
+}
+
+:is(.dining-experience, .dining-stack) .dining-section-title p {
+  margin-top: 5px;
+  color: #60778c;
+  font-size: 11.5px;
+}
+
+/* Manager: exactly two columns on desktop, six features naturally form three rows. */
+@media (min-width: 761px) {
+  :is(.dining-experience, .dining-stack) .dining-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px;
+  }
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card {
+  --din-option-ink: var(--din-blue-text);
+  --din-option-bg: var(--din-blue-bg);
+  --din-option-line: var(--din-blue-line);
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 88px;
+  padding: 14px 16px;
+  gap: 12px;
+  border: 1px solid var(--din-option-line);
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--din-option-bg) 37%, var(--surface));
+  color: var(--text);
+  box-shadow: 0 3px 12px rgba(30, 55, 80, .025);
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-card::before { display: none; }
+:is(.dining-experience, .dining-stack) .dining-option-shield { --din-option-ink: #416f9f; --din-option-bg: #eaf2ff; --din-option-line: #ccdcf2; }
+:is(.dining-experience, .dining-stack) .dining-option-user { --din-option-ink: #7969a8; --din-option-bg: #f1edfb; --din-option-line: #ddd5f0; }
+:is(.dining-experience, .dining-stack) .dining-option-calendar { --din-option-ink: #397f9a; --din-option-bg: #eaf6fa; --din-option-line: #cce4ed; }
+:is(.dining-experience, .dining-stack) .dining-option-dining { --din-option-ink: #a7793d; --din-option-bg: #fff5e5; --din-option-line: #efdfc3; }
+:is(.dining-experience, .dining-stack) .dining-option-wallet { --din-option-ink: #398665; --din-option-bg: #edf8f2; --din-option-line: #cce7d8; }
+:is(.dining-experience, .dining-stack) .dining-option-history { --din-option-ink: #68798d; --din-option-bg: #f1f4f8; --din-option-line: #d9e1e9; }
+
+:is(.dining-experience, .dining-stack) .dining-option-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--din-option-ink) 35%, var(--din-option-line));
+  background: color-mix(in srgb, var(--din-option-bg) 64%, var(--surface));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--din-option-ink) 9%, transparent);
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-icon {
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--din-option-ink, var(--din-blue)) 20%, var(--line));
+  border-radius: 14px;
+  background: var(--din-option-bg, var(--din-blue-bg));
+  color: var(--din-option-ink, var(--din-blue));
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-copy strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+:is(.dining-experience, .dining-stack) .dining-option-copy small {
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+:is(.dining-experience, .dining-stack) .dining-access-badge {
+  border: 1px solid color-mix(in srgb, var(--din-option-ink, var(--primary)) 18%, var(--line));
+  background: color-mix(in srgb, var(--din-option-bg, var(--primary-soft)) 75%, var(--surface));
+  color: var(--din-option-ink, var(--primary-strong));
+}
+
+/* Shared feature panels and form hierarchy */
+:is(.dining-experience, .dining-stack) .dining-panel {
+  padding: clamp(16px, 2.1vw, 24px);
+  border: 1px solid color-mix(in srgb, var(--line) 85%, #a9bfd2 15%);
+  border-radius: 19px;
+  background: var(--surface);
+  box-shadow: var(--din-panel-shadow);
+}
+
+:is(.dining-experience, .dining-stack) .panel-header {
+  margin-bottom: 3px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+:is(.dining-experience, .dining-stack) .panel-header h2 {
+  color: var(--text);
+  font-size: clamp(18px, 2vw, 22px);
+  letter-spacing: -.035em;
+}
+
+:is(.dining-experience, .dining-stack) .panel-header p {
+  max-width: 64ch;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+:is(.dining-experience, .dining-stack) .panel-header .eyebrow { color: var(--din-blue); }
+
+:is(.dining-experience, .dining-stack) .field-label {
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+:is(.dining-experience, .dining-stack) .field-label > span { color: var(--text); }
+
+:is(.dining-experience, .dining-stack) .field-label :is(input, select, textarea),
+:is(.dining-experience, .dining-stack) .mini-field input,
+:is(.dining-experience, .dining-stack) .market-item-row :is(input, textarea) {
+  border-color: color-mix(in srgb, var(--line) 86%, #8faec8 14%);
+  background: var(--surface);
+  color: var(--text);
+}
+
+:is(.dining-experience, .dining-stack) .field-label :is(input, select, textarea)::placeholder,
+:is(.dining-experience, .dining-stack) .market-item-row :is(input, textarea)::placeholder {
+  color: var(--muted);
+  opacity: .82;
+}
+
+/* Date range and defaults */
+:is(.dining-experience, .dining-stack) .request-range-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  margin-top: 17px;
+}
+
+:is(.dining-experience, .dining-stack) .default-meal-box {
+  border-color: var(--din-green-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--din-green-bg) 56%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .default-meal-box > div:first-child strong { color: #34785e; }
+:is(.dining-experience, .dining-stack) .default-meal-box > div:first-child small { color: var(--muted); }
+
+:is(.dining-experience, .dining-stack) .default-meal-box .secondary-button {
+  border-color: #c7dfd2;
+  background: #f7fcf8;
+  color: #317657;
+}
+
+:is(.dining-experience, .dining-stack) .request-summary-strip {
+  border-color: var(--din-blue-line);
+  background: var(--din-blue-bg);
+  color: #3f6388;
+}
+
+:is(.dining-experience, .dining-stack) .request-summary-strip strong { color: #254f7e; }
+
+/* Weekday exception builder */
+:is(.dining-experience, .dining-stack) .weekday-exceptions-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid var(--din-violet-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--din-violet-bg) 45%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .weekday-exceptions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+:is(.dining-experience, .dining-stack) .weekday-exceptions-heading > div { display: grid; gap: 3px; min-width: 0; }
+:is(.dining-experience, .dining-stack) .weekday-exceptions-heading strong { color: #62538d; font-size: 12px; font-weight: 850; }
+:is(.dining-experience, .dining-stack) .weekday-exceptions-heading small,
+:is(.dining-experience, .dining-stack) .weekday-exception-empty { color: var(--muted); font-size: 10px; line-height: 1.5; }
+
+:is(.dining-experience, .dining-stack) .weekday-exception-count {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid var(--din-violet-line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--din-violet);
+  font-size: 10px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.dining-experience, .dining-stack) .weekday-exception-list { display: grid; gap: 8px; }
+
+:is(.dining-experience, .dining-stack) .weekday-exception-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid #ded7f0;
+  border-radius: 13px;
+  background: var(--surface);
+}
+
+:is(.dining-experience, .dining-stack) .weekday-exception-summary { display: grid; gap: 7px; min-width: 0; }
+:is(.dining-experience, .dining-stack) .weekday-exception-summary > strong { color: var(--text); font-size: 11.5px; }
+
+:is(.dining-experience, .dining-stack) .weekday-exception-summary .meal-value-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+:is(.dining-experience, .dining-stack) .weekday-exception-summary .meal-value-pill { min-width: 72px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-2); }
+:is(.dining-experience, .dining-stack) .weekday-exception-summary .meal-value-pill small { color: var(--muted); font-size: 8px; }
+:is(.dining-experience, .dining-stack) .weekday-exception-summary .meal-value-pill strong { color: var(--text); font-size: 10px; }
+
+:is(.dining-experience, .dining-stack) .weekday-exception-actions,
+:is(.dining-experience, .dining-stack) .weekday-exception-editor-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+:is(.dining-experience, .dining-stack) .weekday-exception-actions .secondary-button { min-height: 34px; padding: 6px 9px; }
+:is(.dining-experience, .dining-stack) .weekday-exception-actions .icon-button { width: 34px; height: 34px; border: 1px solid #ecd8d8; background: #fff8f8; color: #a85a5a; }
+
+:is(.dining-experience, .dining-stack) .weekday-exception-editor {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid #d8cfee;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--din-violet-bg) 55%, var(--surface));
+}
+
+:is(.dining-experience, .dining-stack) .weekday-exception-editor .field-label { max-width: 300px; }
+:is(.dining-experience, .dining-stack) .weekday-exception-meals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+:is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper-row { background: var(--surface); border-color: #ddd7ef; }
+:is(.dining-experience, .dining-stack) .weekday-exception-editor-actions .primary-button { background: #7463a5; color: #fff; }
+:is(.dining-experience, .dining-stack) .weekday-exception-add { justify-self: start; min-height: 37px; border-color: #d4caec; background: #f8f6fd; color: #6c5b9d; }
+
+/* Day cards: meal values have consistent, quiet category colors. */
+:is(.dining-experience, .dining-stack) .meal-days-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+:is(.dining-experience, .dining-stack) .meal-day-card {
+  border-color: #d4e1ed;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 2px 10px rgba(37, 64, 90, .025);
+}
+
+:is(.dining-experience, .dining-stack) .meal-day-card.weekend-day { border-color: var(--din-amber-line); background: color-mix(in srgb, var(--din-amber-bg) 34%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .meal-day-card-header strong { color: var(--text); }
+:is(.dining-experience, .dining-stack) .meal-day-card-header small { color: var(--muted); }
+:is(.dining-experience, .dining-stack) .meal-day-fields { gap: 8px; }
+:is(.dining-experience, .dining-stack) .meal-stepper-row { border-radius: 11px; }
+:is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(1) { border-color: #cce5d7; background: #f0f8f3; }
+:is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(2) { border-color: #d1e3f3; background: #f0f6fc; }
+:is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(3) { border-color: #ddd6ef; background: #f5f2fb; }
+:is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(1) > span { color: #397a5b; }
+:is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(2) > span { color: #426f9d; }
+:is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(3) > span { color: #72639d; }
+:is(.dining-experience, .dining-stack) .meal-stepper button { border-color: color-mix(in srgb, var(--line) 75%, #a8bfd2 25%); background: var(--surface); }
+:is(.dining-experience, .dining-stack) .meal-stepper strong { color: var(--text); }
+:is(.dining-experience, .dining-stack) .meal-day-total { color: var(--muted); }
+:is(.dining-experience, .dining-stack) .meal-day-total strong { color: var(--din-green); }
+
+/* Request entry choices: icon stays at the left on mobile and desktop. */
+:is(.dining-experience, .dining-stack) .request-entry-choice-grid { gap: 12px; }
+:is(.dining-experience, .dining-stack) .request-choice-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  align-content: center;
+  column-gap: 13px;
+  row-gap: 3px;
+  min-height: 94px;
+  padding: 15px 17px;
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: left;
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card .dining-option-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+}
+
+:is(.dining-experience, .dining-stack) .request-choice-card strong { grid-column: 2; grid-row: 1; align-self: end; color: var(--text); font-size: 12.5px; }
+:is(.dining-experience, .dining-stack) .request-choice-card small { grid-column: 2; grid-row: 2; align-self: start; color: var(--muted); font-size: 10px; }
+:is(.dining-experience, .dining-stack) .request-choice-new { border-color: var(--din-blue-line); background: color-mix(in srgb, var(--din-blue-bg) 38%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .request-choice-new .dining-option-icon { border-color: var(--din-blue-line); background: var(--din-blue-bg); color: var(--din-blue); }
+:is(.dining-experience, .dining-stack) .request-choice-history { border-color: var(--din-violet-line); background: color-mix(in srgb, var(--din-violet-bg) 35%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .request-choice-history .dining-option-icon { border-color: var(--din-violet-line); background: var(--din-violet-bg); color: var(--din-violet); }
+:is(.dining-experience, .dining-stack) .request-choice-late { border-color: var(--din-coral-line); background: color-mix(in srgb, var(--din-coral-bg) 38%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .request-choice-late .dining-option-icon { border-color: var(--din-coral-line); background: var(--din-coral-bg); color: var(--din-coral); }
+:is(.dining-experience, .dining-stack) .request-choice-card:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 7px 18px rgba(30, 55, 80, .06); }
+
+/* Request history and manager queue details */
+:is(.dining-experience, .dining-stack) .request-history-card,
+:is(.dining-experience, .dining-stack) .manager-request-card {
+  border-color: #d6e2ee;
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: 0 2px 9px rgba(30, 55, 80, .025);
+}
+
+:is(.dining-experience, .dining-stack) .request-history-head,
+:is(.dining-experience, .dining-stack) .manager-request-head-button { min-width: 0; }
+:is(.dining-experience, .dining-stack) .request-history-head strong,
+:is(.dining-experience, .dining-stack) .manager-request-head strong { color: var(--text); }
+:is(.dining-experience, .dining-stack) .request-history-head small,
+:is(.dining-experience, .dining-stack) .manager-request-head small,
+:is(.dining-experience, .dining-stack) .request-history-meta { color: var(--muted); }
+:is(.dining-experience, .dining-stack) .request-history-expanded-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; margin-bottom: 10px; }
+:is(.dining-experience, .dining-stack) .request-history-expanded-heading strong { color: var(--text); font-size: 11px; }
+:is(.dining-experience, .dining-stack) .request-history-expanded-heading span { color: var(--muted); font-size: 9px; }
+:is(.dining-experience, .dining-stack) .request-history-expanded { background: color-mix(in srgb, var(--din-blue-bg) 20%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .mini-day-list { grid-template-columns: repeat(auto-fit, minmax(min(100%, 315px), 1fr)); gap: 10px; }
+:is(.dining-experience, .dining-stack) .compact-day-card { min-width: 0; border-color: #d4e1ed; background: var(--surface); }
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-day-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-stepper { grid-template-columns: 23px minmax(0, 1fr) 23px; }
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-stepper button { width: 23px; height: 23px; }
+:is(.dining-experience, .dining-stack) .compact-day-card .meal-stepper strong { font-size: 10px; }
+:is(.dining-experience, .dining-stack) .request-status-approved { border-color: #c8e5d5; background: #edf8f2; color: #327856; }
+:is(.dining-experience, .dining-stack) .request-status-submitted { border-color: #efdfbf; background: #fff7e9; color: #94682d; }
+:is(.dining-experience, .dining-stack) .request-status-rejected,
+:is(.dining-experience, .dining-stack) .request-status-cancelled { border-color: #efd0d0; background: #fff1f1; color: #a34d4d; }
+:is(.dining-experience, .dining-stack) .manager-request-active-period { border-color: var(--din-blue-line); background: var(--din-blue-bg); color: var(--din-blue-text); }
+:is(.dining-experience, .dining-stack) .manager-request-tabs { border: 1px solid var(--line); background: var(--surface-2); }
+:is(.dining-experience, .dining-stack) .manager-request-tabs button { color: var(--muted); }
+:is(.dining-experience, .dining-stack) .manager-request-tabs button.active { background: var(--surface); color: var(--din-blue-text); box-shadow: 0 1px 4px rgba(35, 60, 82, .08); }
+:is(.dining-experience, .dining-stack) .manager-request-expanded { background: color-mix(in srgb, var(--din-violet-bg) 18%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .compact-request-day { border-color: var(--din-blue-line); background: var(--surface); }
+:is(.dining-experience, .dining-stack) .compact-request-day > strong { color: var(--text); }
+
+/* Market entry: numbered prefix stays inside the name field without changing saved item names. */
+:is(.dining-experience, .dining-stack) .market-table-head,
+:is(.dining-experience, .dining-stack) .market-item-row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(90px, .8fr) minmax(100px, .9fr) 36px;
+}
+
+:is(.dining-experience, .dining-stack) .market-item-name-field { position: relative; min-width: 0; width: 100%; }
+:is(.dining-experience, .dining-stack) .market-item-index {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 9px;
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 1px solid var(--din-blue-line);
+  border-radius: 7px;
+  background: var(--din-blue-bg);
+  color: var(--din-blue-text);
+  font-size: 10px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+:is(.dining-experience, .dining-stack) .market-item-name-field .market-input-item { padding-left: 41px; }
+:is(.dining-experience, .dining-stack) .market-table-card { border-color: #d5e2ee; border-radius: 16px; }
+:is(.dining-experience, .dining-stack) .market-table-head { background: #f0f5fb; color: #58718b; }
+:is(.dining-experience, .dining-stack) .market-item-row { border-top: 1px solid color-mix(in srgb, var(--line) 65%, transparent); }
+:is(.dining-experience, .dining-stack) .market-total-row { border-color: var(--din-green-line); background: var(--din-green-bg); }
+:is(.dining-experience, .dining-stack) .market-total-row strong { color: #31785a; }
+:is(.dining-experience, .dining-stack) .deposit-toggle-card { border: 1px solid var(--din-green-line); background: color-mix(in srgb, var(--din-green-bg) 48%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .deposit-toggle-card.enabled { border-color: #a9d6bd; background: var(--din-green-bg); }
+:is(.dining-experience, .dining-stack) .toggle-warning { color: #8a6b37; }
+
+/* Late request, manager final entry, deposits and expenses */
+:is(.dining-experience, .dining-stack) .late-request-form { border-color: var(--din-coral-line); }
+:is(.dining-experience, .dining-stack) .late-request-form .panel-header .eyebrow { color: var(--din-coral); }
+:is(.dining-experience, .dining-stack) .late-request-approval-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 13px;
+  padding: 11px 13px;
+  border: 1px solid var(--din-coral-line);
+  border-radius: 13px;
+  background: var(--din-coral-bg);
+  color: #8d594d;
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+:is(.dining-experience, .dining-stack) .late-request-approval-icon { display: grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; border: 1px solid #eaccc3; border-radius: 9px; background: #fff8f5; color: var(--din-coral); }
+:is(.dining-experience, .dining-stack) .late-request-approval-strip > span:nth-child(2) { flex: 1 1 auto; min-width: 0; }
+:is(.dining-experience, .dining-stack) .late-request-approval-strip > strong { flex: 0 0 auto; padding: 4px 7px; border: 1px solid #e6c8bf; border-radius: 999px; background: #fff8f5; color: #955c50; font-size: 9px; white-space: nowrap; }
+:is(.dining-experience, .dining-stack) .late-request-form .manager-meal-grid > div { min-width: 0; padding: 8px; border: 1px solid var(--din-coral-line); border-radius: 12px; background: color-mix(in srgb, var(--din-coral-bg) 45%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .late-request-form .manager-meal-grid .meal-stepper-row { border: 0; background: transparent; }
+
+:is(.dining-experience, .dining-stack) .manager-entry-toolbar { align-items: end; }
+:is(.dining-experience, .dining-stack) .manager-default-entry-box { border-color: var(--din-green-line); }
+:is(.dining-experience, .dining-stack) .manager-meal-entry-list { gap: 11px; }
+:is(.dining-experience, .dining-stack) .manager-meal-card { border: 1px solid var(--din-blue-line); border-radius: 15px; background: color-mix(in srgb, var(--din-blue-bg) 22%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .manager-meal-card-head .avatar { border-color: var(--din-blue-line); background: var(--din-blue-bg); color: var(--din-blue-text); }
+:is(.dining-experience, .dining-stack) .manager-meal-grid { gap: 8px; }
+:is(.dining-experience, .dining-stack) .manager-meal-grid .meal-stepper-row { border-color: var(--din-blue-line); background: var(--surface); }
+:is(.dining-experience, .dining-stack) .final-meal-audit-card { border-color: var(--din-green-line); background: color-mix(in srgb, var(--din-green-bg) 35%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .final-meal-audit-heading svg { color: var(--din-green); }
+:is(.dining-experience, .dining-stack) .final-meal-audit-stats > div { border-color: var(--din-green-line); background: var(--din-green-bg); }
+:is(.dining-experience, .dining-stack) .personal-tomorrow-meal-card { border-color: var(--din-blue-line); background: color-mix(in srgb, var(--din-blue-bg) 26%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .personal-tomorrow-grid > div { border-color: var(--din-blue-line); background: var(--surface); }
+:is(.dining-experience, .dining-stack) .manager-warning-box { border-color: var(--din-amber-line); background: color-mix(in srgb, var(--din-amber-bg) 54%, var(--surface)); }
+:is(.dining-experience, .dining-stack) .reject-reason-box { border-color: #edcccc; background: #fff7f7; }
+
+:is(.dining-experience, .dining-stack) .dining-panel:has(.field-label input[type="number"]) .panel-header .eyebrow { color: var(--din-green); }
+:is(.dining-experience, .dining-stack) .dining-panel:has(.field-label input[type="number"]) .form-grid-2 + .form-grid-2 { margin-top: 12px; }
+
+/* All nested cards use compact, bounded layout and avoid viewport overflow. */
+:is(.dining-experience, .dining-stack) :is(.request-history-expanded, .manager-request-expanded, .manager-request-day-summary, .meal-days-stack, .mini-day-list, .market-item-list, .market-item-row, .market-top-fields, .form-grid-2, .manager-meal-grid, .weekday-exception-meals) { min-width: 0; max-width: 100%; }
+:is(.dining-experience, .dining-stack) .meal-days-stack > *,
+:is(.dining-experience, .dining-stack) .mini-day-list > *,
+:is(.dining-experience, .dining-stack) .manager-request-day-summary > * { min-width: 0; }
+:is(.dining-experience, .dining-stack) .dining-submit { width: 100%; }
+:is(.dining-experience, .dining-stack) :is(.info-panel, .state-card, .manager-warning-box, .meal-policy-note) { overflow-wrap: anywhere; }
+
+/* Blue theme remains close to Light, with a cooler surface and blue-neutral outlines. */
+:root[data-theme="blue"] :is(.dining-experience, .dining-stack) {
+  --din-blue-bg: #eaf3fc;
+  --din-blue-line: #c7dced;
+  --din-blue-text: #315f8a;
+  --din-green-bg: #edf7f1;
+  --din-green-line: #cde3d6;
+  --din-coral-bg: #fff1ed;
+  --din-coral-line: #efd4cc;
+  --din-violet-bg: #f2f1fb;
+  --din-violet-line: #dad8ee;
+  --din-amber-bg: #fff6e8;
+  --din-amber-line: #ecddbf;
+  --din-teal-bg: #edf6f8;
+  --din-teal-line: #cbe1e7;
+}
+
+:root[data-theme="blue"] :is(.dining-stack) > .dining-section-title { border-color: #cbddec; background: linear-gradient(112deg, #eaf3fc, #f8fbff 60%, #eef6f8); }
+:root[data-theme="blue"] :is(.dining-experience, .dining-stack) .dining-brand-mark { border-color: #c4d9ec; background: #deecf9; color: #316b9f; }
+:root[data-theme="blue"] :is(.dining-experience, .dining-stack) .dining-section-title h1 { color: #1f405d; }
+
+/* Dark theme gets low-luminance tinted surfaces, not bright pastel cards. */
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) {
+  --din-blue-bg: #1c2b3c;
+  --din-blue-line: #354b62;
+  --din-blue-text: #a9c5e2;
+  --din-green-bg: #1b2d25;
+  --din-green-line: #345345;
+  --din-coral-bg: #302321;
+  --din-coral-line: #59413b;
+  --din-violet-bg: #29253a;
+  --din-violet-line: #48415f;
+  --din-amber-bg: #30291f;
+  --din-amber-line: #574934;
+  --din-teal-bg: #1d2e32;
+  --din-teal-line: #36545b;
+  --din-slate-bg: #202a35;
+  --din-slate-line: #3a4959;
+  --din-panel-shadow: 0 12px 30px rgba(0, 0, 0, .19);
+}
+
+:root[data-theme="dark"] :is(.dining-stack) > .dining-section-title {
+  border-color: #304456;
+  background: linear-gradient(112deg, #172637, #18242f 62%, #1b2d2d);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .17);
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-brand-mark { border-color: #354d65; background: #21364a; color: #a9c7e6; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-section-title h1 { color: #edf4fb; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-section-title-copy .eyebrow,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-section-title p { color: #a7bacb; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-panel { border-color: #2c3d4d; background: var(--surface); }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .panel-header { border-bottom-color: #2b3d4c; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .panel-header .eyebrow { color: #a8c6e3; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-card { background: color-mix(in srgb, var(--din-option-bg) 60%, var(--surface)); border-color: var(--din-option-line); }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-shield { --din-option-ink: #a9c5e2; --din-option-bg: #1c2e42; --din-option-line: #344e68; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-user { --din-option-ink: #c0b3e6; --din-option-bg: #2a2540; --din-option-line: #4b416c; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-calendar { --din-option-ink: #a8cedd; --din-option-bg: #1d3038; --din-option-line: #35535f; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-dining { --din-option-ink: #d8bb8d; --din-option-bg: #342c21; --din-option-line: #5a4a35; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-wallet { --din-option-ink: #a8d7bd; --din-option-bg: #1c3028; --din-option-line: #365849; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-history { --din-option-ink: #bbc9d9; --din-option-bg: #222d39; --din-option-line: #3b4a5a; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .dining-option-copy strong,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-card strong { color: var(--text); }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .default-meal-box { border-color: var(--din-green-line); background: color-mix(in srgb, var(--din-green-bg) 76%, var(--surface)); }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .default-meal-box > div:first-child strong { color: #a9d6bd; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .default-meal-box .secondary-button { border-color: #3a5a49; background: #20372d; color: #b4dfc7; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-summary-strip { border-color: var(--din-blue-line); background: var(--din-blue-bg); color: #b2c9df; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-summary-strip strong { color: #e0edf9; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exceptions-card,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-editor { border-color: var(--din-violet-line); background: color-mix(in srgb, var(--din-violet-bg) 72%, var(--surface)); }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exceptions-heading strong { color: #c5b9e8; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-count,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-item { border-color: var(--din-violet-line); background: #211f31; color: var(--text); }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-summary .meal-value-pill { border-color: #394152; background: #242d3a; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-summary .meal-value-pill strong { color: #e2e8f0; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-actions .icon-button { border-color: #674347; background: #35262a; color: #e0a6a8; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-add { border-color: #51476d; background: #2a2540; color: #c2b5e7; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .weekday-exception-editor-actions .primary-button { background: #6d5b9d; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-card { border-color: #344657; background: #151f29; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-card.weekend-day { border-color: #554a34; background: #28251e; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-card-header { border-bottom-color: #334453; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(1) { border-color: #345245; background: #1b2c25; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(2) { border-color: #354c64; background: #1d2a38; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(3) { border-color: #4a4262; background: #29243a; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(1) > span { color: #a7d3ba; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(2) > span { color: #aec7e3; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row:nth-child(3) > span { color: #c1b5e2; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-new { border-color: #354d67; background: #1c2c3c; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-new .dining-option-icon { border-color: #354d67; background: #23374b; color: #a8c5e2; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-history { border-color: #49415e; background: #282438; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-history .dining-option-icon { border-color: #49415e; background: #332e49; color: #c2b5e3; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-late { border-color: #5b413b; background: #302321; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-choice-late .dining-option-icon { border-color: #654840; background: #3a2926; color: #dbada2; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-history-card,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .manager-request-card { border-color: #344657; background: #131e28; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-history-expanded,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .manager-request-expanded { border-color: #354657; background: #17232f; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .compact-day-card,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .compact-request-day { border-color: #374a5d; background: #1b2835; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-status-approved { border-color: #345848; background: #1d3228; color: #a9d9bd; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-status-submitted { border-color: #594a32; background: #30291f; color: #dec28e; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-status-rejected,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .request-status-cancelled { border-color: #624044; background: #352326; color: #e0aaac; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .manager-request-tabs { border-color: #344657; background: #1a2632; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .manager-request-tabs button.active { background: #263748; color: #c0d7eb; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .market-table-card { border-color: #35495b; background: #141f29; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .market-table-head { background: #1d2a37; color: #b0c2d3; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .market-item-index { border-color: #405a75; background: #25394d; color: #c0d7ef; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .market-total-row { border-color: #365647; background: #1b3026; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .market-total-row strong { color: #b2dec5; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .deposit-toggle-card { border-color: #365647; background: #1b2d25; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .deposit-toggle-card.enabled { border-color: #426b56; background: #20382c; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .late-request-form { border-color: #59413b; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .late-request-approval-strip { border-color: #5a433e; background: #302321; color: #dbb9b0; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .late-request-approval-icon,
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .late-request-approval-strip > strong { border-color: #684a43; background: #3b2a27; color: #e0b5aa; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .late-request-form .manager-meal-grid > div { border-color: #5a433e; background: #241d1c; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .manager-meal-card { border-color: #354b62; background: #1a2937; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .final-meal-audit-card { border-color: #355344; background: #1b2b24; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .personal-tomorrow-meal-card { border-color: #354d67; background: #1c2b3a; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .personal-tomorrow-grid > div { border-color: #3a526a; background: #223243; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .manager-warning-box { border-color: #55472f; background: #2a261e; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .reject-reason-box { border-color: #604044; background: #2d2023; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .market-share-preview { border-color: var(--line); background: var(--surface-2); color: var(--text); }
+
+/* Responsive: compact, icon-left choices and no horizontal spill at 320px. */
+@media (max-width: 760px) {
+  :is(.dining-experience, .dining-stack) .manager-meal-entry-list { grid-template-columns: minmax(0, 1fr); }
+  :is(.dining-experience, .dining-stack) .mini-day-list { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  :is(.dining-stack) > .dining-section-title {
+    gap: 13px;
+    min-height: 88px;
+    margin-inline: 2px;
+    padding: 14px 15px;
+    border-radius: 17px;
+  }
+  :is(.dining-experience, .dining-stack) .dining-brand-mark {
+    flex: 0 0 47px;
+    width: 47px;
+    height: 47px;
+    margin-left: 1px;
+    border-radius: 14px;
+  }
+  :is(.dining-experience, .dining-stack) .dining-section-title h1 { font-size: 23px; }
+  :is(.dining-experience, .dining-stack) .dining-section-title p { font-size: 10.5px; }
+  :is(.dining-experience, .dining-stack) .dining-action-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  :is(.dining-experience, .dining-stack) .request-entry-choice-grid { grid-template-columns: minmax(0, 1fr); }
+  :is(.dining-experience, .dining-stack) .request-choice-card { min-height: 78px; padding: 12px 13px; }
+  :is(.dining-experience, .dining-stack) .request-range-grid { grid-template-columns: minmax(0, 1fr); }
+  :is(.dining-experience, .dining-stack) .weekday-exception-item { grid-template-columns: minmax(0, 1fr); }
+  :is(.dining-experience, .dining-stack) .weekday-exception-actions { justify-content: flex-start; }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper-row { padding-inline: 3px; }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper { grid-template-columns: 24px minmax(17px, 1fr) 24px; gap: 1px; }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper button { width: 24px; height: 24px; }
+  :is(.dining-experience, .dining-stack) .meal-days-stack { grid-template-columns: minmax(0, 1fr); }
+  :is(.dining-experience, .dining-stack) .meal-day-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  :is(.dining-experience, .dining-stack) .meal-stepper-row { padding-inline: 3px; }
+  :is(.dining-experience, .dining-stack) .meal-stepper { grid-template-columns: 25px minmax(18px, 1fr) 25px; gap: 2px; }
+  :is(.dining-experience, .dining-stack) .meal-stepper button { width: 25px; height: 25px; }
+  :is(.dining-experience, .dining-stack) .request-history-meta { flex-wrap: wrap; gap: 5px 10px; }
+  :is(.dining-experience, .dining-stack) .request-history-head { align-items: flex-start; gap: 8px; }
+  :is(.dining-experience, .dining-stack) .market-item-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 34px; gap: 8px; }
+  :is(.dining-experience, .dining-stack) .market-item-name-field { grid-column: 1 / -1; grid-row: 1; }
+  :is(.dining-experience, .dining-stack) .market-input-quantity { grid-column: 1 / 2; grid-row: 2; }
+  :is(.dining-experience, .dining-stack) .market-input-amount { grid-column: 2 / 3; grid-row: 2; }
+  :is(.dining-experience, .dining-stack) .market-item-row > .icon-button { grid-column: 3; grid-row: 2; justify-self: end; align-self: center; }
+  :is(.dining-experience, .dining-stack) .market-item-name-field .market-input-item { min-height: 44px; padding-left: 42px; }
+  :is(.dining-experience, .dining-stack) .market-item-index { top: 22px; transform: none; }
+  :is(.dining-experience, .dining-stack) .late-request-approval-strip { align-items: flex-start; flex-wrap: wrap; }
+  :is(.dining-experience, .dining-stack) .late-request-approval-strip > strong { margin-left: 40px; }
+  :is(.dining-experience, .dining-stack) .dining-panel { padding: 14px; border-radius: 16px; }
+}
+
+@media (max-width: 390px) {
+  :is(.dining-experience, .dining-stack) .dining-option-card { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 9px; padding: 11px; }
+  :is(.dining-experience, .dining-stack) .dining-option-icon { width: 39px; height: 39px; }
+  :is(.dining-experience, .dining-stack) .dining-access-badge { padding: 3px 6px; font-size: 8px; }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper { grid-template-columns: 22px minmax(14px, 1fr) 22px; }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper button { width: 22px; height: 22px; }
+  :is(.dining-experience, .dining-stack) .request-status-group { justify-content: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.dining-experience, .dining-stack) :is(.dining-option-card, .request-choice-card, .request-history-head) { transition: none; }
+}
+
+
+/* Mobile meal-request cards: keep all three meal controls fully inside each day card.
+   The label sits above compact controls so a narrow 1/3-width column cannot overflow. */
+@media (max-width: 600px) {
+  :is(.dining-experience, .dining-stack) .meal-day-card {
+    min-width: 0;
+    padding: 11px 10px;
+  }
+  :is(.dining-experience, .dining-stack) .meal-day-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    min-width: 0;
+  }
+  :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 7px 3px;
+  }
+  :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row > span {
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+    white-space: nowrap;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+  :is(.dining-experience, .dining-stack) .meal-day-fields .meal-stepper {
+    display: grid;
+    grid-template-columns: 22px minmax(16px, 1fr) 22px;
+    justify-content: center;
+    align-items: center;
+    gap: 1px;
+    width: 100%;
+    min-width: 0;
+  }
+  :is(.dining-experience, .dining-stack) .meal-day-fields .meal-stepper button {
+    width: 22px;
+    height: 24px;
+    justify-self: center;
+    padding: 0;
+    border-radius: 7px;
+    font-size: 16px;
+  }
+  :is(.dining-experience, .dining-stack) .meal-day-fields .meal-stepper strong {
+    min-width: 0;
+    width: 100%;
+    font-size: 11px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 360px) {
+  :is(.dining-experience, .dining-stack) .meal-day-card { padding-inline: 8px; }
+  :is(.dining-experience, .dining-stack) .meal-day-fields { gap: 4px; }
+  :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row { padding-inline: 2px; }
+  :is(.dining-experience, .dining-stack) .meal-day-fields .meal-stepper { grid-template-columns: 20px minmax(14px, 1fr) 20px; gap: 0; }
+  :is(.dining-experience, .dining-stack) .meal-day-fields .meal-stepper button { width: 20px; height: 23px; }
+  :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row > span { font-size: 8.5px; }
+}

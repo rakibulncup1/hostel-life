@@ -11,6 +11,7 @@ const historyService = read('src/services/historyService.js');
 const download = read('src/features/menu/AppDownloadPage.jsx');
 const telegram = read('src/features/telegram/TelegramConnectionPage.jsx');
 const menuPages = read('src/features/menu/MenuPages.jsx');
+const legalContent = read('src/content/legalDocuments.js');
 const dining = read('src/features/dining/DiningPage.jsx');
 const header = read('src/components/Header.jsx');
 const platform = read('src/features/platform/SuperAdminPage.jsx');
@@ -51,19 +52,25 @@ test('market edit metadata is hidden until a genuine later edit and card layout 
   assert.match(history, /updated > created/);
   assert.match(history, /hasActualMarketUpdate\(row\) &&/);
   assert.match(history, /history-market-title-row/);
-  assert.match(history, /history-market-bottom-row/);
+  assert.match(history, /history-market-item-count/);
+  assert.doesNotMatch(history, /history-market-bottom-row|history-row-open-hint/);
   assert.match(finishCss, /\.history-market-title-row/);
-  assert.match(finishCss, /\.history-market-bottom-row/);
+  assert.match(finishCss, /\.history-market-copy \.history-market-item-count/);
   assert.match(finishCss, /\.history-market-serial/);
 });
 
-test('mobile market entry keeps the serial in a dedicated grid gutter above the item-name line', () => {
-  assert.match(dining, /market-serial/);
-  assert.match(finishCss, /market-item-row > \.market-serial[\s\S]*?position:\s*relative !important[\s\S]*?inset:\s*auto !important/);
-  assert.match(finishCss, /market-item-row > \.market-serial[\s\S]*?grid-column:\s*1 !important[\s\S]*?grid-row:\s*1 !important/);
-  assert.match(finishCss, /market-item-row > \.market-serial[\s\S]*?transform:\s*translateY\(-4px\)/);
-  assert.match(finishCss, /market-item-row > \.market-input-item[\s\S]*?grid-column:\s*2 \/ 5/);
-  assert.match(finishCss, /@media \(max-width: 560px\)/);
+test('market entry places the serial inside the item-name field without changing saved item text', () => {
+  const diningV2 = read('src/styles/dining-experience-v2.css');
+  const fieldStart = dining.indexOf('<div className="market-item-name-field">');
+  const fieldEnd = dining.indexOf('</div>', fieldStart);
+  const fieldMarkup = dining.slice(fieldStart, fieldEnd);
+  assert.match(fieldMarkup, /market-item-index/);
+  assert.match(fieldMarkup, /<textarea/);
+  assert.match(dining, /value=\{item\.item_name\}/);
+  assert.doesNotMatch(dining, /item_name:\s*`?\$\{index \+ 1\}/);
+  assert.match(diningV2, /\.market-item-name-field/);
+  assert.match(diningV2, /market-item-name-field \.market-input-item \{ min-height: 44px; padding-left: 42px;/);
+  assert.match(diningV2, /market-item-name-field \{ grid-column: 1 \/ -1;/);
 });
 
 test('app install page uses the real PWA prompt and does not advertise a nonexistent APK', () => {
@@ -86,7 +93,7 @@ test('Telegram connection UI keeps the existing secure link, verify and unlink R
 });
 
 test('privacy disclosures match current geo-disabled and retention behavior across app and public pages', () => {
-  for (const policy of [menuPages, publicPrivacy]) {
+  for (const policy of [legalContent, publicPrivacy]) {
     assert.match(policy, /GPS/);
     assert.match(policy, /দেশ[, ]? শহর বা অঞ্চল/);
     assert.match(policy, /৩০ দিনের?/);
@@ -94,17 +101,17 @@ test('privacy disclosures match current geo-disabled and retention behavior acro
     assert.match(policy, /Google Sign-In সংযুক্ত নেই/);
     assert.match(policy, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা (হয়|হয়) না/);
   }
-  assert.match(menuPages, /Password, OTP code/);
+  assert.match(legalContent, /Password, OTP code/);
   assert.match(publicPrivacy, /Password, OTP code/);
-  assert.match(menuPages, /ঐচ্ছিক টেলিগ্রাম সংযোগ/);
+  assert.match(legalContent, /ঐচ্ছিক টেলিগ্রাম সংযোগ/);
   assert.match(publicPrivacy, /ঐচ্ছিক টেলিগ্রাম সংযোগ/);
-  assert.match(menuPages, /টেলিগ্রাম চ্যাট আইডি/);
+  assert.match(legalContent, /টেলিগ্রাম চ্যাট আইডি/);
   assert.match(publicPrivacy, /টেলিগ্রাম চ্যাট আইডি/);
   assert.match(publicPrivacy, /ব্যবহারকারীর তথ্য বিক্রি বা ভাড়া দেওয়া হয় না/);
 });
 
 test('terms align in-app and public rules for private invitations and public site links', () => {
-  for (const terms of [menuPages, publicTerms]) {
+  for (const terms of [legalContent, publicTerms]) {
     assert.match(terms, /ব্যক্তিগত আমন্ত্রণের Join Code ও Invitation Link সুরক্ষিত রাখুন/);
     assert.match(terms, /ব্যক্তিগত Join Code ও Invitation Link/);
     assert.match(terms, /ওয়েবসাইটের সাধারণ ঠিকানা বা Hostel Life-এর পরিচিতি পেজ প্রকাশ্যে শেয়ার করা যায়/);
@@ -145,6 +152,6 @@ test('app-managed session IP and browser metadata are cleared after 30 days with
   assert.match(retentionMigration, /blocked_until <= v_now/);
   assert.doesNotMatch(retentionMigration, /DROP TABLE|TRUNCATE|DELETE FROM public\.(profiles|hostel_memberships|monthly_periods|daily_meal_records)/i);
   assert.match(retentionVerify, /hl_login_sessions_metadata_retention/);
-  assert.match(menuPages, /অ্যাপের সেশন তথ্যে থাকা IP address.*৩০ দিনের .{1,12} পূর্ণ হলে নির্ধারিত দৈনিক .{1,12} cleanup-এ মুছে ফেলা/);
+  assert.match(legalContent, /অ্যাপের সেশন তথ্যে থাকা IP address.*৩০ দিনের .{1,12} পূর্ণ হলে নির্ধারিত দৈনিক .{1,12} cleanup-এ মুছে ফেলা/);
   assert.match(publicPrivacy, /অ্যাপের সেশন তথ্যে থাকা IP address.*৩০ দিনের .{1,12} পূর্ণ হলে নির্ধারিত দৈনিক .{1,12} cleanup-এ মুছে ফেলা/);
 });

@@ -1,0 +1,527 @@
+/* Hostel Life v14 — menu interiors aligned with the Dashboard design system. */
+
+.menu-route {
+  --menu-page-accent: #4779ad;
+  --menu-page-accent-strong: #315f91;
+  --menu-page-accent-soft: #eef5fc;
+  --menu-page-accent-border: #d6e4f2;
+  --menu-page-green: #398465;
+  --menu-page-green-soft: #edf7f1;
+  --menu-page-green-border: #d2e8da;
+  --menu-page-violet: #7565a8;
+  --menu-page-violet-soft: #f3f0fb;
+  --menu-page-violet-border: #dfd8ef;
+  --menu-page-amber: #9a7137;
+  --menu-page-amber-soft: #fff7e9;
+  --menu-page-amber-border: #efdfc3;
+  --menu-page-coral: #a76055;
+  --menu-page-coral-soft: #fff1ed;
+  --menu-page-coral-border: #efd7d1;
+}
+
+:root[data-theme="blue"] .menu-route {
+  --menu-page-accent: #3d79af;
+  --menu-page-accent-strong: #285f92;
+  --menu-page-accent-soft: #edf5fd;
+  --menu-page-accent-border: #d2e2f2;
+  --menu-page-green-soft: #eff8f3;
+  --menu-page-violet-soft: #f4f2fc;
+  --menu-page-amber-soft: #fff8ed;
+  --menu-page-coral-soft: #fff3ef;
+}
+
+:root[data-theme="dark"] .menu-route {
+  --menu-page-accent: #8bb6df;
+  --menu-page-accent-strong: #a9cceb;
+  --menu-page-accent-soft: #1b2b3b;
+  --menu-page-accent-border: #30465b;
+  --menu-page-green: #83c6a0;
+  --menu-page-green-soft: #182d23;
+  --menu-page-green-border: #315542;
+  --menu-page-violet: #b2a3dc;
+  --menu-page-violet-soft: #29243a;
+  --menu-page-violet-border: #494062;
+  --menu-page-amber: #d5b27a;
+  --menu-page-amber-soft: #302819;
+  --menu-page-amber-border: #55452b;
+  --menu-page-coral: #d69a8e;
+  --menu-page-coral-soft: #342321;
+  --menu-page-coral-border: #5c3c37;
+}
+
+/* ---------- Common menu page frame and headings ---------- */
+.menu-route .page-stack {
+  gap: clamp(12px, 1.6vw, 17px);
+}
+.menu-route .menu-page-intro-card,
+.menu-route .manager-page-title.menu-page-intro-card,
+.menu-route .telegram-menu-intro-card {
+  border-color: var(--menu-page-accent-border) !important;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--menu-page-accent-soft) 78%, var(--surface)), var(--surface) 78%) !important;
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--menu-page-accent-strong) 5%, transparent) !important;
+}
+.menu-route .menu-page-intro-card .eyebrow,
+.menu-route .manager-page-title .manager-eyebrow,
+.menu-route .telegram-menu-intro-card .eyebrow {
+  color: var(--menu-page-accent-strong);
+}
+.menu-route .menu-page-intro-card h1,
+.menu-route .manager-page-title h1,
+.menu-route .telegram-menu-intro-card h1 {
+  color: var(--text);
+  letter-spacing: -.035em;
+}
+.menu-route .menu-page-intro-card p,
+.menu-route .manager-page-title p,
+.menu-route .telegram-menu-intro-card p {
+  color: var(--muted);
+  max-width: 66ch;
+}
+.menu-route .manager-eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--menu-page-accent-border);
+  border-radius: 999px;
+  background: var(--menu-page-accent-soft);
+  color: var(--menu-page-accent-strong);
+  font-size: 10px;
+  font-weight: 850;
+}
+.menu-route .manager-eyebrow svg { flex: 0 0 auto; }
+.menu-route .neutral-page-eyebrow { background: var(--surface-2); border-color: var(--line); color: var(--muted); }
+.menu-route .page-stack > .card:not(.menu-page-intro-card),
+.menu-route .page-stack > form.card,
+.menu-route .page-stack > section.card {
+  border-color: color-mix(in srgb, var(--menu-page-accent-border) 46%, var(--line));
+  border-radius: 16px;
+  box-shadow: 0 3px 13px color-mix(in srgb, var(--text) 4%, transparent);
+}
+.menu-route .section-heading h2,
+.menu-route .panel-header h2,
+.menu-route .modal-head h2 { letter-spacing: -.02em; }
+.menu-route .back-button { flex: 0 0 auto; }
+.menu-route :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--menu-page-accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+/* ---------- Fields, forms and action groups ---------- */
+.menu-route .field-label { color: var(--text); gap: 6px; }
+.menu-route .field-label > span { color: var(--text); font-weight: 750; }
+.menu-route .field-label input,
+.menu-route .field-label select,
+.menu-route .field-label textarea,
+.menu-route input,
+.menu-route select,
+.menu-route textarea {
+  border-color: color-mix(in srgb, var(--menu-page-accent) 17%, var(--line));
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.menu-route .field-label :is(input, select, textarea):focus,
+.menu-route :is(input, select, textarea):focus {
+  border-color: color-mix(in srgb, var(--menu-page-accent) 58%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--menu-page-accent) 12%, transparent);
+}
+.menu-route .form-hint,
+.menu-route .finance-context-note,
+.menu-route .inline-info {
+  border-color: color-mix(in srgb, var(--menu-page-accent) 18%, var(--line));
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 74%, var(--surface));
+  color: var(--muted);
+}
+.menu-route .form-actions-inline,
+.menu-route .confirm-actions,
+.menu-route .report-actions,
+.menu-route .manager-member-actions,
+.menu-route .manager-join-request-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.menu-route .primary-button,
+.menu-route .secondary-button,
+.menu-route .danger-button { min-height: 40px; }
+.menu-route .primary-button.large { min-height: 46px; }
+
+/* ---------- Member directory and member details ---------- */
+.menu-route .all-member-card {
+  border-color: var(--menu-page-accent-border);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--menu-page-accent-soft) 36%, var(--surface)), var(--surface) 58%);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--menu-page-accent-strong) 5%, transparent) !important;
+}
+.menu-route .all-member-head {
+  padding-bottom: 11px;
+  border-bottom: 1px solid color-mix(in srgb, var(--menu-page-accent-border) 72%, var(--line));
+}
+.menu-route .all-member-card .avatar {
+  border: 1px solid var(--menu-page-accent-border);
+  background: var(--menu-page-accent-soft);
+  color: var(--menu-page-accent-strong);
+}
+.menu-route .member-stats-grid > div {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.menu-route .member-stats-grid > div:nth-child(1) { border-color: var(--menu-page-green-border); background: color-mix(in srgb, var(--menu-page-green-soft) 70%, var(--surface)); }
+.menu-route .member-stats-grid > div:nth-child(2) { border-color: var(--menu-page-accent-border); background: color-mix(in srgb, var(--menu-page-accent-soft) 72%, var(--surface)); }
+.menu-route .member-stats-grid > div:nth-child(3) { border-color: var(--menu-page-violet-border); background: color-mix(in srgb, var(--menu-page-violet-soft) 70%, var(--surface)); }
+.menu-route .member-stats-grid > div:nth-child(4) { border-color: var(--menu-page-amber-border); background: color-mix(in srgb, var(--menu-page-amber-soft) 70%, var(--surface)); }
+.menu-route .member-stats-grid > div > span { color: var(--muted); }
+.menu-route .member-stats-grid > div > strong { color: var(--text); overflow-wrap: anywhere; }
+.menu-route .member-balance-row {
+  border-color: var(--menu-page-green-border);
+  background: color-mix(in srgb, var(--menu-page-green-soft) 76%, var(--surface));
+}
+.menu-route .member-balance-row.balance-negative {
+  border-color: var(--menu-page-coral-border);
+  background: color-mix(in srgb, var(--menu-page-coral-soft) 76%, var(--surface));
+}
+
+/* ---------- Khala ledger, period tabs and recipient history ---------- */
+.menu-route .khala-period-tabs button[aria-selected="true"],
+.menu-route .khala-period-tabs button.is-active {
+  border-color: var(--menu-page-accent-border);
+  background: var(--menu-page-accent-soft);
+  color: var(--menu-page-accent-strong);
+}
+.menu-route .khala-view-hero-metrics > *,
+.menu-route .khala-period-total,
+.menu-route .khala-total-heading {
+  border-color: var(--menu-page-green-border);
+  background: color-mix(in srgb, var(--menu-page-green-soft) 72%, var(--surface));
+  border-radius: 13px;
+}
+.menu-route .khala-public-row,
+.menu-route .khala-ledger-row,
+.menu-route .khala-manager-ledger-row {
+  border: 1px solid color-mix(in srgb, var(--menu-page-violet-border) 70%, var(--line));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--menu-page-violet-soft) 22%, var(--surface));
+}
+.menu-route .khala-public-amount,
+.menu-route .khala-period-total strong,
+.menu-route .khala-total-heading strong { color: var(--menu-page-green); }
+.menu-route .khala-period-badge.is-editable { border-color: var(--menu-page-green-border); background: var(--menu-page-green-soft); color: var(--menu-page-green); }
+.menu-route .khala-period-badge.is-locked { border-color: var(--line); background: var(--surface-2); color: var(--muted); }
+.menu-route .khala-period-badge.is-current { border-color: var(--menu-page-accent-border); background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+.menu-route .khala-view-readonly-note { border-color: var(--menu-page-amber-border); background: var(--menu-page-amber-soft); color: var(--menu-page-amber); }
+
+/* ---------- Ranking pages ---------- */
+.menu-route .ranking-row {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+.menu-route .ranking-row:first-child,
+.menu-route .ranking-row.first-rank {
+  border-color: var(--menu-page-amber-border);
+  background: color-mix(in srgb, var(--menu-page-amber-soft) 76%, var(--surface));
+}
+.menu-route .ranking-row:hover { border-color: var(--menu-page-accent-border); box-shadow: 0 5px 16px color-mix(in srgb, var(--text) 5%, transparent); }
+.menu-route .ranking-hero-icon { border: 1px solid var(--menu-page-amber-border); background: var(--menu-page-amber-soft); color: var(--menu-page-amber); }
+.menu-route .ranking-hero-icon.shopper { border-color: var(--menu-page-green-border); background: var(--menu-page-green-soft); color: var(--menu-page-green); }
+.menu-route .ranking-hero-icon.depositor { border-color: var(--menu-page-violet-border); background: var(--menu-page-violet-soft); color: var(--menu-page-violet); }
+.menu-route .rank-value { color: var(--menu-page-accent-strong); }
+
+/* ---------- System documents, help and developer contact ---------- */
+.menu-route .policy-content-card,
+.menu-route .policy-document-card {
+  border-color: var(--menu-page-accent-border);
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 18%, var(--surface));
+}
+.menu-route .policy-document-lead {
+  border-color: var(--menu-page-accent-border);
+  border-radius: 13px;
+  background: var(--menu-page-accent-soft);
+  color: var(--menu-page-accent-strong);
+}
+.menu-route .policy-section-block + .policy-section-block { border-top-color: var(--line); }
+.menu-route .policy-section-block h2,
+.menu-route .policy-section-block h3 { color: var(--text); }
+.menu-route .policy-section-block p,
+.menu-route .policy-section-block li { color: var(--muted); }
+.menu-route .developer-contact {
+  border: 1px solid var(--menu-page-accent-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 40%, var(--surface));
+}
+.menu-route .developer-contact-icon { border-color: var(--menu-page-accent-border); background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+.menu-route .developer-note { border-color: var(--menu-page-amber-border); background: var(--menu-page-amber-soft); }
+.menu-route .howto-timing-panel { border-color: var(--menu-page-accent-border); background: color-mix(in srgb, var(--menu-page-accent-soft) 32%, var(--surface)); }
+.menu-route .howto-time-card { border-radius: 13px; border: 1px solid var(--menu-page-accent-border); background: var(--surface); }
+.menu-route .howto-time-card.is-final { border-color: var(--menu-page-green-border); background: color-mix(in srgb, var(--menu-page-green-soft) 76%, var(--surface)); }
+.menu-route .howto-time-card.is-late { border-color: var(--menu-page-coral-border); background: color-mix(in srgb, var(--menu-page-coral-soft) 76%, var(--surface)); }
+.menu-route .howto-time-card.is-month { border-color: var(--menu-page-violet-border); background: color-mix(in srgb, var(--menu-page-violet-soft) 76%, var(--surface)); }
+.menu-route .howto-time-card strong { color: var(--text); }
+.menu-route .howto-faq-group { border-color: var(--menu-page-accent-border); background: var(--surface); }
+.menu-route .howto-faq-group[open] { border-color: color-mix(in srgb, var(--menu-page-accent) 42%, var(--line)); }
+.menu-route .howto-faq-group-icon { border: 1px solid var(--menu-page-accent-border); background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+.menu-route .howto-faq-item[open] { background: color-mix(in srgb, var(--menu-page-accent-soft) 34%, var(--surface)); }
+.menu-route .howto-faq-index { background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+
+/* ---------- Manager workspace: lifecycle, membership, joins and finance ---------- */
+.menu-route .manager-form-card {
+  border-color: color-mix(in srgb, var(--menu-page-accent-border) 76%, var(--line));
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 16%, var(--surface));
+}
+.menu-route .manager-current-period {
+  border: 1px solid var(--menu-page-accent-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 82%, var(--surface));
+}
+.menu-route .manager-current-period > span { color: var(--menu-page-accent-strong); }
+.menu-route .manager-current-period > strong { color: var(--text); }
+.menu-route .manager-warning-box {
+  border: 1px solid var(--menu-page-amber-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--menu-page-amber-soft) 78%, var(--surface));
+  color: var(--text);
+}
+.menu-route .manager-warning-box > svg { color: var(--menu-page-amber); }
+.menu-route .manager-warning-box p,
+.menu-route .manager-warning-box small { color: var(--muted); }
+.menu-route .manager-role-hero {
+  border: 1px solid var(--menu-page-violet-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--menu-page-violet-soft) 75%, var(--surface));
+}
+.menu-route .assistant-choice-card {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface);
+}
+.menu-route .assistant-choice-card.selected {
+  border-color: var(--menu-page-green-border);
+  background: color-mix(in srgb, var(--menu-page-green-soft) 78%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--menu-page-green) 8%, transparent);
+}
+.menu-route .assistant-choice-avatar { background: var(--menu-page-violet-soft); color: var(--menu-page-violet); }
+.menu-route .manager-member-row,
+.menu-route .manager-join-request-panel,
+.menu-route .manager-join-request-row {
+  border-color: var(--menu-page-accent-border);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 25%, var(--surface));
+}
+.menu-route .manager-member-inactive { opacity: .78; }
+.menu-route .manager-request-status { border-radius: 999px; }
+.menu-route .manager-request-message { border-color: var(--menu-page-accent-border); background: var(--menu-page-accent-soft); }
+.menu-route .manager-request-message.muted { border-color: var(--line); background: var(--surface-2); }
+.menu-route .manager-invite-ready {
+  border: 1px solid var(--menu-page-green-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--menu-page-green-soft) 78%, var(--surface));
+}
+.menu-route .manager-invite-ready-icon { background: var(--menu-page-green-soft); color: var(--menu-page-green); }
+.menu-route .manager-invite-footnote { color: var(--muted); }
+.menu-route .khala-entry-form { border-color: var(--menu-page-violet-border); }
+.menu-route .khala-manager-ledger-row { border-color: var(--menu-page-violet-border); background: color-mix(in srgb, var(--menu-page-violet-soft) 35%, var(--surface)); }
+.menu-route .khala-entry-kind { color: var(--menu-page-violet); }
+.menu-route .khala-ledger-recipient strong { color: var(--text); }
+.menu-route .manager-overlap-row { border-color: var(--menu-page-amber-border); background: var(--menu-page-amber-soft); }
+.menu-route .month-close-confirm-impact { border-color: var(--menu-page-amber-border); background: var(--menu-page-amber-soft); }
+.menu-route .month-close-confirm-impact.has-cancellations { border-color: var(--menu-page-coral-border); background: var(--menu-page-coral-soft); }
+
+/* ---------- Meal sheet and report centre ---------- */
+.menu-route .report-toolbar,
+.menu-route .report-summary-strip,
+.menu-route .report-section-card,
+.menu-route .report-final-preview {
+  border-color: var(--menu-page-accent-border);
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 28%, var(--surface));
+}
+.menu-route .report-option {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.menu-route .report-option:nth-child(4n + 1) { border-color: var(--menu-page-accent-border); background: color-mix(in srgb, var(--menu-page-accent-soft) 56%, var(--surface)); }
+.menu-route .report-option:nth-child(4n + 2) { border-color: var(--menu-page-green-border); background: color-mix(in srgb, var(--menu-page-green-soft) 56%, var(--surface)); }
+.menu-route .report-option:nth-child(4n + 3) { border-color: var(--menu-page-violet-border); background: color-mix(in srgb, var(--menu-page-violet-soft) 56%, var(--surface)); }
+.menu-route .report-option:nth-child(4n) { border-color: var(--menu-page-amber-border); background: color-mix(in srgb, var(--menu-page-amber-soft) 56%, var(--surface)); }
+.menu-route .report-option-icon { border-radius: 11px; background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+.menu-route .report-option:nth-child(4n + 2) .report-option-icon { background: var(--menu-page-green-soft); color: var(--menu-page-green); }
+.menu-route .report-option:nth-child(4n + 3) .report-option-icon { background: var(--menu-page-violet-soft); color: var(--menu-page-violet); }
+.menu-route .report-option:nth-child(4n) .report-option-icon { background: var(--menu-page-amber-soft); color: var(--menu-page-amber); }
+.menu-route .report-table-wrap,
+.menu-route .table-wrap { border: 1px solid var(--menu-page-accent-border); border-radius: 13px; background: var(--surface); }
+.menu-route .report-table th,
+.menu-route .meal-sheet-table th { background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+.menu-route .report-table tbody tr:nth-child(even),
+.menu-route .meal-sheet-table tbody tr:nth-child(even) { background: color-mix(in srgb, var(--menu-page-accent-soft) 24%, var(--surface)); }
+.menu-route .report-kpi-grid > * { border: 1px solid var(--menu-page-accent-border); border-radius: 12px; background: color-mix(in srgb, var(--menu-page-accent-soft) 56%, var(--surface)); }
+.menu-route .report-page-note { border-color: var(--menu-page-accent-border); background: var(--menu-page-accent-soft); }
+
+/* ---------- Archive and correction workspace ---------- */
+.menu-route .archive-correction-header,
+.menu-route .archive-list-section,
+.menu-route .archive-correction-section {
+  border-color: var(--menu-page-accent-border);
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 22%, var(--surface));
+}
+.menu-route .archive-hero-mark,
+.menu-route .archive-dialog-icon { border: 1px solid var(--menu-page-accent-border); background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+.menu-route .archive-hero-stat,
+.menu-route .archive-correction-metrics > .metric,
+.menu-route .archive-readonly-member-metrics > .metric {
+  border: 1px solid var(--menu-page-accent-border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--menu-page-accent-soft) 66%, var(--surface));
+}
+.menu-route .archive-kind-tabs button[aria-selected="true"],
+.menu-route .archive-primary-view-tabs button[aria-selected="true"] { border-color: var(--menu-page-accent-border); background: var(--menu-page-accent-soft); color: var(--menu-page-accent-strong); }
+.menu-route .archive-correction-record,
+.menu-route .archive-audit-record { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.menu-route .archive-readonly-market-record { border-color: var(--menu-page-green-border); }
+.menu-route .archive-readonly-member-record { border-color: var(--menu-page-violet-border); }
+.menu-route .archive-access-badge.is-editable { border-color: var(--menu-page-green-border); background: var(--menu-page-green-soft); color: var(--menu-page-green); }
+.menu-route .archive-access-badge.is-locked { border-color: var(--line); background: var(--surface-2); color: var(--muted); }
+.menu-route .archive-readonly-warning,
+.menu-route .archive-reopen-warning { border-color: var(--menu-page-amber-border); background: var(--menu-page-amber-soft); }
+.menu-route .archive-correction-dialog { border-color: var(--menu-page-accent-border); }
+
+/* ---------- Telegram, notices and nested dialogs ---------- */
+.menu-route .telegram-connection-card { border-color: #cfe2ef; background: color-mix(in srgb, #eaf5fc 20%, var(--surface)); }
+.menu-route .telegram-card-hero { border-bottom-color: var(--line); }
+.menu-route .telegram-brand-icon { border: 1px solid #cfe2ef; background: #eaf5fc; }
+.menu-route .telegram-unavailable { border-color: var(--menu-page-amber-border); background: var(--menu-page-amber-soft); color: var(--text); }
+.menu-route .telegram-connected-note { border: 1px solid var(--menu-page-green-border); background: var(--menu-page-green-soft); color: var(--menu-page-green); }
+.menu-route .current-hostel-notice-card { border-color: var(--menu-page-amber-border); background: color-mix(in srgb, var(--menu-page-amber-soft) 60%, var(--surface)); }
+.menu-route .current-hostel-notice-live { border: 1px solid var(--menu-page-green-border); background: var(--menu-page-green-soft); color: var(--menu-page-green); }
+.menu-route .modal-backdrop { overscroll-behavior: contain; }
+.menu-route .modal-panel,
+.menu-route .confirmation-modal { border-color: var(--menu-page-accent-border); }
+.menu-route .modal-head { border-bottom-color: var(--line); }
+.menu-route .confirm-description { color: var(--muted); }
+.menu-route .empty-state-card,
+.menu-route .state-card { border-radius: 15px; }
+.menu-route .empty-state-card > svg { color: var(--menu-page-accent-strong); }
+
+/* Public install page is rendered outside AppShell/menu-route. */
+.app-download-page .app-download-single-card {
+  border-color: var(--menu-page-accent-border, #d6e4f2);
+  border-radius: 19px;
+  box-shadow: 0 6px 22px rgba(29, 65, 93, .07);
+}
+.app-download-page .app-download-single-icon { border: 1px solid #d6e4f2; border-radius: 17px; background: #eef5fc; }
+.app-download-page .app-download-manual-guide { border: 1px solid #d6e4f2; border-radius: 14px; background: #f1f6fc; color: #315f91; }
+:root[data-theme="dark"] .app-download-page .app-download-single-card { border-color: #30465b; box-shadow: 0 10px 30px rgba(0,0,0,.22); }
+:root[data-theme="dark"] .app-download-page .app-download-single-icon,
+:root[data-theme="dark"] .app-download-page .app-download-manual-guide { border-color: #30465b; background: #1b2b3b; color: #a9cceb; }
+
+/* Dining request hub header used by both ordinary members and operational managers. */
+.dining-request-hub-heading {
+  min-width: 0;
+  padding: 12px 15px;
+  border: 1px solid var(--menu-page-accent-border, #d6e4f2);
+  border-radius: 14px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--menu-page-accent-soft, #eef5fc) 82%, var(--surface)), var(--surface));
+}
+.dining-request-hub-heading .eyebrow { color: var(--menu-page-accent-strong, #315f91); }
+.dining-request-hub-heading h1 { margin-top: 2px; font-size: clamp(18px, 2vw, 22px); }
+.dining-request-hub-heading p { margin-top: 3px; font-size: 11.5px; line-height: 1.5; color: var(--muted); }
+:root[data-theme="dark"] .dining-request-hub-heading { border-color: #30465b; background: linear-gradient(110deg, #172737, var(--surface)); }
+:root[data-theme="dark"] .dining-request-hub-heading .eyebrow { color: #a9cceb; }
+
+@media (max-width: 700px) {
+  .menu-route .page-stack { gap: 12px; }
+  .menu-route .menu-member-grid { grid-template-columns: minmax(0, 1fr); }
+  .menu-route .manager-form-card,
+  .menu-route .report-section-card,
+  .menu-route .report-toolbar { padding: 13px; }
+  .menu-route .form-actions-inline > button,
+  .menu-route .confirm-actions > button { flex: 1 1 140px; }
+  .menu-route .manager-member-actions,
+  .menu-route .manager-join-request-actions { width: 100%; }
+  .menu-route .manager-member-actions > button,
+  .menu-route .manager-join-request-actions > button { flex: 1 1 120px; }
+  .menu-route .report-actions { width: 100%; }
+  .menu-route .report-actions > button { flex: 1 1 135px; }
+  .menu-route .report-download-grid,
+  .menu-route .report-download-grid-four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .menu-route .howto-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .menu-route .manager-request-person,
+  .menu-route .manager-request-heading { min-width: 0; }
+  .menu-route .manager-request-row,
+  .menu-route .manager-join-request-row { min-width: 0; }
+  .menu-route .report-table-wrap,
+  .menu-route .table-wrap { max-width: 100%; overflow-x: auto; }
+  .menu-route .report-table,
+  .menu-route .meal-sheet-table { min-width: 640px; }
+  .app-download-page { padding-inline: 12px; }
+  .app-download-page .app-download-single-card { padding: 20px 15px; }
+  .dining-request-hub-heading { padding: 11px 13px; }
+}
+
+@media (max-width: 380px) {
+  .menu-route .howto-time-grid,
+  .menu-route .report-download-grid,
+  .menu-route .report-download-grid-four { grid-template-columns: minmax(0, 1fr); }
+  .menu-route .member-stats-grid { gap: 7px; }
+  .menu-route .member-stats-grid > div { padding: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-route .ranking-row,
+  .menu-route .archive-month-card,
+  .menu-route .report-option { transition: none !important; }
+}
+
+/* History mobile actions: two full-width equal controls, retaining compact height. */
+@media (max-width: 640px) {
+  .history-experience .history-title-actions.has-export-action {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    width: 100% !important;
+    gap: 8px;
+  }
+  .history-experience .history-title-actions.has-export-action > .secondary-button {
+    display: inline-flex;
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    flex: initial !important;
+    justify-content: center;
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
+  .history-experience .history-title-actions.single-action {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* History modal scroll containment: the document stays still while the detail pane scrolls. */
+.history-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+.history-market-detail-modal {
+  width: min(650px, 100%);
+  max-height: min(88dvh, 820px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+}
+.history-market-detail-modal > * { min-width: 0; }
+:root[data-theme="dark"] .history-market-detail-modal { background: var(--surface); border-color: var(--line); }

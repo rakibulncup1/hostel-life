@@ -12,6 +12,7 @@ const adminCss = read('src/styles/platform-visual-refresh.css');
 
  test('public entry pages load the scoped visual stylesheet and theme switcher', () => {
   assert.match(main, /styles\/public-entry\.css/);
+  assert.match(main, /styles\/run65-entry-windows\.css/);
   assert.match(main, /styles\/platform-visual-refresh\.css/);
   assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
   assert.match(onboarding, /<EntryThemeSwitcher\s*\/>/);
@@ -19,7 +20,7 @@ const adminCss = read('src/styles/platform-visual-refresh.css');
 
 test('registration and onboarding preserve responsive presentation hooks', () => {
   assert.match(auth, /auth-register-form/);
-  assert.match(auth, /register-email-note/);
+  assert.match(auth, /register-email-label-note/);
   assert.match(onboarding, /onboarding-mode-picker/);
   assert.match(onboarding, /onboarding-action-panel/);
   assert.match(publicCss, /@media \(max-width: 640px\)/);

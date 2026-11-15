@@ -29,6 +29,17 @@ import './styles/run52-ui-security-polish.css';
 import './styles/run53_info_box_icon_cleanup.css';
 import './styles/platform-admin-final-polish.css';
 import './styles/app-finish-polish-v61.css';
+import './styles/menu-experience-v1.css';
+import './styles/dashboard-reimagined-original.css';
+import './styles/dining-experience-v2.css';
+import './styles/dining-finish-v13.css';
+import './styles/history-finish-v13.css';
+import './styles/profile-finish-v13.css';
+import './styles/menu-interior-experience-v14.css';
+import './styles/finishing-polish-v15.css';
+import './styles/run49-ui-refinement.css';
+import './styles/run63_focused_fixes.css';
+import './styles/run65-entry-windows.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();

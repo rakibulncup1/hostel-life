@@ -19,13 +19,14 @@ test('closed-month access explanation remains visible and receives readable card
   assert.match(css, /\.archive-correction-page \.archive-correction-access-note\s*\{[\s\S]*?border-left:[\s\S]*?background:\s*linear-gradient/);
 });
 
-test('history top guidance uses more breathing room while remaining theme-aware', () => {
+test('History page header is clean and the new History color system is theme-aware', () => {
   const page = read('src/features/history/HistoryPage.jsx');
-  const css = read('src/features/history/history-page-visual-refinement.css');
-  assert.match(page, /history-intro-guidance-box/);
-  assert.match(css, /\.page-stack \.history-title-row \.history-intro-guidance-box\s*\{[\s\S]*?min-height:\s*60px/);
-  assert.match(css, /var\(--primary-soft\)/);
-  assert.match(css, /var\(--surface\)/);
+  const css = read('src/styles/history-finish-v13.css');
+  assert.doesNotMatch(page, /history-intro-guidance-box|সম্পাদনা শুধু যে অ্যাকাউন্ট মাসটি বন্ধ করেছে, সেই অ্যাকাউন্টের জন্য/);
+  assert.match(page, /history-title-actions/);
+  assert.match(css, /--history-blue-bg/);
+  assert.match(css, /:root\[data-theme=\"blue\"\]/);
+  assert.match(css, /:root\[data-theme=\"dark\"\]/);
 });
 
 test('history market cards receive dedicated visual classes without changing their click action', () => {

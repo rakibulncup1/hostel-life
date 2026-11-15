@@ -1,0 +1,195 @@
+/* Hostel Life Run49 — scoped, presentation-only finishing refinements. */
+
+/* Entry surfaces use the same theme tokens as the signed-in application. */
+.auth-page .auth-form-toolbar-label.auth-toolbar-pill,
+.onboarding-account-setup-chip {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--text) 5%, transparent);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.auth-page .auth-form-toolbar-label.auth-toolbar-pill svg,
+.onboarding-account-setup-chip svg { color: var(--primary-strong); }
+.auth-page .auth-form-toolbar { align-items: center; }
+.auth-page .auth-header { max-width: 560px; }
+.auth-page .auth-header h2 { max-width: 22ch; text-wrap: balance; }
+.auth-page .auth-header p { max-width: 48ch; line-height: 1.7; }
+.auth-shell-compact { width: min(760px, 100%); }
+.auth-shell-compact .auth-form-panel { width: 100%; max-width: none; min-width: 0; padding: clamp(22px, 4vw, 42px); }
+.auth-shell-compact .auth-compact-brand {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  margin: 0 auto 18px; color: var(--text); font-size: 17px; font-weight: 900;
+}
+.auth-shell-compact .auth-compact-brand svg { flex: 0 0 auto; }
+.auth-shell-compact .auth-header { margin-bottom: 18px; }
+.auth-shell-compact .auth-header h2 { max-width: none; }
+.auth-shell-compact .auth-header p { max-width: 50ch; }
+.auth-form-panel .password-reset-policy {
+  border-left: 1px solid var(--line) !important;
+  box-shadow: none;
+}
+.auth-form-panel .password-reset-policy p {
+  border-left: 1px solid var(--line) !important;
+  background: var(--surface);
+}
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy p {
+  border-left-color: var(--line) !important;
+}
+.auth-form-panel .password-reset-policy-title svg { background: var(--surface-2); }
+.auth-page .register-email-note { max-width: 60ch; }
+
+/* Minimal onboarding topbar and centred account actions on every viewport. */
+.onboarding-topbar { align-items: center; }
+.onboarding-account-setup-chip { flex: 0 0 auto; }
+.onboarding-page .onboarding-choice-intro { text-align: center; margin-inline: auto; }
+.onboarding-page .onboarding-choice-intro h2 { color: var(--text); }
+.onboarding-page .onboarding-note {
+  display: flex; width: min(560px, 100%); justify-content: center; align-items: center;
+  margin: 16px auto 0; padding: 10px 14px; text-align: center;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--surface-2); color: var(--muted);
+}
+.onboarding-page .onboarding-note svg { color: var(--primary-strong); }
+.onboarding-page .onboarding-account-switch-row { display: flex; justify-content: center; width: 100%; margin: 12px auto 0; }
+.onboarding-page .onboarding-switch-account { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.onboarding-page .onboarding-main-card .creation-success-card { margin-top: 12px; }
+.onboarding-page .creation-success-card > .onboarding-switch-account { text-align: center; }
+.onboarding-page .onboarding-action-panel { width: min(560px, 100%); margin-inline: auto; }
+.onboarding-page .onboarding-entry-form-create { width: 100%; }
+.onboarding-page .onboarding-entry-form-create .onboarding-hostel-name-field { margin-top: 0; }
+
+/* Public legal pages adopt the live application surface and accent palette. */
+.menu-route .policy-document-card,
+.menu-route .policy-content-card {
+  border-color: color-mix(in srgb, var(--primary) 18%, var(--line));
+  background: var(--surface);
+}
+.menu-route .policy-document-lead {
+  border-color: color-mix(in srgb, var(--primary) 20%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 66%, var(--surface));
+}
+.menu-route .policy-document-lead > svg { color: var(--primary-strong); }
+.menu-route .policy-section-block h2 { color: var(--primary-strong); }
+.menu-route .policy-section-block p { color: var(--text); }
+
+/* Quiet headers: no empty eyebrow placeholders or heavy bold side labels. */
+.manager-page-title .manager-eyebrow { margin: 0 0 5px; }
+.manager-page-title h1 { font-weight: 850; }
+.manager-page-title p { font-weight: 500; }
+.manager-form-card .panel-header h2,
+.manager-form-card > h2 { font-weight: 850; }
+.manager-form-card .panel-header p { font-weight: 500; }
+.new-month-policy-note,
+.hostel-settings-note {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 11px 13px; border: 1px solid var(--line); border-radius: 13px;
+  background: var(--surface-2); color: var(--muted); font-size: 12px;
+  font-weight: 600; line-height: 1.6;
+}
+.new-month-policy-icon {
+  display: grid; width: 31px; height: 31px; flex: 0 0 31px; place-items: center;
+  border-radius: 10px; background: var(--surface); color: var(--primary-strong);
+}
+.hostel-settings-note svg { flex: 0 0 auto; color: var(--primary-strong); }
+.meal-count-modes-card { display: grid; gap: 14px; }
+.meal-count-mode-list { display: grid; gap: 9px; }
+.meal-count-mode-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-width: 0; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 12px; background: var(--surface-2);
+}
+.meal-count-mode-row > strong { color: var(--text); font-size: 12px; font-weight: 800; }
+.meal-count-mode-options { display: inline-flex; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.meal-count-mode-options button {
+  min-height: 32px; padding: 5px 11px; border: 1px solid transparent;
+  border-radius: 8px; background: transparent; color: var(--muted);
+  font-size: 11px; font-weight: 750; cursor: pointer;
+}
+.meal-count-mode-options button.is-active {
+  border-color: color-mix(in srgb, var(--primary) 25%, var(--line));
+  background: var(--primary-soft); color: var(--primary-strong);
+}
+.meal-count-mode-options button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.report-option { min-width: 0; text-align: left; }
+.report-option strong { font-weight: 850; }
+.report-option small { font-weight: 500; line-height: 1.65; overflow-wrap: anywhere; }
+.report-option b { font-size: 10px; font-weight: 800; }
+
+/* Telegram page: cleaner two-column desktop composition, single-column mobile. */
+.menu-route .telegram-menu-intro-card { width: 100%; }
+.menu-route .telegram-menu-intro-card h1 { margin-top: 0; }
+.menu-route .telegram-menu-intro-card p { max-width: 54ch; }
+.menu-route .telegram-connection-card { max-width: 900px; }
+.menu-route .telegram-card-hero { max-width: 640px; margin-inline: auto; }
+.menu-route .telegram-connect-content,
+.menu-route .telegram-connected-summary,
+.menu-route .telegram-link-result { width: min(100%, 720px); margin-inline: auto; }
+.menu-route .telegram-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.menu-route .telegram-steps > span { min-width: 0; }
+
+/* Previous-month summary and month list alignment. */
+.menu-route .page-stack > .menu-page-intro-card:has(.eyebrow) { background: linear-gradient(120deg, color-mix(in srgb, var(--primary-soft) 76%, var(--surface)), var(--surface) 82%); }
+.menu-route .page-stack > .menu-page-intro-card .eyebrow { color: var(--primary-strong); font-weight: 800; }
+.menu-route .archive-month-list { gap: 11px; }
+.menu-route .archive-month-card { align-items: center; }
+.menu-route .archive-month-copy { text-align: center; }
+.menu-route .archive-month-copy strong,
+.menu-route .archive-month-copy small,
+.menu-route .archive-month-copy span { display: block; text-align: center; }
+
+/* Dining back controls retain their existing size with a more deliberate finish. */
+:is(.dining-experience, .dining-stack) .subpage-back-row .secondary-button {
+  min-height: 36px; padding: 7px 12px; border: 1px solid var(--line);
+  border-radius: 11px; background: var(--surface); color: var(--muted);
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--text) 5%, transparent);
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+}
+:is(.dining-experience, .dining-stack) .subpage-back-row .secondary-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 36%, var(--line));
+  background: var(--primary-soft); color: var(--primary-strong); transform: translateY(-1px);
+}
+
+/* History: remove only the inner total-market box, not the market row/card. */
+.history-list .history-market-entry-card > .history-market-amount {
+  padding: 3px 1px 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: transparent !important; box-shadow: none !important;
+}
+.history-market-amount-label { color: var(--muted); font-size: 11px; font-weight: 750; }
+.history-market-amount-value > strong { color: var(--text); font-size: 15px; font-weight: 850; }
+
+@media (min-width: 760px) {
+  .auth-shell-compact .auth-form-panel { padding: 34px clamp(34px, 5vw, 58px); }
+  .auth-shell-compact .auth-form-panel > .form-stack { max-width: 560px; margin-inline: auto; }
+  .auth-shell-compact .password-reset-policy { grid-template-columns: 1fr; }
+  .onboarding-shell { width: min(820px, 100%); }
+  .onboarding-main-card { padding: 34px clamp(30px, 4vw, 48px); }
+  .onboarding-brand-header { margin-bottom: 24px; }
+  .onboarding-page .onboarding-choice-intro { padding: 0 0 4px; }
+  .menu-route .telegram-connection-card { padding: 28px; }
+}
+
+@media (max-width: 640px) {
+  .auth-page .auth-header h2 { font-size: clamp(21px, 6vw, 26px); }
+  .auth-shell-compact .auth-form-panel { padding: 20px 16px; }
+  .auth-shell-compact .auth-compact-brand { margin-bottom: 12px; font-size: 15px; }
+  .onboarding-topbar { gap: 8px; }
+  .onboarding-account-setup-chip { min-height: 36px; padding: 6px 9px; font-size: 10px; }
+  .onboarding-page .onboarding-note { padding: 9px 10px; font-size: 10px; }
+  .meal-count-mode-row { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .meal-count-mode-options { width: 100%; }
+  .meal-count-mode-options button { flex: 1; }
+  .menu-route .telegram-steps { grid-template-columns: 1fr; }
+  .menu-route .telegram-connection-card { padding: 16px; }
+  .history-list .history-market-entry-card > .history-market-amount { padding: 2px 0 0 !important; }
+}

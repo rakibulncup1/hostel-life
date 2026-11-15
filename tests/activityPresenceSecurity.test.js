@@ -40,7 +40,8 @@ test('Presence records real login/logout separately from throttled Last Seen', (
   assert.match(migration, /FROM private\.hl_login_sessions WHERE user_id=v_user_id/);
   assert.match(authContext, /event === 'SIGNED_IN'/);
   assert.match(authContext, /hl_record_my_login/);
-  assert.match(authContext, /5 \* 60 \* 1000/);
+  assert.match(authContext, /setInterval\(touchPresence, 11 \* 60 \* 1000\)/);
+  assert.match(authContext, /PRESENCE_TOUCH_MIN_INTERVAL_MS = 10 \* 60 \* 1000/);
   assert.match(authContext, /hl_touch_my_presence/);
   assert.match(authContext, /hl_record_my_logout/);
 });
@@ -207,7 +208,7 @@ test('Presence heartbeat resumes immediately after a prolonged idle period', () 
   assert.match(authContext, /const wasIdle = now - lastInteractionAt > 20 \* 60 \* 1000/);
   assert.match(authContext, /if \(wasIdle\) heartbeat\(\)/);
   assert.match(authContext, /setInterval\(verifySessionPolicy, 60 \* 1000\)/);
-  assert.match(authContext, /setInterval\(touchPresence, 5 \* 60 \* 1000\)/);
+  assert.match(authContext, /setInterval\(touchPresence, 11 \* 60 \* 1000\)/);
 });
 
 test('Security event retention notice explains Run35 interim and Run37 scheduled cleanup', () => {
@@ -259,7 +260,7 @@ test('Notification delivery is visible per recipient without copying message con
   assert.match(migration, /'notification\.sent'/);
   assert.match(migration, /recipient_user_id/);
   assert.match(adminPage, /নোটিফিকেশন পাঠানো হয়েছে/);
-  const policy = fs.readFileSync(path.join(root, 'src/features/menu/MenuPages.jsx'), 'utf8');
+  const policy = fs.readFileSync(path.join(root, 'src/content/legalDocuments.js'), 'utf8');
   assert.match(policy, /নিরাপত্তা ও লগইন-সংক্রান্ত রেকর্ড/);
   assert.match(policy, /IP address ও ব্রাউজার\/ডিভাইস-সংক্রান্ত তথ্য ৩০ দিনের .{1,12} পূর্ণ হলে নির্ধারিত দৈনিক .{1,12} cleanup-এ/);
 });

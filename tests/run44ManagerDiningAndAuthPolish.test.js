@@ -25,25 +25,29 @@ test('Market Entry keeps only required period-state warnings without extra helpe
   assert.doesNotMatch(dining.slice(dining.indexOf('function MarketEntryForm'), dining.indexOf('function ManagerMealEntry')), /<div className="form-hint period-start-notice"/);
 });
 
-test('the three My Meal inner screens avoid duplicate manager guidance while member guidance remains', () => {
+test('new request and history screens remove redundant top guidance while late-request controls remain role-aware', () => {
   const editor = dining.slice(dining.indexOf('function MealRequestEditor'), dining.indexOf('function RequestHistory'));
   const history = dining.slice(dining.indexOf('function RequestHistory'), dining.indexOf('function MarketEntryForm'));
   const late = dining.slice(dining.indexOf('function LateMealRequestForm'), dining.indexOf('function ManualMemberMealRequest'));
-  assert.match(editor, /!managerMode && <InfoPanel/);
-  assert.match(history, /!managerMode && <InfoPanel/);
+  assert.match(editor, /mode !== 'new' && !managerMode && <InfoPanel/);
+  assert.doesNotMatch(editor, /mode === 'new'[\s\S]{0,300}<InfoPanel/);
+  assert.doesNotMatch(history, /<InfoPanel/);
   assert.match(late, /managerMode = false/);
-  assert.match(late, /managerMode \? \(/);
-  assert.match(late, /!managerMode && \(periodLoading/);
-  assert.match(late, /!managerMode && <div className="manager-warning-box late-request-warning-box"/);
+  assert.match(late, /managerMode \? 'অনুমোদনের সিদ্ধান্ত না হওয়া পর্যন্ত আবেদনটি কার্যকর হবে না।'/);
+  assert.match(late, /periodLoadError && <div className="state-card state-card-warning"/);
+  assert.match(late, /targetOutsidePeriod && <div className="state-card state-card-warning"/);
+  assert.match(late, /checkingExisting && targetDate/);
+  assert.match(late, /await createLateMealRequest\(/);
   const route = dining.slice(dining.indexOf("if (view === 'late-request')"), dining.indexOf("if (view === 'request-history')"));
   assert.match(route, /managerMode=\{managerDiningUi\}/);
 });
 
-test('Deposit and Other Expense fold period guidance into their single panel', () => {
+test('Deposit and Other Expense keep only the required compact period-state warning', () => {
   const deposit = dining.slice(dining.indexOf('function ManagerDepositForm'), dining.indexOf('function ManagerOtherExpenseForm'));
   const expense = dining.slice(dining.indexOf('function ManagerOtherExpenseForm'), dining.indexOf('export function DiningPage'));
-  assert.match(deposit, /periodStartNotice \|\| 'সদস্য, তারিখ ও জমার পরিমাণ যাচাই করে সংরক্ষণ করুন।'/);
-  assert.match(expense, /periodStartNotice \|\| 'এই খরচ নির্বাচিত সদস্যের হিসাব থেকে বাদ যাবে।/);
+  assert.match(deposit, /periodStartNotice && <div className="meal-policy-note is-warning"/);
+  assert.match(expense, /periodStartNotice && <div className="meal-policy-note is-warning"/);
+  assert.doesNotMatch(deposit + expense, /<InfoPanel/);
   assert.doesNotMatch(deposit + expense, /className="form-hint period-start-notice"/);
 });
 

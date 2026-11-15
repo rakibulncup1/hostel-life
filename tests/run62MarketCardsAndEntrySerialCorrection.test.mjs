@@ -9,7 +9,8 @@ const entryCss = read('src/styles/app-finish-polish-v61.css');
 const sharedFinishCss = entryCss;
 
 test('History market card amount is a labelled full-width footer beneath the buyer details', () => {
-  assert.match(history, /history-market-title-row[\s\S]*?history-market-bottom-row/);
+  assert.match(history, /history-market-title-row[\s\S]*?history-market-item-count[\s\S]*?history-market-serial/);
+  assert.doesNotMatch(history, /history-market-bottom-row|history-row-open-hint/);
   assert.match(history, /history-market-amount-label[^>]*>মোট বাজার/);
   assert.match(history, /history-market-amount-value[\s\S]*?formatCurrency\(row\.total_amount\)[\s\S]*?row\.credit_to_buyer \? 'জমায় যুক্ত' : 'জমায় নয়'/);
   assert.match(historyCss, /grid-template-areas:[\s\S]*?\"copy chevron\"[\s\S]*?\"amount amount\"/);

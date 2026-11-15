@@ -31,10 +31,11 @@ test('hostel Auth cleanup happens after database delete through the existing gua
   assert.match(platform, /new Set\(members\.map\(\(member\) => String\(member\?\.user_id/);
 });
 
-test('history retention notice uses only the already-loaded policy values', () => {
-  assert.match(history, /history-retention-policy/);
+test('history retention summary uses only the already-loaded policy values without a long instruction card', () => {
+  assert.match(history, /history-retention-summary/);
   assert.match(history, /retentionNotice\.detail_months/);
   assert.match(history, /retentionNotice\.summary_months/);
+  assert.doesNotMatch(history, /history-retention-policy/);
 });
 
 test('desktop history, dining mobile heading, rank badges and checkbox styling are scoped', () => {

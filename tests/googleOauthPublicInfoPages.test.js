@@ -43,7 +43,7 @@ test('terms allow public app URL sharing while protecting private Join Codes and
   const html = read('public/terms-of-service.html');
   assert.match(html, /ওয়েবসাইটের সাধারণ ঠিকানা বা Hostel Life-এর পরিচিতি পেজ প্রকাশ্যে শেয়ার করা যায়/);
   assert.match(html, /ব্যক্তিগত Join Code ও Invitation Link/);
-  const appTerms = read('src/features/menu/MenuPages.jsx');
+  const appTerms = read('src/content/legalDocuments.js');
   assert.match(appTerms, /ব্যক্তিগত আমন্ত্রণের Join Code ও Invitation Link সুরক্ষিত রাখুন/);
   assert.doesNotMatch(appTerms, /ওয়েবসাইটের লিংক প্রকাশ্যে শেয়ার নিষিদ্ধ/);
 });

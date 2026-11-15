@@ -7,6 +7,7 @@ const app = read('src/app/App.jsx');
 const shell = read('src/app/AppShell.jsx');
 const overlay = read('src/components/PlatformCommunicationOverlays.jsx');
 const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
+const managerPages = read('src/features/manager/ManagerPages.jsx');
 const invite = read('src/features/invites/HostelInvitePage.jsx');
 const telegram = read('src/features/telegram/TelegramConnectionPage.jsx');
 const menu = read('src/components/MenuDrawer.jsx');
@@ -16,15 +17,15 @@ const migration = read('supabase/migrations/Run33_platform_communications_releas
 const communicationsCss = read('src/styles/notification-center.css');
 const entryCss = read('src/styles/invitation-experience.css');
 
-test('new hostel success reuses the existing invitation RPC and offers code plus link share/copy', () => {
-  assert.match(onboarding, /managerCreateHostelInviteLink\('নতুন মেসের সদস্য আমন্ত্রণ'\)/);
-  assert.match(onboarding, /নতুন মেসের সদস্য আমন্ত্রণ/);
-  assert.match(onboarding, /createdHostel\.join_code/);
-  assert.match(onboarding, /navigator\.share/);
-  assert.match(onboarding, /navigator\.clipboard\.writeText\(createdInviteUrl\)/);
-  assert.match(onboarding, /আমন্ত্রণ লিংক/);
-  assert.match(onboarding, /onboarding-share-card/);
-  assert.doesNotMatch(onboarding, /manager_create_new_invite_token/);
+test('new hostel success stays minimal while invitation sharing remains available in manager settings', () => {
+  assert.match(onboarding, /<OnboardingBrand title="মেস তৈরি সম্পন্ন" \/>/);
+  assert.match(onboarding, /মেসে প্রবেশ করুন/);
+  assert.match(onboarding, /অন্য অ্যাকাউন্ট ব্যবহার করুন/);
+  assert.doesNotMatch(onboarding, /managerCreateHostelInviteLink|createdInviteUrl|inviteLinkBusy|onboarding-share-card|manager_create_new_invite_token/);
+  assert.doesNotMatch(onboarding, /navigator\.share|navigator\.clipboard\.writeText/);
+  assert.match(managerPages, /managerCreateHostelInviteLink\('সদস্য আমন্ত্রণ'\)/);
+  assert.match(managerPages, /আমন্ত্রণ লিংক তৈরি করুন/);
+  assert.match(managerPages, /navigator\.share/);
 });
 
 test('invite route keeps the secure join-request RPC flow and compact Bengali navigation', () => {

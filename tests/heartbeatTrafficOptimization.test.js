@@ -5,11 +5,13 @@ import path from 'node:path';
 
 const root = process.cwd();
 const authContext = fs.readFileSync(path.join(root, 'src/contexts/AuthContext.jsx'), 'utf8');
-const presenceMigration = fs.readFileSync(path.join(root, 'supabase/migrations/Run27_activity_presence_security_monitoring.sql'), 'utf8');
+const presenceMigration = fs.readFileSync(path.join(root, 'supabase/migrations/Run47_ip_session_metadata_retention_30d.sql'), 'utf8');
 
-test('Session-revocation checks remain once per minute while presence touches run every five minutes', () => {
+test('Session-revocation checks remain once per minute while presence touches respect the server ten-minute throttle', () => {
   assert.match(authContext, /setInterval\(verifySessionPolicy, 60 \* 1000\)/);
-  assert.match(authContext, /setInterval\(touchPresence, 5 \* 60 \* 1000\)/);
+  assert.match(authContext, /setInterval\(touchPresence, 11 \* 60 \* 1000\)/);
+  assert.match(authContext, /PRESENCE_TOUCH_MIN_INTERVAL_MS = 10 \* 60 \* 1000/);
+  assert.match(authContext, /now - lastPresenceTouchAt < PRESENCE_TOUCH_MIN_INTERVAL_MS/);
   assert.match(authContext, /20 \* 60 \* 1000/);
   assert.match(authContext, /document\.visibilityState !== 'hidden'/);
   assert.match(authContext, /if \(wasIdle\) heartbeat\(\)/);

@@ -1,0 +1,119 @@
+/* Hostel Life v13 — Profile colors aligned with Dashboard's Light/Sky/Dark themes. */
+.profile-experience {
+  --profile-blue-bg: #eef5ff;
+  --profile-blue-border: #d1e1f2;
+  --profile-blue-ink: #315f91;
+  --profile-green-bg: #edf8f2;
+  --profile-green-border: #cee7d8;
+  --profile-green-ink: #34795b;
+  --profile-violet-bg: #f3f0fc;
+  --profile-violet-border: #ded7f0;
+  --profile-violet-ink: #6e609d;
+  --profile-teal-bg: #edf7f7;
+  --profile-teal-border: #cfe5e5;
+  --profile-teal-ink: #397c80;
+}
+
+.profile-experience .profile-identity-card {
+  border-color: var(--profile-blue-border);
+  background: linear-gradient(112deg, var(--surface) 0%, color-mix(in srgb, var(--profile-blue-bg) 72%, var(--surface)) 100%);
+}
+.profile-experience .profile-personal-section { border-color: var(--profile-blue-border); }
+.profile-experience .profile-security-section { border-color: var(--profile-violet-border); }
+.profile-experience .profile-hostel-section { border-color: var(--profile-green-border); }
+.profile-experience .profile-theme-section { border-color: var(--profile-teal-border); }
+.profile-experience .profile-personal-section .profile-section-icon {
+  border-color: var(--profile-blue-border);
+  background: var(--profile-blue-bg);
+  color: var(--profile-blue-ink);
+}
+.profile-experience .profile-security-section .profile-section-icon {
+  border-color: var(--profile-violet-border);
+  background: var(--profile-violet-bg);
+  color: var(--profile-violet-ink);
+}
+.profile-experience .profile-hostel-section .profile-section-icon {
+  border-color: var(--profile-green-border);
+  background: var(--profile-green-bg);
+  color: var(--profile-green-ink);
+}
+.profile-experience .profile-theme-section .profile-section-icon {
+  border-color: var(--profile-teal-border);
+  background: var(--profile-teal-bg);
+  color: var(--profile-teal-ink);
+}
+.profile-experience .profile-personal-section .profile-section-heading .eyebrow { color: var(--profile-blue-ink); }
+.profile-experience .profile-security-section .profile-section-heading .eyebrow { color: var(--profile-violet-ink); }
+.profile-experience .profile-hostel-section .profile-section-heading .eyebrow { color: var(--profile-green-ink); }
+.profile-experience .profile-theme-section .profile-section-heading .eyebrow { color: var(--profile-teal-ink); }
+.profile-experience .profile-email-readonly {
+  border-color: var(--profile-blue-border);
+  background: color-mix(in srgb, var(--profile-blue-bg) 52%, var(--surface));
+}
+.profile-experience .profile-hostel-details .monospace-value {
+  border-color: var(--profile-green-border);
+  background: var(--profile-green-bg);
+  color: var(--profile-green-ink);
+}
+.profile-experience .profile-theme-section .theme-choice.selected {
+  border-color: var(--profile-teal-ink);
+  background: color-mix(in srgb, var(--profile-teal-bg) 70%, var(--surface));
+}
+.profile-experience .profile-theme-section .theme-choice.selected > svg:first-child { color: var(--profile-teal-ink); }
+.profile-experience .profile-role-line .member-badge.assistant {
+  border-color: var(--profile-violet-border);
+  background: var(--profile-violet-bg);
+  color: var(--profile-violet-ink);
+}
+
+:root[data-theme="blue"] .profile-experience {
+  --profile-blue-bg: #eaf3fc;
+  --profile-blue-border: #c9ddec;
+  --profile-green-bg: #edf7f1;
+  --profile-green-border: #cde3d6;
+  --profile-violet-bg: #f1effa;
+  --profile-violet-border: #dad7ed;
+  --profile-teal-bg: #edf6f8;
+  --profile-teal-border: #cbe1e7;
+}
+
+:root[data-theme="dark"] .profile-experience {
+  --profile-blue-bg: #1d2b39;
+  --profile-blue-border: #374c60;
+  --profile-blue-ink: #b6cce2;
+  --profile-green-bg: #1d2d25;
+  --profile-green-border: #385545;
+  --profile-green-ink: #b4dcc4;
+  --profile-violet-bg: #292638;
+  --profile-violet-border: #4a4363;
+  --profile-violet-ink: #c6bde7;
+  --profile-teal-bg: #1d2e32;
+  --profile-teal-border: #36545b;
+  --profile-teal-ink: #afd5d8;
+}
+:root[data-theme="dark"] .profile-experience .profile-identity-card {
+  border-color: #354b60;
+  background: linear-gradient(112deg, var(--surface) 0%, #1b2937 100%);
+}
+:root[data-theme="dark"] .profile-experience .profile-personal-section { border-color: var(--profile-blue-border); }
+:root[data-theme="dark"] .profile-experience .profile-security-section { border-color: var(--profile-violet-border); }
+:root[data-theme="dark"] .profile-experience .profile-hostel-section { border-color: var(--profile-green-border); }
+:root[data-theme="dark"] .profile-experience .profile-theme-section { border-color: var(--profile-teal-border); }
+:root[data-theme="dark"] .profile-experience .profile-section-icon,
+:root[data-theme="dark"] .profile-experience .profile-email-readonly,
+:root[data-theme="dark"] .profile-experience .profile-hostel-details .monospace-value,
+:root[data-theme="dark"] .profile-experience .profile-theme-section .theme-choice.selected {
+  background: color-mix(in srgb, currentColor 7%, var(--surface));
+}
+:root[data-theme="dark"] .profile-experience .profile-personal-section .profile-section-icon { border-color: var(--profile-blue-border); background: #223346; color: var(--profile-blue-ink); }
+:root[data-theme="dark"] .profile-experience .profile-security-section .profile-section-icon { border-color: var(--profile-violet-border); background: #2a263e; color: var(--profile-violet-ink); }
+:root[data-theme="dark"] .profile-experience .profile-hostel-section .profile-section-icon { border-color: var(--profile-green-border); background: #20342a; color: var(--profile-green-ink); }
+:root[data-theme="dark"] .profile-experience .profile-theme-section .profile-section-icon { border-color: var(--profile-teal-border); background: #203438; color: var(--profile-teal-ink); }
+:root[data-theme="dark"] .profile-experience .profile-email-readonly { border-color: var(--profile-blue-border); background: #1b2937; }
+:root[data-theme="dark"] .profile-experience .profile-hostel-details .monospace-value { border-color: var(--profile-green-border); background: #1e3028; color: var(--profile-green-ink); }
+:root[data-theme="dark"] .profile-experience .profile-theme-section .theme-choice.selected { border-color: var(--profile-teal-border); background: #1e3034; }
+:root[data-theme="dark"] .profile-experience .profile-role-line .member-badge.assistant { border-color: var(--profile-violet-border); background: #292538; color: var(--profile-violet-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-experience .theme-choice { transition: none; }
+}

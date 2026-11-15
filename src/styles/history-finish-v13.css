@@ -1,0 +1,340 @@
+/* Hostel Life v13 — History visual system aligned with Dashboard v11. */
+.history-experience {
+  --history-blue-bg: #eef5ff;
+  --history-blue-border: #d2e1f2;
+  --history-blue-ink: #315f91;
+  --history-green-bg: #edf8f2;
+  --history-green-border: #cfe7d9;
+  --history-green-ink: #34795b;
+  --history-coral-bg: #fff1ed;
+  --history-coral-border: #efd7d0;
+  --history-coral-ink: #a45e50;
+  --history-violet-bg: #f3f0fc;
+  --history-violet-border: #ded7f0;
+  --history-violet-ink: #6e609d;
+  --history-amber-bg: #fff7e9;
+  --history-amber-border: #efdfc1;
+  --history-amber-ink: #926b34;
+}
+
+/* Header stays clean: only the page title and practical actions remain. */
+.history-experience .history-title-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.history-experience .history-title-actions { justify-content: flex-end; }
+.history-experience .history-page-brand-mark {
+  border-color: var(--history-blue-border);
+  background: var(--history-blue-bg);
+  color: var(--history-blue-ink);
+}
+.history-experience .history-page-intro-copy .eyebrow { color: var(--history-blue-ink); }
+
+/* Market cards: the buyer, item count and market serial share one clean heading row. */
+.history-experience .history-list .history-market-entry-card {
+  border: 1px solid var(--history-blue-border);
+  background: var(--surface);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--history-blue-ink) 5%, transparent);
+}
+.history-experience .history-list .history-market-entry-card:hover {
+  border-color: color-mix(in srgb, var(--history-blue-ink) 34%, var(--history-blue-border));
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--history-blue-ink) 8%, transparent);
+}
+.history-experience .history-market-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 29px;
+  align-items: center;
+  justify-content: initial;
+  gap: 7px;
+  width: 100%;
+}
+.history-experience .history-market-title-row > strong {
+  min-width: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 820;
+  overflow-wrap: anywhere;
+}
+.history-experience .history-market-copy .history-market-item-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 0;
+  min-height: 24px;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--history-green-border);
+  border-radius: 8px;
+  background: var(--history-green-bg);
+  color: var(--history-green-ink) !important;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.history-experience .history-market-serial {
+  justify-self: end;
+  align-self: center;
+  width: 29px;
+  height: 27px;
+  flex-basis: 29px;
+  border-color: var(--history-blue-border);
+  border-radius: 8px;
+  background: var(--history-blue-bg);
+  color: var(--history-blue-ink);
+  font-size: 10px;
+  font-weight: 850;
+}
+.history-experience .history-market-amount {
+  border-color: var(--history-blue-border);
+  background: color-mix(in srgb, var(--history-blue-bg) 50%, var(--surface));
+}
+.history-experience .history-market-amount-label { color: var(--muted); }
+.history-experience .history-market-amount-value > strong { color: var(--history-blue-ink); }
+.history-experience .history-market-copy .history-market-date,
+.history-experience .history-market-copy .history-market-creator,
+.history-experience .history-market-copy .history-market-updated { color: var(--muted); }
+.history-experience .history-market-chevron { color: var(--history-blue-ink); }
+
+/* Account history: three purposeful tones rather than one generic surface. */
+.history-experience .account-summary-filter-grid .account-summary-card {
+  border: 1px solid var(--line);
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+.history-experience .account-summary-filter-grid .account-summary-card.positive {
+  border-color: var(--history-green-border);
+  background: color-mix(in srgb, var(--history-green-bg) 72%, var(--surface));
+}
+.history-experience .account-summary-filter-grid .account-summary-card.market {
+  border-color: var(--history-blue-border);
+  background: color-mix(in srgb, var(--history-blue-bg) 72%, var(--surface));
+}
+.history-experience .account-summary-filter-grid .account-summary-card.negative {
+  border-color: var(--history-coral-border);
+  background: color-mix(in srgb, var(--history-coral-bg) 72%, var(--surface));
+}
+.history-experience .account-summary-filter-grid .account-summary-card.positive strong { color: var(--history-green-ink) !important; }
+.history-experience .account-summary-filter-grid .account-summary-card.market strong { color: var(--history-blue-ink) !important; }
+.history-experience .account-summary-filter-grid .account-summary-card.negative strong { color: var(--history-coral-ink) !important; }
+.history-experience .account-summary-filter-grid .account-summary-card.is-selected {
+  box-shadow: inset 0 0 0 1px currentColor, 0 3px 10px color-mix(in srgb, var(--text) 5%, transparent);
+}
+.history-experience .account-history-row {
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.history-experience .history-leading-icon.positive {
+  border-color: var(--history-green-border);
+  background: var(--history-green-bg) !important;
+  color: var(--history-green-ink) !important;
+}
+.history-experience .history-leading-icon.negative {
+  border-color: var(--history-coral-border);
+  background: var(--history-coral-bg) !important;
+  color: var(--history-coral-ink) !important;
+}
+.history-experience .history-amount-value.positive { color: var(--history-green-ink); }
+.history-experience .history-amount-value.negative { color: var(--history-coral-ink); }
+
+/* Previous months and archived detail surfaces. */
+.history-experience .archive-month-card {
+  border: 1px solid var(--history-violet-border);
+  background: color-mix(in srgb, var(--history-violet-bg) 34%, var(--surface));
+}
+.history-experience .archive-month-card.detail-month .archive-month-icon {
+  border-color: var(--history-blue-border);
+  background: var(--history-blue-bg);
+  color: var(--history-blue-ink);
+}
+.history-experience .archive-month-card.summary-month .archive-month-icon {
+  border-color: var(--history-violet-border);
+  background: var(--history-violet-bg);
+  color: var(--history-violet-ink);
+}
+.history-experience .history-archive-scope {
+  border: 1px solid var(--history-blue-border);
+  background: color-mix(in srgb, var(--history-blue-bg) 20%, var(--surface));
+}
+.history-experience .history-period-overview.is-running {
+  border: 1px solid var(--history-green-border);
+  background: color-mix(in srgb, var(--history-green-bg) 56%, var(--surface));
+}
+.history-experience .history-period-overview.is-archive {
+  border: 1px solid var(--history-violet-border);
+  background: color-mix(in srgb, var(--history-violet-bg) 56%, var(--surface));
+}
+.history-experience .history-period-overview.is-running .history-period-icon {
+  border: 1px solid var(--history-green-border);
+  background: var(--history-green-bg);
+  color: var(--history-green-ink);
+}
+.history-experience .history-period-overview.is-archive .history-period-icon {
+  border: 1px solid var(--history-violet-border);
+  background: var(--history-violet-bg);
+  color: var(--history-violet-ink);
+}
+.history-experience .history-final-summary-list details {
+  border-color: var(--history-violet-border);
+  background: color-mix(in srgb, var(--history-violet-bg) 25%, var(--surface));
+}
+.history-experience .market-detail-summary > div {
+  border-color: var(--history-blue-border);
+  background: color-mix(in srgb, var(--history-blue-bg) 52%, var(--surface));
+}
+.history-experience .detail-item-row > b {
+  border-color: var(--history-blue-border);
+  background: var(--history-blue-bg);
+  color: var(--history-blue-ink);
+}
+.history-experience .detail-total-bar {
+  border-color: var(--history-green-border);
+  background: var(--history-green-bg);
+}
+.history-experience .detail-total-bar strong { color: var(--history-green-ink); }
+.history-experience .transaction-detail-amount {
+  border-color: var(--history-violet-border);
+  background: color-mix(in srgb, var(--history-violet-bg) 56%, var(--surface));
+}
+
+/* Compact retention facts; the long policy explanation has been removed from the UI. */
+.history-experience .history-retention-summary {
+  display: grid;
+  grid-template-columns: 34px minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--history-violet-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--history-violet-bg) 35%, var(--surface));
+  box-shadow: none;
+}
+.history-experience .history-retention-summary-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--history-violet-border);
+  border-radius: 10px;
+  background: var(--history-violet-bg);
+  color: var(--history-violet-ink);
+}
+.history-experience .history-retention-summary-heading strong {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 800;
+}
+.history-experience .history-retention-summary-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.history-experience .history-retention-summary-metrics > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 1px solid var(--history-violet-border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+.history-experience .history-retention-summary-metrics strong {
+  color: var(--history-violet-ink);
+  font-size: 12px;
+  font-weight: 850;
+}
+.history-experience .history-retention-summary-metrics small {
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+/* Blue theme follows Light with a cool tint. */
+:root[data-theme="blue"] .history-experience {
+  --history-blue-bg: #eaf3fc;
+  --history-blue-border: #c9ddec;
+  --history-green-bg: #edf7f1;
+  --history-green-border: #cde3d6;
+  --history-coral-bg: #fff1ed;
+  --history-coral-border: #efd4cc;
+  --history-violet-bg: #f1effa;
+  --history-violet-border: #dad7ed;
+}
+
+/* Dark theme intentionally uses low-luminance tinted surfaces. */
+:root[data-theme="dark"] .history-experience {
+  --history-blue-bg: #1d2b39;
+  --history-blue-border: #374c60;
+  --history-blue-ink: #b6cce2;
+  --history-green-bg: #1d2d25;
+  --history-green-border: #385545;
+  --history-green-ink: #b4dcc4;
+  --history-coral-bg: #302423;
+  --history-coral-border: #604641;
+  --history-coral-ink: #e1b9af;
+  --history-violet-bg: #292638;
+  --history-violet-border: #4a4363;
+  --history-violet-ink: #c6bde7;
+  --history-amber-bg: #30291f;
+  --history-amber-border: #564832;
+  color: var(--text);
+}
+:root[data-theme="dark"] .history-experience .history-list .history-market-entry-card,
+:root[data-theme="dark"] .history-experience .account-history-row {
+  border-color: #35495c;
+  background: #151f29;
+}
+:root[data-theme="dark"] .history-experience .history-market-amount {
+  border-color: var(--history-blue-border);
+  background: #1c2936;
+}
+:root[data-theme="dark"] .history-experience .history-market-serial {
+  border-color: var(--history-blue-border);
+  background: #223346;
+  color: var(--history-blue-ink);
+}
+:root[data-theme="dark"] .history-experience .history-market-copy .history-market-item-count {
+  border-color: var(--history-green-border);
+  background: #1d3028;
+  color: var(--history-green-ink) !important;
+}
+:root[data-theme="dark"] .history-experience .account-summary-filter-grid .account-summary-card.positive { border-color: var(--history-green-border); background: #1c2b24; }
+:root[data-theme="dark"] .history-experience .account-summary-filter-grid .account-summary-card.market { border-color: var(--history-blue-border); background: #1c2937; }
+:root[data-theme="dark"] .history-experience .account-summary-filter-grid .account-summary-card.negative { border-color: var(--history-coral-border); background: #2b2223; }
+:root[data-theme="dark"] .history-experience .archive-month-card { border-color: var(--history-violet-border); background: #211f30; }
+:root[data-theme="dark"] .history-experience .history-archive-scope { border-color: var(--history-blue-border); background: #182635; }
+:root[data-theme="dark"] .history-experience .history-period-overview.is-running { border-color: var(--history-green-border); background: #1b2a23; }
+:root[data-theme="dark"] .history-experience .history-period-overview.is-archive { border-color: var(--history-violet-border); background: #262337; }
+:root[data-theme="dark"] .history-experience .history-final-summary-list details { border-color: var(--history-violet-border); background: #211f30; }
+:root[data-theme="dark"] .history-experience .history-retention-summary { border-color: var(--history-violet-border); background: #211f30; }
+:root[data-theme="dark"] .history-experience .history-retention-summary-metrics > span { border-color: var(--history-violet-border); background: #2a273b; }
+:root[data-theme="dark"] .history-experience .market-detail-summary > div { border-color: var(--history-blue-border); background: #1c2937; }
+:root[data-theme="dark"] .history-experience .detail-total-bar { border-color: var(--history-green-border); background: #1d3028; }
+:root[data-theme="dark"] .history-experience .detail-item-row > b { border-color: var(--history-blue-border); background: #223346; }
+:root[data-theme="dark"] .history-experience .transaction-detail-amount { border-color: var(--history-violet-border); background: #292638; }
+
+@media (max-width: 640px) {
+  .history-experience .history-title-footer,
+  .history-experience .history-title-actions { width: auto; }
+  .history-experience .history-title-actions { justify-content: flex-end; }
+  .history-experience .history-title-actions .secondary-button { flex: 0 0 auto; }
+  .history-experience .history-market-title-row { grid-template-columns: minmax(0, 1fr) auto 27px; gap: 5px; }
+  .history-experience .history-market-title-row > strong { font-size: 12px; }
+  .history-experience .history-market-copy .history-market-item-count { min-height: 22px; padding: 3px 6px; font-size: 8px; }
+  .history-experience .history-market-serial { width: 27px; height: 24px; flex-basis: 27px; }
+  .history-experience .history-retention-summary { grid-template-columns: 30px minmax(0, 1fr); gap: 8px; }
+  .history-experience .history-retention-summary-icon { width: 30px; height: 30px; }
+  .history-experience .history-retention-summary-metrics { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+@media (max-width: 360px) {
+  .history-experience .history-market-title-row { grid-template-columns: minmax(0, 1fr) auto 25px; gap: 4px; }
+  .history-experience .history-market-title-row > strong { font-size: 11px; }
+  .history-experience .history-market-copy .history-market-item-count { font-size: 7.5px; padding-inline: 5px; }
+  .history-experience .history-market-serial { width: 25px; height: 23px; flex-basis: 25px; }
+}

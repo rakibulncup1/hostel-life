@@ -24,6 +24,17 @@ export function getDhakaBusinessDate(now = new Date()) {
  * although its first business date is tomorrow. Give that state a useful notice
  * instead of letting users discover it through a generic database date error.
  */
+/** Return a small badge for entries created today or yesterday in Bangladesh time. */
+export function getHistoryDayBadge(dateValue, today = getDhakaBusinessDate()) {
+  const date = String(dateValue || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{4}-\d{2}-\d{2}$/.test(today || '')) return null;
+  if (date === today) return { label: 'আজ', tone: 'today' };
+  const [year, month, day] = today.split('-').map(Number);
+  const previous = new Date(Date.UTC(year, month - 1, day - 1));
+  const yesterday = `${previous.getUTCFullYear()}-${String(previous.getUTCMonth() + 1).padStart(2, '0')}-${String(previous.getUTCDate()).padStart(2, '0')}`;
+  return date === yesterday ? { label: 'গতকাল', tone: 'yesterday' } : null;
+}
+
 export function getPeriodStartNotice(period, actionLabel = 'এন্ট্রি', today = getDhakaBusinessDate()) {
   const startDate = String(period?.start_date || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !today || startDate <= today) return '';

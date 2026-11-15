@@ -27,8 +27,8 @@ test('archive and history custom guidance boxes no longer render leading icons',
   const history = read('src/features/history/HistoryPage.jsx');
   assert.match(archive, /className="archive-hero-guidance"><p>/);
   assert.doesNotMatch(archive, /archive-hero-guidance"><Icon/);
-  assert.match(history, /history-intro-guidance-box"><span>/);
-  assert.doesNotMatch(history, /history-intro-guidance-box"><Icon/);
+  assert.doesNotMatch(history, /history-intro-guidance-box/);
+  assert.match(history, /history-title-actions/);
 });
 
 test('manual Dining info panel uses the same icon-free text layout', () => {

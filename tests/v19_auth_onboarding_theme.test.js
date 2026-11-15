@@ -9,6 +9,7 @@ const profile = read('src/features/profile/ProfilePage.jsx');
 const theme = read('src/app/theme.js');
 const switcher = read('src/components/EntryThemeSwitcher.jsx');
 const css = read('src/styles/public-entry.css');
+const run65Css = read('src/styles/run65-entry-windows.css');
 
  test('auth pages offer the saved four-theme preference without forcing dark mode', () => {
   assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
@@ -22,12 +23,11 @@ const css = read('src/styles/public-entry.css');
   assert.match(profile, /hostel-life-theme/);
 });
 
-test('registration email guidance is plain helper text rather than a boxed info callout', () => {
-  assert.match(auth, /className="register-email-note"/);
-  assert.match(auth, /সচল ইমেইল ব্যবহার করুন/);
-  assert.doesNotMatch(auth, /className="register-email-hint"/);
-  assert.match(css, /\.register-email-note/);
-  assert.doesNotMatch(css, /\.register-email-note[^{]*\{[^}]*border-left/);
+test('registration email guidance is concise inline copy beside the field label', () => {
+  assert.match(auth, /className="register-email-label-note"/);
+  assert.match(auth, /সঠিক ইমেইল ব্যবহার করুন/);
+  assert.doesNotMatch(auth, /className="register-email-note"|সচল ইমেইল ব্যবহার করুন/);
+  assert.match(run65Css, /\.register-email-label-note/);
 });
 
 test('onboarding offers two compact choices and renders only the selected form', () => {
@@ -35,7 +35,8 @@ test('onboarding offers two compact choices and renders only the selected form',
   assert.match(onboarding, /aria-pressed=\{mode === 'join'\}/);
   assert.match(onboarding, /aria-pressed=\{mode === 'create'\}/);
   assert.match(onboarding, /mode === 'join' \? \(/);
-  assert.match(onboarding, /mode === 'join' \? 'আগে থেকে থাকা মেসে যোগ দিন' : 'নতুন মেস তৈরি'/);
+  assert.match(onboarding, /mode === 'join' \? 'কোড দিয়ে মেসে যুক্ত হন' : 'নতুন মেস তৈরি'/);
+  assert.doesNotMatch(onboarding, /আগে থেকে থাকা মেসে যোগ দিন|অন্য পদ্ধতি বেছে নিন/);
   assert.doesNotMatch(onboarding, /function SetupCard/);
   assert.match(css, /\.onboarding-mode-picker/);
   assert.match(css, /\.onboarding-action-panel/);
@@ -47,7 +48,8 @@ test('onboarding business actions and security-gated fields remain unchanged', (
   assert.match(onboarding, /hostelCodeRequired &&/);
   assert.match(onboarding, /setMode\(\(current\) => current === 'join' \? '' : 'join'\)/);
   assert.match(onboarding, /setMode\(\(current\) => current === 'create' \? '' : 'create'\)/);
-  assert.match(onboarding, /setMode\(''\)/);
+  assert.match(onboarding, /setMode\(\(current\) => current === 'join' \? '' : 'join'\)/);
+  assert.match(onboarding, /setMode\(\(current\) => current === 'create' \? '' : 'create'\)/);
 });
 
 test('theme switcher is usable on small screens and respects reduced-motion preferences', () => {

@@ -1,0 +1,21 @@
+RUN65 PATCH MANIFEST
+=====================
+Base: Run64 compatibility-recovery project (Run49 + Run63 preserved)
+Patch: Run65 entry windows UX refinement
+Project files: 12
+New database migrations: 0
+Backend / Edge Function changes: 0
+
+Included paths:
+ - src/features/auth/AuthPage.jsx
+ - src/features/onboarding/OnboardingPage.jsx
+ - src/main.jsx
+ - src/styles/run65-entry-windows.css
+ - tests/v16_auth_market_notice.test.js
+ - tests/v19_auth_onboarding_theme.test.js
+ - tests/publicEntryVisualExperience.test.js
+ - tests/internalExperiencePolish.test.js
+ - tests/run63-focused-followup.test.mjs
+ - tests/run65EntryWindows.test.mjs
+ - supabase/migrations/Run49_hostel_meal_count_modes.sql
+ - supabase/verify/Verify_Run49_hostel_meal_count_modes.sql

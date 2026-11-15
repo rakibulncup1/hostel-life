@@ -53,8 +53,9 @@ test('auth and onboarding late overrides use selected theme tokens for light, bl
   assert.match(css, /\.onboarding-main-card \.creation-success-card h2 \{ color: var\(--text\)/);
   assert.match(css, /\.onboarding-main-card \.join-code-box/);
   assert.match(auth, /auth-form-panel/);
-  assert.match(onboarding, /কোড দিয়ে যুক্ত হন/);
-  assert.match(onboarding, /১২ অক্ষরের সঠিক যুক্ত হওয়ার কোড দিন/);
+  assert.match(onboarding, /<strong>মেসে যুক্ত হন<\/strong>/);
+  assert.match(onboarding, /placeholder="A1B2C3D4E5F6"/);
+  assert.doesNotMatch(onboarding, /ম্যানেজারের দেওয়া ১২ অক্ষরের Join Code/);
 });
 
 test('Excel paste instructions receive the same bordered theme-aware panel in every theme', () => {
