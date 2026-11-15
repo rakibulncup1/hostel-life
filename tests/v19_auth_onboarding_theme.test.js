@@ -11,7 +11,7 @@ const switcher = read('src/components/EntryThemeSwitcher.jsx');
 const css = read('src/styles/public-entry.css');
 const run65Css = read('src/styles/run65-entry-windows.css');
 
- test('auth pages offer the saved four-theme preference without forcing dark mode', () => {
+ test('auth pages offer personal theme choices while the one-time Light rollout runs', () => {
   assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
   assert.match(onboarding, /<EntryThemeSwitcher\s*\/>/);
   assert.match(theme, /THEME_KEY = 'hostel-life-theme'/);
@@ -20,7 +20,10 @@ const run65Css = read('src/styles/run65-entry-windows.css');
   assert.match(switcher, /aria-pressed=\{theme === option\.value\}/);
   assert.doesNotMatch(auth, /dataset\.theme\s*=\s*'dark'/);
   assert.doesNotMatch(onboarding, /dataset\.theme\s*=\s*'dark'/);
-  assert.match(profile, /hostel-life-theme/);
+  assert.match(profile, /getThemePreference/);
+  assert.match(profile, /saveThemePreference/);
+  assert.match(theme, /THEME_ROLLOUT_VERSION/);
+  assert.match(theme, /setItem\(THEME_KEY, 'light'\)/);
 });
 
 test('registration email guidance is concise inline copy beside the field label', () => {

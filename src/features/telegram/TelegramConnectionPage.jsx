@@ -111,7 +111,6 @@ export function TelegramConnectionPage() {
       <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15}/> ফিরে যান</button>
       
       <h1>টেলিগ্রাম সংযোগ</h1>
-      <p>টেলিগ্রাম সংযোগ চালু করে মেসের বিজ্ঞপ্তি পান।</p>
     </header>
   );
 

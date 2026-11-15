@@ -64,7 +64,7 @@ test('Vercel serves the public About document at the root before SPA rewrites', 
 
 test('service worker does not cache public legal documents as the app shell', () => {
   const sw = read('public/service-worker.js');
-  assert.match(sw, /hostel-life-shell-v19/);
+  assert.match(sw, /hostel-life-shell-v20/);
   assert.match(sw, /'\/', '\/about', '\/about\.html'/);
   assert.match(sw, /'\/privacy-policy', '\/privacy-policy\.html'/);
   assert.match(sw, /'\/terms-of-service', '\/terms-of-service\.html'/);

@@ -1,0 +1,26 @@
+HOSTEL LIFE — RUN67 PATCH MANIFEST
+Base: Run66 Dashboard/Exception/Light Theme project
+Patch: Run67 Menu, Telegram and Invitation Entry Refinement
+
+Changed project files (14):
+- src/styles/run67-menu-telegram-invite-finish.css
+- tests/run67-menu-telegram-invite-finish.test.mjs
+- index.html
+- public/manifest.webmanifest
+- public/service-worker.js
+- src/app/App.jsx
+- src/app/theme.js
+- src/features/invites/HostelInvitePage.jsx
+- src/features/onboarding/OnboardingPage.jsx
+- src/features/telegram/TelegramConnectionPage.jsx
+- src/main.jsx
+- tests/googleOauthPublicInfoPages.test.js
+- tests/logoutSecurityTelemetryVercelRegression.test.js
+- tests/run65EntryWindows.test.mjs
+
+Database changes: NONE
+New SQL migrations: NONE
+Existing Run48/Run49/Run66 migration history: untouched
+Run49 Meal Mode and Run48 Notification/Telegram logic: preserved
+Invitation bearer-token format: unchanged (URL fragment)
+Invitation-token navigation caching: still disabled; service-worker shell cache bumped to v20

@@ -368,10 +368,11 @@ export function OnboardingPage() {
             </div>
             {mode === 'join' ? (
               <form className="form-stack onboarding-entry-form" onSubmit={join}>
-                <label className="field-label">
-                  <span>যোগদানের কোড</span>
+                <label className="field-label onboarding-join-code-field">
+                  <span className="visually-hidden">যোগদানের কোড</span>
                   <input
                     type="text"
+                    aria-label="যোগদানের কোড"
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                     placeholder="A1B2C3D4E5F6"

@@ -40,6 +40,8 @@ import './styles/finishing-polish-v15.css';
 import './styles/run49-ui-refinement.css';
 import './styles/run63_focused_fixes.css';
 import './styles/run65-entry-windows.css';
+import './styles/run66-theme-exception-fit.css';
+import './styles/run67-menu-telegram-invite-finish.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();

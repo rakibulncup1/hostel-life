@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
-import { LoadingSpinner } from '../../components/LoadingSpinner';
 import { useToast } from '../../components/Toast';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useAuth } from '../../contexts/AuthContext';
@@ -21,6 +20,20 @@ function InviteStatus({ status, note }) {
   if (status === 'pending') return <div className="hostel-invite-status pending"><Icon name="clock" size={18}/><div><strong>অনুরোধ অপেক্ষমাণ</strong><span>ম্যানেজার বা অনুমোদিত সহকারী পর্যালোচনা করলে এখানে সদস্যপদের অবস্থা আপডেট হবে।</span></div></div>;
   if (status === 'rejected') return <div className="hostel-invite-status rejected"><Icon name="x-circle" size={18}/><div><strong>অনুরোধ অনুমোদিত হয়নি</strong><span>{note || 'আপনার অ্যাকাউন্ট অক্ষত আছে। চাইলে সাধারণ যুক্ত হওয়ার কোড দিয়ে অন্য মেসে যুক্ত হতে বা নতুন মেস তৈরি করতে পারবেন।'}</span></div></div>;
   return null;
+}
+
+function InviteLoadingState() {
+  return (
+    <main className="hostel-invite-page hostel-invite-page-loading" aria-busy="true">
+      <section className="hostel-invite-loading-card" role="status" aria-live="polite">
+        <div className="hostel-invite-brand"><BrandMark size={52}/><span>HOSTEL LIFE</span></div>
+        <span className="hostel-invite-loading-mark"><Icon name="shield-check" size={22}/></span>
+        <h1>আমন্ত্রণ যাচাই হচ্ছে</h1>
+        <p>নিরাপদে আমন্ত্রণের তথ্য প্রস্তুত করা হচ্ছে।</p>
+        <span className="hostel-invite-loading-progress" aria-hidden="true"><i/></span>
+      </section>
+    </main>
+  );
 }
 
 export function HostelInvitePage({ pathname }) {
@@ -47,7 +60,7 @@ export function HostelInvitePage({ pathname }) {
       return;
     }
     setPendingHostelLinkToken(token);
-    if (!auth.isAuthenticated || auth.authLoading || auth.identityLoading) {
+    if (!auth.isAuthenticated || auth.authLoading || !auth.identityReady || auth.identityLoading) {
       setLoading(false);
       return;
     }
@@ -71,7 +84,7 @@ export function HostelInvitePage({ pathname }) {
       else setError((old) => old || getFriendlySupabaseError(statusResult.reason, 'যোগদানের অনুরোধের অবস্থা যাচাই করা যায়নি।'));
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [token, auth.isAuthenticated, auth.authLoading, auth.identityLoading, online]);
+  }, [token, auth.isAuthenticated, auth.authLoading, auth.identityReady, auth.identityLoading, online]);
 
   useEffect(() => {
     if (!sameActiveHostel || auth.identityLoading) return;
@@ -131,8 +144,8 @@ export function HostelInvitePage({ pathname }) {
     else navigateTo('/onboarding', true);
   };
 
-  if (auth.authLoading || (auth.isAuthenticated && auth.identityLoading) || loading) {
-    return <main className="hostel-invite-page"><LoadingSpinner label="আমন্ত্রণ যাচাই হচ্ছে..."/></main>;
+  if (auth.authLoading || (auth.isAuthenticated && (!auth.identityReady || auth.identityLoading)) || loading) {
+    return <InviteLoadingState />;
   }
 
   return (

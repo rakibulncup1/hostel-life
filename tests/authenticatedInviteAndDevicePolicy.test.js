@@ -170,14 +170,17 @@ test('Session limit counts valid Supabase sessions, not stale sessions or browse
   assert.match(platform, /Array\.from\(\{ length: 30 \}/);
 });
 
-test('Device policy and default theme remain Super Admin controlled and personal themes stay preferred', () => {
+test('Device policy remains Super Admin controlled while the Light rollout retires global theme control', () => {
   assert.match(migration, /default_theme IN \('system','light','dark','blue'\)/);
   assert.match(migration, /max_devices_per_user BETWEEN 1 AND 30/);
   assert.match(migration, /IF NOT private\.is_super_admin\(\)/);
   assert.match(migration, /'default_theme',s\.default_theme/);
-  assert.match(read('src/app/theme.js'), /readThemeKey\(THEME_KEY\) \|\| readThemeKey\(THEME_DEFAULT_KEY\)/);
-  assert.match(read('src/app/theme.js'), /Do not overwrite an explicit preference/);
-  assert.match(platform, /platformAdminSetDefaultTheme/);
+  const theme = read('src/app/theme.js');
+  assert.match(theme, /migrateThemePreferenceToLightOnce/);
+  assert.match(theme, /THEME_ROLLOUT_VERSION/);
+  assert.match(theme, /Do not overwrite an explicit preference/);
+  assert.match(read('supabase/migrations/Run66_light_default_theme_rollout.sql'), /REVOKE EXECUTE ON FUNCTION public\.platform_admin_set_default_theme\(text\)/);
+  assert.doesNotMatch(platform, /platformAdminSetDefaultTheme/);
   assert.match(platform, /platformAdminSetSessionPolicy/);
 });
 

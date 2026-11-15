@@ -13,7 +13,7 @@ import {
   fetchPlatformPublicSettings, platformAdminGenerateAccessCode, platformAdminGetOverview,
   platformAdminListHostelMembers, platformAdminListHostelRoleBadges, platformAdminListHostels, platformAdminSetGate,
   platformAdminSetHostelStatus, platformAdminSetUserBlocked, platformAdminUpdatePublicSettings,
-  platformAdminSetDefaultTheme, platformAdminGetSessionPolicy, platformAdminSetSessionPolicy,
+  platformAdminGetSessionPolicy, platformAdminSetSessionPolicy,
   platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel,
   platformAdminPermanentlyDeleteMember, uploadDeveloperPhoto,
   platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
@@ -35,7 +35,7 @@ const EMPTY_SETTINGS = {
   announcement_enabled: false, announcement_title: '', announcement_body: '',
   registration_code_required: false, hostel_creation_code_required: false,
   developer_name: '', developer_title: '', developer_photo_url: '', developer_email: '',
-  developer_phone: '', developer_portfolio_url: '', default_theme: 'dark', max_devices_per_user: 10, session_timeout_minutes: 0,
+  developer_phone: '', developer_portfolio_url: '', default_theme: 'light', max_devices_per_user: 10, session_timeout_minutes: 0,
 };
 
 const EMPTY_COMMUNICATION_DRAFT = {
@@ -366,7 +366,6 @@ export function SuperAdminPage({ user }) {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const settingsSavedRef = useRef(null);
   const [sessionPolicyLoaded, setSessionPolicyLoaded] = useState(false);
-  const [defaultThemeBusy, setDefaultThemeBusy] = useState(false);
   const [deviceLimitBusy, setDeviceLimitBusy] = useState(false);
   const [activeSessions, setActiveSessions] = useState([]);
   const [activeSessionTotal, setActiveSessionTotal] = useState(0);
@@ -1870,17 +1869,6 @@ export function SuperAdminPage({ user }) {
     }
   };
 
-  const saveDefaultTheme = async () => {
-    if (!settingsLoaded) { setError('সেটিংসের সংরক্ষিত তথ্য আগে সফলভাবে লোড করুন।'); return; }
-    setDefaultThemeBusy(true); setError(''); setNotice('');
-    try {
-      await platformAdminSetDefaultTheme(settings.default_theme || 'dark');
-      setNotice('নতুন ব্যবহারকারী ও নতুন ডিভাইসের ডিফল্ট থিম সংরক্ষিত হয়েছে। যাঁদের ডিভাইসে আগে থেকেই থিম পছন্দ সেভ আছে, সেটি পরিবর্তন হবে না।');
-      await refresh();
-    } catch (cause) { setError(errorText(cause, 'ডিফল্ট থিম সংরক্ষণ করা যায়নি।')); }
-    finally { setDefaultThemeBusy(false); }
-  };
-
   const saveSettings = async (event) => {
     event.preventDefault();
     const saved = settingsSavedRef.current;
@@ -2027,7 +2015,7 @@ export function SuperAdminPage({ user }) {
       </section>
       <section className="platform-navigation-group platform-configuration-group" aria-label="সিস্টেম সেটিংস">
         <div className="platform-navigation-heading"><strong>সিস্টেম সেটিংস</strong></div>
-        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','গ্লোবাল নোটিশ'],['communications','আপডেট ও বিজ্ঞপ্তি'],['messages','বার্তা পাঠান'],['telegram','টেলিগ্রাম সেটআপ'],['developer','ডেভেলপার তথ্য'],['appearance','অ্যাপের থিম'],['sessions','সেশন নিরাপত্তা'],['mfa','দ্বিস্তর নিরাপত্তা'],['security','প্রবেশ কোড']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
+        <nav className="platform-tabs platform-config-tabs" aria-label="সিস্টেম সেটিংস বিভাগ">{[['settings','গ্লোবাল নোটিশ'],['communications','আপডেট ও বিজ্ঞপ্তি'],['messages','বার্তা পাঠান'],['telegram','টেলিগ্রাম সেটআপ'],['developer','ডেভেলপার তথ্য'],['sessions','সেশন নিরাপত্তা'],['mfa','দ্বিস্তর নিরাপত্তা'],['security','প্রবেশ কোড']].map(([key,label])=><button key={key} type="button" className={tab===key?'active':''} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}>{label}</button>)}</nav>
       </section>
     </div>
     {tab === 'overview' && <>
@@ -2703,19 +2691,6 @@ export function SuperAdminPage({ user }) {
       </section>
       <div className="platform-settings-footer"><button className="primary-button large" type="submit" disabled={busy||developerPhotoBusy||!settingsLoaded}>{busy?'সংরক্ষণ হচ্ছে...':'সহায়তা তথ্য সংরক্ষণ করুন'}</button></div>
       </form>}
-    </>}
-
-    {tab === 'appearance' && <>
-      <div className="platform-settings-intro"><span className="eyebrow">APP APPEARANCE</span><h2>অ্যাপের ডিফল্ট থিম</h2><p>যেসব ব্যবহারকারী নিজের থিম নির্বাচন করেননি, তাঁদের জন্য প্রাথমিক থিম নির্ধারণ করুন।</p></div>
-      {!settingsLoaded ? <section className="card platform-panel platform-settings-load-state" role="status">
-        {busy ? <LoadingSpinner label="ডিফল্ট থিম লোড হচ্ছে..."/> : <><strong>ডিফল্ট থিম লোড হয়নি</strong><p>সংরক্ষিত থিম নিশ্চিত না হওয়া পর্যন্ত Save বন্ধ রাখা হয়েছে।</p><button type="button" className="secondary-button" onClick={refresh} disabled={busy}>আবার লোড করুন</button></>}
-      </section> : <section className="platform-settings-grid">
-      <div className="card platform-panel platform-preference-card">
-        <div className="platform-panel-heading"><div><span className="eyebrow">APP EXPERIENCE</span><h3>নতুন ব্যবহারকারীর Default Theme</h3><p>যাঁদের ব্রাউজারে আগে থেকে Theme Preference নেই, তাঁদের প্রথম প্রবেশে এই থিম ব্যবহার হবে। সংরক্ষিত ব্যক্তিগত পছন্দ পরিবর্তন হবে না।</p></div><span className="platform-status">৪টি থিম</span></div>
-        <label className="field-label"><span>ডিফল্ট থিম</span><select value={settings.default_theme || 'dark'} onChange={(e) => setSettings((old) => ({ ...old, default_theme: e.target.value }))}><option value="system">সিস্টেম</option><option value="light">লাইট</option><option value="dark">ডার্ক</option><option value="blue">আকাশি</option></select></label>
-        <button type="button" className="primary-button" disabled={defaultThemeBusy||!settingsLoaded} onClick={saveDefaultTheme}>{defaultThemeBusy ? 'সংরক্ষণ হচ্ছে...' : 'ডিফল্ট থিম সংরক্ষণ করুন'}</button>
-      </div>
-      </section>}
     </>}
 
     {tab === 'sessions' && <>

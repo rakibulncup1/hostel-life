@@ -1,0 +1,137 @@
+
+/* Run66 — exception editor mobile fit; presentation only. */
+@media (max-width: 620px) {
+  :is(.dining-experience, .dining-stack) .weekday-exception-editor {
+    width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
+    padding: 12px; gap: 11px; overflow: visible;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-editor .field-label {
+    width: 100%; max-width: none; min-width: 0;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals {
+    grid-template-columns: minmax(0, 1fr); gap: 8px; width: 100%;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(132px, 46%);
+    align-items: center; gap: 10px; min-height: 58px; padding: 9px 11px;
+    box-sizing: border-box; border-radius: 12px;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper-row > span {
+    min-width: 0; font-size: 11px; white-space: normal;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper {
+    width: 100%; min-width: 0; grid-template-columns: 34px minmax(34px, 1fr) 34px; gap: 6px;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper button {
+    width: 34px; height: 34px; border-radius: 10px;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper strong {
+    min-width: 0; font-size: 14px; text-align: center;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-editor-actions {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-editor-actions > button {
+    min-width: 0; min-height: 42px; padding-inline: 8px; white-space: normal;
+  }
+}
+@media (max-width: 390px) {
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper-row {
+    grid-template-columns: minmax(0, 1fr) minmax(122px, 48%); gap: 7px; padding-inline: 9px;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper {
+    grid-template-columns: 31px minmax(28px, 1fr) 31px; gap: 4px;
+  }
+  :is(.dining-experience, .dining-stack) .weekday-exception-meals .meal-stepper button { width: 31px; height: 32px; }
+  :is(.dining-experience, .dining-stack) .weekday-exception-editor-actions { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Run66 — same side inset and rounded-card rhythm for summary and detail cards. */
+.dashboard-reimagined .detail-total-strip {
+  margin: 12px 14px 10px; padding: 0; border: 0; border-radius: 0;
+  background: transparent;
+}
+.dashboard-reimagined .detail-total-strip > div {
+  min-width: 0; min-height: 64px; border-radius: 12px;
+}
+.dashboard-reimagined .meal-detail-list {
+  padding: 0 14px 16px;
+}
+.dashboard-reimagined .meal-detail-list .meal-member-row {
+  width: 100%; box-sizing: border-box;
+}
+.dashboard-reimagined .late-request-detail-totals {
+  margin: 12px 14px 10px; padding: 0;
+}
+.dashboard-reimagined .late-request-detail-totals .late-delta-stat {
+  min-width: 0; min-height: 64px; border-radius: 12px;
+}
+.dashboard-reimagined .late-request-detail-list {
+  padding: 0 14px 16px;
+}
+.dashboard-reimagined .late-request-detail-list > .late-request-detail-member {
+  width: 100%; box-sizing: border-box;
+}
+.dashboard-reimagined .upcoming-meal-days {
+  padding-inline: 0;
+}
+.dashboard-reimagined .upcoming-meal-day-card {
+  min-width: 0; width: 100%; box-sizing: border-box; border-radius: 12px;
+}
+@media (max-width: 640px) {
+  .dashboard-reimagined .detail-total-strip { margin: 10px 12px 9px; gap: 6px; }
+  .dashboard-reimagined .meal-detail-list { padding-inline: 12px; }
+  .dashboard-reimagined .late-request-detail-totals { margin: 10px 12px 9px; gap: 6px; }
+  .dashboard-reimagined .late-request-detail-list { padding-inline: 12px; }
+  .dashboard-reimagined .upcoming-meal-days { padding-inline: 0; }
+}
+
+/* Run66 — How-to timing cards: readable spacing and non-overlapping content. */
+.howto-page .howto-timing-panel {
+  gap: 16px; padding: clamp(15px, 2.2vw, 22px);
+}
+.howto-page .howto-timing-topline { min-width: 0; }
+.howto-page .howto-timing-heading { min-width: 0; align-items: center; gap: 11px; }
+.howto-page .howto-timing-heading > div { min-width: 0; display: grid; gap: 4px; }
+.howto-page .howto-timing-heading h2 { margin: 0; line-height: 1.4; overflow-wrap: anywhere; }
+.howto-page .howto-time-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch; gap: 10px;
+}
+.howto-page .howto-time-card {
+  display: flex; flex-direction: column; align-items: flex-start;
+  min-width: 0; min-height: 136px; height: 100%; gap: 8px;
+  padding: 12px; border-radius: 13px; box-sizing: border-box;
+}
+.howto-page .howto-time-card-top {
+  display: flex; align-items: flex-start; gap: 8px; min-width: 0; width: 100%;
+}
+.howto-page .howto-time-card-top > span:last-child {
+  min-width: 0; line-height: 1.45; overflow-wrap: anywhere;
+}
+.howto-page .howto-time-card > strong {
+  display: block; margin-top: 2px; line-height: 1.25; overflow-wrap: anywhere;
+}
+.howto-page .howto-time-card > small {
+  display: block; margin-top: auto; font-size: 10px; line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.howto-page .howto-timing-footnote {
+  display: flex; align-items: flex-start; gap: 9px; margin: 0;
+  padding: 11px 13px; border-radius: 12px; line-height: 1.65;
+}
+.howto-page .howto-timing-footnote > svg { flex: 0 0 auto; margin-top: 2px; }
+@media (max-width: 900px) {
+  .howto-page .howto-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .howto-page .howto-time-card { min-height: 124px; }
+}
+@media (max-width: 520px) {
+  .howto-page .howto-timing-panel { gap: 12px; padding: 13px; }
+  .howto-page .howto-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .howto-page .howto-time-card { min-height: 130px; padding: 10px; gap: 7px; }
+  .howto-page .howto-time-card-top { gap: 6px; }
+  .howto-page .howto-time-card-top > span:last-child { font-size: 9px; }
+  .howto-page .howto-time-card > strong { font-size: clamp(17px, 5vw, 21px); }
+  .howto-page .howto-time-card > small { font-size: 9px; line-height: 1.55; }
+  .howto-page .howto-timing-footnote { padding: 10px; font-size: 10px; }
+}

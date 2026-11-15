@@ -1,0 +1,6 @@
+Run66 Patch Manifest
+Base: Run65 working project (Run49 + Run63 changes retained)
+Patch type: additive/replacement source patch
+Files: 12 project files + 2 package documentation files
+New migration: Run66_light_default_theme_rollout.sql
+No existing migration is re-run.

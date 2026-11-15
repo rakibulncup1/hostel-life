@@ -7,8 +7,7 @@ import { navigateTo } from '../../app/AppShell';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { verifyPassword } from '../../services/authService';
-
-const THEME_KEY = 'hostel-life-theme';
+import { getThemePreference, saveThemePreference } from '../../app/theme';
 
 function initials(name) {
   return name?.trim()?.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'HL';
@@ -29,7 +28,7 @@ export function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || 'dark');
+  const [theme, setTheme] = useState(() => getThemePreference());
 
   useEffect(() => {
     setName(profile?.full_name || '');
@@ -112,13 +111,9 @@ export function ProfilePage() {
   };
 
   const setThemeChoice = (next) => {
-    setTheme(next);
-    localStorage.setItem(THEME_KEY, next);
-    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
-    document.documentElement.dataset.theme = next === 'system' ? (media?.matches ? 'dark' : 'light') : next;
-    document.documentElement.dataset.themePreference = next;
-    window.dispatchEvent(new Event('hostel-life-theme-change'));
-    toast.success(`থিম “${themeLabels[next]}” হিসেবে সংরক্ষণ হয়েছে।`);
+    const saved = saveThemePreference(next);
+    setTheme(saved);
+    toast.success(`থিম “${themeLabels[saved]}” হিসেবে সংরক্ষণ হয়েছে।`);
   };
 
   return (

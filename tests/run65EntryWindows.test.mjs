@@ -24,7 +24,8 @@ test('Onboarding invitation details are not repeated while preserving pending re
 test('Join and create choices use concise labels while keeping business RPCs and safeguards intact', async () => {
   const onboarding = await read('src/features/onboarding/OnboardingPage.jsx');
   assert.match(onboarding, /কোড দিয়ে মেসে যুক্ত হন/);
-  assert.match(onboarding, /<span>যোগদানের কোড<\/span>/);
+  assert.match(onboarding, /className="visually-hidden">যোগদানের কোড<\/span>/);
+  assert.match(onboarding, /aria-label="যোগদানের কোড"/);
   assert.match(onboarding, /placeholder="A1B2C3D4E5F6"/);
   assert.match(onboarding, /<h3 id="onboarding-action-title">\{mode === 'join' \? 'কোড দিয়ে মেসে যুক্ত হন' : 'নতুন মেস তৈরি'\}<\/h3>/);
   assert.match(onboarding, /placeholder="যেমন: নিজামুদ্দিন ছাত্রাবাস"/);

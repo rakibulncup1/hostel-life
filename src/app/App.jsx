@@ -18,7 +18,7 @@ import { getPendingHostelLinkToken } from '../utils/pendingHostelLink';
 import { AppDownloadPage } from '../features/menu/AppDownloadPage';
 import { TelegramConnectionPage } from '../features/telegram/TelegramConnectionPage';
 import { fetchPlatformPublicSettings, PLATFORM_PUBLIC_SETTINGS_UPDATED_EVENT } from '../services/platformService';
-import { THEME_KEY, THEME_VALUES, applyPlatformDefaultTheme } from './theme';
+import { getThemePreference, applyTheme } from './theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { useAuth } from '../contexts/AuthContext';
@@ -81,15 +81,12 @@ export function App() {
 
   useEffect(() => {
     let active = true;
-    let hasExplicitTheme = false;
-    try { hasExplicitTheme = THEME_VALUES.includes(window.localStorage.getItem(THEME_KEY)); }
-    catch { /* Browser storage may be restricted; use the platform default if available. */ }
+    // Run the Light-theme rollout before public settings arrive. Platform settings
+    // are still fetched for notices and public communications, never for appearance.
+    applyTheme(getThemePreference());
     const loadSettings = (force = false) => fetchPlatformPublicSettings({ force }).then((settings) => {
       if (!active) return;
       setPublicSettings(settings || null);
-      if (!hasExplicitTheme && THEME_VALUES.includes(settings?.default_theme)) {
-        applyPlatformDefaultTheme(settings.default_theme);
-      }
     }).catch(() => { /* Keep the safe local theme and continue without platform notices. */ });
     loadSettings();
     const refresh = () => { loadSettings(true); };
@@ -228,6 +225,7 @@ export function App() {
     else if (pathname === '/app/menu/app-download') title = 'Hostel Life — অ্যাপ ডাউনলোড';
     else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
     else if (pathname.includes('/onboarding')) title = 'Hostel Life — মেস সেটআপ';
+    else if (pathname.startsWith('/invite/')) title = 'Hostel Life — মেসে যোগ দিন';
     else if (pathname === '/super-admin') title = 'Hostel Life — Super Admin';
     document.title = title;
   }, [pathname]);
@@ -249,6 +247,14 @@ export function App() {
     return withPublicCommunications(<AuthPage pathname={pathname === '/auth' ? '/auth/login' : pathname} />);
   }
 
+  // Invitation landing pages are public entry points. Render them before the
+  // generic login/identity gates so shared links show their themed invite screen
+  // while authentication is being resolved. Actual join requests remain signed-in
+  // and are still authorized by the existing server-side RPCs.
+  if (pathname.startsWith('/invite/')) {
+    return withPublicCommunications(<HostelInvitePage pathname={pathname} />);
+  }
+
   if (auth.authLoading) return withPublicCommunications(<LoadingSpinner label="সেশন যাচাই হচ্ছে..." />);
   if (!auth.isAuthenticated) return withPublicCommunications(<AuthPage pathname="/auth/login" />);
 
@@ -261,10 +267,6 @@ export function App() {
   if (pathname === '/super-admin') return withPublicCommunications(<SuperAdminPage user={auth.user} />);
 
   if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.identityReady) return withPublicCommunications(<LoadingSpinner label="অ্যাকাউন্ট ও মেসের সংযোগ যাচাই হচ্ছে..." />);
-
-  if (pathname.startsWith('/invite/')) {
-    return withPublicCommunications(<HostelInvitePage pathname={pathname} />);
-  }
 
   if (!auth.identityReady || auth.identityLoading) return withPublicCommunications(<LoadingSpinner label="আপনার মেসের তথ্য লোড হচ্ছে..." />);
 
