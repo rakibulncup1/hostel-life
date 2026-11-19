@@ -1,0 +1,5 @@
+24a62a41eb09ba8160e165df98b31393d1964e57602ba0b90a56f0ed9d1020d2  src/main.jsx
+a12c2443212704e7b444dabcb53d345dd8ba9b45ad12b39a13a3ee08e1952129  public/about.html
+6cbf7bee10eb7e7bd9d84f6016cea2571063d844c5d32d1c54efba3933e47b22  src/styles/run78-visual-correction.css
+d25870efd70979148af1f72b38046e4457ce1e6781a4194be16d2c8a33ad2374  public/landing-assets/run78-public-overrides.css
+4d26f3a3ae5a7cb0368677e2eab3c4253c8164c327703da11e7c49582c710d58  tests/run78-visual-correction.test.mjs

@@ -208,7 +208,7 @@ function MealCard({ meal, isOnline, hasOfflineDetails = false, hasUpcomingMeals 
 function MetricCard({ label, value, detail }) {
   return (
     <div className="metric">
-      <span>{label}</span>
+      <span data-i18n-key={label === 'মিল রেট' ? 'dashboard.mealRate' : undefined}>{label}</span>
       <strong>{value}</strong>
       {detail && <small>{detail}</small>}
     </div>
@@ -1311,7 +1311,7 @@ export function DashboardPage() {
             </div>
             <div className="rate-strip">
               <div>
-                <span>বর্তমান মিল রেট</span>
+                <span data-i18n-key="dashboard.currentMealRate">বর্তমান মিল রেট</span>
                 <small>বাজার {formatCurrency(dashboardMarketCost)} ÷ চূড়ান্ত মিল</small>
               </div>
               <strong>{formatCurrency(summary?.meal_rate)}</strong>

@@ -1,0 +1,24 @@
+Hostel Life — Run83 About English Wrap & Meal-rate Translation Patch
+Patch type: targeted incremental overlay
+Scope: About page hero chips and one About-only English amount translation
+
+BASELINE:
+- hostellife.zip SHA-256: 71821778351a55feb11ffc54c50883cbcfa0c2675a50d333eb679acbe0c4fc00
+- Run79 patch SHA-256: 6e25ee26431b7c501c03169394f14648237e008fafd17625216be22252c1b387
+- Run80 patch SHA-256: 89f55870a2d43fcbd999e0e78115cbc5fa10954e9de5a3e8ad66a09a47f06d4e
+- Run81 patch SHA-256: b7031ed6dca9bf206bccad6777420fa17edb7f224f0a5916e2a70281ef40e09d
+- Run82 patch SHA-256: 534d75c520bc93c4018f79079f9bc5b8ee8f1d3be412698b9ba5e5d92d9dcae6
+
+REPLACE:
+- public/about.html
+- public/language-runtime.js (adds one unique About key only)
+
+ADD:
+- public/landing-assets/run83-about-english-feature-wrap.css
+- tests/run83-about-english-wrap-and-value.test.mjs
+
+No delete operations.
+No shared theme styles or theme controller changes.
+No other public page, application feature, authentication, API, Supabase,
+database migration, or business-logic changes.
+Apply only after Run79, Run80, Run81 and Run82 are already present.

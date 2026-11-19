@@ -1,0 +1,152 @@
+/* Run80 — complete the public About dark surfaces missed by earlier layers.
+   The Light and blue themes are intentionally untouched. */
+:root[data-theme="dark"] .about-page {
+  --paper: #22292f;
+  --surface: #2d353d;
+  --surface-2: #354049;
+  --ink: #edf1f3;
+  --ink-soft: #d4dde2;
+  --muted: #bdc6cc;
+  --line: #4a5660;
+  background: var(--paper);
+  color: var(--ink);
+}
+:root[data-theme="dark"] .about-page main,
+:root[data-theme="dark"] .about-page main > section.section:not(.section-tint):not(.showcase-section),
+:root[data-theme="dark"] .about-page .showcase-section {
+  background: #22292f;
+  color: #edf1f3;
+}
+:root[data-theme="dark"] .about-page .hero,
+:root[data-theme="dark"] .about-page .section-tint {
+  background: linear-gradient(145deg, #293139 0%, #303a42 100%);
+  border-color: #4a5660;
+}
+:root[data-theme="dark"] .about-page .closing {
+  background: linear-gradient(125deg, #293139 0%, #354049 100%);
+  border-color: #4a5660;
+}
+:root[data-theme="dark"] .about-page :is(
+  .site-header, .proof-band, .site-footer, .feature-card, .showcase-card,
+  .workflow-card, .closing-inner, .mobile-menu-panel, .public-theme-panel
+) {
+  background: #2d353d;
+  border-color: #4a5660;
+  color: #edf1f3;
+  box-shadow: 0 10px 26px rgba(0,0,0,.13);
+}
+:root[data-theme="dark"] .about-page :is(
+  .feature-image-frame, .showcase-media, .screen-card, .code-preview,
+  .mini-preview, .showcase-code-preview, .menu-preview, .report-preview,
+  .request-preview
+) {
+  background: #303941;
+  border-color: #4a5660;
+  color: #e9eef0;
+}
+:root[data-theme="dark"] .about-page :is(
+  .screen-toolbar, .screen-note, .preview-meal-panel, .preview-stat,
+  .preview-action-tile, .request-summary-grid > div, .report-metric-grid > div,
+  .report-table-head, .report-table-row, .request-table-head, .request-table-row,
+  .menu-preview-item, .mini-market-row, .allowance-summary > div,
+  .allowance-list > div, .report-preview-foot, .showcase-preview-top,
+  .feature-tag, .proof-icon, .workflow-number
+) {
+  background: #39444c;
+  border-color: #505d66;
+  color: #e4eaed;
+}
+:root[data-theme="dark"] .about-page :is(
+  .hero h1, .hero h1 em, .section-head h2, .feature-copy h3,
+  .showcase-copy h3, .workflow-card h3, .closing-copy h2,
+  .preview-app-name strong, .preview-heading-row strong,
+  .preview-stat strong, .preview-panel-heading strong,
+  .preview-meal-row b, .preview-action-tile strong,
+  .menu-preview-brand strong, .report-preview-brand strong,
+  .report-metric-grid strong, .mini-preview-total strong,
+  .request-table-row strong
+) { color: #edf1f3; }
+:root[data-theme="dark"] .about-page :is(
+  .hero-copy, .hero-points, .section-head p, .feature-copy p,
+  .showcase-copy p, .workflow-card p, .closing-copy p,
+  .feature-meta, .screen-note, .preview-overline,
+  .preview-stat > span, .preview-stat small, .preview-panel-heading span,
+  .preview-meal-row, .preview-action-tile small, .preview-app-name small,
+  .menu-preview-label, .menu-preview-item, .report-table-row,
+  .request-table-row, .mini-preview-total, .showcase-media figcaption,
+  .proof-item small, .report-preview-foot
+) { color: #c1cbd1; }
+:root[data-theme="dark"] .about-page :is(
+  .eyebrow, .section-kicker, .showcase-index, .feature-index,
+  .proof-item strong, .report-preview-brand small
+) { color: #d0d9d3; }
+:root[data-theme="dark"] .about-page .workflow-number {
+  border-color: #58656e;
+  background: #424d56;
+  color: #e4ebe7;
+}
+:root[data-theme="dark"] .about-page .feature-card::before,
+:root[data-theme="dark"] .about-page .feature-card:nth-child(2)::before,
+:root[data-theme="dark"] .about-page .feature-card:nth-child(3)::before {
+  background: #84948b;
+  opacity: .65;
+}
+:root[data-theme="dark"] .about-page .feature-card .feature-tag,
+:root[data-theme="dark"] .about-page .showcase-card .feature-tag {
+  background: #39444c;
+  border-color: #505d66;
+  color: #d6dfda;
+}
+:root[data-theme="dark"] .about-page .screen-card img,
+:root[data-theme="dark"] .about-page .showcase-media img {
+  border-color: #4a5660;
+}
+:root[data-theme="dark"] .about-page .screen-note b,
+:root[data-theme="dark"] .about-page .menu-preview-item i { color: #dce5df; }
+:root[data-theme="dark"] .about-page :is(.hero-actions .btn-secondary, .nav-actions .btn-secondary, .nav-download) {
+  background: #354049;
+  border-color: #53606a;
+  color: #e7ecef;
+}
+:root[data-theme="dark"] .about-page :is(.hero-actions .btn-primary, .nav-actions .btn-primary, .closing-actions .btn-primary, .menu-register) {
+  background: #bdc9c1;
+  border-color: #bdc9c1;
+  color: #202923;
+}
+:root[data-theme="dark"] .about-page .public-theme-control > summary,
+:root[data-theme="dark"] .about-page .public-theme-control button,
+:root[data-theme="dark"] .about-page .mobile-menu summary { color: #e4eaed; }
+:root[data-theme="dark"] .about-page :is(.proof-band, .showcase-section, .section, .section-tint, .closing) {
+  border-color: #46525c;
+}
+
+/* Responsive English labels: reserve real width for each feature and let the
+   card grow vertically instead of allowing a word to escape its boundary. */
+:root[data-language="en"] .about-page .hero-points span,
+:root[data-language="en"] .about-page .feature-copy,
+:root[data-language="en"] .about-page .feature-copy h3,
+:root[data-language="en"] .about-page .showcase-copy,
+:root[data-language="en"] .about-page .showcase-copy h3 {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+:root[data-language="en"] .about-page .hero-points {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+:root[data-language="en"] .about-page .feature-card,
+:root[data-language="en"] .about-page .showcase-card {
+  min-width: 0;
+  min-height: 0;
+}
+:root[data-language="en"] .about-page .feature-card .feature-copy h3 {
+  line-height: 1.45;
+  overflow-wrap: normal;
+}
+@media (max-width: 760px) {
+  :root[data-language="en"] .about-page .hero-points { grid-template-columns: 1fr; }
+  :root[data-language="en"] .about-page .hero-points span { min-height: 42px; }
+}

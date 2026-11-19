@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../src/features/dining/DiningPage.jsx', import.meta.url), 'utf8');
 test('finalized manager entry lists active members, including those with no finalized record', () => {
-  assert.match(source, /activeMembers\.filter\(\(member\) => member\.membership_id === selectedMember\) : activeMembers/);
+  assert.match(source, /const activeMembers = useMemo\(\(\) => members\.filter\(\(member\) => member\.member_status === 'active'\)/);
+  assert.match(source, /const scopedMembers = useMemo\(\(\) => resolveFinalMealMemberTargets/);
+  assert.match(source, /scopedMembers\.map\(\(member\) =>/);
   assert.match(source, /আগে মিল নেই · নতুন এন্ট্রি/);
 });
 test('past-day entry still requires finalized day and the current running month', () => {

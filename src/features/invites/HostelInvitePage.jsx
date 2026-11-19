@@ -5,7 +5,6 @@ import { useToast } from '../../components/Toast';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useAuth } from '../../contexts/AuthContext';
 import { navigateTo } from '../../app/AppShell';
-import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import {
   createHostelJoinRequestFromInvite,
@@ -13,6 +12,7 @@ import {
   getMyHostelJoinRequestStatus,
 } from '../../services/hostelInviteService';
 import { clearPendingHostelLinkToken, setPendingHostelLinkToken } from '../../utils/pendingHostelLink';
+import { getUiLocale } from '../../i18n/locale';
 
 const TOKEN_PATTERN = /^[0-9a-f]{64}$/;
 
@@ -150,7 +150,7 @@ export function HostelInvitePage({ pathname }) {
 
   return (
     <main className="hostel-invite-page">
-      <header className="hostel-invite-topbar"><span><Icon name="shield-check" size={15}/> সদস্য আমন্ত্রণ</span><div className="hostel-invite-topbar-actions"><button className="hostel-invite-exit" type="button" onClick={exitInvitation}>পরে</button><EntryThemeSwitcher/></div></header>
+      <header className="hostel-invite-topbar"><span><Icon name="shield-check" size={15}/> সদস্য আমন্ত্রণ</span><div className="hostel-invite-topbar-actions"><button className="hostel-invite-exit" type="button" onClick={exitInvitation}>পরে</button></div></header>
       <section className="hostel-invite-card">
         <div className="hostel-invite-brand"><BrandMark size={56}/><span>HOSTEL LIFE</span></div>
         <span className="eyebrow">সদস্য আমন্ত্রণ</span>
@@ -160,7 +160,7 @@ export function HostelInvitePage({ pathname }) {
           <div className="hostel-invite-security-note"><Icon name="shield-check" size={18}/><span>আপনার অনুরোধ মেসের ম্যানেজার অনুমোদন করলে সদস্যপদ চালু হবে।</span></div>
           <div className="hostel-invite-actions"><button className="primary-button large" type="button" onClick={() => navigateTo('/auth/register')}><Icon name="user-plus" size={17}/> নতুন অ্যাকাউন্ট তৈরি করুন</button></div>
         </> : <>
-          {info?.hostel_name && <div className="hostel-invite-hostel"><span>আমন্ত্রিত মেস</span><strong><Icon name="home" size={18}/>{info.hostel_name}</strong><small>মেয়াদ শেষ: {new Date(info.expires_at).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small></div>}
+          {info?.hostel_name && <div className="hostel-invite-hostel"><span>আমন্ত্রিত মেস</span><strong><Icon name="home" size={18}/><span data-user-content>{info.hostel_name}</span></strong><small>মেয়াদ শেষ: {new Date(info.expires_at).toLocaleString(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}</small></div>}
           {error && <div className="hostel-invite-error" role="alert"><Icon name="alert-circle" size={18}/><span>{error}</span><button className="text-button" type="button" onClick={() => window.location.reload()}>আবার চেষ্টা</button></div>}
           {otherActiveHostel ? <div className="hostel-invite-security-note warning"><Icon name="shield-alert" size={18}/><span>আপনার অ্যাকাউন্ট বর্তমানে অন্য একটি মেসের সক্রিয় সদস্য। একই সময়ে একাধিক মেসে সক্রিয় সদস্যপদ অনুমোদিত নয়। আগে বর্তমান সদস্যপদ সমাধান করুন।</span></div> : null}
           {!otherActiveHostel && status?.status === 'pending' && <><InviteStatus status="pending"/><button className="secondary-button" type="button" disabled={busy || !online} onClick={refreshStatus}>অবস্থা যাচাই করুন</button></>}

@@ -1,0 +1,20 @@
+Run70 — Language Switcher Visibility Patch
+Base: Run69 Full Bilingual project
+Changed existing files: 9
+New files: 2 (focused test and notes)
+Deleted files: 0
+
+Files:
+- src/components/LanguageSwitcher.jsx
+- src/components/Header.jsx
+- src/components/MenuDrawer.jsx
+- src/features/platform/SuperAdminPage.jsx
+- src/styles/run69-language-system.css
+- public/service-worker.js
+- tests/googleOauthPublicInfoPages.test.js
+- tests/logoutSecurityTelemetryVercelRegression.test.js
+- tests/run67-menu-telegram-invite-finish.test.mjs
+- tests/run70-language-switcher-visibility.test.mjs (new)
+- RUN70_LANGUAGE_SWITCHER_VISIBILITY_NOTES_BN.md (new)
+
+No database, migration, Edge Function, translation dictionary, or business logic changed.

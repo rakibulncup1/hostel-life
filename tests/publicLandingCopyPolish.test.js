@@ -11,7 +11,7 @@ test('About page uses clearer Bengali copy for the daily workflow and product sh
   for (const phrase of [
     'মেসের প্রতিদিনের কাজ হোক',
     'দৈনন্দিন কাজ, আলাদা ও সহজ ব্যবস্থায়',
-    'তথ্য সংরক্ষণ থেকে পর্যালোচনা—মাসিক প্রতিবেদন পর্যন্ত',
+    'তথ্য সংরক্ষণ, পর্যালোচনা এবং মাসিক প্রতিবেদন',
     'অ্যাকাউন্ট থেকে মাসিক হিসাব—সহজ তিন ধাপে',
     'মিলের অনুরোধ যাচাই ও অনুমোদন',
     'দায়িত্ব অনুযায়ী সাজানো ব্যবস্থাপনা মেনু',
@@ -25,7 +25,7 @@ test('About page uses clearer Bengali copy for the daily workflow and product sh
 test('bottom and hero login actions remain readable without hover and support keyboard focus', () => {
   const html = read('public/about.html');
   const css = read('public/landing-assets/public-experience.css');
-  assert.match(html, /class="closing-actions"[\s\S]*?class="btn btn-secondary" href="\/auth\/login">অ্যাকাউন্টে প্রবেশ করুন/);
+  assert.match(html, /class="closing-actions"[\s\S]*?class="btn btn-secondary" href="\/auth\/login"[^>]*>অ্যাকাউন্টে প্রবেশ করুন/);
   assert.match(css, /\.hero-actions \.btn-secondary,[\s\S]*?\.closing-actions \.btn-secondary\s*\{[^}]*background:\s*#eaf5ee;[^}]*color:\s*#075f3e;/);
   assert.match(css, /\.closing-actions \.btn-secondary:hover/);
   assert.match(css, /\.closing-actions \.btn-secondary:focus-visible/);

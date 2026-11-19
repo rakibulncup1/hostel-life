@@ -6,21 +6,16 @@ import path from 'node:path';
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('About page includes real manager, navigation and anonymized final-report screenshots', () => {
+test('About manager, menu and report panels are semantic code-built previews', () => {
   const html = read('public/about.html');
-  for (const asset of [
-    'manager-requests.webp',
-    'manager-menu.webp',
-    'final-report-anonymized.webp',
-  ]) {
-    assert.ok(fs.existsSync(path.join(root, 'public/landing-assets', asset)), `${asset} must exist`);
-    assert.ok(html.includes(`/landing-assets/${asset}`), `${asset} must be shown on About`);
-  }
+  assert.match(html, /class="showcase-code-preview request-preview"/);
+  assert.match(html, /class="showcase-code-preview menu-preview"/);
+  assert.match(html, /class="showcase-code-preview report-preview"/);
   assert.match(html, /মিলের অনুরোধ যাচাই ও অনুমোদন/);
   assert.match(html, /দায়িত্ব অনুযায়ী সাজানো ব্যবস্থাপনা মেনু/);
   assert.match(html, /মাসিক হিসাবের পূর্ণাঙ্গ প্রতিবেদন/);
-  assert.match(html, /alt="ব্যক্তিগত পরিচয় গোপন করা Hostel Life-এর মাসিক ফাইনাল রিপোর্ট/);
-  assert.match(html, /ফাইনাল রিপোর্ট · পরিচয় গোপন করা নমুনা/);
+  assert.match(html, /নমুনা তথ্য · ব্যক্তিগত পরিচয় নেই/);
+  assert.doesNotMatch(html, /manager-requests\.webp|manager-menu\.webp|final-report-anonymized\.webp/);
 });
 
 test('App download actions use the existing PWA install page on all public entry points', () => {
@@ -43,7 +38,7 @@ test('only the informational App Download route bypasses authentication; other a
   assert.match(app, /resolveAppPage\(pathname, auth\.isManager\)/);
   assert.match(app, /pathname === '\/app\/menu\/archive'\) return <ArchiveCorrectionPage \/>/);
   assert.doesNotMatch(app, /isManager \|\| hasClosedMonthAccess/);
-  assert.match(app, /pathname === '\/app\/menu\/app-download'\) title = 'Hostel Life — অ্যাপ ডাউনলোড'/);
+  assert.match(app, /\['\/menu\/app-download', 'Download App', 'অ্যাপ ডাউনলোড'\]/);
 });
 
 test('root URL redirects to About, while Vite and all public paths remain configured', () => {

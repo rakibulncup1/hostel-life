@@ -34,6 +34,7 @@ import './styles/dashboard-reimagined-original.css';
 import './styles/dining-experience-v2.css';
 import './styles/dining-finish-v13.css';
 import './styles/history-finish-v13.css';
+import './styles/profile-experience-v1.css';
 import './styles/profile-finish-v13.css';
 import './styles/menu-interior-experience-v14.css';
 import './styles/finishing-polish-v15.css';
@@ -42,6 +43,11 @@ import './styles/run63_focused_fixes.css';
 import './styles/run65-entry-windows.css';
 import './styles/run66-theme-exception-fit.css';
 import './styles/run67-menu-telegram-invite-finish.css';
+import './styles/run69-language-system.css';
+import './styles/run73-professional-refinement.css';
+import './styles/run74-professional-polish.css';
+import './styles/run76-readability-graphite.css';
+import './styles/run77-balanced-dark-and-wrap.css';
 
 function AppWithInstallPrompt() {
   const installPrompt = useInstallPrompt();
@@ -67,3 +73,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </AppRouteErrorBoundary>
   </React.StrictMode>,
 );
+
+import './styles/run78-visual-correction.css';
+
+import './styles/run79-cohesive-theme-and-layout.css';
+import './styles/run80-focused-profile-auth.css';
+
+import './styles/run81-theme-stability-and-compact-auth.css';
+
+import './styles/run86-public-entry-compact.css';
+import './styles/run87-public-entry-compact.css';
+import './styles/run88-auth-brand-and-forgot-layout.css';
+import './styles/run89-member-detail-and-final-meal-search.css';

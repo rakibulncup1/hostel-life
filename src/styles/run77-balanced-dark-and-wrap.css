@@ -1,0 +1,135 @@
+/* Run77: balanced graphite dark theme + natural English wrapping.
+   No global typography scale changes. Existing font sizes are preserved. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #20262c;
+  --surface: #293139;
+  --surface-2: #323b44;
+  --surface-raised: #3a444e;
+  --surface-soft: #2d363e;
+  --surface-elevated: #414c56;
+  --input-bg: #252d34;
+  --text: #edf1f3;
+  --muted: #bac3ca;
+  --line: #48545f;
+  --border: #48545f;
+  --primary: #aebdb3;
+  --primary-strong: #c8d3cc;
+  --primary-soft: #3a4741;
+  --danger: #f09a9a;
+  --danger-soft: #503638;
+  --warning: #e8c27e;
+  --warning-soft: #4c4332;
+  --shadow: 0 14px 34px rgba(0,0,0,.20);
+  --card-shadow: 0 8px 22px rgba(0,0,0,.16);
+  --soft-shadow: 0 6px 18px rgba(0,0,0,.12);
+  --lift-shadow: 0 14px 30px rgba(0,0,0,.18);
+  background: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(html, body, #root, .app-shell, .app-main) {
+  background-color: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(
+  .app-header, .bottom-nav, .drawer, .menu-drawer, .app-sidebar,
+  .modal-panel, .card, .form-panel, .notification-panel-card,
+  .profile-section-card, .profile-overview-card, .dining-panel,
+  .history-filter-card, .ranking-card, .developer-card, .manager-form-card,
+  .archive-table-card, .market-table-card, .dashboard-card, .summary-card,
+  .member-detail-card, .hero-card, .empty-state-card
+) {
+  background-color: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: var(--card-shadow);
+}
+:root[data-theme="dark"] :is(
+  .metric, .setting-row, .history-preview-row, .form-hint,
+  .profile-inline-note, .drawer-language-row, .network-pill,
+  .icon-button, .theme-choice, .table-head, .market-table-head,
+  .archive-table-head, .profile-section-head, .profile-detail-list > div,
+  .profile-email-readonly, .profile-password-hint, .history-filter-toolbar,
+  .table-toolbar, .filter-panel, .summary-metric-card,
+  .member-period-summary-grid .metric
+) {
+  background-color: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(input, select, textarea),
+:root[data-theme="dark"] .password-field input {
+  background-color: var(--input-bg);
+  border-color: var(--line);
+  color: var(--text);
+  color-scheme: dark;
+}
+:root[data-theme="dark"] :is(input, textarea)::placeholder { color: #aab5bd; opacity: 1; }
+:root[data-theme="dark"] select option { background: var(--surface); color: var(--text); }
+:root[data-theme="dark"] :is(.primary-button, .btn-primary, .profile-section-action[aria-expanded="true"]) {
+  background: #b7c4bb;
+  border-color: #b7c4bb;
+  color: #202a24;
+}
+:root[data-theme="dark"] :is(.secondary-button, .text-button, .profile-section-action, .icon-button:not(.ghost)) {
+  background: #35404a;
+  border-color: #56636e;
+  color: #e5eaed;
+}
+:root[data-theme="dark"] :is(.role-badge, .member-badge, .profile-section-icon,
+  .profile-email-readonly, .profile-hostel-details .monospace-value,
+  .language-switcher, .language-switcher-segmented, .app-header-language-control) {
+  background: #3a454e;
+  border-color: #58646e;
+  color: #e1e7ea;
+}
+:root[data-theme="dark"] .profile-experience .profile-identity-card {
+  background: linear-gradient(125deg, #303a43 0%, #39454e 100%);
+  border-color: #58646e;
+}
+:root[data-theme="dark"] .profile-experience :is(.profile-personal-section .profile-section-icon,
+  .profile-security-section .profile-section-icon, .profile-hostel-section .profile-section-icon,
+  .profile-theme-section .profile-section-icon, .profile-language-section .profile-section-icon) {
+  background: #3a454e;
+  border-color: #59656e;
+  color: #dce4e0;
+}
+:root[data-theme="dark"] .profile-experience .profile-section-heading .eyebrow { color: #c4cfca; }
+:root[data-theme="dark"] :is(.table-wrap, .table-scroll, table, th, td) { border-color: var(--line); }
+:root[data-theme="dark"] th { background: var(--surface-2); color: #e1e7ea; }
+:root[data-theme="dark"] td { color: var(--text); }
+:root[data-theme="dark"] a { color: #c2d0c7; }
+:root[data-theme="dark"] :is(.danger, .text-danger) { color: var(--danger); }
+
+/* Preserve the established type scale. Only allow English content to wrap naturally. */
+:root[data-language="en"] :is(
+  .card, .profile-section-card, .profile-overview-card, .dining-panel,
+  .form-panel, .modal-panel, .dashboard-card, .summary-card,
+  .member-detail-card, .app-header, .menu-drawer, .app-sidebar
+) { min-width: 0; }
+:root[data-language="en"] :is(
+  .card, .profile-section-card, .profile-overview-card, .dining-panel,
+  .form-panel, .modal-panel, .dashboard-card, .summary-card,
+  .member-detail-card
+) :is(h1, h2, h3, p, span, small, label, strong, b, em) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+:root[data-language="en"] :is(.card, .profile-section-card, .dining-panel, .form-panel) {
+  height: auto;
+  min-height: 0;
+}
+:root[data-language="en"] :is(.card, .profile-section-card, .dashboard-card, .summary-card) > * { min-width: 0; }
+:root[data-language="en"] :is(.page-stack, .form-grid, .summary-grid, .profile-grid, .dashboard-grid) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+:root[data-language="en"] :is(button, .btn, .primary-button, .secondary-button) {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+}

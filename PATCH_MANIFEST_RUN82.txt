@@ -1,0 +1,16 @@
+Hostel Life — Run82 About Dark Surface Audit
+Base: Run81 Theme Stability & About Fix Patch applied to the latest hostellife.zip source
+Scope: About page only; Dark Theme only
+
+REPLACE:
+  public/about.html
+
+ADD:
+  public/landing-assets/run82-about-dark-surface-audit.css
+  tests/run82-about-dark-surface-audit.test.mjs
+  README_RUN82_BN.md
+  VERIFICATION_REPORT_RUN82_BN.md
+  PATCH_MANIFEST_RUN82.txt
+  SHA256SUMS_RUN82.txt
+
+No other production files are changed. Keep all existing Run79/Run80/Run81 files.

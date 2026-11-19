@@ -1,0 +1,366 @@
+/* Run86 — compact public entry windows.
+   Scope: Login, Registration, Password Recovery, Onboarding and Invite entry only.
+   Presentation-only: no routes, forms, validation, auth, RPC or data flows change. */
+
+/* Desktop login/register: keep the existing split composition, but remove the
+   oversized minimum height and reduce the card/panel dimensions proportionally. */
+@media (min-width: 900px) {
+  .auth-page .auth-shell:not(.auth-shell-compact) {
+    width: min(900px, calc(100vw - 48px));
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    grid-template-columns: minmax(0, .86fr) minmax(0, 1.14fr);
+    border-radius: 24px;
+  }
+
+  .auth-page .auth-shell-register:not(.auth-shell-compact) {
+    width: min(960px, calc(100vw - 48px));
+    grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-panel:not(.auth-brand-panel-compact) {
+    min-width: 0;
+    min-height: 0 !important;
+    height: auto;
+    padding: 28px 25px !important;
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-panel .auth-brand-mark {
+    flex-basis: 56px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-panel .auth-brand-name {
+    font-size: clamp(27px, 2.35vw, 33px) !important;
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-panel .auth-brand-quote {
+    width: min(100%, 34ch);
+    margin: 20px auto 0 !important;
+    padding: 15px 16px !important;
+    border-radius: 15px;
+    font-size: 15px !important;
+    line-height: 1.62;
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-feature-list {
+    gap: 7px;
+    margin-top: 14px;
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-feature-list span {
+    padding: 7px 9px;
+    font-size: 10px;
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-panel {
+    min-width: 0;
+    padding: 24px 29px 25px;
+  }
+
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-toolbar { margin-bottom: 9px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-toolbar-label { min-height: 32px; font-size: 10px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-header { margin-bottom: 13px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-header h2 { font-size: clamp(23px, 2vw, 27px); line-height: 1.28; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-header p { margin-top: 5px; font-size: 12px; line-height: 1.6; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-panel > .form-stack { gap: 11px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .field-label { gap: 5px; font-size: 12px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .field-label input,
+  .auth-page .auth-shell:not(.auth-shell-compact) .password-field input { min-height: 45px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .primary-button.large { min-height: 47px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-switch { margin-top: 10px; padding-top: 11px; font-size: 11px; }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-legal-links { gap: 6px 11px; margin-top: 11px; padding-top: 10px; font-size: 10px; }
+
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-form-panel {
+    padding: 21px 28px 22px;
+  }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-header { margin-bottom: 10px; }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-header h2 { font-size: 24px; }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form { gap: 9px; }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form .two-field-grid { gap: 9px; }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form .field-label { gap: 4px; }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form .field-label input,
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form .password-field input { min-height: 43px; }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-legal-consent { padding: 9px 11px; font-size: 11px; line-height: 1.48; }
+
+  /* Forgot password: a horizontal, balanced card. The policy remains fully
+     visible in its own column; form actions stay together on the left. */
+  .auth-page .auth-shell-compact:not(.auth-shell-verification) {
+    width: min(500px, calc(100vw - 48px));
+    min-height: 0;
+    border-radius: 22px;
+  }
+
+  .auth-page .auth-shell-compact:has(.password-reset-policy) {
+    width: min(760px, calc(100vw - 48px));
+  }
+
+  .auth-page .auth-shell-compact:not(.auth-shell-verification) .auth-form-panel {
+    width: 100%;
+    max-width: none;
+    padding: 25px 29px 27px;
+  }
+
+  .auth-page .auth-shell-compact:not(.auth-shell-verification) .auth-compact-brand {
+    justify-content: flex-start;
+    margin: 0 0 12px;
+    font-size: 14px;
+  }
+
+  .auth-page .auth-shell-compact:not(.auth-shell-verification) .auth-header { margin-bottom: 12px; }
+  .auth-page .auth-shell-compact:not(.auth-shell-verification) .auth-header h2 { font-size: 24px; }
+  .auth-page .auth-shell-compact:not(.auth-shell-verification) .form-stack { gap: 11px; }
+
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .form-stack {
+    display: grid;
+    grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+    align-items: start;
+    gap: 11px 18px;
+  }
+
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .form-stack > .field-label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .form-stack > .password-reset-policy {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: stretch;
+    min-width: 0;
+    margin: 0;
+    padding: 12px 13px;
+    border-radius: 13px;
+  }
+
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .password-reset-policy-title { gap: 7px; font-size: 12px; }
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .password-reset-policy p { font-size: 10.5px; line-height: 1.58; }
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .form-stack > .inline-error,
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .form-stack > .inline-success { grid-column: 1; }
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .form-stack > .primary-button,
+  .auth-page .auth-shell-compact:has(.password-reset-policy) .form-stack > .secondary-button { grid-column: 1; width: 100%; }
+}
+
+/* The compact Forgot/Reset header used to display both the compact wordmark
+   and the original compact brand panel on phones. Keep the verification OTP
+   page's intentionally separate brand header untouched. */
+.auth-page .auth-shell-compact:not(.auth-shell-verification) > .auth-brand-panel {
+  display: none !important;
+}
+.auth-page .auth-shell-compact:not(.auth-shell-verification) .auth-compact-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.auth-page .auth-shell-compact:not(.auth-shell-verification) .auth-compact-brand span {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: -.025em;
+}
+
+/* Onboarding desktop: reduce the outer workspace while leaving the existing
+   mobile/tablet composition and success state alone. */
+@media (min-width: 900px) {
+  .onboarding-page { padding: 24px 22px; }
+  .onboarding-page .onboarding-shell:not(.onboarding-shell-success) { width: min(820px, calc(100vw - 44px)); }
+  .onboarding-page .onboarding-shell:not(.onboarding-shell-success) > .onboarding-main-card {
+    padding: 25px 30px 27px;
+    border-radius: 24px;
+  }
+  .onboarding-page .onboarding-topbar { margin-bottom: 9px; }
+  .onboarding-page .onboarding-brand-header { padding: 2px 8px 17px; }
+  .onboarding-page .onboarding-brand-logo { width: 58px; height: 58px; border-radius: 17px; }
+  .onboarding-page .onboarding-brand-logo svg { width: 44px; height: 44px; }
+  .onboarding-page .onboarding-brand-wordmark { margin-top: 8px; font-size: 9px; }
+  .onboarding-page .onboarding-brand-header h1 { margin-top: 6px; font-size: 25px; }
+  .onboarding-page .onboarding-brand-header p { margin-top: 5px; font-size: 12px; line-height: 1.6; }
+  .onboarding-page .onboarding-account-switch-row { margin-top: 9px; }
+  .onboarding-page .onboarding-choice-intro { margin-bottom: 12px; }
+  .onboarding-page .onboarding-mode-picker { width: min(700px, 100%); gap: 10px; }
+  .onboarding-page .onboarding-mode-option { min-height: 70px; padding: 12px 14px; border-radius: 14px; }
+  .onboarding-page .onboarding-mode-icon { width: 36px; height: 36px; flex-basis: 36px; border-radius: 11px; }
+  .onboarding-page .onboarding-action-panel { width: min(700px, 100%); margin-top: 12px; padding: 18px 20px; border-radius: 16px; }
+  .onboarding-page .onboarding-action-heading { margin-bottom: 11px; }
+  .onboarding-page .onboarding-entry-form { width: min(620px, 100%); gap: 10px; }
+  .onboarding-page .onboarding-entry-form .field-label input { min-height: 46px; }
+}
+
+/* Invite-by-link desktop card: compact proportions; all request/status controls
+   and the existing mobile measurements are preserved. */
+@media (min-width: 900px) {
+  .hostel-invite-page { padding: 25px 22px; gap: 13px; }
+  .hostel-invite-page .hostel-invite-topbar { width: min(600px, 100%); }
+  .hostel-invite-page .hostel-invite-card {
+    width: min(600px, 100%);
+    gap: 13px;
+    padding: 27px 31px;
+    border-radius: 23px;
+  }
+  .hostel-invite-page .hostel-invite-card > h1 { font-size: 28px; }
+  .hostel-invite-page .hostel-invite-lead { font-size: 13px; line-height: 1.7; }
+  .hostel-invite-page .hostel-invite-security-note,
+  .hostel-invite-page .hostel-invite-hostel,
+  .hostel-invite-page .hostel-invite-status,
+  .hostel-invite-page .hostel-invite-error { padding: 12px 14px; font-size: 11px; }
+  .hostel-invite-page .hostel-invite-card textarea { min-height: 82px; }
+  .hostel-invite-page .hostel-invite-card > .primary-button,
+  .hostel-invite-page .hostel-invite-card > .secondary-button { min-height: 46px; }
+  .hostel-invite-page .hostel-invite-footer { max-width: 60ch; font-size: 10.5px; }
+  .hostel-invite-page .hostel-invite-loading-card { width: min(420px, 100%); padding: 28px; border-radius: 22px; }
+}
+
+/* Dark mode for public entry branding: neutral graphite rather than the older
+   green-tinted gradients. Selectors are limited to the public entry windows. */
+:root[data-theme="dark"] .auth-page,
+:root[data-theme="dark"] .onboarding-page,
+:root[data-theme="dark"] .hostel-invite-page {
+  color-scheme: dark;
+  background: #20262c;
+  color: #edf1f3;
+}
+
+:root[data-theme="dark"] .auth-page .auth-shell,
+:root[data-theme="dark"] .onboarding-page .onboarding-main-card,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-card {
+  border-color: #48545f;
+  background: #293139;
+  color: #edf1f3;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, .22);
+}
+
+:root[data-theme="dark"] .auth-page .auth-brand-panel:not(.auth-brand-panel-compact) {
+  border-color: #48545f !important;
+  background: linear-gradient(145deg, #343e47 0%, #303941 58%, #2d363e 100%);
+  color: #edf1f3;
+}
+
+:root[data-theme="dark"] .auth-page .auth-brand-mark,
+:root[data-theme="dark"] .onboarding-page .onboarding-brand-logo {
+  border-color: #58646e;
+  background: linear-gradient(145deg, #46525c, #38434c);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .16);
+}
+
+:root[data-theme="dark"] .auth-page .auth-brand-mark svg rect:first-child,
+:root[data-theme="dark"] .auth-page .auth-compact-brand svg rect:first-child,
+:root[data-theme="dark"] .onboarding-page .onboarding-brand-logo svg rect:first-child,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-brand svg rect:first-child {
+  fill: #46525c;
+}
+
+:root[data-theme="dark"] .auth-page .auth-brand-mark svg path,
+:root[data-theme="dark"] .auth-page .auth-compact-brand svg path,
+:root[data-theme="dark"] .onboarding-page .onboarding-brand-logo svg path,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-brand svg path {
+  stroke: #e2e8eb;
+}
+
+:root[data-theme="dark"] .auth-page .auth-brand-name,
+:root[data-theme="dark"] .auth-page .auth-compact-brand span,
+:root[data-theme="dark"] .onboarding-page .onboarding-brand-wordmark,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-brand > span {
+  color: #e2e8eb;
+}
+
+:root[data-theme="dark"] .auth-page .auth-brand-panel .auth-brand-quote,
+:root[data-theme="dark"] .auth-page .auth-brand-feature-list span {
+  border-color: #48545f;
+  background: #323b44;
+  color: #d5dde1;
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .auth-page .auth-brand-quote::before { background: #aebdb3; }
+:root[data-theme="dark"] .auth-page .auth-form-toolbar-label svg,
+:root[data-theme="dark"] .onboarding-page .onboarding-topbar > span svg,
+:root[data-theme="dark"] .onboarding-page .onboarding-note svg,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-topbar > span svg,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-brand svg { color: #c8d3cc; }
+
+:root[data-theme="dark"] .auth-page .auth-form-panel { background: #293139; color: #edf1f3; }
+:root[data-theme="dark"] .auth-page .auth-compact-brand { color: #edf1f3; }
+:root[data-theme="dark"] .onboarding-page .onboarding-brand-header { border-color: #48545f; }
+:root[data-theme="dark"] .onboarding-page .onboarding-account-setup-chip {
+  border-color: #48545f;
+  background: #323b44;
+  color: #dce3e7;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-mode-option {
+  border-color: #48545f;
+  background: #2d363e;
+  color: #edf1f3;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-mode-option.active {
+  border-color: #71808a;
+  background: #3a444e;
+  box-shadow: 0 0 0 2px rgba(200, 211, 204, .08);
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-mode-icon,
+:root[data-theme="dark"] .onboarding-page .onboarding-mode-option.active .onboarding-mode-icon {
+  background: #424d56;
+  color: #dce3e7;
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-mode-copy strong { color: #edf1f3; }
+:root[data-theme="dark"] .onboarding-page .onboarding-mode-copy small { color: #b5c0c7; }
+:root[data-theme="dark"] .onboarding-page .onboarding-mode-check { color: #c8d3cc; }
+:root[data-theme="dark"] .onboarding-page .onboarding-action-panel {
+  border-color: #48545f;
+  background: #303941;
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-action-heading .eyebrow { color: #c8d3cc; }
+:root[data-theme="dark"] .onboarding-page .onboarding-entry-form .field-label input {
+  border-color: #48545f;
+  background: #252d34;
+  color: #edf1f3;
+  caret-color: #dce3e7;
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-entry-form .field-label input:focus-visible {
+  border-color: #aab5bc;
+  box-shadow: 0 0 0 3px rgba(200, 211, 204, .12);
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-note,
+:root[data-theme="dark"] .onboarding-page .onboarding-account-switch-row,
+:root[data-theme="dark"] .onboarding-page .onboarding-linked-request {
+  border-color: #48545f;
+  background: #303941;
+  color: #d1d9de;
+}
+:root[data-theme="dark"] .onboarding-page .onboarding-linked-request-icon { background: #424d56; color: #dce3e7; }
+
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-topbar > span,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-footer,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-brand { color: #bfc9cf; }
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-security-note:not(.warning),
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-hostel,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-status,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-loading-mark {
+  border-color: #48545f;
+  background: #323b44;
+  color: #dce3e7;
+}
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-security-note > svg,
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-hostel > strong svg { color: #c8d3cc; }
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-card .eyebrow { color: #c8d3cc; }
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-card textarea {
+  border-color: #48545f;
+  background: #252d34;
+  color: #edf1f3;
+}
+:root[data-theme="dark"] .hostel-invite-page .hostel-invite-loading-card {
+  border-color: #48545f;
+  background: #293139;
+  color: #edf1f3;
+}
+
+/* Keep the established mobile/tablet dimensions; only colour and the duplicate
+   compact Forgot/Reset brand correction above apply below desktop width. */
+@media (max-width: 899px) {
+  .auth-page .auth-shell:not(.auth-shell-compact) { height: auto; }
+}

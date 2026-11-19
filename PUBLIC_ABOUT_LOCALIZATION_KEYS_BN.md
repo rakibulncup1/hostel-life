@@ -1,0 +1,172 @@
+# About Page — Completed Localization Key Inventory
+
+এই ফাইলে About পেজে ব্যবহৃত স্থিতিশীল `data-i18n-key` ও বাংলা string-এর তালিকা রাখা হয়েছে। প্রতিটি তালিকাভুক্ত key-এর English translation `public/language-runtime.js`-এর `KEY_EN` dictionary-তে যুক্ত আছে। সাধারণ নমুনা মূল্য ও অঙ্কগুলো runtime-এর নিরাপদ currency formatter দিয়ে ইংরেজি অঙ্কে দেখানো হয়।
+
+- `about.copy.007825ecf6` — সদস্যের জমা
+- `about.copy.0232a47481` — ডিপোজিট · জমা সংরক্ষণ
+- `about.copy.03c740f679` — সম্পন্ন
+- `about.copy.04ed1ba318` — দিনভিত্তিক
+- `about.copy.0532dcda03` — ১৫ নভেম্বর ২০২৬
+- `about.copy.08ae1b68db` — ＋
+- `about.copy.0a1b18e1d1` — ইন্টারফেসের নমুনা
+- `about.copy.0b09af0fdd` — দু
+- `about.copy.0b4ad19350` — আর্কাইভ
+- `about.copy.0eb22a4c40` — নির্বাচিত মাস
+- `about.copy.119edfc8c8` — স
+- `about.copy.134edc8133` — ১৬ নভে.
+- `about.copy.1604a72863` — ১৪ নভেম্বর
+- `about.copy.19adb8ceca` — নভেম্বর ২০২৬
+- `about.copy.1b78270cf3` — বাজার এন্ট্রি · আইটেম তালিকা
+- `about.copy.1e99fe1208` — তারিখ ও মিল পরিকল্পনা
+- `about.copy.20cbe6e36a` — সারসংক্ষেপ ও চূড়ান্ত রিপোর্ট
+- `about.copy.25e4da8f52` — নমুনা সদস্য
+- `about.copy.26b3d0fce4` — শর্তাবলী
+- `about.copy.27bb5b4616` — মিল অনুরোধ · দিন তৈরি
+- `about.copy.2828b7a1c8` — সদস্য ০১
+- `about.copy.2897f7ddb6` — মাসিক সারসংক্ষেপ · সদস্যভিত্তিক হিসাব
+- `about.copy.2966486bb2` — মেস সেটিংস
+- `about.copy.2b38160d28` — পারিশ্রমিকের হিসাব
+- `about.copy.2b43d5b58d` — গোপনীয়তা নীতি
+- `about.copy.3328b56617` — তারিখ
+- `about.copy.3539014022` — অ্যাপ ডাউনলোড ↓
+- `about.copy.381bafac1c` — দুপুরের মিল
+- `about.copy.39492e4136` — সকালের মিল
+- `about.copy.3a6ebf18ed` — Rakibul Islam Samrat
+- `about.copy.3bea83a59f` — মাসিক প্রতিবেদন
+- `about.copy.3c82809109` — মেস ব্যবস্থাপনা
+- `about.copy.3eec0c8b85` — সেবার পরিধি
+- `about.copy.3f5968b3b7` — ১ কেজি
+- `about.copy.3ff222b8bb` — ব্যবস্থাপনা মেনু · নমুনা UI
+- `about.copy.4afc022833` — মিল, বাজার ও জমার কাজ
+- `about.copy.4b54e7338e` — বাজার ও জমা
+- `about.copy.4bd56b9ec6` — মিল পরিকল্পনা
+- `about.copy.4c3a7883c3` — মিল সংশোধন
+- `about.copy.4dac2634de` — জমার পরিমাণ
+- `about.copy.4e1da7bd14` — সদস্যদের জমা
+- `about.copy.4ec207478e` — র
+- `about.copy.4f174cb968` — নমুনা
+- `about.copy.56c1ed443d` — Hostel Life — মেসের প্রতিদিনের কাজ হোক আরও সহজ ও গোছানো
+- `about.copy.56d8a9fcde` — মোট বাজার
+- `about.copy.593a476024` — ১৫ নভে.
+- `about.copy.59bc81dac1` — লেট অনুরোধ
+- `about.copy.5c220af0e5` — ম্যানেজার প্যানেল · নমুনা UI
+- `about.copy.5c4bb2f866` — ১৫ নভেম্বর
+- `about.copy.5e4f779542` — জমা সংরক্ষণ
+- `about.copy.5e631839d7` — জন
+- `about.copy.609ff65848` — ড্যাশবোর্ড
+- `about.copy.6564582d82` — ↗
+- `about.copy.6603a1171b` — মাসভিত্তিক
+- `about.copy.6c69774081` — দৈনিক তালিকা
+- `about.copy.6dbecd5133` — মাসিক হিসাব
+- `about.copy.6e33af89c8` — রেকর্ড
+- `about.copy.73313eb0fa` — মাসিক প্রতিবেদন · নমুনা UI
+- `about.copy.7639554285` — পরিকল্পিত
+- `about.copy.7938945538` — নমুনা হিসাব · নভেম্বর ২০২৬
+- `about.copy.7a31e44acc` — আরও সহজ ও গোছানো।
+- `about.copy.7cbc8fbb54` — ০৫ · ম্যানেজার পর্যালোচনা
+- `about.copy.7cf184f4c6` — H
+- `about.copy.7e4bddf5f8` — অনুরোধ পর্যালোচনা
+- `about.copy.802d8cbe02` — প্রতিদিনের অবস্থা এক নজরে
+- `about.copy.80be3f5c5b` — Hostel Life
+- `about.copy.836f5e1280` — সবজি
+- `about.copy.85125535d3` — খরচের রেকর্ড
+- `about.copy.86fb40b5ca` — রাতের মিল
+- `about.copy.89846faba0` — অনুরোধ
+- `about.copy.8bd68ff3b2` — ডাইনিং
+- `about.copy.8de1534ba7` — সংশোধন
+- `about.copy.8eb4692fa0` — মিল রেট
+- `about.copy.8f3f11b2f7` — সদস্য · আর্কাইভ · ম্যানেজার টুলস
+- `about.copy.90b23dc030` — ডাল
+- `about.copy.9394758084` — Hostel Life মেসের হিসাব ও রেকর্ড ব্যবস্থাপনার সফটওয়্যার—এটি পেমেন্ট গেটওয়ে নয় এবং টাকা লেনদেন করে না।
+- `about.copy.943164f9e8` — ২ কেজি
+- `about.copy.98e506cf61` — রেকর্ড সংরক্ষণের জন্য প্রস্তুত
+- `about.copy.9a487d2774` — নোটিশ
+- `about.copy.9cd37d2f8e` — রিপোর্ট
+- `about.copy.9d054cc8cf` — ব্যবহারের শর্তাবলী
+- `about.copy.9d6efc9496` — মিল অনুরোধ
+- `about.copy.a24e5cdbf1` — ০৬ · মেস পরিচালনা
+- `about.copy.a98bd8c7d8` — ০৫ নভেম্বর
+- `about.copy.af088d473a` — মোট খরচ
+- `about.copy.af389cee3f` — খরচ
+- `about.copy.b0c0645c42` — হিসাবের ধরন
+- `about.copy.b0d12ecc1f` — এন্ট্রি
+- `about.copy.b679fbb0aa` — খরচের রেকর্ড ও সদস্যদের জমা
+- `about.copy.b750e92d02` — সাধারণ অনুরোধ
+- `about.copy.b88dc5121e` — ডিপোজিট
+- `about.copy.b8cc84d169` — চাল
+- `about.copy.bbfe0f8fd4` — যোগাযোগ
+- `about.copy.c5e2f5cbde` — গোপনীয়তা
+- `about.copy.c8ace1cc38` — মোট সদস্য
+- `about.copy.c954010b41` — অ্যাকাউন্ট তৈরি করুন ↗
+- `about.copy.c9dfad7d50` — অবস্থা
+- `about.copy.ca0e079d07` — অপেক্ষমাণ
+- `about.copy.cccf20a166` — পণ্যের নাম
+- `about.copy.cd6be110bb` — দৈনিক মিল
+- `about.copy.cdb60efa35` — অনুরোধ পর্যালোচনা · অনুমোদনের অবস্থা
+- `about.copy.ce4fea4852` — আজকের সারসংক্ষেপ
+- `about.copy.ceb628ae58` — জমার তারিখ
+- `about.copy.cfaab68eab` — দৈনন্দিন কাজ
+- `about.copy.cfdde5cf4d` — বাজার এন্ট্রি
+- `about.copy.cfe4358b28` — নমুনা তথ্য
+- `about.copy.d7ceca44a3` — অ্যাকাউন্টে প্রবেশ করুন
+- `about.copy.d7d7d8cf2a` — ০৩টি
+- `about.copy.da0222b64d` — ম্যানেজার টুলস
+- `about.copy.da16b61fca` — খালার টাকা · মাসভিত্তিক হিসাব
+- `about.copy.dd6628c473` — মিল, অনুরোধ ও সংশোধন
+- `about.copy.e41fc95956` — কোডে তৈরি নমুনা UI
+- `about.copy.e450a13c64` — বাজার
+- `about.copy.e6058a7aa8` — অবশিষ্ট
+- `about.copy.e631c39f22` — পর্যালোচনা
+- `about.copy.e6a39e5c62` — ১০ নভেম্বর
+- `about.copy.e769e7322a` — আজকের মিল
+- `about.copy.ebb2c87311` — মোট মিল
+- `about.copy.ed6edb58bf` — পরিমাণ
+- `about.copy.eec36cd127` — মোট রেকর্ড
+- `about.copy.f12bf70428` — ০৭ · মাসিক হিসাব
+- `about.copy.fc486696ad` — ↓
+- `about.copy.fe65e16b3b` — পরিচিতি
+- `about.copy.ff5fcd28b4` — সদস্য
+
+## Accessible labels and metadata
+
+- `about.aria.e79d7a61d1` — Hostel Life পরিচিতি
+- `about.aria.6d8b0e4619` — প্রধান নেভিগেশন
+- `about.aria.faa77e7f6e` — অ্যাকাউন্ট
+- `about.aria.f33d815f70` — মেনু খুলুন
+- `about.aria.45372d8169` — মোবাইল নেভিগেশন
+- `about.aria.2e6e642b0c` — প্রধান কাজের ক্ষেত্র
+- `about.aria.7d24268dab` — Hostel Life-এর কোডে তৈরি ইন্টারফেসের নমুনা
+- `about.aria.6363fbae42` — ড্যাশবোর্ডের নমুনা: সদস্য, আজকের মিল ও দৈনিক মিলের সারসংক্ষেপ
+- `about.aria.55ee1ba77e` — ডাইনিং সেকশনের নমুনা: মিল অনুরোধ, বাজার এন্ট্রি ও ডিপোজিট
+- `about.aria.2e6e642b0c` — প্রধান কাজের ক্ষেত্র
+- `about.aria.b7b79a89ab` — দিন ও বেলা অনুযায়ী মিল পরিকল্পনার কোডে তৈরি নমুনা
+- `about.aria.a2eabb0c10` — বাজারের পণ্য, পরিমাণ ও খরচের কোডে তৈরি নমুনা
+- `about.aria.abe358a9ac` — সদস্যের ডিপোজিট রেকর্ডের কোডে তৈরি নমুনা
+- `about.aria.a34cf5e263` — পারিশ্রমিকের মাসভিত্তিক হিসাবের কোডে তৈরি নমুনা
+- `about.aria.9822312656` — ম্যানেজারের মিল অনুরোধ পর্যালোচনা তালিকার কোডে তৈরি নমুনা
+- `about.aria.2facb45a45` — সদস্য, রিপোর্ট, আর্কাইভ ও ম্যানেজার টুলসের কোডে তৈরি নমুনা মেনু
+- `about.aria.c935d0aa32` — মাসিক সারসংক্ষেপ ও সদস্যভিত্তিক হিসাবের কোডে তৈরি নমুনা প্রতিবেদন
+- `about.aria.2ea768efe0` — Hostel Life ব্যবহারের তিনটি ধাপ
+- `about.aria.3eec0c8b85` — সেবার পরিধি
+- `about.aria.a48dd68cbe` — Hostel Life হোম
+- `about.aria.ee53df1e97` — সহায়ক লিংক
+- `about.meta.description` — About page meta description
+- `about.meta.ogTitle` — Open Graph title
+- `about.meta.ogDescription` — Open Graph description
+
+
+## Additional section translations
+
+- `about.features.eyebrow` — দৈনন্দিন ব্যবস্থাপনা → Everyday management
+- `about.feature.meal.title` — আগাম মিল পরিকল্পনা ও অনুরোধ → Plan meals in advance and manage requests
+- `about.feature.meal.description` — দিনভিত্তিক মিল ঠিক করুন, অনুরোধ দেখুন এবং প্রয়োজন হলে পরিবর্তন করুন। → Set meals by date, review requests and make changes when needed.
+- `about.feature.market.title` — বাজারের খরচের বিস্তারিত রেকর্ড → Detailed market expense records
+- `about.feature.market.description` — পণ্যের নাম, পরিমাণ ও খরচ লিখে প্রতিটি বাজারের রেকর্ড রাখুন। → Record item names, quantities and costs for every market purchase.
+- `about.feature.deposit.title` — সদস্যদের জমা ও ডিপোজিট → Member deposits and payment records
+- `about.feature.deposit.description` — সদস্যভিত্তিক জমা নথিভুক্ত করুন এবং আগের ডিপোজিটের তথ্য দেখুন। → Record deposits for each member and review previous payments.
+- `about.feature.allowance.title` — পারিশ্রমিকের আলাদা হিসাব → Separate staff allowance records
+- `about.feature.allowance.description` — মাস ও তারিখ অনুযায়ী পারিশ্রমিকের তথ্য আলাদা করে রাখুন। → Keep staff allowance details organised by month and date.
+- `about.management.title` — তথ্য সংরক্ষণ থেকে পর্যালোচনা—মাসিক প্রতিবেদন পর্যন্ত → From daily records to monthly reports
+- `about.management.requests.title` — মিলের অনুরোধ যাচাই ও অনুমোদন → Review and approve meal requests
+- `about.management.menu.title` — দায়িত্ব অনুযায়ী সাজানো ব্যবস্থাপনা মেনু → A management menu organised by role
+- `about.closing.title` — মেসের ব্যবস্থাপনা শুরু হোক গুছিয়ে → Keep your hostel management organised

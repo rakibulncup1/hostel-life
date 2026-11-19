@@ -1,0 +1,7 @@
+Hostel Life — Run86 Build Repair (missing Run81 stylesheet)
+Base: Run86 working project with src/main.jsx importing run81-theme-stability-and-compact-auth.css
+Operation: ADD one missing file only
+  src/styles/run81-theme-stability-and-compact-auth.css
+Test added:
+  tests/run86-build-repair-missing-run81-css.test.mjs
+No existing file is overwritten. No app/business/auth/data logic changes.

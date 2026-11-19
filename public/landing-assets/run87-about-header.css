@@ -1,0 +1,176 @@
+/* Run87 — About header refinement only. No other public page or content section. */
+.about-page .site-header {
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 4px 18px rgba(18, 38, 29, .045);
+  backdrop-filter: blur(14px);
+}
+.about-page .nav-shell {
+  min-height: 66px;
+  gap: clamp(11px, 1.35vw, 18px);
+}
+.about-page .brand {
+  gap: 8px;
+  font-size: 18px;
+  letter-spacing: -.035em;
+}
+.about-page .brand img { width: 35px; height: 35px; }
+.about-page .nav-links {
+  gap: clamp(10px, 1.35vw, 17px);
+  font-size: 11px;
+}
+.about-page .nav-actions { gap: 5px; }
+.about-page .nav-actions .btn {
+  min-height: 35px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 10px;
+  line-height: 1.15;
+}
+.about-page .nav-actions .public-language-switcher {
+  display: inline-flex;
+  min-width: 43px;
+  min-height: 35px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink-soft);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .04em;
+}
+.about-page .nav-actions .public-language-switcher:hover {
+  border-color: var(--green);
+  background: var(--sage);
+  transform: translateY(-1px);
+}
+.about-page .public-theme-control-desktop > summary {
+  min-height: 35px;
+  padding-inline: 10px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+.about-page .mobile-menu summary {
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
+}
+
+:root[data-theme="dark"] .about-page .site-header {
+  border-bottom-color: #343e46;
+  background: rgba(23, 29, 34, .96);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .16);
+}
+:root[data-theme="dark"] .about-page .nav-actions .public-language-switcher,
+:root[data-theme="dark"] .about-page .public-theme-control-desktop > summary {
+  border-color: #414d56;
+  background: #252e35;
+  color: #e0e7eb;
+}
+:root[data-theme="dark"] .about-page .nav-actions .public-language-switcher:hover,
+:root[data-theme="dark"] .about-page .public-theme-control-desktop > summary:hover {
+  border-color: #71808a;
+  background: #303941;
+}
+:root[data-theme="dark"] .about-page .nav-actions .btn-secondary,
+:root[data-theme="dark"] .about-page .nav-actions .nav-download {
+  border-color: #46515a;
+  background: #252e35;
+  color: #e2e8ec;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .about-page .nav-actions .btn-primary {
+  border-color: #d6dfe5;
+  background: #d6dfe5;
+  color: #171d22;
+  box-shadow: none;
+}
+
+/* Below tablet width, use two clear rows: brand/menu above, compact actions below.
+   Download remains in the hamburger menu, so nothing functional is removed. */
+@media (max-width: 860px) {
+  .about-page .nav-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 8px 10px;
+    min-height: 0;
+    padding-block: 9px;
+  }
+  .about-page .brand {
+    grid-column: 1;
+    grid-row: 1;
+    display: inline-flex;
+    min-width: 0;
+    gap: 7px;
+    font-size: 17px;
+    white-space: nowrap;
+  }
+  .about-page .brand img { width: 30px; height: 30px; }
+  .about-page .nav-links { display: none !important; }
+  .about-page .mobile-menu {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .about-page .mobile-menu summary { width: 34px; height: 34px; }
+  .about-page .nav-actions {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: 60px minmax(0, .9fr) minmax(0, 1.1fr);
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+  }
+  .about-page .nav-actions .public-language-switcher {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    padding-inline: 5px;
+    border-radius: 9px;
+    font-size: 10px;
+  }
+  .about-page .nav-actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+    padding: 6px 8px;
+    border-radius: 9px;
+    font-size: 9.5px;
+    line-height: 1.15;
+    white-space: normal;
+  }
+  .about-page .nav-actions .nav-download,
+  .about-page .public-theme-control-desktop { display: none !important; }
+  .about-page .mobile-menu-panel {
+    top: calc(100% + 8px);
+    width: min(310px, calc(100vw - 24px));
+    max-height: min(76vh, 580px);
+    overflow: auto;
+  }
+  .about-page .public-theme-control-mobile { display: block; }
+  .about-page .public-theme-control-mobile > summary {
+    min-height: 34px;
+    padding: 8px 3px;
+  }
+}
+
+@media (max-width: 380px) {
+  .about-page .nav-shell { gap: 7px 8px; padding-block: 8px; }
+  .about-page .brand { gap: 6px; font-size: 16px; }
+  .about-page .brand img { width: 28px; height: 28px; }
+  .about-page .nav-actions { grid-template-columns: 54px minmax(0, .92fr) minmax(0, 1.08fr); gap: 5px; }
+  .about-page .nav-actions .btn { padding-inline: 6px; font-size: 9px; }
+  .about-page .nav-actions .public-language-switcher { min-height: 33px; font-size: 9px; }
+  .about-page .mobile-menu summary { width: 32px; height: 32px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-page .nav-actions .public-language-switcher { transition: none; }
+}

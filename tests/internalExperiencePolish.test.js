@@ -37,9 +37,10 @@ test('short share is generated only after a successful market save and persists 
   assert.match(marketForm, /navigator\.clipboard\.writeText\(shareSummary\.text\)/);
   assert.match(marketForm, /const copyAndShareSavedMarket = async/);
   assert.match(marketForm, /buildMarketShareText\(\{/);
-  assert.match(marketShare, /`তারিখ : \${dateLabel}`/);
-  assert.match(marketShare, /`বাজারকারী: \${getMarketBuyerFirstName\(buyerName\)}`/);
-  assert.match(marketShare, /`টোটাল বাজার = \${formatNumber/);
+  assert.match(marketShare, /const isEnglish = getUiLocale\(\) === 'en-US'/);
+  assert.match(marketShare, /isEnglish \? `Date: \${dateLabel}` : `তারিখ : \${dateLabel}`/);
+  assert.match(marketShare, /const buyerLabel = buyerName \? getMarketBuyerFirstName\(buyerName\)/);
+  assert.match(marketShare, /isEnglish[\s\S]{0,35}`Total market:/);
   assert.match(marketForm, /<SystemNoticeDialog/);
   assert.match(marketForm, /কপি এন্ড শেয়ার/);
   assert.match(marketForm, /onClick=\{copyAndShareSavedMarket\}/);

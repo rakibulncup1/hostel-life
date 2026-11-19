@@ -1,0 +1,6 @@
+4bac56e1bc117329b3d01a58ef3c8789fdf8e0e8dad0a18a8af37121a3337fef  Hostel-Life-Run84-About-Preview-Containment-Patch/PATCH_MANIFEST_RUN84.txt
+1d1fbbe2e857af752985f5377acef72edd1f47554ee5dafc8521ea815cff2008  Hostel-Life-Run84-About-Preview-Containment-Patch/README_RUN84_BN.md
+42308a7334f285100e23d307fd17c0b60f025965ced9896dc7a322328d0f4137  Hostel-Life-Run84-About-Preview-Containment-Patch/VERIFICATION_REPORT_RUN84_BN.md
+28b23b63964685b49b14d5e8734b2ec7c9ec81299d0e75ec72889e360437a8dc  Hostel-Life-Run84-About-Preview-Containment-Patch/public/about.html
+bc1de0a2ed9b8604a321a1a77cfddb040d0fcd1b854e542b2c108b6d3c039962  Hostel-Life-Run84-About-Preview-Containment-Patch/public/landing-assets/run84-about-preview-containment.css
+f0f042baca86b089e97bca78f52e3309f5952bb096a042919cf8e4be30d48710  Hostel-Life-Run84-About-Preview-Containment-Patch/tests/run84-about-preview-containment.test.mjs

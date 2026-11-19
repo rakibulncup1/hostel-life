@@ -1,0 +1,17 @@
+Hostel Life Run76 — Targeted Polish Patch
+Base: Run74 (after applying Run75 rollback-to-Run74)
+
+REPLACE:
+  PATCH_MANIFEST_RUN76.txt
+  README_RUN76_PATCH_BN.md
+  SHA256SUMS_RUN76.txt
+  public/about.html
+  public/landing-assets/public-experience.css
+  public/language-runtime.js
+  src/main.jsx
+  src/styles/run76-readability-graphite.css
+
+ADD:
+  tests/run76-readability-about-regression.test.mjs
+  tests/publicLandingOriginalScreens.test.js (updated expectations)
+  tests/run68_public_site_code_native.test.mjs (updated expectations)

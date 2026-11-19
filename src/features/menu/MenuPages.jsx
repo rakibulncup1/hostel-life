@@ -346,7 +346,7 @@ function RankingPage({ kind }) {
                 <article className={`ranking-row ${firstRank ? 'first-rank' : ''}`} key={row.membership_id || row.member_id || `${memberName}-${safeRank}`}>
                   <div className={`rank-number ${safeRank <= 3 ? `rank-${safeRank}` : ''}`} aria-label={`ক্রমিক ${safeRank}`}>{formatNumber(safeRank, { maximumFractionDigits: 0 })}</div>
                   <div className="rank-avatar-wrap"><Avatar member={{ member_name: memberName }} />{firstRank && <span className="rank-crown"><Icon name="crown" size={13} /></span>}</div>
-                  <div className="rank-copy"><strong>{safeRank <= 3 ? '🏆 ' : ''}{memberName}</strong><small>{firstRank ? '🏆 সবার আগে' : `ক্রমিক ${formatNumber(safeRank, { maximumFractionDigits: 0 })}`}</small></div>
+                  <div className="rank-copy"><strong>{safeRank <= 3 ? '🏆 ' : ''}{memberName === 'নাম নেই' ? memberName : <span data-user-content>{memberName}</span>}</strong><small>{firstRank ? '🏆 সবার আগে' : `ক্রমিক ${formatNumber(safeRank, { maximumFractionDigits: 0 })}`}</small></div>
                   <div className="rank-value"><strong>{shopper || depositor ? formatCurrency(amount) : formatNumber(amount, { maximumFractionDigits: 1 })}</strong><span>{depositor ? 'ডিপোজিট' : shopper ? 'বাজার' : 'মিল'}</span></div>
                 </article>
               );

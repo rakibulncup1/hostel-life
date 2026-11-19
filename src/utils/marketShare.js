@@ -1,4 +1,5 @@
 import { formatNumber } from './number.js';
+import { getUiLocale } from '../i18n/locale.js';
 
 const HONORIFIC_TOKENS = new Set(['md', 'md.', 'মোঃ', 'মো.', 'জনাব']);
 
@@ -9,26 +10,34 @@ export function getMarketBuyerFirstName(value) {
 }
 
 export function buildMarketShareText({ entryDate, buyerName, items = [], total = 0 }) {
+  const isEnglish = getUiLocale() === 'en-US';
   const dateLabel = entryDate
-    ? new Intl.DateTimeFormat('bn-BD', {
+    ? new Intl.DateTimeFormat(getUiLocale(), {
       day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Dhaka',
     }).format(new Date(`${String(entryDate).slice(0, 10)}T12:00:00+06:00`)).replace(/,\s*/u, ' ')
-    : 'তারিখ নির্ধারিত নয়';
+    : (isEnglish ? 'Date not set' : 'তারিখ নির্ধারিত নয়');
+  const buyerLabel = buyerName ? getMarketBuyerFirstName(buyerName) : (isEnglish ? 'Member' : 'সদস্য');
   const itemLines = items.map((item, index) => {
+    // Item names and quantities are user-entered content: retain them verbatim.
     const itemName = String(item.item_name || '').replace(/\s+/gu, ' ').trim();
     const quantity = String(item.quantity || '').trim();
     const amount = Number(item.amount);
     const quantityText = quantity ? ` ${quantity}` : '';
-    return `${formatNumber(index + 1, { maximumFractionDigits: 0 })}. ${itemName}${quantityText} ${formatNumber(Number.isFinite(amount) ? amount : 0)} টাকা`.replace(/^[\s\u00a0]+/u, '');
+    const amountText = formatNumber(Number.isFinite(amount) ? amount : 0);
+    return isEnglish
+      ? `${formatNumber(index + 1, { maximumFractionDigits: 0 })}. ${itemName}${quantityText} ${amountText} BDT`
+      : `${formatNumber(index + 1, { maximumFractionDigits: 0 })}. ${itemName}${quantityText} ${amountText} টাকা`;
   });
 
   return [
-    `তারিখ : ${dateLabel}`,
-    `বাজারকারী: ${getMarketBuyerFirstName(buyerName)}`,
+    isEnglish ? `Date: ${dateLabel}` : `তারিখ : ${dateLabel}`,
+    isEnglish ? `Buyer: ${buyerLabel}` : `বাজারকারী: ${buyerLabel}`,
     '',
     ...itemLines,
     '',
-    `টোটাল বাজার = ${formatNumber(Number.isFinite(Number(total)) ? Number(total) : 0)} টাকা`,
+    isEnglish
+      ? `Total market: ${formatNumber(Number.isFinite(Number(total)) ? Number(total) : 0)} BDT`
+      : `টোটাল বাজার = ${formatNumber(Number.isFinite(Number(total)) ? Number(total) : 0)} টাকা`,
   ].map((line) => String(line).replace(/^[\t \u00a0]+/gu, '')).join('\n').replace(/^\n+|\n+$/gu, '');
 }
 

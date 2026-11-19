@@ -1,0 +1,55 @@
+HOSTEL LIFE — RUN71 LANGUAGE SWITCHER VISIBILITY FIX
+====================================================
+
+কেন এই Patch
+------------
+Run70-এ switcher Header-এর action group-এর ভেতরে ছিল। বাস্তব responsive
+layout-এ network/notification action-এর সঙ্গে একই row ভাগ করায় এটি সহজে
+চোখে পড়ছিল না। Run71 selector-টিকে Header-এর নিজস্ব grid slot-এ নেয় এবং
+ছোট স্ক্রিনে দ্বিতীয় সারিতে রাখে। Menu Drawer-এও এটি একেবারে উপরে দেখায়।
+
+কোথায় দেখা যাবে
+---------------
+1. Desktop: Hostel Life-এর উপরের Header-এ আলাদা “ভাষা / Language” control;
+   দুটি দৃশ্যমান অপশন — বাংলা এবং English।
+2. Mobile: Header-এর দ্বিতীয় সারিতে একই selector।
+3. Menu Drawer: Drawer খোলার পর নেভিগেশন তালিকার একেবারে শুরুতে।
+4. Super Admin: মূল পেজ ও password/MFA verification screen-এ।
+5. About, Privacy, Terms, Login, Registration, Onboarding, Invitation এবং
+   Profile-এর আগের Language Switcher-গুলোও বহাল থাকবে।
+
+ইনস্টল করার নিরাপদ পদ্ধতি (Windows)
+----------------------------------
+1. বর্তমান Project folder-এর Backup রাখুন।
+2. ZIP-টি আলাদা একটি অস্থায়ী folder-এ সম্পূর্ণ Extract করুন।
+3. APPLY-RUN71.bat-এ double-click করুন।
+4. স্ক্রিপ্ট Project Root-এর path চাইলে সেই folder-এর path দিন, যেখানে
+   package.json, src এবং public folder আছে।
+   উদাহরণ: C:\Projects\Hostel Life
+5. স্ক্রিপ্ট আগে পরিবর্তিত প্রতিটি ফাইলের backup রাখবে:
+   .run71-backup\<timestamp>\...
+   তারপর ঠিক path-এ ফাইলগুলো কপি করবে এবং গুরুত্বপূর্ণ marker যাচাই করবে।
+6. Project Root-এ Terminal খুলে চালান:
+      npm test
+      npm run build
+7. Build সফল হলে Deploy করুন। PWA ব্যবহার করলে Deployment-এর পর app বন্ধ
+   করে আবার খুলুন; Service Worker cache v22 নতুন app shell আনবে।
+
+গুরুত্বপূর্ণ
+-----------
+- এটি Run69/Run70 bilingual source-এর ওপর ছোট overlay patch।
+- কোনো SQL Migration বা Database change নেই।
+- Supabase RPC, Auth, Meal/Market হিসাব, Telegram এবং Notification logic
+  পরিবর্তন করা হয়নি।
+- Project Root path ভুল হলে installer কোনো ফাইল কপি করবে না।
+- main.jsx-এ Run69 language stylesheet import না থাকলে installer থেমে যাবে;
+  সে ক্ষেত্রে আগে cumulative bilingual source ঠিকভাবে apply করতে হবে।
+
+পরীক্ষার ফল
+-----------
+- Focused language/UI tests: 10/10 Passed.
+- Full Project suite: 875 tests; 865 passed, 10 failed.
+- একই 10টি failing test Run70 baseline-এও ছিল; Run71 নতুন failure যোগ করেনি.
+- ZIP integrity/checksum যাচাই করা হয়েছে।
+- Vite dependency এই working environment-এ ইনস্টল না থাকায় Production Build
+  এখানে চালানো হয়নি; Deploy-এর আগে নিজের environment-এ Build সফল করুন।

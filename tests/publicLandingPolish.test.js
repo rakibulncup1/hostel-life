@@ -16,7 +16,7 @@ test('landing page keeps both account actions clear across desktop and mobile', 
   assert.match(html, /class="mobile-menu-panel"/);
 });
 
-test('landing screenshots represent existing app flows without invented UI', () => {
+test('About feature previews are code-rendered and describe existing app flows', () => {
   const html = read('public/about.html');
   const dining = read('src/features/dining/DiningPage.jsx');
   const history = read('src/features/history/HistoryPage.jsx');
@@ -27,15 +27,19 @@ test('landing screenshots represent existing app flows without invented UI', () 
     assert.ok(dining.includes(phrase), `Dining module should include ${phrase}`);
   }
   assert.ok(history.includes('বাজার ইতিহাস') || history.includes('হিসাব ইতিহাস'));
-  assert.equal((html.match(/<img[^>]+src="\/landing-assets\//g) || []).length, 9);
-  assert.doesNotMatch(html, /mock-sidebar|কৃত্রিম ডেমো ড্যাশবোর্ড/);
+  assert.equal((html.match(/class="code-preview /g) || []).length, 2);
+  assert.equal((html.match(/class="mini-preview /g) || []).length, 4);
+  assert.equal((html.match(/class="showcase-code-preview /g) || []).length, 3);
+  assert.doesNotMatch(html, /<img[^>]+src="\/landing-assets\//i);
+  assert.doesNotMatch(html, /dashboard\.webp|meal-request\.webp|final-report-anonymized\.webp/);
+  assert.match(html, /data-i18n-key="about\.feature\.meal\.title"/);
 });
 
 test('About footer follows the exact in-app copyright and developer portfolio', () => {
   const html = read('public/about.html');
   const appShell = read('src/app/AppShell.jsx');
   assert.match(html, /Copyright © <span id="copyright-year">2026<\/span> Hostel-Life\. All rights reserved\./);
-  assert.match(html, /Designed &amp; Developed by <a href="https:\/\/rakibul-sec1\.vercel\.app\/" target="_blank" rel="noopener noreferrer">Rakibul Islam Samrat<\/a>/);
+  assert.match(html, /Designed &amp; Developed by <a href="https:\/\/rakibul-sec1\.vercel\.app\/" target="_blank" rel="noopener noreferrer"[^>]*>Rakibul Islam Samrat<\/a>/);
   assert.match(appShell, /Copyright © \{new Date\(\)\.getFullYear\(\)\} Hostel-Life\. All rights reserved\./);
   assert.match(appShell, /https:\/\/rakibul-sec1\.vercel\.app\//);
   assert.match(html, /class="footer-main"/);

@@ -1,0 +1,22 @@
+Hostel Life — Run77 Balanced Design Patch
+
+BASE:
+  Apply on top of Run76, which itself was applied to Run74 after the Run75 rollback-to-Run74 recovery.
+  Do not apply directly to Run72, Run73, Run74, or Run75 without first applying Run76.
+
+REPLACE:
+  src/main.jsx
+  src/styles/run76-readability-graphite.css
+  public/landing-assets/public-experience.css
+  tests/run76-readability-about-regression.test.mjs
+
+ADD:
+  src/styles/run77-balanced-dark-and-wrap.css
+  tests/run77-balanced-dark-and-wrap.test.mjs
+
+SCOPE:
+  - Restore existing English font sizes; no global font enlargement.
+  - Add natural wrapping and allow content cards to grow vertically where needed.
+  - Rebuild dark theme using layered neutral graphite surfaces and restrained accents.
+  - Reduce About page preview dimensions for desktop, tablet, and mobile.
+  - No database, Supabase, authentication, business logic, or user-data changes.

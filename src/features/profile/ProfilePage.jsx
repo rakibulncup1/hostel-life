@@ -8,6 +8,7 @@ import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { verifyPassword } from '../../services/authService';
 import { getThemePreference, saveThemePreference } from '../../app/theme';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 
 function initials(name) {
   return name?.trim()?.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'HL';
@@ -131,13 +132,13 @@ export function ProfilePage() {
           <input ref={fileRef} hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadAvatar} />
         </div>
         <div className="profile-overview-copy">
-          <span className="eyebrow">প্রোফাইল</span>
-          <h1>{displayName}</h1>
+          <span className="eyebrow profile-brand-eyebrow">HOSTEL LIFE <span aria-hidden="true">/</span> PROFILE</span>
+          <h1>{displayName === 'ব্যবহারকারী' ? displayName : <span data-user-content>{displayName}</span>}</h1>
           <div className="profile-role-line">
             <span className={`member-badge active ${isAssistantManager ? 'assistant' : isPrimaryManager ? 'manager' : ''}`}>{role}</span>
-            <span className="profile-identity-hostel"><Icon name="home" size={14} />{membership?.hostel_name || 'মেস'}</span>
+            <span className="profile-identity-hostel"><Icon name="home" size={14} />{membership?.hostel_name ? <span data-user-content>{membership.hostel_name}</span> : 'মেস'}</span>
           </div>
-          <small className="profile-avatar-format">ছবির ফরম্যাট: JPG, PNG, WEBP{uploading ? ' · আপলোড হচ্ছে…' : ''}</small>
+          {uploading && <small className="profile-avatar-upload-status">ছবি আপলোড হচ্ছে…</small>}
         </div>
       </section>
 
@@ -170,7 +171,7 @@ export function ProfilePage() {
             </form>
           ) : (
             <div className="profile-detail-list profile-personal-details">
-              <div><span>নাম</span><strong>{profile?.full_name || '—'}</strong></div>
+              <div><span>নাম</span><strong data-user-content>{profile?.full_name || '—'}</strong></div>
               <div><span>মোবাইল নম্বর</span><strong>{profile?.phone || 'যোগ করা হয়নি'}</strong></div>
               <div><span>ইমেইল</span><strong>{profile?.email || user?.email || '—'}</strong></div>
             </div>
@@ -187,6 +188,7 @@ export function ProfilePage() {
               <Icon name={passwordOpen ? 'x' : 'lock'} size={15} />{passwordOpen ? 'বন্ধ করুন' : 'পরিবর্তন'}
             </button>
           </div>
+          {!passwordOpen && <p className="profile-password-hint">নিরাপত্তার প্রয়োজনে যেকোনো সময় পাসওয়ার্ড হালনাগাদ করতে পারবেন।</p>}
           {passwordOpen && (
             <form id="profile-password-form" className="profile-form" onSubmit={savePassword}>
               <div className="profile-form-grid profile-password-form-grid">
@@ -213,10 +215,23 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="profile-detail-list profile-hostel-details">
-            <div><span>মেসের নাম</span><strong>{membership?.hostel_name || '—'}</strong></div>
+            <div><span>মেসের নাম</span><strong>{membership?.hostel_name ? <span data-user-content>{membership.hostel_name}</span> : '—'}</strong></div>
             <div><span>Join Code</span><strong className="monospace-value">{membership?.join_code || '—'}</strong></div>
             <div><span>আমার ভূমিকা</span><strong>{role}</strong></div>
             <div><span>যুক্ত হওয়ার সময়</span><strong>{formatDateTime12(membership?.joined_at)}</strong></div>
+          </div>
+        </section>
+
+        <section className="card profile-section-card profile-language-section">
+          <div className="profile-section-head">
+            <div className="profile-section-heading">
+              <span className="profile-section-icon"><Icon name="globe" size={18} /></span>
+              <div><span className="eyebrow">অভিজ্ঞতা</span><h2>ভাষা</h2></div>
+            </div>
+          </div>
+          <p className="profile-language-description">অ্যাপের সব মেনু, পৃষ্ঠা ও নির্দেশনার ভাষা নির্বাচন করুন।</p>
+          <div className="profile-language-options" role="group" aria-label="ভাষা নির্বাচন">
+            <LanguageSwitcher variant="segmented" withLabel className="profile-language-control" />
           </div>
         </section>
 

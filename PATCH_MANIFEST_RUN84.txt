@@ -1,0 +1,19 @@
+Hostel Life — Run84 About Preview Containment
+Patch type: Targeted incremental About-only patch
+Required baseline: Working project with Run83 already applied
+
+REPLACE:
+  public/about.html
+
+ADD:
+  public/landing-assets/run84-about-preview-containment.css
+  tests/run84-about-preview-containment.test.mjs
+  README_RUN84_BN.md
+  VERIFICATION_REPORT_RUN84_BN.md
+  PATCH_MANIFEST_RUN84.txt
+  SHA256SUMS_RUN84.txt
+
+Production source changes are limited to About HTML and one About-only stylesheet.
+No shared CSS, theme tokens/controller, language runtime, app route, authentication,
+API, Supabase, database migration, or business logic is changed.
+No delete operations.

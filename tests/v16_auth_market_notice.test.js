@@ -58,8 +58,8 @@ test('auth and onboarding public screens respect the saved theme without changin
   const onboarding = fs.readFileSync(path.join(root, 'src/features/onboarding/OnboardingPage.jsx'), 'utf8');
   assert.match(auth, /applyTheme\(getThemePreference\(\)\)/);
   assert.match(onboarding, /applyTheme\(getThemePreference\(\)\)/);
-  assert.match(auth, /<EntryThemeSwitcher/);
-  assert.match(onboarding, /<EntryThemeSwitcher/);
+  assert.doesNotMatch(auth, /EntryThemeSwitcher/);
+  assert.doesNotMatch(onboarding, /EntryThemeSwitcher/);
   assert.match(auth, /<BrandMark size=\{64\}/);
   assert.match(onboarding, /<BrandMark size=\{62\}/);
   assert.match(auth, /ইমেইল <small className="register-email-label-note">\(সঠিক ইমেইল ব্যবহার করুন\)<\/small>/);

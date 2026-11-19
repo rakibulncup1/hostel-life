@@ -1,0 +1,120 @@
+/* Run78: screenshot-led corrections. No typography enlargement or app logic changes. */
+:root[data-theme="dark"] {
+  --bg: #252c32;
+  --surface: #303940;
+  --surface-2: #39434b;
+  --surface-raised: #424d56;
+  --surface-soft: #343e46;
+  --surface-elevated: #48545d;
+  --input-bg: #2a333a;
+  --text: #edf1f3;
+  --muted: #bdc6cc;
+  --line: #505c65;
+  --border: #505c65;
+  --primary: #b8c5bc;
+  --primary-strong: #d0d9d2;
+  --primary-soft: #414d46;
+  background: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(html, body, #root, .app-shell, .app-main) {
+  background-color: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card {
+  border-color: var(--line);
+  background: #303a42;
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0,0,0,.16);
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .eyebrow,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-date-line,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-card-heading h1,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-card-heading p,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat span,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-stat strong,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .sync-placeholder,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .sync-label,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-detail-hint {
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card :is(.meal-stat-breakfast, .meal-stat-lunch, .meal-stat-dinner) {
+  border-color: #56616a;
+  background: #39434b;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight {
+  border-color: #59656e;
+  background: #414c55;
+  color: #dce3e7;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-total-spotlight strong {
+  color: #f1f4f5;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .status-chip,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .status-chip.live-chip,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .status-chip.offline-chip {
+  border-color: #59656e;
+  background: #414c55;
+  color: #e4e9ec;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .sync-placeholder,
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-detail-hint {
+  border-color: #56616a;
+}
+:root[data-theme="dark"] .dashboard-reimagined .summary-card,
+:root[data-theme="dark"] .dashboard-reimagined .my-account-card,
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-directory {
+  border-color: var(--line);
+  background: #303940;
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div {
+  border-color: #515d66;
+  background: #39434b;
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric :is(span, strong),
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div :is(span, strong),
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div :is(span, strong) {
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row,
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row.balance-negative,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-positive,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-negative {
+  border-color: #56616a;
+  background: #39434b;
+  color: #e6ecef;
+}
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row strong,
+:root[data-theme="dark"] .dashboard-reimagined .account-balance-row.balance-negative strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-positive strong,
+:root[data-theme="dark"] .dashboard-reimagined .member-balance-row.balance-negative strong {
+  color: #f0f3f4;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card .meal-loading-lines span {
+  background: #46515a;
+}
+
+/* Keep the existing English type scale; fix only shrink/wrap behaviour. */
+:root[data-language="en"] .dashboard-reimagined,
+:root[data-language="en"] .dashboard-reimagined :is(.dashboard-primary-grid, .dashboard-finance-grid, .account-grid, .meal-grid) {
+  min-width: 0;
+}
+:root[data-language="en"] .dashboard-reimagined :is(.meal-card, .summary-card, .my-account-card, .account-grid > div, .meal-stat) {
+  min-width: 0;
+  max-width: 100%;
+}
+:root[data-language="en"] .dashboard-reimagined :is(.meal-card, .summary-card, .my-account-card) :is(h1, h2, h3, p, span, small, strong, label) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+:root[data-language="en"] .dashboard-reimagined .account-grid > div,
+:root[data-language="en"] .dashboard-reimagined .meal-stat {
+  height: auto;
+  min-height: 60px;
+}

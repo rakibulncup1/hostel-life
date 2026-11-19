@@ -9,19 +9,19 @@ const escapeHtml = (value) => String(value ?? '')
   .replaceAll('"', '&quot;')
   .replaceAll("'", '&#39;');
 
-function renderToc(document) {
+function renderToc(document, key) {
   return document.sections.map((section, index) =>
-    `          <a href="#${escapeHtml(section.id)}"><span>${bnDigits(String(index + 1).padStart(2, '0'))}</span>${escapeHtml(section.toc || section.title)}</a>`,
+    `          <a href="#${escapeHtml(section.id)}" data-i18n-key="${key}.section.${escapeHtml(section.id)}.toc"><span>${bnDigits(String(index + 1).padStart(2, '0'))}</span>${escapeHtml(section.toc || section.title)}</a>`,
   ).join('\n');
 }
 
-function renderArticle(document) {
+function renderArticle(document, key) {
   const sections = document.sections.map((section, index) => {
-    const paragraphs = section.paragraphs.map((paragraph) => `              <p>${escapeHtml(paragraph)}</p>`).join('\n');
-    return `          <section class="legal-section" id="${escapeHtml(section.id)}">\n            <span class="legal-number">${bnDigits(String(index + 1).padStart(2, '0'))}</span>\n            <div><h2>${escapeHtml(section.title)}</h2>\n${paragraphs}\n            </div>\n          </section>`;
+    const paragraphs = section.paragraphs.map((paragraph, paragraphIndex) => `              <p data-i18n-key="${key}.section.${escapeHtml(section.id)}.p${paragraphIndex + 1}">${escapeHtml(paragraph)}</p>`).join('\n');
+    return `          <section class="legal-section" id="${escapeHtml(section.id)}">\n            <span class="legal-number" aria-hidden="true">${bnDigits(String(index + 1).padStart(2, '0'))}</span>\n            <div><h2 data-i18n-key="${key}.section.${escapeHtml(section.id)}.title">${escapeHtml(section.title)}</h2>\n${paragraphs}\n            </div>\n          </section>`;
   }).join('\n');
 
-  return `      <article class="legal-document" aria-label="${escapeHtml(document.title)}-এর সম্পূর্ণ বিবরণ">\n        <div class="legal-intro">${escapeHtml(document.intro)}</div>\n        <div class="legal-sections">\n${sections}\n        </div>\n        <div class="legal-contact">\n          <strong>${escapeHtml(document.contactTitle)}</strong>\n          <p>${escapeHtml(document.contactText)}</p>\n          <a class="btn btn-primary" href="mailto:support.sec1.info@gmail.com">যোগাযোগ করুন ↗</a>\n        </div>\n      </article>`;
+  return `      <article class="legal-document" aria-label="${escapeHtml(document.title)}-এর সম্পূর্ণ বিবরণ">\n        <div class="legal-intro" data-i18n-key="${key}.intro">${escapeHtml(document.intro)}</div>\n        <div class="legal-sections">\n${sections}\n        </div>\n        <div class="legal-contact">\n          <strong data-i18n-key="${key}.contact.title">${escapeHtml(document.contactTitle)}</strong>\n          <p data-i18n-key="${key}.contact.description">${escapeHtml(document.contactText)}</p>\n          <a class="btn btn-primary" href="mailto:support.sec1.info@gmail.com" data-i18n-key="legal.contact.action">যোগাযোগ করুন ↗</a>\n        </div>\n      </article>`;
 }
 
 async function updatePage(key) {
@@ -32,7 +32,7 @@ async function updatePage(key) {
   const replacements = [
     [/<meta name="description" content="[^"]*">/, `<meta name="description" content="${escapeHtml(document.description)}">`],
     [/<title>[^<]*<\/title>/, `<title>${escapeHtml(document.title)} — Hostel Life</title>`],
-    [/<span class="legal-eyebrow"><i><\/i>[^<]*<\/span>\s*(?:<h1>[^<]*<\/h1>\s*)?<p>[\s\S]*?<\/p>/, `<span class="legal-eyebrow"><i></i> ${escapeHtml(document.eyebrow)}</span>\n        <h1>${escapeHtml(document.title)}</h1>\n        <p>${escapeHtml(document.description)}</p>`],
+    [/<span class="legal-eyebrow"[^>]*><i><\/i>[^<]*<\/span>\s*(?:<h1[^>]*>[^<]*<\/h1>\s*)?<p[^>]*>[\s\S]*?<\/p>/, `<span class="legal-eyebrow" data-i18n-key="${key}.eyebrow"><i></i> ${escapeHtml(document.eyebrow)}</span>\n        <h1 data-i18n-key="${key}.title">${escapeHtml(document.title)}</h1>\n        <p data-i18n-key="${key}.description">${escapeHtml(document.description)}</p>`],
     [/সর্বশেষ হালনাগাদ: [^<]*/, `সর্বশেষ হালনাগাদ: ${LEGAL_LAST_UPDATED}`],
   ];
   for (const [pattern, replacement] of replacements) {
@@ -46,7 +46,7 @@ async function updatePage(key) {
   const tocContentStart = tocStart + tocOpen.length;
   const tocEnd = html.indexOf('</div>', tocContentStart);
   if (tocEnd < 0) throw new Error(`${document.slug}: legal contents block is not closed`);
-  html = `${html.slice(0, tocContentStart)}\n${renderToc(document)}\n        ${html.slice(tocEnd)}`;
+  html = `${html.slice(0, tocContentStart)}\n${renderToc(document, key)}\n        ${html.slice(tocEnd)}`;
 
   const articleOpen = '<article class="legal-document"';
   const articleStart = html.indexOf(articleOpen);
@@ -56,7 +56,7 @@ async function updatePage(key) {
   // Replace from the beginning of the article line so indentation cannot
   // accumulate when the generator runs repeatedly.
   const articleLineStart = html.lastIndexOf('\n', articleStart) + 1;
-  html = `${html.slice(0, articleLineStart)}${renderArticle(document)}${html.slice(articleEnd + articleEndMarker.length)}`;
+  html = `${html.slice(0, articleLineStart)}${renderArticle(document, key)}${html.slice(articleEnd + articleEndMarker.length)}`;
 
   await writeFile(path, html, 'utf8');
 }

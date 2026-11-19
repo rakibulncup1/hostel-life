@@ -1,0 +1,56 @@
+/* Run83 — About-only English hero chip layout.
+   Keep the existing type scale. Each label gets its own grid cell and the
+   chip grows with its text instead of letting a translated duplicate overflow. */
+:root[data-language="en"] .about-page .hero-points {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  grid-auto-rows: minmax(52px, auto);
+  min-width: 0;
+}
+
+:root[data-language="en"] .about-page .hero-points > span {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  justify-items: stretch;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  height: auto;
+  padding: 9px 10px;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+:root[data-language="en"] .about-page .hero-points > span > .tick {
+  grid-column: 1;
+  align-self: center;
+  flex: none;
+  margin: 0;
+}
+
+:root[data-language="en"] .about-page .hero-points .hero-point-label {
+  display: block;
+  grid-column: 2;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: manual;
+  line-height: 1.4;
+}
+
+/* On phones, use a full-width row per item to preserve readable word wrapping. */
+@media (max-width: 760px) {
+  :root[data-language="en"] .about-page .hero-points {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root[data-language="en"] .about-page .hero-points > span {
+    min-height: 46px;
+  }
+}

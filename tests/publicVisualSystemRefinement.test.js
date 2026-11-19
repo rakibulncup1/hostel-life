@@ -48,7 +48,7 @@ test('legal page structure and seven-section navigation are preserved', () => {
     assert.match(terms, new RegExp(`href="#${id}"`));
   }
   for (const content of [privacy, terms]) {
-    assert.match(content, /<h1>/);
+    assert.match(content, /<h1[^>]*>/);
     assert.match(content, /legal-document/);
     assert.match(content, /legal-contact/);
   }

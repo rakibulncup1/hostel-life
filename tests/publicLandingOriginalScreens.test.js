@@ -22,37 +22,36 @@ function visibleText(html) {
     .replace(/\s+/g, ' ');
 }
 
-test('landing page uses six genuine, privacy-reviewed app screenshots', () => {
-  const assets = [
-    'dashboard.webp',
-    'dining.webp',
-    'meal-request.webp',
-    'market-entry.webp',
-    'deposit.webp',
-    'allowance.webp',
-  ];
-  for (const asset of assets) {
-    const file = `public/landing-assets/${asset}`;
-    assert.ok(exists(file), `${file} must exist`);
-    assert.ok(fs.statSync(path.join(root, file)).size > 5000, `${file} should contain a real optimised image`);
-    assert.ok(about.includes(`/landing-assets/${asset}`), `${asset} should be used by About`);
-  }
+test('About page renders its feature previews with code instead of app screenshots', () => {
+  assert.doesNotMatch(about, /<img[^>]+src=["']\/landing-assets\/[^"']+\.webp/i);
+  assert.doesNotMatch(about, /landing-assets\/(?:dashboard|dining|meal-request|market-entry|deposit|allowance|manager-requests|manager-menu|final-report-anonymized)\.webp/);
+  assert.match(about, /og\/hostel-life-social\.png/);
+  assert.equal((about.match(/class="code-preview /g) || []).length, 2);
+  assert.equal((about.match(/class="mini-preview /g) || []).length, 4);
+  assert.equal((about.match(/class="showcase-code-preview /g) || []).length, 3);
+  assert.match(about, /ইন্টারফেস প্রিভিউ/);
+  assert.doesNotMatch(about, /কোডে তৈরি|code-built/i);
+  assert.match(about, /ইন্টারফেসের নমুনা/);
 });
 
-test('screenshots are presentation-only and never open as separate clickable files', () => {
-  assert.doesNotMatch(about, /<a[^>]+href=["'][^"']*landing-assets\//i);
-  assert.match(about, /ব্যক্তিগত তথ্য বাদ/);
-  assert.match(about, /নমুনা পরিচয়/);
-  assert.match(about, /বাস্তব অ্যাপ স্ক্রিন/);
-});
-
-test('hero screenshots are separate layout items, never overlapping absolute layers', () => {
+test('code-native previews are illustrative, accessible and not clickable screenshots', () => {
   assert.match(about, /class="hero-gallery"/);
   assert.match(about, /class="screen-card screen-card--primary"/);
   assert.match(about, /class="screen-card screen-card--secondary"/);
+  assert.match(about, /role="img" aria-label="ড্যাশবোর্ডের নমুনা/);
+  assert.match(about, /নমুনা তথ্য/);
+  assert.match(about, /রিপোর্ট প্রিভিউ|ইন্টারফেস প্রিভিউ/);
+  assert.doesNotMatch(about, /কোডে তৈরি|code-built/i);
+  assert.doesNotMatch(about, /<a[^>]+href=["'][^"']*landing-assets\//i);
+});
+
+test('hero previews are separate responsive layout items rather than overlapping screenshot layers', () => {
   assert.match(css, /\.hero-gallery\s*\{\s*display:\s*grid/);
   assert.doesNotMatch(css, /\.screen-card--secondary\s*\{[^}]*position:\s*absolute/s);
   assert.doesNotMatch(css, /\.screen-card--primary\s*\{[^}]*z-index/s);
+  assert.match(css, /\.code-preview--dashboard/);
+  assert.match(css, /\.code-preview--dining/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.code-preview/);
 });
 
 test('account entry points are visible in the header, hero and closing section', () => {
@@ -113,5 +112,5 @@ test('responsive styles cover compact phones and reduced-motion preferences', ()
   assert.match(css, /@media \(max-width: 380px\)/);
   assert.match(css, /min-width: 320px/);
   assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.match(about, /loading="eager"/);
+  assert.match(about, /data-i18n-key="about\.hero\.title"/);
 });

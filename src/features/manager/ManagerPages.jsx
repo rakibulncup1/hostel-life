@@ -46,6 +46,7 @@ import {
 } from '../../services/hostelInviteService';
 import { deriveNextRequiredStartDate, dhakaDateInputValue } from '../../utils/monthStart';
 import { canActivateNextPeriod, getDhakaDateTimeParts, getMemberDeactivationImpact, getNextPeriodActivationMessage } from '../../utils/monthLifecyclePolicy';
+import { getUiLocale } from '../../i18n/locale.js';
 
 
 function FeatureStateNotice({ title, text, icon = 'info', children }) {
@@ -106,17 +107,29 @@ function escapeReportHtml(value) {
 }
 
 function reportStatusLabel(value) {
-  const labels = {
+  const isEnglish = getUiLocale() === 'en-US';
+  const labels = isEnglish ? {
+    finalized: 'Finalised', final: 'Finalised', closed: 'Closed', locked: 'Closed', open: 'Active', pending: 'Pending',
+    in_progress: 'Active', draft: 'Draft', reopened: 'Reopened', active: 'Active', inactive: 'Inactive',
+    void: 'Voided', cancelled: 'Cancelled', completed: 'Completed', approved: 'Approved', rejected: 'Rejected',
+  } : {
     finalized: 'চূড়ান্ত', final: 'চূড়ান্ত', closed: 'বন্ধ', locked: 'বন্ধ', open: 'চলমান', pending: 'অপেক্ষমাণ',
     in_progress: 'চলমান', draft: 'খসড়া', reopened: 'পুনরায় চালু', active: 'সক্রিয়', inactive: 'নিষ্ক্রিয়',
     void: 'বাতিল', cancelled: 'বাতিল', completed: 'সম্পন্ন', approved: 'অনুমোদিত', rejected: 'প্রত্যাখ্যাত',
   };
   const normalized = String(value ?? '').trim().toLowerCase();
-  return labels[normalized] || (value ? 'অন্যান্য অবস্থা' : '—');
+  return labels[normalized] || (value ? (isEnglish ? 'Other status' : 'অন্যান্য অবস্থা') : '—');
 }
 
 function reportTransactionLabel(value) {
-  const labels = {
+  const isEnglish = getUiLocale() === 'en-US';
+  const labels = isEnglish ? {
+    deposit: 'Deposit', contribution: 'Deposit', market_deposit: 'Market deposit',
+    other_expense: 'Other expense', expense: 'Expense', market: 'Market expense',
+    market_entry: 'Market expense', meal_cost: 'Meal cost', khala_money: 'Staff allowance',
+    correction: 'Account correction', adjustment: 'Account adjustment', reversal: 'Reversal',
+    market_reversal: 'Market reversal', refund: 'Refund', withdrawal: 'Withdrawal',
+  } : {
     deposit: 'জমা', contribution: 'জমা', market_deposit: 'বাজার বাবদ জমা',
     other_expense: 'অন্যান্য খরচ', expense: 'খরচ', market: 'বাজার খরচ',
     market_entry: 'বাজার খরচ', meal_cost: 'মিলের খরচ', khala_money: 'খালার টাকা',
@@ -124,9 +137,9 @@ function reportTransactionLabel(value) {
     market_reversal: 'বাজার বাতিলের সমন্বয়', refund: 'ফেরত', withdrawal: 'উত্তোলন',
   };
   const raw = String(value ?? '').trim();
-  if (!raw) return 'অন্যান্য';
+  if (!raw) return isEnglish ? 'Other' : 'অন্যান্য';
   const normalized = raw.toLowerCase().replace(/[ -]+/g, '_');
-  return labels[normalized] || 'অন্যান্য লেনদেন';
+  return labels[normalized] || (isEnglish ? 'Other transaction' : 'অন্যান্য লেনদেন');
 }
 
 function ConfirmModal({ title, description, confirmLabel = 'নিশ্চিত করুন', danger = false, busy = false, onConfirm, onClose, children, className = '' }) {
@@ -570,7 +583,7 @@ export function AssistantManagersPage() {
               return <label className={`assistant-choice-card ${checked ? 'selected' : ''}`} key={member.membership_id}>
                 <input type="checkbox" checked={checked} onChange={() => toggle(member.membership_id)} aria-label={`${member.member_name} ${checked ? 'সহকারী ম্যানেজার থেকে বাদ দিন' : 'সহকারী ম্যানেজার হিসেবে নির্বাচন করুন'}`} />
                 <span className="assistant-choice-avatar" aria-hidden="true"><Icon name={checked ? 'shield-check' : 'user-round'} size={18} /></span>
-                <span className="assistant-choice-copy"><strong>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সাধারণ সদস্য'}</small></span>
+                <span className="assistant-choice-copy"><strong data-user-content>{member.member_name}</strong><small>{checked ? 'সহকারী ম্যানেজার' : 'সাধারণ সদস্য'}</small></span>
                 <span className="assistant-choice-state" aria-hidden="true"><Icon name={checked ? 'check-circle-2' : 'circle'} size={18} /></span>
               </label>;
             })}
@@ -789,7 +802,7 @@ function JoinRequestQueue() {
     ) : <div className="manager-join-request-list">
       {rows.map((row) => {
         const displayName = String(row.full_name || 'নতুন সদস্য').trim();
-        const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part.slice(0, 1)).join('').toLocaleUpperCase('bn-BD') || 'HL';
+        const initials = displayName.split(/\s+/).slice(0, 2).map((part) => part.slice(0, 1)).join('').toLocaleUpperCase() || 'HL';
         return <article className="manager-join-request-row" key={row.id}>
           <div className="manager-request-person">
             <span className="manager-request-avatar" aria-hidden="true">{initials}</span>
@@ -1247,7 +1260,7 @@ function formatMealSheetColumnDate(value) {
   const dateText = String(value || '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateText)) return dateText;
   const date = new Date(`${dateText}T12:00:00+06:00`);
-  return new Intl.DateTimeFormat('bn-BD', { day: 'numeric', month: 'short', timeZone: 'Asia/Dhaka' })
+  return new Intl.DateTimeFormat(getUiLocale(), { day: 'numeric', month: 'short', timeZone: 'Asia/Dhaka' })
     .format(date).replace(/,\s*/u, ' ');
 }
 
@@ -1299,17 +1312,23 @@ export function MealSheetPage() {
       const allDays = finalizedDays.slice().sort((a, b) => String(a.meal_date).localeCompare(String(b.meal_date)));
       const recordLookup = new Map(bundle.mealRows.map((row) => [`${row.memberId}:${row.date}`, row]));
       const compact = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 1 });
-      const matrixHead = `<tr><th>সদস্য</th>${allDays.map((day) => `<th title="${escapeReportHtml(day.meal_date)}">${escapeReportHtml(formatMealSheetColumnDate(day.meal_date))}</th>`).join('')}</tr>`;
+      const isEnglish = getUiLocale() === 'en-US';
+      const matrixHead = `<tr><th>${isEnglish ? 'Member' : 'সদস্য'}</th>${allDays.map((day) => `<th title="${escapeReportHtml(day.meal_date)}">${escapeReportHtml(formatMealSheetColumnDate(day.meal_date))}</th>`).join('')}</tr>`;
       const matrixBody = bundle.members.map((member) => `<tr><td>${escapeReportHtml(member.member_name || 'সদস্য')}</td>${allDays.map((day) => {
         const meal = recordLookup.get(`${member.membership_id}:${day.meal_date}`);
         return `<td>${meal ? `${compact(meal.breakfast)}+${compact(meal.lunch)}+${compact(meal.dinner)}` : '—'}</td>`;
       }).join('')}</tr>`).join('');
-      const matrix = `<p class="report-note">প্রতি ঘরে: সকাল + দুপুর + রাত · তারিখের পূর্ণ মাস উপরের শিরোনামে রয়েছে।</p><table class="meal-matrix"><thead>${matrixHead}</thead><tbody>${matrixBody}</tbody></table>`;
+      const matrixNote = isEnglish
+        ? 'Each cell: Breakfast + Lunch + Dinner · The full month for each date appears in the heading.'
+        : 'প্রতি ঘরে: সকাল + দুপুর + রাত · তারিখের পূর্ণ মাস উপরের শিরোনামে রয়েছে।';
+      const matrix = `<p class="report-note">${matrixNote}</p><table class="meal-matrix"><thead>${matrixHead}</thead><tbody>${matrixBody}</tbody></table>`;
       const memberTotal = selectedMember ? memberTotals.find((row) => row.key === selectedMemberId) : null;
-      const memberSummary = memberTotal ? `<p><strong>${escapeReportHtml(memberTotal.name)}</strong> — সকালের মিল ${memberTotal.breakfast}, দুপুরের মিল ${memberTotal.lunch}, রাতের মিল ${memberTotal.dinner}, মোট ${memberTotal.breakfast + memberTotal.lunch + memberTotal.dinner}</p>` : '<p>সব সদস্য</p>' ;
+      const memberSummary = memberTotal
+        ? `<p><strong>${escapeReportHtml(memberTotal.name)}</strong> — ${isEnglish ? 'Breakfast' : 'সকালের মিল'} ${memberTotal.breakfast}, ${isEnglish ? 'Lunch' : 'দুপুরের মিল'} ${memberTotal.lunch}, ${isEnglish ? 'Dinner' : 'রাতের মিল'} ${memberTotal.dinner}, ${isEnglish ? 'Total' : 'মোট'} ${memberTotal.breakfast + memberTotal.lunch + memberTotal.dinner}</p>`
+        : `<p>${isEnglish ? 'All members' : 'সব সদস্য'}</p>`;
       const reportManager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
-      const personalTable = `<table><thead><tr><th>তারিখ</th><th>অবস্থা</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows}</tbody></table>`;
-      printReport(`মিল শিট — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, currentPeriodRange(bundle.period), selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
+      const personalTable = `<table><thead><tr><th>${isEnglish ? 'Date' : 'তারিখ'}</th><th>${isEnglish ? 'Status' : 'অবস্থা'}</th><th>${isEnglish ? 'Breakfast' : 'ব্রেকফাস্ট'}</th><th>${isEnglish ? 'Lunch' : 'লাঞ্চ'}</th><th>${isEnglish ? 'Dinner' : 'ডিনার'}</th><th>${isEnglish ? 'Total' : 'মোট'}</th></tr></thead><tbody>${rows}</tbody></table>`;
+      printReport(`${isEnglish ? 'Meal Sheet' : 'মিল শিট'} — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, currentPeriodRange(bundle.period), selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
     } catch (error) { toast.error(error.message || 'রিপোর্ট প্রিন্ট করা যায়নি।'); }
     finally { setPrintBusy(false); }
   };

@@ -7,7 +7,7 @@ import { MenuDrawer } from '../components/MenuDrawer';
 import { NotificationsPopover } from '../components/NotificationsPopover';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useInstallPromptContext } from '../contexts/InstallPromptContext';
-import { getThemePreference, saveThemePreference } from './theme';
+import { getThemePreference } from './theme';
 import { OfflineState } from '../components/OfflineState';
 import { useToast } from '../components/Toast';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +21,7 @@ import { getMyTelegramNotificationStatus } from '../services/telegramService';
 import { TelegramLogo } from '../components/TelegramLogo';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { SystemNoticeDialog } from '../components/SystemNoticeDialog';
+import { getUiLocale } from '../i18n/locale.js';
 
 export function keyToPath(key) {
   return `/app/${key}`;
@@ -381,12 +382,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     }
   };
 
-  const changeTheme = (next) => {
-    setTheme(next);
-    saveThemePreference(next);
-    toast.success('থিম পছন্দ সংরক্ষণ হয়েছে।');
-  };
-
   const dismissInstallNudge = () => {
     try { localStorage.setItem('hostel-life-install-nudge-v1', '1'); } catch { /* session-level dismissal still applies */ }
     setInstallNudgeOpen(false);
@@ -476,13 +471,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         role={effectivePrimaryManager ? 'ম্যানেজার' : isAssistantManager ? 'সহকারী ম্যানেজার' : 'সদস্য'}
       />
 
-      <div className="desktop-theme-bar" aria-label="থিম">
-        <button className={theme === 'light' ? 'active' : ''} onClick={() => changeTheme('light')}>লাইট</button>
-        <button className={theme === 'system' ? 'active' : ''} onClick={() => changeTheme('system')}>সিস্টেম</button>
-        <button className={theme === 'dark' ? 'active' : ''} onClick={() => changeTheme('dark')}>ডার্ক</button>
-        <button className={theme === 'blue' ? 'active' : ''} onClick={() => changeTheme('blue')}>আকাশি</button>
-      </div>
-
       {installNudgeOpen && canInstall && !installed && <div className="install-nudge-backdrop" role="presentation">
         <section className="install-nudge-dialog" role="dialog" aria-modal="true" aria-labelledby="install-nudge-title">
           <button className="install-nudge-close" type="button" onClick={dismissInstallNudge} aria-label="বন্ধ করুন">×</button>
@@ -510,7 +498,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         icon="refresh-cw"
         title="সিস্টেম আপডেট হয়েছে"
         description="নতুন সংস্করণ ব্যবহার করতে একবার রিফ্রেশ করুন।"
-        meta={`আপডেটের সময়: ${new Date(APP_RELEASE.builtAt).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}`}
+        meta={`আপডেটের সময়: ${new Date(APP_RELEASE.builtAt).toLocaleString(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}`}
         onClose={dismissReleaseNotice}
         actions={<>
           <button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button>
@@ -524,7 +512,7 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         icon="bell"
         title={priorityMessages[0].title || 'আপনার জন্য একটি বার্তা'}
         description={priorityMessages[0].body || ''}
-        meta={new Date(priorityMessages[0].created_at).toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}
+        meta={new Date(priorityMessages[0].created_at).toLocaleString(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}
         onClose={dismissPriorityMessage}
         actions={<button type="button" className="primary-button" onClick={dismissPriorityMessage}>বুঝেছি</button>}
       />}

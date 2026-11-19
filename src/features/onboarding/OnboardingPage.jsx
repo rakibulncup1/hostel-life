@@ -12,7 +12,6 @@ import { fetchPlatformPublicSettings } from '../../services/platformService';
 import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
 import { normalizeRunningPeriodPayload } from '../../utils/period';
 import { applyTheme, getThemePreference } from '../../app/theme';
-import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
 import { createHostelJoinRequestFromInvite as createHostelJoinRequestFromLink, getHostelInviteLinkInfo as getHostelAccessLinkInfo, getMyHostelJoinRequestStatus } from '../../services/hostelInviteService';
 import { clearPendingHostelLinkToken, getPendingHostelLinkToken } from '../../utils/pendingHostelLink';
 
@@ -32,7 +31,6 @@ function OnboardingTopbar() {
   return (
     <div className="onboarding-topbar">
       <span className="onboarding-account-setup-chip"><Icon name="shield-check" size={15} /> অ্যাকাউন্ট সেটআপ</span>
-      <EntryThemeSwitcher />
     </div>
   );
 }
@@ -329,7 +327,7 @@ export function OnboardingPage() {
             <div className="onboarding-linked-request-icon"><Icon name="mail-plus" size={22}/></div>
             <div className="onboarding-linked-request-copy">
               <span className="eyebrow">সদস্য আমন্ত্রণ</span>
-              <h2>{pendingLinkInfo?.hostel_name || 'আমন্ত্রিত মেসে যোগদান'}</h2>
+              <h2>{pendingLinkInfo?.hostel_name ? <span data-user-content>{pendingLinkInfo.hostel_name}</span> : 'আমন্ত্রিত মেসে যোগদান'}</h2>
               <p>{pendingLinkError || (pendingLinkInfo ? 'এই মেসে যুক্ত হতে অনুরোধ পাঠান। অনুমোদনের পর সদস্যপদ চালু হবে।' : 'আমন্ত্রণ যাচাই করা হচ্ছে...')}</p>
               {joinRequestStatus?.status === 'pending' && <div className="inline-success"><Icon name="clock" size={16}/> আপনার অনুরোধ অপেক্ষমাণ। অনুমোদনের পর মেসে প্রবেশ করতে পারবেন।</div>}
               {joinRequestStatus?.status === 'rejected' && <div className="inline-error"><Icon name="info" size={16}/> এই অনুরোধটি অনুমোদিত হয়নি। চাইলে নিচে সাধারণ যুক্ত হওয়ার কোড বা নতুন মেস তৈরির পদ্ধতি ব্যবহার করুন। {joinRequestStatus.review_note || ''}</div>}

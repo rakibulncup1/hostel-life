@@ -1,0 +1,36 @@
+/* Run89: isolated fixes for member-period details and final-meal member search. */
+.dashboard-reimagined .member-period-detail-modal { box-sizing:border-box; min-width:0; overflow-x:hidden !important; overflow-y:auto !important; overscroll-behavior-x:none; overscroll-behavior-y:contain; touch-action:pan-y pinch-zoom; }
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)) !important; grid-auto-rows:minmax(92px,auto); align-items:stretch; min-width:0; width:100%; gap:10px; box-sizing:border-box; }
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric { box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; min-width:0; width:100%; min-height:92px; height:100%; padding:13px 15px; overflow-wrap:normal; }
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > span { min-width:0; line-height:1.4; overflow-wrap:anywhere; }
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong { min-width:0; max-width:100%; line-height:1.35; overflow-wrap:anywhere; word-break:normal; }
+.dashboard-reimagined .member-period-detail-modal .member-period-balance, .dashboard-reimagined .member-period-detail-modal > .archive-detail-section { box-sizing:border-box; min-width:0; max-width:100%; }
+.dashboard-reimagined .dashboard-reimagined .member-period-detail-modal > .archive-detail-section { width:auto !important; max-width:calc(100% - 28px); margin-inline:14px; }
+.dashboard-reimagined .member-period-detail-modal .archive-list-row, .dashboard-reimagined .member-period-detail-modal .archive-list-row > * { min-width:0; max-width:100%; }
+.dashboard-reimagined .member-period-detail-modal .archive-list-row :is(strong,span,small,p) { overflow-wrap:anywhere; word-break:normal; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search { display:grid; gap:5px; min-width:0; margin-top:14px; padding:12px; border:1px solid var(--line); border-radius:14px; background:var(--surface-2); }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-field { display:grid; gap:7px; min-width:0; margin:0; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-field > label { color:var(--text); font-size:11px; font-weight:800; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-input-wrap { display:flex; align-items:center; gap:9px; min-width:0; min-height:44px; padding:0 11px; border:1px solid var(--line); border-radius:11px; background:var(--surface); color:var(--muted); transition:border-color .18s ease,box-shadow .18s ease; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-input-wrap:focus-within { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 13%,transparent); }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-input-wrap input { flex:1 1 auto; min-width:0; width:100%; min-height:40px; padding:8px 0; border:0; outline:0; background:transparent; color:var(--text); box-shadow:none; font:inherit; font-size:12px; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-input-wrap input::placeholder { color:var(--muted); opacity:.82; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-input-wrap input::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; display:none; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-input-wrap input:focus { outline:0; box-shadow:none; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-clear { display:grid; flex:0 0 28px; place-items:center; width:28px; height:28px; padding:0; border:1px solid var(--line); border-radius:8px; background:var(--surface-2); color:var(--muted); cursor:pointer; }
+:is(.dining-experience,.dining-stack) .manager-final-member-search-meta, :is(.dining-experience,.dining-stack) .manager-final-member-search-empty-hint { display:block; min-width:0; color:var(--muted); font-size:10px; line-height:1.55; overflow-wrap:anywhere; }
+:is(.dining-experience,.dining-stack) .manager-member-select { min-width:0; }
+:is(.dining-experience,.dining-stack) .manager-member-select select { min-width:0; width:100%; }
+:is(.dining-experience,.dining-stack) .manager-final-member-no-results { display:grid; justify-items:center; gap:7px; padding:22px 14px; color:var(--muted); text-align:center; }
+:is(.dining-experience,.dining-stack) .manager-final-member-no-results strong { color:var(--text); font-size:12px; }
+:is(.dining-experience,.dining-stack) .manager-final-member-no-results span { max-width:44ch; font-size:10px; line-height:1.55; }
+@media(max-width:760px) {
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; grid-auto-rows:minmax(80px,auto); gap:9px; }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric { min-height:80px; padding:10px; }
+  .dashboard-reimagined .dashboard-reimagined .member-period-detail-modal > .archive-detail-section { max-width:calc(100% - 20px); margin-inline:10px; }
+}
+@media(max-width:420px) {
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:7px; }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric { padding:9px; }
+  :is(.dining-experience,.dining-stack) .manager-final-member-search { padding:10px; }
+}

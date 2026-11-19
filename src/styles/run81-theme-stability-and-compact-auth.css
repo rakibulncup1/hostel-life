@@ -1,0 +1,72 @@
+/* Run81 — keep theme changes cosmetic and compact auth geometry identical in every theme.
+   No route, form state, visibility, or data-flow rules are changed here. */
+
+/* Theme changes must not alter the dimensions or arrangement of compact auth pages.
+   Run80 had the compact geometry only under Dark, which made Forgot Password jump
+   when the user changed themes. These same geometry values now apply to every theme. */
+@media (min-width: 701px) {
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact {
+    display: block;
+    width: min(540px, 100%);
+    min-width: 0;
+    min-height: 0;
+    margin: 0 auto;
+    border-radius: 22px;
+  }
+
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .auth-brand-panel {
+    display: none;
+  }
+
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .auth-form-panel {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin-inline: auto;
+    padding: 26px 30px 28px;
+  }
+
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .auth-compact-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .auth-header {
+    margin-bottom: 15px;
+  }
+
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .auth-header h2 {
+    margin-top: 3px;
+    font-size: 25px;
+    line-height: 1.35;
+  }
+
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .form-stack,
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .password-reset-policy {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :root[data-theme] .auth-page .auth-shell.auth-shell-compact .password-reset-policy p {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+}
+
+/* On narrow screens retain the existing single-column/mobile measurements.
+   Keep text wrapping independent from the selected color theme. */
+.auth-page .auth-shell.auth-shell-compact,
+.auth-page .auth-shell.auth-shell-compact .auth-form-panel,
+.auth-page .auth-shell.auth-shell-compact .form-stack,
+.auth-page .auth-shell.auth-shell-compact .password-reset-policy {
+  min-width: 0;
+  max-width: 100%;
+}
+.auth-page .auth-shell.auth-shell-compact .auth-header,
+.auth-page .auth-shell.auth-shell-compact .auth-header p,
+.auth-page .auth-shell.auth-shell-compact .password-reset-policy p {
+  overflow-wrap: break-word;
+  word-break: normal;
+}

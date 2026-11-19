@@ -1,0 +1,31 @@
+HOSTEL LIFE — RUN72 INCREMENTAL UPDATE
+========================================
+Base reference:
+- Uploaded project: Hostel Life.zip
+- Saved Git baseline in archive: 008775b (main / origin/main)
+- GitHub reference: https://github.com/rakibulncup1/hostel-life
+- Patch type: incremental frontend refinement; existing uploaded working-tree changes preserved
+
+Changed in Run72:
+- public/about.html
+- public/landing-assets/public-experience.css
+- public/language-runtime.js
+- src/components/LanguageSwitcher.jsx
+- src/components/MenuDrawer.jsx
+- src/features/profile/ProfilePage.jsx
+- src/styles/run69-language-system.css
+- PUBLIC_ABOUT_LOCALIZATION_KEYS_BN.md
+- tests/run68_public_site_code_native.test.mjs
+- tests/run70-language-switcher-visibility.test.mjs
+- tests/run72-language-and-about-polish.test.mjs
+- RUN72_CHANGELOG_AND_TEST_REPORT_BN.md
+
+Removed obsolete delivery artifacts:
+- APPLY-RUN71.bat
+- APPLY-RUN71.ps1
+- PatchFiles/ (stale source snapshots and duplicate tests)
+- Partial node_modules/ created by an interrupted dependency installation
+
+Backend impact:
+- No Supabase SQL, schema, Edge Function, auth-service, or business transaction changes.
+- No database migration required.

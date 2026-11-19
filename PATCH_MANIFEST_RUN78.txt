@@ -1,0 +1,8 @@
+Hostel Life Run78 — screenshot-led visual correction
+BASE: Run74 project with Run76 and Run77 patches already applied.
+REPLACE: src/main.jsx
+ADD: src/styles/run78-visual-correction.css
+REPLACE: public/about.html
+ADD: public/landing-assets/run78-public-overrides.css
+ADD: tests/run78-visual-correction.test.mjs
+No database, Supabase, auth, API, business logic, service worker, or data files changed.

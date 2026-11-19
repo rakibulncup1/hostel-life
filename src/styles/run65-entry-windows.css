@@ -371,3 +371,58 @@
     animation: none !important;
   }
 }
+
+
+/*
+ * Run68 — compact desktop authentication frame.
+ * Applies only to the public login/register pages; authenticated app layouts are untouched.
+ * Keep the split brand/form composition while reducing unused desktop canvas.
+ */
+@media (min-width: 900px) {
+  .auth-page {
+    padding-block: clamp(18px, 3vh, 34px);
+    padding-inline: clamp(22px, 3.2vw, 48px);
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) {
+    width: min(1060px, 100%);
+    min-height: min(650px, calc(100svh - 64px));
+    border-radius: 27px;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-panel {
+    padding: clamp(30px, 3.2vw, 46px);
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-panel {
+    padding: clamp(27px, 3vw, 42px);
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-toolbar {
+    margin-bottom: clamp(14px, 1.8vw, 21px);
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-header {
+    margin-bottom: clamp(17px, 2vw, 23px);
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-panel > .form-stack {
+    gap: 13px;
+  }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-form-panel {
+    padding-block: clamp(24px, 2.8vw, 38px);
+  }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form {
+    gap: 11px;
+  }
+}
+
+@media (min-width: 900px) and (max-height: 790px) {
+  .auth-page {
+    align-items: start;
+    padding-block: 18px;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) {
+    min-height: 0;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-brand-panel {
+    padding: 27px clamp(28px, 3vw, 40px);
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact) .auth-form-panel {
+    padding-block: 23px;
+  }
+}

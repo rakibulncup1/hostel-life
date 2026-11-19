@@ -1,0 +1,26 @@
+Hostel Life — Emergency Rollback Patch
+Purpose: restore the exact Run74 versions of files changed by Run75.
+Target base: Run74 + Run75 Finishing Patch already applied.
+
+REPLACE (restore exact Run74 copies):
+public/about.html
+public/landing-assets/public-controls.js
+public/language-runtime.js
+public/privacy-policy.html
+public/terms-of-service.html
+src/app/theme.js
+src/main.jsx
+tests/publicLandingOriginalScreens.test.js
+tests/publicLandingPolish.test.js
+tests/publicShowcaseExpansion.test.js
+tests/run67-menu-telegram-invite-finish.test.mjs
+tests/run68_public_site_code_native.test.mjs
+
+DELETE (these were added by Run75; not present in Run74):
+public/landing-assets/run75-about-finish.css
+src/styles/run75-finishing.css
+tests/run75-finishing-patch.test.mjs
+
+No other project files should be changed.
+No database, Supabase, migration, RPC, RLS, authentication provider,
+user data, or environment secret is changed by this rollback.

@@ -12,6 +12,7 @@ import {
 import { confirmAction } from '../../utils/actionDialogs';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { navigateTo } from '../../app/AppShell';
+import { getUiLocale } from '../../i18n/locale.js';
 
 function rememberConnectionStatus(next, userId) {
   if (!userId) return;
@@ -22,7 +23,7 @@ function rememberConnectionStatus(next, userId) {
 function formatDate(value) {
   if (!value) return '—';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' });
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' });
 }
 
 export function TelegramConnectionPage() {

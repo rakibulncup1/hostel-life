@@ -72,7 +72,7 @@ test('install prompt is captured before React effects and app download page has 
 
 test('auth screen refinement remains scoped and uses the selected theme tokens', () => {
   assert.match(auth, /function AuthFrame/);
-  assert.match(auth, /EntryThemeSwitcher/);
+  assert.doesNotMatch(auth, /EntryThemeSwitcher/); // theme is selected from About or signed-in Profile only
   assert.match(styles, /\.auth-shell:not\(\.auth-shell-compact\)/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*?\.auth-shell \.auth-form-panel/);
   assert.match(styles, /background: var\(--surface\)/);

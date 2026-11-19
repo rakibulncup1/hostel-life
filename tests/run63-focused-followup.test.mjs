@@ -45,10 +45,10 @@ test('Public privacy and terms pages are generated from the same canonical sourc
   const privacy = await read('../public/privacy-policy.html');
   const terms = await read('../public/terms-of-service.html');
   assert.match(generator, /LEGAL_DOCUMENTS, LEGAL_LAST_UPDATED/);
-  assert.match(privacy, /<h1>গোপনীয়তা নীতি<\/h1>/);
-  assert.match(terms, /<h1>ব্যবহারের শর্তাবলী<\/h1>/);
-  assert.equal((privacy.match(/<h1>/g) || []).length, 1);
-  assert.equal((terms.match(/<h1>/g) || []).length, 1);
+  assert.match(privacy, /<h1[^>]*>গোপনীয়তা নীতি<\/h1>/);
+  assert.match(terms, /<h1[^>]*>ব্যবহারের শর্তাবলী<\/h1>/);
+  assert.equal((privacy.match(/<h1[^>]*>/g) || []).length, 1);
+  assert.equal((terms.match(/<h1[^>]*>/g) || []).length, 1);
   assert.ok(privacy.includes(LEGAL_LAST_UPDATED));
   assert.ok(terms.includes(LEGAL_LAST_UPDATED));
   for (const section of LEGAL_DOCUMENTS.privacy.sections) {

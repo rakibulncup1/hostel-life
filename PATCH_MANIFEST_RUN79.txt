@@ -1,0 +1,11 @@
+Hostel Life — Run79 Cohesive Design Patch
+Patch type: targeted incremental overlay
+Target uploaded project archive SHA-256: 71821778351a55feb11ffc54c50883cbcfa0c2675a50d333eb679acbe0c4fc00
+
+Apply ONLY to the extracted project from the uploaded hostellife.zip archive.
+Project root is the directory containing package.json (named "Test HL" in the archive).
+Do not apply to a different Run74/Run76/Run77/Run78 base.
+
+Files included: 11
+No Supabase, database migration, Edge Function, API, authentication-flow, business-logic,
+or user-data files are changed by this patch.

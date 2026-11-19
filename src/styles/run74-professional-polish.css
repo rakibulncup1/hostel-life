@@ -1,0 +1,297 @@
+/* Run74 — focused refinement. Light theme deliberately inherits the existing design. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111519;
+  --surface: #191f24;
+  --surface-2: #222a30;
+  --text: #edf1f4;
+  --muted: #a5b0b8;
+  --line: #343e46;
+  --primary: #aebbc4;
+  --primary-strong: #d7e0e6;
+  --primary-soft: #2b353d;
+  --danger: #ef9a9a;
+  --danger-soft: #38272b;
+  --warning: #e5c58a;
+  --warning-soft: #383229;
+  --shadow: 0 16px 38px rgba(0, 0, 0, .32);
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .app-shell {
+  background: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] .app-header,
+:root[data-theme="dark"] .app-sidebar,
+:root[data-theme="dark"] .menu-drawer,
+:root[data-theme="dark"] .modal-panel,
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .profile-section-card,
+:root[data-theme="dark"] .profile-overview-card,
+:root[data-theme="dark"] .dining-panel,
+:root[data-theme="dark"] .form-panel,
+:root[data-theme="dark"] .history-filter-card,
+:root[data-theme="dark"] .ranking-card,
+:root[data-theme="dark"] .developer-card,
+:root[data-theme="dark"] .manager-form-card,
+:root[data-theme="dark"] .archive-table-card,
+:root[data-theme="dark"] .market-table-card {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .17);
+}
+:root[data-theme="dark"] .app-header,
+:root[data-theme="dark"] .app-sidebar,
+:root[data-theme="dark"] .menu-drawer {
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border-color: var(--line);
+}
+:root[data-theme="dark"] :is(.card, .profile-section-card, .dining-panel, .form-panel) :is(input, select, textarea),
+:root[data-theme="dark"] .field-label input,
+:root[data-theme="dark"] .field-label select,
+:root[data-theme="dark"] .field-label textarea {
+  color: var(--text);
+  background: #151b20;
+  border-color: #3a454e;
+}
+:root[data-theme="dark"] :is(.card, .profile-section-card, .dining-panel, .form-panel) :is(input, select, textarea)::placeholder { color: #87949d; }
+:root[data-theme="dark"] .profile-section-icon,
+:root[data-theme="dark"] .profile-identity-hostel,
+:root[data-theme="dark"] .profile-password-hint,
+:root[data-theme="dark"] .profile-email-readonly,
+:root[data-theme="dark"] .profile-detail-list > div,
+:root[data-theme="dark"] .profile-section-head,
+:root[data-theme="dark"] .table-head,
+:root[data-theme="dark"] .market-table-head,
+:root[data-theme="dark"] .archive-table-head {
+  background: #222a30;
+  border-color: var(--line);
+  color: var(--muted);
+}
+:root[data-theme="dark"] .primary-button,
+:root[data-theme="dark"] .btn-primary,
+:root[data-theme="dark"] .profile-section-action[aria-expanded="true"] {
+  color: #11171b;
+  background: #d2dbe1;
+  border-color: #d2dbe1;
+}
+:root[data-theme="dark"] .secondary-button,
+:root[data-theme="dark"] .text-button,
+:root[data-theme="dark"] .profile-section-action {
+  color: #d4dde3;
+  background: #252e35;
+  border-color: #414d56;
+}
+:root[data-theme="dark"] .member-badge,
+:root[data-theme="dark"] .role-badge,
+:root[data-theme="dark"] .profile-section-icon,
+:root[data-theme="dark"] .profile-identity-hostel {
+  background: #2a343c;
+  border-color: #424e57;
+  color: #d0d9df;
+}
+/* Neutralise decorative rainbow KPI cards while retaining semantic status text. */
+:root[data-theme="dark"] .dashboard-reimagined .member-period-summary-grid .metric,
+:root[data-theme="dark"] .member-period-summary-grid .metric,
+:root[data-theme="dark"] .dashboard-reimagined .metric,
+:root[data-theme="dark"] .dashboard-reimagined .metric-card,
+:root[data-theme="dark"] .dashboard-reimagined .stat-card {
+  background: #20282e !important;
+  border: 1px solid #3a454d !important;
+  box-shadow: none !important;
+}
+:root[data-theme="dark"] .dashboard-reimagined .member-period-summary-grid .metric :is(span, strong),
+:root[data-theme="dark"] .member-period-summary-grid .metric :is(span, strong) {
+  color: var(--text) !important;
+}
+:root[data-theme="dark"] .dashboard-reimagined :is(.dashboard-stat-card, .summary-card, .metric-card, .quick-action-card) {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] .profile-theme-choice-grid .theme-choice {
+  background: #222a30;
+  color: var(--text);
+  border-color: #414c54;
+}
+:root[data-theme="dark"] .profile-theme-choice-grid .theme-choice.active {
+  background: #313c44;
+  border-color: #aab7c0;
+  box-shadow: inset 0 0 0 1px #aab7c0;
+}
+:root[data-theme="dark"] .profile-brand-eyebrow { color: #c7d1d8; letter-spacing: .13em; }
+:root[data-theme="dark"] .profile-overview-copy h1 { color: var(--text); }
+:root[data-theme="dark"] .profile-avatar-wrap .avatar { background: #303a42; color: #edf2f5; }
+
+/* Desktop workspace uses the available width; phone spacing stays owned by mobile layouts. */
+@media (min-width: 761px) {
+  .app-main {
+    width: 100% !important;
+    max-width: none !important;
+    padding-inline: clamp(18px, 2.2vw, 42px) !important;
+  }
+  .profile-experience .profile-primary-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    align-items: stretch;
+  }
+  .profile-experience .profile-primary-grid > .profile-section-card {
+    min-height: 252px;
+    height: 100%;
+  }
+  .profile-experience .profile-personal-section,
+  .profile-experience .profile-security-section {
+    display: flex;
+    flex-direction: column;
+  }
+  .profile-experience .profile-password-hint { margin-block: 16px 0; line-height: 1.8; }
+}
+.profile-experience .profile-brand-eyebrow { display: inline-flex; align-items: center; gap: 8px; }
+.profile-experience .profile-identity-hostel { display: inline-flex; align-items: center; gap: 7px; max-width: min(100%, 360px); padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); font-size: 11px; font-weight: 750; overflow-wrap: anywhere; }
+.profile-experience .profile-avatar-upload-status { display: block; margin-top: 8px; }
+
+/* Member detail: larger, balanced metrics and vertical-only touch scrolling. */
+.member-period-detail-modal {
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
+}
+.member-period-detail-modal .member-period-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px;
+  touch-action: pan-y pinch-zoom;
+  overscroll-behavior-x: none;
+}
+.member-period-detail-modal .member-period-summary-grid > .metric {
+  min-width: 0;
+  min-height: 88px;
+  padding: 14px 13px;
+  border-radius: 14px;
+  touch-action: pan-y pinch-zoom;
+}
+.member-period-detail-modal .member-period-summary-grid .metric span { font-size: 11px; line-height: 1.45; }
+.member-period-detail-modal .member-period-summary-grid .metric strong { font-size: clamp(16px, 1.4vw, 19px); line-height: 1.35; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .member-period-detail-modal .member-period-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 9px; }
+  .member-period-detail-modal .member-period-summary-grid > .metric { min-height: 80px; padding: 11px 10px; }
+}
+
+/* Auth and onboarding: reduce wasted vertical space without cropping form content. */
+.auth-page { padding-block: clamp(10px, 1.8vh, 18px); }
+.auth-page .auth-shell:not(.auth-shell-compact) { width: min(1000px, 100%); min-height: 0; height: auto; }
+.auth-page .auth-brand-panel:not(.auth-brand-panel-compact) { min-height: 0 !important; padding: clamp(22px, 3vw, 34px); }
+.auth-page .auth-form-panel { padding: clamp(21px, 2.7vw, 30px); }
+.auth-page .auth-form-toolbar { margin-bottom: 12px; }
+.auth-page .auth-form-panel .auth-header { margin-bottom: 15px; }
+.auth-page .auth-form-panel .auth-header h2 { font-size: clamp(22px, 2.6vw, 28px); }
+.auth-page .auth-form-panel .auth-header p { line-height: 1.65; }
+.auth-page .auth-form-panel .form-stack { gap: 11px; }
+.auth-page .auth-form-panel .field-label { gap: 5px; }
+.auth-page .auth-form-panel .field-label input,
+.auth-page .auth-form-panel .password-field input { min-height: 45px; }
+.auth-page .form-stack + .auth-switch { margin-top: 12px; }
+.auth-page .auth-legal-links { margin-top: 16px; }
+.onboarding-page { padding-block: clamp(12px, 2vh, 20px); }
+.onboarding-page .onboarding-shell { width: min(780px, 100%); }
+.onboarding-page .onboarding-main-card { padding: clamp(19px, 2.8vw, 30px); }
+.onboarding-page .onboarding-brand-header { margin-bottom: 16px; }
+.onboarding-page .onboarding-main-card .form-stack { gap: 11px; }
+@media (max-width: 760px) {
+  .app-main { width: 100%; }
+  .profile-experience .profile-primary-grid { grid-template-columns: minmax(0, 1fr); }
+  .profile-experience .profile-primary-grid > .profile-section-card { min-height: 0; height: auto; }
+  .member-period-detail-modal .member-period-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .auth-page { padding: max(8px, env(safe-area-inset-top)) 10px max(12px, env(safe-area-inset-bottom)); }
+  .auth-page .auth-brand-panel:not(.auth-brand-panel-compact) { padding: 15px 14px 13px; }
+  .auth-page .auth-form-panel { padding: 16px 14px 18px; }
+  .auth-page .auth-form-toolbar { margin-bottom: 9px; }
+  .auth-page .auth-form-panel .auth-header { margin-bottom: 12px; }
+  .auth-page .auth-form-panel .field-label input,
+  .auth-page .auth-form-panel .password-field input { min-height: 43px; }
+  .onboarding-page { padding: max(8px, env(safe-area-inset-top)) 10px max(12px, env(safe-area-inset-bottom)); }
+  .onboarding-page .onboarding-main-card { padding: 17px 14px; }
+}
+
+/* Market buyer is read-only text so the shared translator can localise it. */
+.market-buyer-readonly {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+
+/* Run74 — neutralise inherited dark-theme accent cards while keeping status meaning in text/icons. */
+:root[data-theme="dark"] .profile-experience .profile-identity-card,
+:root[data-theme="dark"] .profile-experience .profile-personal-section .profile-section-icon,
+:root[data-theme="dark"] .profile-experience .profile-security-section .profile-section-icon,
+:root[data-theme="dark"] .profile-experience .profile-hostel-section .profile-section-icon,
+:root[data-theme="dark"] .profile-experience .profile-theme-section .profile-section-icon,
+:root[data-theme="dark"] .profile-experience .profile-language-section .profile-section-icon,
+:root[data-theme="dark"] .profile-experience .profile-personal-section .profile-section-heading .eyebrow,
+:root[data-theme="dark"] .profile-experience .profile-security-section .profile-section-heading .eyebrow,
+:root[data-theme="dark"] .profile-experience .profile-hostel-section .profile-section-heading .eyebrow,
+:root[data-theme="dark"] .profile-experience .profile-theme-section .profile-section-heading .eyebrow,
+:root[data-theme="dark"] .profile-experience .profile-language-section .profile-section-heading .eyebrow {
+  background: var(--surface);
+  background-image: none;
+  border-color: var(--line);
+  color: var(--muted);
+}
+:root[data-theme="dark"] .profile-experience .profile-identity-card { box-shadow: var(--shadow); }
+:root[data-theme="dark"] .profile-experience .profile-detail-list > div { border-bottom-color: var(--line); }
+:root[data-theme="dark"] .profile-experience .profile-theme-section .theme-choice.selected,
+:root[data-theme="dark"] .profile-experience .profile-language-control .language-switcher-option.is-active {
+  background: #303a42;
+  border-color: #aab7c0;
+  color: #eef2f4;
+  box-shadow: inset 0 0 0 1px #aab7c0;
+}
+:root[data-theme="dark"] .history-experience :is(.account-summary-card.positive, .account-summary-card.market, .account-summary-card.negative, .archive-month-card, .history-archive-scope, .history-period-overview, .history-final-summary-list details, .history-retention-summary, .history-retention-summary-metrics > span, .market-detail-summary > div, .detail-total-bar, .detail-item-row > b, .transaction-detail-amount) {
+  background: #20282e !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dashboard-reimagined, .profile-experience) :is(.din-green-bg, .din-blue-bg, .din-amber-bg, .din-violet-bg, .din-coral-bg, .profile-green-bg, .profile-blue-bg, .profile-teal-bg, .profile-violet-bg, .dash-green-bg, .dash-blue-bg, .dash-amber-bg, .dash-violet-bg, .dash-coral-bg) {
+  background: #222a30 !important;
+  border-color: var(--line) !important;
+  color: var(--text) !important;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dashboard-reimagined, .profile-experience) :is(.din-green, .din-blue, .din-amber, .din-violet, .din-coral, .profile-green-ink, .profile-blue-ink, .profile-teal-ink, .profile-violet-ink, .dash-green, .dash-blue, .dash-amber, .dash-violet, .dash-coral) { color: var(--text) !important; }
+
+/* All feature families share neutral graphite surfaces in dark mode. */
+:root[data-theme="dark"] {
+  --input-bg: #151b20;
+  --surface-raised: #222a30;
+  --surface-soft: #20282e;
+  --surface-elevated: #252e35;
+  --border: #343e46;
+  --dash-green: #d1d9df; --dash-blue: #d1d9df; --dash-amber: #d1d9df;
+  --dash-coral: #d1d9df; --dash-teal: #d1d9df; --dash-violet: #d1d9df;
+  --dash-green-bg: #20282e; --dash-blue-bg: #20282e; --dash-amber-bg: #20282e;
+  --dash-coral-bg: #20282e; --dash-teal-bg: #20282e; --dash-violet-bg: #20282e;
+  --dash-green-line: var(--line); --dash-blue-line: var(--line); --dash-amber-line: var(--line);
+  --dash-coral-line: var(--line); --dash-teal-line: var(--line); --dash-violet-line: var(--line);
+  --din-green: #d1d9df; --din-blue: #d1d9df; --din-amber: #d1d9df;
+  --din-coral: #d1d9df; --din-teal: #d1d9df; --din-violet: #d1d9df; --din-slate: #d1d9df;
+  --din-green-bg: #20282e; --din-blue-bg: #20282e; --din-amber-bg: #20282e;
+  --din-coral-bg: #20282e; --din-teal-bg: #20282e; --din-violet-bg: #20282e; --din-slate-bg: #20282e;
+  --din-green-line: var(--line); --din-blue-line: var(--line); --din-amber-line: var(--line);
+  --din-coral-line: var(--line); --din-teal-line: var(--line); --din-violet-line: var(--line); --din-slate-line: var(--line);
+  --profile-green-bg: #20282e; --profile-blue-bg: #20282e; --profile-teal-bg: #20282e; --profile-violet-bg: #20282e;
+  --profile-green-border: var(--line); --profile-blue-border: var(--line); --profile-teal-border: var(--line); --profile-violet-border: var(--line);
+  --profile-green-ink: #d1d9df; --profile-blue-ink: #d1d9df; --profile-teal-ink: #d1d9df; --profile-violet-ink: #d1d9df;
+  --menu-page-accent: #d1d9df; --menu-page-accent-border: var(--line); --menu-page-accent-soft: #20282e; --menu-page-accent-strong: #edf1f4;
+  --menu-page-amber: #d1d9df; --menu-page-amber-border: var(--line); --menu-page-amber-soft: #20282e;
+  --menu-page-green: #d1d9df; --menu-page-green-border: var(--line); --menu-page-green-soft: #20282e;
+  --menu-page-coral: #d1d9df; --menu-page-coral-border: var(--line); --menu-page-coral-soft: #20282e;
+  --menu-page-violet: #d1d9df; --menu-page-violet-border: var(--line); --menu-page-violet-soft: #20282e;
+}

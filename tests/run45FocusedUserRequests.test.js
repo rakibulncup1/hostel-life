@@ -51,8 +51,8 @@ test('all members can filter same-hostel account history while edits still depen
 
 test('archived PDF reuses the five-section complete monthly report and waits for migration data', () => {
   assert.match(report, /export function printArchivedMonthlyReport/);
-  for (const title of ['১. সদস্যভিত্তিক ফাইনাল হিসাব','২. বাজার হিসাব','৩. ডিপোজিট হিসাব','৪. খালার পারিশ্রমিক — পৃথক হিসাব','৫. দৈনিক মিলের সারসংক্ষেপ']) {
-    assert.ok(report.includes(title), `missing section ${title}`);
+  for (const title of ['সদস্যভিত্তিক ফাইনাল হিসাব','বাজার হিসাব','ডিপোজিট হিসাব','খালার পারিশ্রমিক — পৃথক হিসাব','দৈনিক মিলের সারসংক্ষেপ']) {
+    assert.ok(report.includes(`translateReportUi('${title}')`), `missing localized section ${title}`);
   }
   assert.match(archive, /পূর্ণ রিপোর্ট PDF/);
   assert.match(history, /disabled=\{!Array\.isArray\(detail\.members\)\}/);

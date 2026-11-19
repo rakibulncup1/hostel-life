@@ -1,0 +1,19 @@
+Hostel Life Run80 — Focused Fix Patch
+Baseline: uploaded hostellife.zip + Run79 Cohesive Design Patch
+Source ZIP SHA256: 71821778351a55feb11ffc54c50883cbcfa0c2675a50d333eb679acbe0c4fc00
+Run79 patch SHA256: 6e25ee26431b7c501c03169394f14648237e008fafd17625216be22252c1b387
+Project files in patch: 8
+New focused tests: 9
+
+Modified/added project files:
+- src/main.jsx
+- src/features/dashboard/DashboardPage.jsx
+- src/styles/run80-focused-profile-auth.css
+- public/about.html
+- public/landing-assets/run80-about-dark-clarity.css
+- public/language-runtime.js
+- public/app-english-translations.js
+- tests/run80-focused-theme-and-localization.test.mjs
+
+
+No delete operations. No Supabase/database/API/auth-service/business-logic changes.

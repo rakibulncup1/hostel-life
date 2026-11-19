@@ -1,0 +1,46 @@
+Hostel Life Run74 — Patch Manifest
+Base: Run72 Updated Project + Run73 UI Refinement Patch
+Existing files to replace: 33
+New files to add: 3
+
+NEW FILES:
+  ADD      public/landing-assets/public-controls.js
+  ADD      src/styles/run74-professional-polish.css
+  ADD      tests/run74-ui-governance.test.mjs
+
+REPLACED FILES:
+  REPLACE  public/about.html
+  REPLACE  public/app-english-translations.js
+  REPLACE  public/landing-assets/public-experience.css
+  REPLACE  public/language-runtime.js
+  REPLACE  public/privacy-policy.html
+  REPLACE  public/terms-of-service.html
+  REPLACE  src/app/AppShell.jsx
+  REPLACE  src/components/AppRouteErrorBoundary.jsx
+  REPLACE  src/components/Header.jsx
+  REPLACE  src/components/MenuDrawer.jsx
+  REPLACE  src/features/account/IdentityErrorPage.jsx
+  REPLACE  src/features/account/InactiveMembershipPage.jsx
+  REPLACE  src/features/auth/AuthPage.jsx
+  REPLACE  src/features/auth/ForcedPasswordChange.jsx
+  REPLACE  src/features/dining/DiningPage.jsx
+  REPLACE  src/features/invites/HostelInvitePage.jsx
+  REPLACE  src/features/menu/AppDownloadPage.jsx
+  REPLACE  src/features/onboarding/OnboardingPage.jsx
+  REPLACE  src/features/platform/SuperAdminPage.jsx
+  REPLACE  src/features/profile/ProfilePage.jsx
+  REPLACE  src/main.jsx
+  REPLACE  tests/experiencePolishV6.test.js
+  REPLACE  tests/finishingReliabilityContract.test.js
+  REPLACE  tests/nov1_followup_contract.test.js
+  REPLACE  tests/publicEntryVisualExperience.test.js
+  REPLACE  tests/publicLandingCopyPolish.test.js
+  REPLACE  tests/publicLanguageSwitch.test.js
+  REPLACE  tests/run68_public_site_code_native.test.mjs
+  REPLACE  tests/run69_bilingual_language.test.mjs
+  REPLACE  tests/run70-language-switcher-visibility.test.mjs
+  REPLACE  tests/run72-language-and-about-polish.test.mjs
+  REPLACE  tests/v16_auth_market_notice.test.js
+  REPLACE  tests/v19_auth_onboarding_theme.test.js
+
+No .env files, keys, node_modules, .git, dist, or database migration included.

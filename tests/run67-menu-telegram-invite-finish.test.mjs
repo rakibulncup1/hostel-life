@@ -71,7 +71,7 @@ test('First paint and installed PWA use the modern light surface; explicit later
   assert.match(html, /html, body, #root \{ min-height: 100%; background: #f4f8f5; \}/);
   assert.equal(manifest.theme_color, '#f4f8f5');
   assert.match(theme, /themeMeta\.setAttribute\('content', browserThemeColor\)/);
-  assert.match(theme, /effective === 'dark' \? '#09100d'/);
-  assert.match(sw, /hostel-life-shell-v20/);
+  assert.match(theme, /effective === 'dark' \? '#22292f'/);
+  assert.match(sw, /hostel-life-shell-v21/);
   assert.match(main, /run67-menu-telegram-invite-finish\.css/);
 });

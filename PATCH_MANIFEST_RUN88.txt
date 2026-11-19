@@ -1,0 +1,17 @@
+Hostel Life — Run88 Auth Brand & Forgot Layout Polish
+Base: Run87 + Run86 Build Repair working project
+
+Production files:
+  MODIFY  src/main.jsx (add one Run88 stylesheet import after Run87)
+  ADD     src/styles/run88-auth-brand-and-forgot-layout.css
+
+Tests/docs:
+  ADD     tests/run88-auth-brand-and-forgot-layout.test.mjs
+  ADD     README_RUN88_BN.md
+  ADD     VERIFICATION_REPORT_RUN88_BN.md
+  ADD     PATCH_MANIFEST_RUN88.txt
+  ADD     SHA256SUMS_RUN88.txt
+
+No React component, JSX, authentication handler, password reset service,
+OTP flow, route logic, theme controller/token, About page, onboarding/invite,
+signed-in UI, Supabase, database, API or business logic is changed.

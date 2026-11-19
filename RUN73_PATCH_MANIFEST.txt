@@ -1,0 +1,19 @@
+HOSTEL LIFE — RUN73 INCREMENTAL PATCH MANIFEST
+Base: Hostel-Life-Run72-Updated-Project.zip
+Patch type: frontend/UI-only; no database migration
+Existing files replaced: 6
+New files added: 2
+
+[REPLACE THESE EXISTING FILES]
+REPLACE  src/main.jsx
+REPLACE  src/app/App.jsx
+REPLACE  src/features/manager/ManagerPages.jsx
+REPLACE  public/app-english-translations.js
+REPLACE  public/landing-assets/public-experience.css
+REPLACE  tests/publicShowcaseExpansion.test.js
+
+[ADD THESE NEW FILES]
+ADD      src/styles/run73-professional-refinement.css
+ADD      tests/run73-professional-refinement.test.mjs
+
+No files are deleted. No .env or database files are included.

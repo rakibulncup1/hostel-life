@@ -1,0 +1,288 @@
+/* Run84 — About-only sample preview containment and mobile brand visibility.
+   Keep all edits local to body.about-page. No shared theme tokens, app routes,
+   application components, or language runtime behavior are changed. */
+
+/* Give every code-native mockup and its descendants a shrinkable box model. */
+.about-page :is(.code-preview, .mini-preview, .showcase-code-preview),
+.about-page :is(.code-preview, .mini-preview, .showcase-code-preview) * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.about-page :is(.code-preview, .mini-preview, .showcase-code-preview) :is(
+  strong, b, small, span, p, figcaption, label
+) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Header rows: let the title, date and sample badges share the available width. */
+.about-page :is(.preview-appbar, .preview-heading-row, .preview-panel-heading,
+  .preview-meal-row, .preview-bottom-line, .mini-preview-heading,
+  .mini-preview-total, .deposit-fields, .deposit-summary, .allowance-list > div,
+  .showcase-preview-top, .report-preview-brand, .report-table-head,
+  .report-table-row, .report-preview-foot) > * {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.about-page .preview-app-name,
+.about-page .preview-heading-row > div,
+.about-page .preview-panel-heading > *,
+.about-page .mini-preview-heading > *,
+.about-page .report-preview-brand > div {
+  min-width: 0;
+  flex: 1 1 0%;
+}
+
+.about-page :is(.preview-sample-pill, .mini-preview-pill) {
+  min-width: 0;
+  max-width: 48%;
+  flex: 0 1 auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.about-page .preview-date {
+  min-width: 0;
+  max-width: 42%;
+  flex: 0 1 auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* Dashboard and dining cards: rows and columns may grow instead of clipping. */
+.about-page :is(.preview-stat-grid, .preview-action-grid, .mini-date-strip,
+  .mini-meal-list, .mini-table-head, .mini-market-row,
+  .allowance-summary, .request-summary-grid, .report-metric-grid) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.about-page :is(.preview-stat, .preview-action-tile,
+  .request-summary-grid > div, .report-metric-grid > div) {
+  min-width: 0;
+  height: auto;
+  align-content: start;
+}
+
+.about-page .preview-stat > span,
+.about-page .preview-stat small,
+.about-page .preview-action-tile strong,
+.about-page .preview-action-tile small,
+.about-page .mini-meal-list > div > span,
+.about-page .mini-meal-list > div > b,
+.about-page .mini-table-head > *,
+.about-page .mini-market-row > *,
+.about-page .allowance-summary > div > *,
+.about-page .allowance-list > div > *,
+.about-page .request-summary-grid > div > *,
+.about-page .report-metric-grid > div > * {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Remove the two fixed no-wrap constraints that caused metric/status overflow. */
+.about-page .report-metric-grid strong,
+.about-page .request-status {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.35;
+}
+.about-page .request-status {
+  justify-self: start;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+/* Grid table cells and amounts stay inside the preview at desktop widths. */
+.about-page :is(.mini-table-head, .mini-market-row) {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) minmax(0, .8fr);
+}
+.about-page :is(.mini-table-head, .mini-market-row) > * {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.about-page .mini-market-row b { text-align: right; }
+
+.about-page .deposit-summary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+}
+.about-page .deposit-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: 6px 10px;
+}
+.about-page .allowance-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.about-page .allowance-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: start;
+  gap: 6px;
+}
+.about-page .mini-preview-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 6px;
+}
+
+.about-page .request-table-head,
+.about-page .request-table-row {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .75fr) minmax(0, 1fr);
+}
+.about-page .request-table-head > *,
+.about-page .request-table-row > * {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.about-page .report-table-head,
+.about-page .report-table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: start;
+  gap: 6px 10px;
+}
+.about-page .report-table-row > b {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+/* Menu labels use a fixed icon column and a shrinkable, wrapping text column. */
+.about-page .menu-preview-item {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  min-width: 0;
+  height: auto;
+  white-space: normal;
+}
+.about-page .menu-preview-item > i {
+  width: 22px;
+  height: 22px;
+  flex: none;
+}
+.about-page .menu-preview-item > span {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+/* The mini previews previously inherited a fixed-height frame and overflow:hidden.
+   Let the content determine the card height, retaining a consistent minimum. */
+.about-page .feature-card { height: auto; min-width: 0; }
+.about-page .feature-image-frame {
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+.about-page .feature-image-frame > .mini-preview {
+  width: 100%;
+  height: auto;
+  min-height: 185px;
+  align-content: start;
+  overflow: visible;
+}
+
+/* The final two showcase cards need enough room for the mock app itself. */
+@media (min-width: 761px) {
+  .about-page .showcase-card--menu,
+  .about-page .showcase-card--report {
+    grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  }
+}
+.about-page .showcase-media--code {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+.about-page .showcase-code-preview {
+  width: 100%;
+  height: auto;
+  min-height: 205px;
+  align-content: start;
+  overflow: visible;
+}
+.about-page .menu-preview {
+  width: min(100%, 320px);
+  min-width: 0;
+}
+
+/* Mobile header: reveal the brand name next to the mark, never hide the wordmark. */
+@media (max-width: 760px) {
+  .about-page .brand {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: -.035em;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+  .about-page .brand img {
+    flex: 0 0 auto;
+  }
+  .about-page .nav-actions {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+}
+@media (max-width: 390px) {
+  /* Download remains available in the mobile menu; keep the top row uncluttered. */
+  .about-page .nav-actions > .nav-download { display: none; }
+  .about-page .brand { gap: 6px; font-size: 13px; }
+  .about-page .nav-actions .btn {
+    max-width: 86px;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+}
+@media (max-width: 340px) {
+  .about-page .nav-shell { gap: 3px; }
+  .about-page .brand { gap: 5px; font-size: 12px; }
+  .about-page .brand img { width: 25px; height: 25px; }
+  .about-page .nav-actions { gap: 2px; }
+  .about-page .nav-actions .btn { padding-inline: 4px; font-size: 8px; }
+  .about-page .nav-actions .public-language-switcher { min-width: 28px; padding-inline: 2px; }
+}
+
+@media (max-width: 640px) {
+  .about-page .feature-image-frame > .mini-preview { min-height: 165px; }
+  .about-page .showcase-code-preview { min-height: 185px; }
+}
+@media (max-width: 420px) {
+  .about-page .feature-image-frame > .mini-preview { min-height: 155px; }
+  .about-page .request-table-head,
+  .about-page .request-table-row { gap: 4px; grid-template-columns: minmax(0, 1fr) minmax(0, .7fr) minmax(0, .95fr); }
+}

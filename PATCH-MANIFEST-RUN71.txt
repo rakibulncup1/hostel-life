@@ -1,0 +1,19 @@
+RUN71 PATCH MANIFEST
+====================
+Production source:
+- public/service-worker.js
+- src/components/Header.jsx
+- src/components/LanguageSwitcher.jsx
+- src/components/MenuDrawer.jsx
+- src/features/platform/SuperAdminPage.jsx
+- src/main.jsx
+- src/styles/run69-language-system.css
+
+Test updates:
+- tests/googleOauthPublicInfoPages.test.js
+- tests/logoutSecurityTelemetryVercelRegression.test.js
+- tests/run67-menu-telegram-invite-finish.test.mjs
+- tests/run70-language-switcher-visibility.test.mjs
+- tests/run71-language-switcher-visible-layout.test.mjs (new)
+
+No SQL migrations, database schemas, Supabase functions or business-data logic changed.

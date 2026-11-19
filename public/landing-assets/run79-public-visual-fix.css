@@ -1,0 +1,286 @@
+/* Run79 — public About and legal-page contrast, preview scale and English wrapping. */
+
+/* Light / sky-blue modes: dark text on pale hero surfaces. */
+:root:not([data-theme="dark"]) :is(.about-page, body) .legal-hero h1,
+:root:not([data-theme="dark"]) .about-page .hero h1,
+:root:not([data-theme="dark"]) .about-page .section-head h2,
+:root:not([data-theme="dark"]) .about-page .feature-copy h3,
+:root:not([data-theme="dark"]) .about-page .showcase-copy h3,
+:root:not([data-theme="dark"]) .about-page .closing-copy h2 {
+  color: #20352a;
+}
+:root:not([data-theme="dark"]) .legal-hero p,
+:root:not([data-theme="dark"]) .about-page .section-head p,
+:root:not([data-theme="dark"]) .about-page .feature-copy p,
+:root:not([data-theme="dark"]) .about-page .showcase-copy p,
+:root:not([data-theme="dark"]) .about-page .closing-copy p {
+  color: #53665b;
+}
+:root:not([data-theme="dark"]) .legal-hero .legal-eyebrow,
+:root:not([data-theme="dark"]) .about-page .showcase-index,
+:root:not([data-theme="dark"]) .about-page .feature-index {
+  color: #286b4b;
+}
+
+/* Hero points: keep the icon fixed and let the label use the available width.
+   Keep labels intact and allow normal word wrapping. */
+.about-page .hero-points {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 9px;
+  min-width: 0;
+}
+.about-page .hero-points span {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 9px 11px;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.4;
+}
+.about-page .hero-points .tick {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+}
+:root[data-language="en"] .about-page .hero-points span {
+  font-size: inherit;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+:root[data-language="en"] .about-page :is(
+  .feature-card, .feature-copy, .showcase-card, .showcase-copy,
+  .showcase-code-preview, .screen-card, .screen-note
+) { min-width: 0; }
+:root[data-language="en"] .about-page :is(
+  .hero-points span, .feature-copy h3, .feature-copy p,
+  .showcase-copy h3, .showcase-copy p, .feature-meta,
+  .screen-note, .preview-action-tile strong, .preview-action-tile small,
+  .menu-preview-item, .report-table-row, .request-table-row
+) {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+
+/* A compact editorial preview scale: product UI remains legible without
+   taking over the page or becoming taller than its accompanying copy. */
+.about-page .hero-gallery {
+  width: min(100%, 690px);
+  max-width: 100%;
+  gap: clamp(12px, 1.4vw, 17px);
+}
+.about-page .screen-card { min-width: 0; max-width: 100%; }
+.about-page .screen-card .code-preview--dashboard,
+.about-page .screen-card .code-preview--dining {
+  min-height: 225px;
+  height: auto;
+  padding: 13px;
+  gap: 9px;
+}
+.about-page .screen-toolbar { min-height: 31px; }
+.about-page .screen-note { min-height: 34px; }
+.about-page .preview-stat-grid { gap: 6px; }
+.about-page .preview-stat { padding: 7px; }
+.about-page .preview-meal-row { padding: 5px 0; }
+.about-page .preview-action-grid { gap: 6px; }
+.about-page .preview-action-tile { min-height: 62px; padding: 7px; }
+.about-page .feature-image-frame { min-height: 160px; max-height: 210px; }
+.about-page .mini-preview { min-height: 150px; padding: 10px; gap: 7px; }
+.about-page .showcase-card {
+  min-width: 0;
+  gap: clamp(14px, 2vw, 24px);
+  padding: clamp(14px, 2vw, 21px);
+}
+.about-page .showcase-card--wide {
+  grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+}
+.about-page .showcase-code-preview {
+  min-width: 0;
+  min-height: 185px;
+  padding: 12px;
+  gap: 8px;
+}
+.about-page .showcase-media { min-width: 0; }
+.about-page .showcase-media img {
+  width: min(100%, 260px);
+  max-height: 300px;
+  object-fit: contain;
+}
+.about-page .showcase-card--menu .showcase-media--portrait img {
+  width: min(100%, 175px);
+  max-height: 330px;
+}
+.about-page .report-metric-grid > div { padding: 7px; }
+
+@media (max-width: 760px) {
+  .about-page .hero-points { grid-template-columns: 1fr; }
+  .about-page .hero-points span { min-height: 42px; }
+  .about-page .showcase-card--wide { grid-template-columns: minmax(0, 1fr); }
+  .about-page .screen-card .code-preview--dashboard,
+  .about-page .screen-card .code-preview--dining { min-height: 205px; }
+  .about-page .feature-image-frame { min-height: 150px; }
+  .about-page .mini-preview { min-height: 140px; }
+  .about-page .showcase-code-preview { min-height: 175px; }
+}
+@media (max-width: 430px) {
+  .about-page .hero-points span { padding: 8px 10px; }
+  .about-page .showcase-card { padding: 13px; }
+}
+
+/* Unified public dark theme. Preview text colors are set explicitly because
+   many preview widgets have their own light-theme hard-coded text colors. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #22292f;
+  --surface: #2d353d;
+  --ink: #edf1f3;
+  --ink-soft: #c7d0d5;
+  --muted: #b9c3c9;
+  --line: #4a5660;
+  --green: #b8c9be;
+  --green-dark: #d0ddd5;
+  --green-soft: #3a4741;
+  --sage: #354049;
+  --blue: #c1ccd3;
+  --blue-soft: #36434c;
+  --amber: #d8c49e;
+  --amber-soft: #474034;
+}
+:root[data-theme="dark"] body {
+  background: var(--paper);
+  color: var(--ink);
+}
+:root[data-theme="dark"] :is(
+  .site-header, .proof-band, .site-footer, .feature-card, .showcase-card,
+  .closing-inner, .legal-contents, .legal-document, .legal-contact,
+  .mobile-menu-panel, .public-theme-panel
+) {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+:root[data-theme="dark"] :is(.hero, .section-tint, .closing) {
+  background: linear-gradient(135deg, #293139, #343e46);
+  border-color: var(--line);
+}
+:root[data-theme="dark"] .legal-hero {
+  background: linear-gradient(135deg, #293139 0%, #303a42 100%);
+  border-color: var(--line);
+}
+:root[data-theme="dark"] .legal-hero-inner {
+  background: #303a42;
+  border-color: #4b5862;
+  box-shadow: 0 12px 30px rgba(0,0,0,.16);
+}
+:root[data-theme="dark"] :is(
+  .hero h1, .hero h1 em, .section-head h2, .feature-copy h3,
+  .showcase-copy h3, .closing-copy h2, .legal-hero h1,
+  .legal-section h2, .legal-contact strong
+) { color: #edf1f3; }
+:root[data-theme="dark"] :is(
+  .hero-copy, .hero-points, .section-head p, .feature-copy p,
+  .showcase-copy p, .closing-copy p, .legal-hero p,
+  .legal-section p, .legal-contact p, .legal-breadcrumb
+) { color: #c1cbd1; }
+:root[data-theme="dark"] :is(.showcase-index, .feature-index, .eyebrow, .section-kicker) {
+  color: #b8c9be;
+}
+:root[data-theme="dark"] :is(
+  .screen-card, .code-preview, .mini-preview, .showcase-code-preview,
+  .menu-preview, .report-preview, .request-preview
+) {
+  background: #303a42;
+  border-color: #4b5862;
+  color: #e9eef0;
+}
+:root[data-theme="dark"] :is(
+  .screen-toolbar, .screen-note, .preview-meal-panel, .preview-stat,
+  .preview-action-tile, .request-summary-grid > div,
+  .report-metric-grid > div, .report-table-head, .report-table-row,
+  .menu-preview-item, .mini-market-row
+) {
+  background: #39444c;
+  border-color: #505d66;
+  color: #e7ecef;
+}
+:root[data-theme="dark"] .about-page :is(
+  .showcase-index, .feature-index, .preview-app-name strong,
+  .preview-heading-row strong, .preview-stat strong,
+  .preview-panel-heading strong, .preview-meal-row b,
+  .preview-action-tile strong, .menu-preview-label,
+  .report-preview-brand strong, .report-metric-grid strong,
+  .mini-preview-total strong, .mini-market-row strong,
+  .request-table-row strong, .feature-copy h3, .showcase-copy h3
+) { color: #e8eef0; }
+:root[data-theme="dark"] .about-page :is(
+  .preview-overline, .preview-stat > span, .preview-stat small,
+  .preview-panel-heading span, .preview-meal-row,
+  .preview-action-tile small, .preview-app-name small,
+  .feature-meta, .menu-preview-item, .report-table-row,
+  .request-table-row, .mini-preview-total, .screen-note
+) { color: #c0cbd1; }
+:root[data-theme="dark"] .about-page :is(.preview-stat strong, .report-metric-grid strong, .mini-preview-total strong) {
+  color: #d4e0d9;
+}
+:root[data-theme="dark"] .about-page .preview-stat--green,
+:root[data-theme="dark"] .about-page .preview-stat--blue,
+:root[data-theme="dark"] .about-page .preview-stat--amber {
+  background: #39444c;
+  border-color: #505d66;
+}
+:root[data-theme="dark"] .about-page .legal-hero h1,
+:root[data-theme="dark"] .about-page .legal-hero p { color: #edf1f3; }
+:root[data-theme="dark"] .about-page .hero-points span {
+  background: #354049;
+  border-color: #4a5660;
+  color: #e4eaed;
+}
+:root[data-theme="dark"] .about-page .hero-points .tick {
+  background: #46544b;
+  border-color: #607166;
+  color: #e3ece6;
+}
+:root[data-theme="dark"] .legal-contents-links a {
+  background: #354049;
+  border-color: #4a5660;
+  color: #e1e7ea;
+}
+:root[data-theme="dark"] .legal-contents-links a span { color: #c7d2d7; }
+:root[data-theme="dark"] .legal-document,
+:root[data-theme="dark"] .legal-contents,
+:root[data-theme="dark"] .legal-contact {
+  background: #2d353d;
+  border-color: #4a5660;
+}
+:root[data-theme="dark"] .legal-section { border-color: #46525c; }
+:root[data-theme="dark"] .legal-number,
+:root[data-theme="dark"] .legal-contents-mark {
+  background: #3b474f;
+  color: #dce5e0;
+}
+:root[data-theme="dark"] :is(
+  .nav-actions .btn-primary, .hero-actions .btn-primary,
+  .closing-actions .btn-primary, .mobile-menu-panel .menu-register
+) {
+  background: #c1cdc5;
+  border-color: #c1cdc5;
+  color: #202923;
+}
+:root[data-theme="dark"] :is(
+  .nav-actions .btn-secondary, .hero-actions .btn-secondary,
+  .closing-actions .btn-secondary, .nav-download
+) {
+  background: #35404a;
+  border-color: #53606a;
+  color: #e7ecef;
+}

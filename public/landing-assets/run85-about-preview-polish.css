@@ -1,0 +1,278 @@
+/* Run85 — About-only preview polish.
+   Loaded after Runs 78–84. No shared theme tokens, application UI, routing,
+   language runtime, or non-About page styles are modified. */
+
+/* Keep every mock preview shrinkable without splitting ordinary words. */
+.about-page :is(.code-preview, .mini-preview, .showcase-code-preview),
+.about-page :is(.code-preview, .mini-preview, .showcase-code-preview) * {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.about-page :is(.code-preview, .mini-preview, .showcase-code-preview) :is(
+  strong, b, small, span, p, label, figcaption
+) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+
+/* Header and summary rows can shrink on desktop's narrower preview columns. */
+.about-page :is(
+  .preview-appbar, .preview-heading-row, .preview-panel-heading,
+  .preview-meal-row, .preview-bottom-line, .mini-preview-heading,
+  .mini-preview-total, .deposit-summary, .deposit-fields,
+  .allowance-list > div, .showcase-preview-top, .report-preview-brand,
+  .report-table-head, .report-table-row, .report-preview-foot
+) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.about-page .preview-app-name,
+.about-page .preview-heading-row > div,
+.about-page .preview-panel-heading > strong,
+.about-page .mini-preview-heading > strong,
+.about-page .report-preview-brand > div {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.about-page :is(.preview-sample-pill, .mini-preview-pill) {
+  flex: 0 1 auto;
+  max-width: 46%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.about-page .preview-date {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  text-align: right;
+}
+
+/* Keep icon columns fixed while descriptions and status text wrap naturally. */
+.about-page .mini-meal-list > div {
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, max-content);
+  align-items: center;
+  gap: 6px;
+}
+.about-page .mini-meal-list > div > span:first-child,
+.about-page .preview-meal-dot,
+.about-page .deposit-confirm > i,
+.about-page .report-preview-foot > i {
+  flex: 0 0 auto;
+}
+.about-page .mini-meal-list > div > span:nth-child(2) {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.about-page .mini-meal-list b {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  text-align: right;
+}
+
+/* Market table: reserve room for the product name, quantity and price. */
+.about-page :is(.mini-table-head, .mini-market-row) {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .72fr) minmax(0, .72fr);
+  align-items: center;
+  gap: 6px;
+}
+.about-page .mini-market-row > * { min-width: 0; }
+.about-page .mini-market-row b { text-align: right; }
+
+/* Keep currency amounts intact; let their containing columns size naturally. */
+.about-page :is(
+  .mini-market-row b, .mini-preview-total strong, .deposit-amount b,
+  .allowance-list b, .report-metric-grid strong, .report-table-row b,
+  .preview-stat strong, .preview-meal-row b
+) {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.about-page .deposit-summary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: start;
+  gap: 8px;
+}
+.about-page .deposit-summary > div,
+.about-page .deposit-amount { min-width: 0; }
+.about-page .deposit-fields {
+  display: grid;
+  grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+  align-items: start;
+  gap: 6px 8px;
+}
+.about-page .deposit-fields strong { text-align: right; }
+.about-page .allowance-summary {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+}
+.about-page .allowance-summary > div,
+.about-page .request-summary-grid > div,
+.about-page .report-metric-grid > div { min-width: 0; }
+.about-page .allowance-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 6px;
+}
+.about-page .allowance-list b { text-align: right; }
+.about-page .mini-preview-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 6px;
+}
+.about-page .mini-preview-total strong { text-align: right; }
+
+/* Request table: status badges may wrap rather than forcing the row wider. */
+.about-page .request-table-head,
+.about-page .request-table-row {
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, .68fr) minmax(0, .92fr);
+  align-items: start;
+  gap: 6px;
+}
+.about-page .request-table-row {
+  min-height: 0;
+  height: auto;
+}
+.about-page .request-status {
+  display: inline-flex;
+  justify-self: start;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.35;
+  text-align: center;
+}
+
+/* Report values stay intact; labels and long account names wrap. */
+.about-page .report-metric-grid > div {
+  align-content: start;
+  gap: 4px;
+}
+.about-page .report-metric-grid small { line-height: 1.35; }
+.about-page .report-table-head,
+.about-page .report-table-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: start;
+  gap: 6px 9px;
+}
+.about-page .report-table-row > b { text-align: right; }
+.about-page .report-preview-foot {
+  flex-wrap: wrap;
+  align-items: center;
+  line-height: 1.4;
+}
+
+/* Menu labels use a stable icon rail and a flexible text column. */
+.about-page .menu-preview-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  gap: 7px;
+  min-width: 0;
+  min-height: 0;
+  height: auto;
+  white-space: normal;
+}
+.about-page .menu-preview-item > i {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.about-page .menu-preview-item > span {
+  min-width: 0;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+.about-page .menu-preview-label { line-height: 1.4; }
+
+/* Captions, tags and copy below the mockups should not force their cards wide. */
+.about-page .feature-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 5px 10px;
+}
+.about-page .feature-meta > *,
+.about-page .feature-tag,
+.about-page .showcase-media figcaption {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.45;
+}
+.about-page :is(.feature-card, .feature-copy, .showcase-card,
+  .showcase-copy, .showcase-media, .workflow-card, .product-note) {
+  min-width: 0;
+  max-width: 100%;
+}
+.about-page :is(.feature-copy p, .showcase-copy p, .workflow-card p, .product-note p) {
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+.about-page .showcase-media--code,
+.about-page .showcase-code-preview,
+.about-page .feature-image-frame,
+.about-page .feature-image-frame > .mini-preview {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+}
+.about-page .showcase-code-preview,
+.about-page .feature-image-frame > .mini-preview {
+  align-content: start;
+}
+
+@media (max-width: 900px) {
+  .about-page .request-summary-grid { gap: 6px; }
+  .about-page .request-table-head,
+  .about-page .request-table-row { gap: 5px; }
+}
+
+@media (max-width: 640px) {
+  .about-page :is(.code-preview, .mini-preview, .showcase-code-preview) {
+    padding-inline: 12px;
+  }
+  .about-page .mini-meal-list > div { gap: 5px; }
+  .about-page .request-table-head,
+  .about-page .request-table-row {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, .65fr) minmax(0, .9fr);
+    gap: 4px;
+    padding-inline: 6px;
+  }
+  .about-page .report-metric-grid { gap: 4px; }
+  .about-page .report-metric-grid > div { padding: 7px 5px; }
+  .about-page .feature-meta { gap: 4px 8px; }
+}
+
+@media (max-width: 380px) {
+  .about-page .mini-table-head,
+  .about-page .mini-market-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, .72fr) minmax(0, .68fr);
+    gap: 4px;
+  }
+  .about-page .deposit-summary { gap: 6px; padding: 9px; }
+  .about-page .deposit-fields { grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); }
+  .about-page .report-metric-grid strong { font-size: 8px; }
+}

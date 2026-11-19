@@ -1,0 +1,217 @@
+/* Run69 — language controls only; does not alter application feature layout. */
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--border, #dce7df);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--text, #24372e);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+.language-switcher:hover { background: var(--surface-raised, #f4f8f5); border-color: var(--primary, #4c8c69); }
+.language-switcher:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #4c8c69) 30%, transparent); outline-offset: 2px; }
+.language-switcher-compact { min-height: 34px; padding-inline: 10px; gap: 6px; font-size: 12px; }
+.auth-toolbar-actions,
+.entry-toolbar-actions { display: inline-flex; align-items: center; gap: 8px; }
+.auth-form-toolbar { gap: 10px; }
+.onboarding-topbar { gap: 10px; }
+.hostel-invite-topbar-actions { gap: 8px; }
+.profile-language-section { border-color: var(--profile-teal-border, #cfe5e5); }
+.profile-language-section .profile-section-icon { border-color: var(--profile-teal-border, #cfe5e5); background: var(--profile-teal-bg, #edf7f7); color: var(--profile-teal-ink, #397c80); }
+.profile-language-section .profile-section-heading .eyebrow { color: var(--profile-teal-ink, #397c80); }
+.profile-language-description { margin: 0 0 14px; color: var(--muted, #66766e); font-size: 13px; line-height: 1.65; }
+.profile-language-options { display: flex; align-items: center; justify-content: flex-start; }
+.profile-language-control { min-height: 0; padding: 0; border: 0; background: transparent; color: inherit; }
+:root[data-theme="dark"] .language-switcher { border-color: var(--border); background: var(--surface); color: var(--text); }
+:root[data-theme="dark"] .profile-language-control { border: 0; background: transparent; color: inherit; }
+@media (max-width: 520px) {
+  .auth-toolbar-actions, .entry-toolbar-actions { gap: 6px; }
+  .language-switcher-compact { min-height: 32px; padding-inline: 8px; }
+  .auth-form-toolbar { align-items: center; }
+}
+
+.forced-password-toolbar { position: absolute; top: 18px; right: 20px; z-index: 2; display: flex; justify-content: flex-end; }
+@media (max-width: 520px) { .forced-password-toolbar { top: 10px; right: 10px; } }
+
+
+/* Language controls on account recovery and public download entry states. */
+.account-state-page { position: relative; }
+.account-state-language,
+.app-route-error-language { position: absolute; top: 16px; right: 18px; z-index: 3; }
+.app-download-menu-intro { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.app-download-menu-intro .menu-page-title-copy { min-width: 0; }
+@media (max-width: 560px) {
+  .account-state-language,
+  .app-route-error-language { top: 10px; right: 10px; }
+  .app-download-menu-intro { align-items: flex-start; }
+}
+
+
+/* Run70 — make language switching discoverable across every signed-in screen. */
+.app-header-language-control {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 34px;
+  padding-inline: 8px;
+  gap: 4px;
+  border: 1px solid var(--profile-teal-border, #cfe5e5);
+  border-radius: 11px;
+  background: var(--profile-teal-bg, #edf7f7);
+  color: var(--profile-teal-ink, #397c80);
+  opacity: 1;
+  visibility: visible;
+  white-space: nowrap;
+}
+.app-header-language-control svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.app-header-language-control span { font-size: 11px; font-weight: 850; line-height: 1; }
+.app-header-language-control:hover { border-color: var(--primary, #4c8c69); background: var(--primary-soft, #eaf4ed); }
+
+.drawer-language-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  margin: 0 0 8px;
+  padding: 10px 9px;
+  border: 1px solid var(--line, #dce7df);
+  border-radius: 13px;
+  background: var(--surface-2, #f5f8f6);
+}
+.drawer-language-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--text, #24372e);
+  font-size: 12px;
+  font-weight: 800;
+}
+.drawer-language-label svg { color: var(--primary-strong, #397c58); flex: 0 0 auto; }
+.drawer-language-control { flex: 0 0 auto; }
+
+@media (max-width: 420px) {
+  .app-header-language-control {
+    min-width: 43px;
+    min-height: 32px;
+    padding-inline: 6px;
+    gap: 3px;
+    border-radius: 10px;
+  }
+  .app-header-language-control svg { width: 13px; height: 13px; }
+  .app-header-language-control span { font-size: 10px; }
+  .header-actions { gap: 4px; }
+}
+
+.platform-language-control {
+  flex: 0 0 auto;
+  min-height: 36px;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .platform-language-control { min-height: 40px; }
+}
+
+
+/* Run72 — explicit language choices in Profile and the navigation drawer. */
+.language-switcher-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.language-switcher-label {
+  color: var(--muted, #66766e);
+  font-size: 12px;
+  font-weight: 800;
+}
+.language-switcher-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border, #dce7df);
+  border-radius: 12px;
+  background: var(--surface-raised, #f3f7f4);
+}
+.language-switcher-option {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted, #64756b);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .16s ease, background .16s ease, box-shadow .16s ease;
+}
+.language-switcher-option:hover { color: var(--text, #24372e); }
+.language-switcher-option.is-active {
+  background: var(--surface, #fff);
+  color: var(--primary, #087b59);
+  box-shadow: 0 1px 4px rgba(20, 45, 31, .12);
+}
+.language-switcher-option:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--primary, #4c8c69) 30%, transparent);
+  outline-offset: 2px;
+}
+.language-switcher-group-compact .language-switcher-option {
+  min-height: 32px;
+  padding-inline: 10px;
+  font-size: 11px;
+}
+.profile-language-control {
+  align-items: center;
+  flex-wrap: wrap;
+}
+.profile-language-control .language-switcher-label { color: var(--profile-teal-ink, #397c80); }
+.profile-language-control .language-switcher-segmented {
+  border-color: var(--profile-teal-border, #cfe5e5);
+  background: var(--profile-teal-bg, #edf7f7);
+}
+.profile-language-control .language-switcher-option.is-active {
+  color: var(--profile-teal-ink, #397c80);
+}
+.drawer-language-row {
+  align-items: center;
+}
+.drawer-language-control {
+  margin-left: auto;
+}
+:root[data-theme="dark"] .language-switcher-segmented {
+  border-color: var(--border);
+  background: var(--surface-raised, #26332d);
+}
+:root[data-theme="dark"] .language-switcher-option.is-active {
+  background: var(--surface, #1f2a24);
+  color: var(--primary, #8cc7a3);
+}
+@media (max-width: 520px) {
+  .language-switcher-group-compact .language-switcher-option {
+    min-height: 30px;
+    padding-inline: 8px;
+  }
+  .drawer-language-control .language-switcher-segmented {
+    max-width: 100%;
+  }
+}

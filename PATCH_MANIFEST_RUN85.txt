@@ -1,0 +1,13 @@
+Hostel Life — Run85 About Preview Polish Patch
+Base: Run84 About Preview Containment working project
+
+REPLACE
+- public/about.html
+
+ADD
+- public/landing-assets/run85-about-preview-polish.css
+- tests/run85-about-preview-polish.test.mjs
+
+No deletions.
+No shared CSS/theme/runtime/application logic changes.
+No database/Supabase/API/auth/business logic changes.

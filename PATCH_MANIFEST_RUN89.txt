@@ -1,0 +1,14 @@
+Hostel Life — Run89 Member Detail & Final Meal Search Patch
+Base: Working project after Run86 Build Repair + Run87 + Run88.
+
+Production files replaced/added:
+- src/features/dining/DiningPage.jsx (replace)
+- src/main.jsx (replace; adds Run89 stylesheet import)
+- src/styles/run89-member-detail-and-final-meal-search.css (add)
+- src/utils/finalMealMemberSearch.js (add)
+
+Test files included:
+- tests/managerFinalMealUi.test.js (replace test contract to reflect scoped member targeting)
+- tests/run89_member_detail_and_final_meal_search.test.mjs (add)
+
+No DashboardPage.jsx, diningService.js, Supabase migration, Edge Function, database schema, or business-logic service is included.

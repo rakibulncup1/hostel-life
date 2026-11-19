@@ -44,6 +44,7 @@ import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
 import { parseMarketPaste, sanitizeMarketInput } from '../../utils/marketPaste';
 import { buildMarketShareText, readMarketShareSummary } from '../../utils/marketShare';
 import { WEEKDAY_OPTIONS_BN, applyWeekdayMealExceptions, buildMealDaysForRange, getMealWeekdayIndex } from '../../utils/weekdayMealExceptions';
+import { filterFinalMealMembers, MAX_FINAL_MEAL_BATCH_SIZE, normalizeFinalMealMemberSearch, resolveFinalMealMemberTargets } from '../../utils/finalMealMemberSearch';
 
 const DEFAULT_MEALS = { breakfast: 0.5, lunch: 1, dinner: 1 };
 
@@ -1194,7 +1195,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
               {members.filter((member) => member.member_status === 'active').map((member) => <option value={member.membership_id} key={member.membership_id}>{member.member_name}</option>)}
             </select>
           ) : (
-            <input value="নিজের নামে" disabled />
+            <div className="market-buyer-readonly" aria-disabled="true">নিজের নামে</div>
           )}
         </label>
       </div>
@@ -1288,6 +1289,7 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   const [date, setDate] = useState(todayValue());
   const [mode, setMode] = useState('single');
   const [selectedMember, setSelectedMember] = useState(members.find((member) => member.member_status === 'active')?.membership_id || '');
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
   const [entries, setEntries] = useState({});
   const [finalizedMemberIds, setFinalizedMemberIds] = useState([]);
   const [mealAudit, setMealAudit] = useState(null);
@@ -1302,6 +1304,15 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   const periodStartNotice = getPeriodStartNotice(period, 'ম্যানেজারের সরাসরি ফাইনাল মিল এন্ট্রি');
 
   const activeMembers = useMemo(() => members.filter((member) => member.member_status === 'active'), [members]);
+  const filteredMembers = useMemo(() => filterFinalMealMembers(activeMembers, memberSearchTerm), [activeMembers, memberSearchTerm]);
+  const hasMemberSearch = normalizeFinalMealMemberSearch(memberSearchTerm).length > 0;
+  const selectedActiveMember = activeMembers.find((member) => member.membership_id === selectedMember) || null;
+  const singleModeOptions = selectedActiveMember && !filteredMembers.some((member) => member.membership_id === selectedMember)
+    ? [selectedActiveMember, ...filteredMembers]
+    : filteredMembers;
+  const scopedMembers = useMemo(() => resolveFinalMealMemberTargets({
+    mode, activeMembers, matchedMembers: filteredMembers, selectedMemberId: selectedMember, hasSearch: hasMemberSearch,
+  }), [mode, activeMembers, filteredMembers, selectedMember, hasMemberSearch]);
 
   const load = useCallback(async () => {
     if (!date || !activeMembers.length) return;
@@ -1377,8 +1388,7 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   const finalizedMembers = useMemo(() => activeMembers.filter((member) => finalizedMemberIds.includes(member.membership_id)), [activeMembers, finalizedMemberIds]);
 
   const buildPayload = (force = true) => {
-    const baseMembers = activeMembers;
-    const targetMembers = mode === 'single' ? baseMembers.filter((member) => member.membership_id === selectedMember) : baseMembers;
+    const targetMembers = scopedMembers;
     return targetMembers.filter((member) => finalizedMemberIds.includes(member.membership_id) || ['breakfast', 'lunch', 'dinner'].some((key) => clampMeal(entries[member.membership_id]?.[key]) > 0)).map((member) => ({
       member_id: member.membership_id,
       meal_date: date,
@@ -1390,6 +1400,8 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   };
 
   const performSave = async (payload) => {
+    if (!Array.isArray(payload) || payload.length === 0) return toast.warning('সংরক্ষণের জন্য সদস্যের মিলের তথ্য নেই।');
+    if (payload.length > MAX_FINAL_MEAL_BATCH_SIZE) return toast.warning('একবারে সর্বোচ্চ ১০০ জনের ফাইনাল মিল সংরক্ষণ করা যাবে। আরও নির্দিষ্ট করে সদস্য খুঁজে কয়েক ধাপে সংরক্ষণ করুন।');
     setBusy(true);
     try {
       const result = await setManagerMealEntries(payload);
@@ -1445,12 +1457,29 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
         <button className="secondary-button compact" type="button" onClick={() => setEntries((current) => Object.fromEntries(activeMembers.map((member) => [member.membership_id, { ...current[member.membership_id], ...defaultMealDefaults }] )))}>সব সদস্যে প্রয়োগ করুন</button>
       </div>
 
+      <div className="manager-final-member-search">
+        <div className="field-label manager-final-member-search-field">
+          <label htmlFor="manager-final-member-search-input">{mode === 'single' ? 'সদস্য খুঁজুন ও নির্বাচন করুন' : 'সদস্যদের মধ্যে খুঁজুন'}</label>
+          <div className="manager-final-member-search-input-wrap">
+            <Icon name="search" size={17} />
+            <input id="manager-final-member-search-input" type="search" value={memberSearchTerm} onChange={(event) => setMemberSearchTerm(event.target.value)} placeholder={mode === 'single' ? 'নাম লিখে সদস্য খুঁজুন...' : 'নাম লিখে নির্দিষ্ট সদস্য বা কয়েকজনকে খুঁজুন...'} aria-label="ফাইনাল মিলের সদস্য খুঁজুন" autoComplete="off" />
+            {memberSearchTerm && <button type="button" className="manager-final-member-search-clear" onClick={() => setMemberSearchTerm('')} aria-label="সার্চ মুছুন"><Icon name="x" size={15} /></button>}
+          </div>
+        </div>
+        <div className="manager-final-member-search-meta" role="status" aria-live="polite">
+          {mode === 'single'
+            ? `${formatNumber(filteredMembers.length)} জন সদস্য${hasMemberSearch ? ' পাওয়া গেছে' : ' উপলব্ধ'}${selectedActiveMember ? ` · নির্বাচিত: ${selectedActiveMember.member_name}` : ''}`
+            : hasMemberSearch ? `দেখানো হচ্ছে ${formatNumber(scopedMembers.length)} / ${formatNumber(activeMembers.length)} জন · সার্চ চালু থাকলে শুধু দেখানো সদস্যদের মিল সংরক্ষণ হবে${scopedMembers.length > MAX_FINAL_MEAL_BATCH_SIZE ? ' · একবারে সর্বোচ্চ ১০০ জন; আরও নির্দিষ্ট করে খুঁজুন' : ''}` : `${formatNumber(activeMembers.length)} জন সক্রিয় সদস্য${activeMembers.length > MAX_FINAL_MEAL_BATCH_SIZE ? ' · একবারে সর্বোচ্চ ১০০ জনের মিল সংরক্ষণ করা যাবে' : ''}`}
+        </div>
+      </div>
+
       {mode === 'single' && (
         <label className="field-label manager-member-select">
           <span>সদস্য নির্বাচন</span>
           <select value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)}>
-            {activeMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}
+            {singleModeOptions.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}{member.membership_id === selectedMember && !filteredMembers.some((item) => item.membership_id === selectedMember) ? ' · বর্তমানে নির্বাচিত' : ''}</option>)}
           </select>
+          {hasMemberSearch && filteredMembers.length === 0 && <small className="manager-final-member-search-empty-hint">এই নামে কোনো সদস্য মেলেনি। অন্য নাম লিখুন অথবা সার্চ মুছে দিন।</small>}
         </label>
       )}
 
@@ -1471,12 +1500,12 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
           </div>
           <div className="final-meal-audit-lists">
             <div className="final-meal-audit-list"><div className="section-heading"><h4>সদস্যভিত্তিক অবস্থা</h4><span>{formatNumber((mealAudit.records || []).length)} জন</span></div>
-              {(mealAudit.records || []).map((record) => <div className="final-meal-audit-row" key={record.member_id}><strong>{record.member_name}</strong><span>{record.source_label} · {record.actor_name}</span><small>{record.finalized_at ? formatDateTime12(record.finalized_at) : 'সময় সংরক্ষিত নেই'}</small></div>)}
-              {(mealAudit.pending_members || []).length > 0 && <div className="final-meal-pending"><strong>এখনো ফাইনাল হয়নি ({formatNumber(mealAudit.pending_members.length)} জন)</strong><span>{mealAudit.pending_members.map((item) => item.member_name).join(' · ')}</span></div>}
+              {(mealAudit.records || []).map((record) => <div className="final-meal-audit-row" key={record.member_id}><strong><span data-user-content>{record.member_name}</span></strong><span>{record.source_label} · <span data-user-content>{record.actor_name}</span></span><small>{record.finalized_at ? formatDateTime12(record.finalized_at) : 'সময় সংরক্ষিত নেই'}</small></div>)}
+              {(mealAudit.pending_members || []).length > 0 && <div className="final-meal-pending"><strong>এখনো ফাইনাল হয়নি ({formatNumber(mealAudit.pending_members.length)} জন)</strong><span>{mealAudit.pending_members.map((item, index) => <span data-user-content key={item.member_id || item.member_name}>{item.member_name}{index < mealAudit.pending_members.length - 1 ? ' · ' : ''}</span>)}</span></div>}
               {(mealAudit.records || []).length === 0 && <small className="muted-copy">এই দিনে কোনো সদস্যের ফাইনাল মিল পাওয়া যায়নি।</small>}
             </div>
             <div className="final-meal-audit-list"><div className="section-heading"><h4>এন্ট্রি ও সংশোধনের ইতিহাস</h4><span>{formatNumber((mealAudit.events || []).length)}টি কার্যক্রম</span></div>
-              {(mealAudit.events || []).map((event, index) => <article className="final-meal-audit-event" key={`${event.actor_user_id || 'system'}-${event.created_at}-${index}`}><div><strong>{event.actor_name}</strong><span>{event.event_label} · {formatNumber(event.member_count)} জন</span><small>{formatDateTime12(event.created_at)}</small></div><p>{(event.members || []).map((member) => member.member_name).join(' · ')}</p></article>)}
+              {(mealAudit.events || []).map((event, index) => <article className="final-meal-audit-event" key={`${event.actor_user_id || 'system'}-${event.created_at}-${index}`}><div><strong><span data-user-content>{event.actor_name}</span></strong><span>{event.event_label} · {formatNumber(event.member_count)} জন</span><small>{formatDateTime12(event.created_at)}</small></div><p>{(event.members || []).map((member, memberIndex) => <span data-user-content key={member.member_id || member.member_name}>{member.member_name}{memberIndex < event.members.length - 1 ? ' · ' : ''}</span>)}</p></article>)}
               {(mealAudit.events || []).length === 0 && <small className="muted-copy">এই তারিখের জন্য আলাদা ম্যানেজার এন্ট্রি/সংশোধনের Audit পাওয়া যায়নি।</small>}
             </div>
           </div>
@@ -1490,7 +1519,7 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
       {dayStatus?.status !== 'finalized' && !loading && <div className="meal-policy-note is-warning"><Icon name="info" size={15}/> নির্বাচিত দিনের মিল এখনো চূড়ান্ত হয়নি। চূড়ান্ত মিল সংশোধন শুধু রাত ৯টার পর চূড়ান্ত হওয়া দিনের জন্য।</div>}
       {loading ? <LoadingSpinner label="ফাইনাল মিলের রেকর্ড লোড হচ্ছে..." /> : (
         <div className="manager-meal-entry-list">
-          {(mode === 'single' ? activeMembers.filter((member) => member.membership_id === selectedMember) : activeMembers).map((member) => {
+          {scopedMembers.map((member) => {
             const values = entries[member.membership_id] || DEFAULT_MEALS;
             return (
               <article className="card manager-meal-card" key={member.membership_id}>
@@ -1507,11 +1536,12 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
             );
           })}
           {!activeMembers.length && !loading && <div className="empty-state-card"><Icon name="calendar" size={24}/><strong>সক্রিয় সদস্য পাওয়া যায়নি</strong></div>}
+          {activeMembers.length > 0 && scopedMembers.length === 0 && !loading && <div className="empty-state-card manager-final-member-no-results"><Icon name="search" size={22}/><strong>কোনো সদস্য পাওয়া যায়নি</strong><span>নামের বানান পরিবর্তন করুন অথবা সার্চ মুছে সব সদস্য দেখুন।</span></div>}
         </div>
       )}
 
-      <button className="primary-button large dining-submit" type="button" disabled={busy || loading || Boolean(periodStartNotice) || !dayStatus || dayStatus.status !== 'finalized' || !canManageFinalMeals || !activeMembers.length || !period || date < period.start_date || date > todayValue()} onClick={save}>
-        {busy ? 'ফাইনাল হিসাব আপডেট হচ্ছে...' : 'মিল যোগ / সংশোধন সংরক্ষণ করুন'}
+      <button className="primary-button large dining-submit" type="button" disabled={busy || loading || Boolean(periodStartNotice) || !dayStatus || dayStatus.status !== 'finalized' || !canManageFinalMeals || !scopedMembers.length || !period || date < period.start_date || date > todayValue()} onClick={save}>
+        {busy ? 'ফাইনাল হিসাব আপডেট হচ্ছে...' : mode === 'all' && hasMemberSearch ? `খুঁজে পাওয়া ${formatNumber(scopedMembers.length)} জনের মিল সংরক্ষণ করুন` : 'মিল যোগ / সংশোধন সংরক্ষণ করুন'}
       </button>
       </section>
       {conflictConfirmOpen && (

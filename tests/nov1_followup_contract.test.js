@@ -105,6 +105,6 @@ test('top depositors reuse the existing member-directory deposit balance without
 test('login/register and onboarding public surfaces apply the saved theme preference before paint', () => {
   assert.match(auth, /useLayoutEffect\([\s\S]*?applyTheme\(getThemePreference\(\)\)/);
   assert.match(onboarding, /useLayoutEffect\([\s\S]*?applyTheme\(getThemePreference\(\)\)/);
-  assert.match(auth, /EntryThemeSwitcher/);
-  assert.match(onboarding, /EntryThemeSwitcher/);
+  assert.doesNotMatch(auth, /EntryThemeSwitcher/);
+  assert.doesNotMatch(onboarding, /EntryThemeSwitcher/);
 });

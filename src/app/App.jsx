@@ -72,11 +72,25 @@ export function App() {
   const [pathname, setPathname] = useState(getPath);
   const [publicSettings, setPublicSettings] = useState(null);
   const auth = useAuth();
+  const [uiLanguage, setUiLanguage] = useState(() => window.HostelLifeI18n?.getLanguage?.() || 'bn');
+
+  // Re-render locale-aware dates, numbers, currency and derived summaries when
+  // the global language changes. DOM text is translated by the shared runtime.
+  useEffect(() => window.HostelLifeI18n?.subscribe?.(setUiLanguage), []);
 
   useEffect(() => {
     const update = () => setPathname(getPath());
     window.addEventListener('popstate', update);
     return () => window.removeEventListener('popstate', update);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const syncSystemTheme = () => {
+      if (getThemePreference() === 'system') applyTheme('system');
+    };
+    media?.addEventListener?.('change', syncSystemTheme);
+    return () => media?.removeEventListener?.('change', syncSystemTheme);
   }, []);
 
   useEffect(() => {
@@ -194,41 +208,42 @@ export function App() {
   }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityReady, auth.identityError, auth.membership]);
 
   useEffect(() => {
-    let title = 'Hostel Life';
-    if (pathname.includes('/dining')) title = 'Hostel Life — ডাইনিং';
-    else if (pathname.includes('/history')) title = 'Hostel Life — হিস্টরি';
-    else if (pathname.includes('/profile')) title = 'Hostel Life — প্রোফাইল';
-    else if (pathname.includes('/menu/top-eater')) title = 'Hostel Life — শীর্ষ খাদক';
-    else if (pathname.includes('/menu/top-shopper')) title = 'Hostel Life — বেশি বাজারকারী';
-    else if (pathname.includes('/menu/top-depositor')) title = 'Hostel Life — বেশি ডিপোজিটকারী';
-    else if (pathname.includes('/menu/members')) title = 'Hostel Life — সকল সদস্য';
-    else if (pathname.includes('/menu/khala-money-view')) title = 'Hostel Life — খালার টাকা';
-    else if (pathname.includes('/menu/developer')) title = 'Hostel Life — হেল্প';
-    else if (pathname.includes('/menu/privacy-policy')) title = 'Hostel Life — গোপনীয়তা ও নীতিমালা';
-    else if (pathname.includes('/menu/terms')) title = 'Hostel Life — ব্যবহারের শর্তাবলী';
-    else if (pathname.includes('/menu/how-to-use')) title = 'Hostel Life — কীভাবে ব্যবহার করব';
-    else if (pathname.includes('/menu/app-download')) title = 'Hostel Life — অ্যাপ ডাউনলোড';
-    else if (pathname.includes('/menu/telegram')) title = 'Hostel Life — টেলিগ্রাম সংযোগ';
-    else if (pathname.includes('/menu/send-notification')) title = 'Hostel Life — নোটিফিকেশন';
-    else if (pathname.includes('/menu/archive')) title = 'Hostel Life — আর্কাইভ';
-    else if (pathname.includes('/menu/reports')) title = 'Hostel Life — রিপোর্ট';
-    else if (pathname.includes('/menu/meal-sheet')) title = 'Hostel Life — মিল শিট';
-    else if (pathname.includes('/menu/archive-edit-access')) title = 'Hostel Life — আর্কাইভ';
-    else if (pathname.includes('/menu/current-month-close')) title = 'Hostel Life — বর্তমান মাস শেষ করুন';
-    else if (pathname.includes('/menu/new-month')) title = 'Hostel Life — নতুন মাস';
-    else if (pathname.includes('/menu/change-manager')) title = 'Hostel Life — ম্যানেজার পরিবর্তন';
-    else if (pathname.includes('/menu/assistant-managers')) title = 'Hostel Life — সহকারী ম্যানেজার';
-    else if (pathname.includes('/menu/hostel-settings')) title = 'Hostel Life — মেস সেটিংস';
-    else if (pathname.includes('/menu/khala-money')) title = 'Hostel Life — খালার টাকা';
-    else if (pathname.includes('/menu/member-management')) title = 'Hostel Life — সদস্য ব্যবস্থাপনা';
-    else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
-    else if (pathname === '/app/menu/app-download') title = 'Hostel Life — অ্যাপ ডাউনলোড';
-    else if (pathname.includes('/menu/join-requests')) title = 'Hostel Life — জয়েন রিকোয়েস্ট পর্যালোচনা';
-    else if (pathname.includes('/onboarding')) title = 'Hostel Life — মেস সেটআপ';
-    else if (pathname.startsWith('/invite/')) title = 'Hostel Life — মেসে যোগ দিন';
+    const isEnglish = uiLanguage === 'en';
+    const pageTitles = [
+      ['/dining', 'Dining', 'ডাইনিং'],
+      ['/history', 'History', 'হিস্টরি'],
+      ['/profile', 'Profile', 'প্রোফাইল'],
+      ['/menu/top-eater', 'Top Eaters', 'শীর্ষ খাদক'],
+      ['/menu/top-shopper', 'Top Shoppers', 'বেশি বাজারকারী'],
+      ['/menu/top-depositor', 'Top Depositors', 'বেশি ডিপোজিটকারী'],
+      ['/menu/members', 'Members', 'সকল সদস্য'],
+      ['/menu/khala-money-view', 'Staff Allowance', 'খালার টাকা'],
+      ['/menu/developer', 'Help & Support', 'হেল্প'],
+      ['/menu/privacy-policy', 'Privacy & Policies', 'গোপনীয়তা ও নীতিমালা'],
+      ['/menu/terms', 'Terms of Service', 'ব্যবহারের শর্তাবলী'],
+      ['/menu/how-to-use', 'How to Use', 'কীভাবে ব্যবহার করব'],
+      ['/menu/app-download', 'Download App', 'অ্যাপ ডাউনলোড'],
+      ['/menu/telegram', 'Telegram Connection', 'টেলিগ্রাম সংযোগ'],
+      ['/menu/send-notification', 'Notifications', 'নোটিফিকেশন'],
+      ['/menu/archive', 'Archive', 'আর্কাইভ'],
+      ['/menu/reports', 'Reports', 'রিপোর্ট'],
+      ['/menu/meal-sheet', 'Meal Sheet', 'মিল শিট'],
+      ['/menu/current-month-close', 'Close Current Month', 'বর্তমান মাস শেষ করুন'],
+      ['/menu/new-month', 'New Month', 'নতুন মাস'],
+      ['/menu/change-manager', 'Change Manager', 'ম্যানেজার পরিবর্তন'],
+      ['/menu/assistant-managers', 'Assistant Managers', 'সহকারী ম্যানেজার'],
+      ['/menu/hostel-settings', 'Hostel Settings', 'মেস সেটিংস'],
+      ['/menu/khala-money', 'Staff Allowance', 'খালার টাকা'],
+      ['/menu/member-management', 'Member Management', 'সদস্য ব্যবস্থাপনা'],
+      ['/menu/join-requests', 'Join Request Review', 'জয়েন রিকোয়েস্ট পর্যালোচনা'],
+    ];
+    const match = pageTitles.find(([route]) => pathname.includes(route));
+    let title = match ? `Hostel Life — ${isEnglish ? match[1] : match[2]}` : 'Hostel Life';
+    if (pathname.includes('/onboarding')) title = `Hostel Life — ${isEnglish ? 'Hostel Setup' : 'মেস সেটআপ'}`;
+    else if (pathname.startsWith('/invite/')) title = `Hostel Life — ${isEnglish ? 'Join Hostel' : 'মেসে যোগ দিন'}`;
     else if (pathname === '/super-admin') title = 'Hostel Life — Super Admin';
     document.title = title;
-  }, [pathname]);
+  }, [pathname, uiLanguage]);
 
   if (!auth.authLoading && auth.isAuthenticated && auth.user?.app_metadata?.must_change_password) return withPublicCommunications(<ForcedPasswordChange />);
 

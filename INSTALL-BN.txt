@@ -1,0 +1,62 @@
+HOSTEL LIFE — RUN69 FULL BILINGUAL CUMULATIVE PATCH
+=====================================================
+
+এই প্যাকেজটি প্রথম আপলোড করা “Hostel Life(1).zip” প্রজেক্টের ওপর ভিত্তি করে
+Run64, Run65, Run66, Run67, Run68 এবং সম্পূর্ণ Run69 বাংলা/English ভাষা
+ব্যবস্থা একত্র করে তৈরি করা হয়েছে। এটি incremental Run68 overlay নয়; প্রথম
+প্রজেক্টের source tree-তে প্রয়োজনীয় সব পরিবর্তন একসঙ্গে অন্তর্ভুক্ত আছে।
+
+ইনস্টল
+------
+1. প্রথমে বর্তমান project folder এবং Supabase database-এর backup নিন।
+2. ZIP extract করুন। এর ভেতরের “Hostel Life/” folder-এর contents আপনার
+   মূল project root-এ copy/overwrite করুন।
+3. `.git`, `node_modules` বা আগের `dist` folder replace করার দরকার নেই।
+4. project root থেকে চালান:
+
+   npm ci
+   npm test
+   npm run build
+
+5. Build সফল হলে আপনার স্বাভাবিক deployment process অনুসরণ করুন।
+
+Database migrations
+-------------------
+- Run69 language switch-এর জন্য কোনো SQL migration নেই এবং কোনো Supabase
+  request ব্যবহার করা হয় না। ভাষার পছন্দ একই browser/origin-এর local storage-এ
+  `hostel-life-language-v1` key-তে সংরক্ষিত হয়।
+- Run49 এবং Run66 migration ও verification SQL এই cumulative patch-এ
+  completeness-এর জন্য আছে। এগুলো আগে সফলভাবে চালানো হয়ে থাকলে পুনরায় চালাবেন
+  না। আগে চালানো না থাকলে schema history যাচাই করে প্রয়োজনীয় migration
+  chronological order-এ একবার চালান এবং সংশ্লিষ্ট Verify SQL ব্যবহার করুন।
+- Run48 migration আপনার original project-এ আগে থেকেই ছিল; তার verification
+  প্রয়োজন হলে `supabase/verify/Verify_Run48_notification_recipient_policy.sql`
+  ব্যবহার করুন।
+
+ভাষা ব্যবস্থা
+-------------
+- প্রথমবারের default ভাষা বাংলা। Public About, Privacy, Terms, Login,
+  Registration, Password Recovery, Onboarding, Invitation এবং authenticated
+  app-এ একই language preference ব্যবহৃত হয়।
+- English নির্বাচন করলে UI copy, help, status/feedback messages, date/time/
+  number/currency formatting, reports, CSV ও market-share UI labels ইংরেজিতে
+  দেখানো হয়। Profile-এর Language section থেকেও পরিবর্তন করা যায়।
+- সদস্যের নাম, মেসের নাম, ব্যক্তিগত নোটিশ, বাজারের item name এবং user-entered
+  descriptions অনুবাদ করা হয় না।
+
+যাচাই / পরিচিত সীমাবদ্ধতা
+------------------------
+- 241টি JS/JSX/MJS/TS file syntax-parse করা হয়েছে; syntax error পাওয়া যায়নি।
+- Run69 bilingual focused tests: 13/13 passed.
+- Full suite: 867 tests-এর মধ্যে 857 passed; 10টি ব্যর্থ test pristine Run68
+  baseline-এও একই নামে ও একইভাবে ব্যর্থ ছিল। নতুন failure যোগ হয়নি।
+- এই build environment-এ Vite dependency/node_modules অনুপস্থিত থাকায়
+  production `npm run build` সম্পন্ন করা যায়নি। Deploy-এর আগে নিজস্ব পরিবেশে
+  `npm ci`, tests এবং production build চালাবেন।
+
+Patch contents
+--------------
+প্রয়োজনীয় source/config/migration/test files-এর cumulative replacement list
+`PATCH_MANIFEST.txt`-এ আছে। Original screenshot files delete করা হয়নি; About
+page আর app-screen screenshot ব্যবহার করে না, কিন্তু পুরোনো asset references
+ভাঙার ঝুঁকি এড়াতে ফাইলগুলো রাখা হয়েছে।

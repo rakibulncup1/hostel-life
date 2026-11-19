@@ -95,8 +95,8 @@ export function MenuDrawer({ open, onClose, isManager = false, isPrimaryManager 
                 <span className="avatar drawer-avatar-fallback" aria-hidden="true">{initials}</span>
               )}
               <div className="drawer-identity-copy">
-                <div className="drawer-title" id="drawer-title">{hostelName || 'Hostel Life'}</div>
-                <div className="drawer-subtitle" id="drawer-user">{profile?.full_name || 'ব্যবহারকারী'}</div>
+                <div className="drawer-title" id="drawer-title">{hostelName ? <span data-user-content>{hostelName}</span> : 'Hostel Life'}</div>
+                <div className="drawer-subtitle" id="drawer-user">{profile?.full_name ? <span data-user-content>{profile.full_name}</span> : 'ব্যবহারকারী'}</div>
                 <span className={`drawer-role-pill ${effectiveOperationalManager ? 'is-manager' : ''}`}>
                   <Icon name={effectiveOperationalManager ? 'shield-check' : 'user-round'} size={12} />
                   {role || 'সদস্য'}

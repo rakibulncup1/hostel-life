@@ -1,0 +1,5 @@
+995d9e81bc1cc85c2597f666a25be623ae88eb2a72a5ff3f2928f668de740d5d  src/main.jsx
+3bd291bb7d268ed878705655f42751db6e41cec4011289428d2b42f2a39b49ca  src/styles/run87-public-entry-compact.css
+3e25f9b418bbbd00ed446b8253597275097bf74d07379ee86f836d54b019a503  public/about.html
+c78805a0ebe02ab7a27cd2b7251c6f2c1ac307c9426a6c963228d27a3bc14318  public/landing-assets/run87-about-header.css
+01be9faba2b73fa9977a8bb00f4d27cd5671a898e41789a88e42819f8d60eb99  tests/run87-public-entry-and-about-header.test.mjs

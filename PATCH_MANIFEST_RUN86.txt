@@ -1,0 +1,14 @@
+Hostel Life — Run86 Public Entry Compact Patch
+Base: Run85 working project
+Scope: Public pre-authentication entry windows only
+
+Production files:
+  src/main.jsx
+    - Adds one stylesheet import for Run86.
+  src/styles/run86-public-entry-compact.css
+    - New CSS overrides scoped to .auth-page, .onboarding-page and .hostel-invite-page.
+
+Test file:
+  tests/run86-public-entry-compact-layout.test.mjs
+
+No other production source files are included.

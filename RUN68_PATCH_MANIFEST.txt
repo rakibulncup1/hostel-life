@@ -1,0 +1,25 @@
+RUN68 PATCH MANIFEST
+Baseline: Run67
+Scope: Public About/Landing, public Privacy/Terms presentation and generator, public login/register desktop sizing only.
+No database or Supabase migration.
+
+Changed Project Files:
+- public/about.html
+- public/landing-assets/public-experience.css
+- public/privacy-policy.html
+- public/terms-of-service.html
+- scripts/generate-public-legal-pages.mjs
+- src/styles/run65-entry-windows.css
+- tests/publicAboutHeroAlignment.test.js
+- tests/publicLandingCopyPolish.test.js
+- tests/publicLandingOriginalScreens.test.js
+- tests/publicLandingPolish.test.js
+- tests/publicShowcaseExpansion.test.js
+- tests/publicVisualSystemRefinement.test.js
+- tests/run63-focused-followup.test.mjs
+
+Added Files:
+- PUBLIC_ABOUT_LOCALIZATION_KEYS_BN.md
+- tests/run68_public_site_code_native.test.mjs
+
+Not included: authenticated app feature code, SQL migrations, Supabase Edge Functions, assets deletion, node_modules, dist, .git.

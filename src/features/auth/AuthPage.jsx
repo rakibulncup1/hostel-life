@@ -8,7 +8,7 @@ import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { useAuth } from '../../contexts/AuthContext';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
 import { applyTheme, getThemePreference } from '../../app/theme';
-import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
+import { getUiLocale } from '../../i18n/locale.js';
 
 function go(path, replace = false) {
   if (replace) window.history.replaceState({}, '', path);
@@ -20,8 +20,8 @@ function formatOtpWait(seconds) {
   const safeSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
   const minutes = Math.floor(safeSeconds / 60);
   const remainder = safeSeconds % 60;
-  const toBanglaDigits = (value) => String(value).replace(/\d/g, (digit) => '০১২৩৪৫৬৭৮৯'[Number(digit)]);
-  return `${toBanglaDigits(String(minutes).padStart(2, '0'))}:${toBanglaDigits(String(remainder).padStart(2, '0'))}`;
+  const formatter = new Intl.NumberFormat(getUiLocale(), { minimumIntegerDigits: 2, useGrouping: false });
+  return `${formatter.format(minutes)}:${formatter.format(remainder)}`;
 }
 
 const authLinks = [
@@ -99,7 +99,6 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
           {compact && !minimal && <div className="auth-compact-brand"><BrandMark size={34} /><span>Hostel Life</span></div>}
           <div className="auth-form-toolbar">
             <span className="auth-form-toolbar-label auth-toolbar-pill"><Icon name={minimal ? 'mail-check' : 'shield-check'} size={15} /> {minimal ? 'ইমেইল যাচাই' : 'নিরাপদ অ্যাকাউন্ট'}</span>
-            <EntryThemeSwitcher />
           </div>
           <div className="auth-header">
             <div>

@@ -1,0 +1,47 @@
+HOSTEL LIFE — RUN70 LANGUAGE SWITCHER VISIBILITY PATCH
+=====================================================
+
+এই Patch Run69 Full Bilingual system-এর ওপর বসানোর জন্য। এটি পূর্ণ cumulative
+project নয়; Run69 ইতিমধ্যে project-এ replace করা থাকলে এই ছোট overlay ব্যবহার করুন।
+
+কেন দরকার
+---------
+Run69-এ language translation runtime এবং LanguageSwitcher component ছিল, কিন্তু
+signed-in app-এর shared Header-এ language control বসানো হয়নি। ফলে Dashboard বা
+Dining-এর মতো পেজে switcher দেখা যেত না; Profile-এর নিচের Language card-এ যেতে হতো।
+
+এই Patch-এ কী আছে
+-----------------
+1. সব authenticated app route-এর global Header-এ compact EN / বাংলা switcher।
+2. Menu Drawer footer-এ আলাদা “ভাষা” control।
+3. Standalone Super Admin header-এও compact language switcher।
+4. existing LanguageSwitcher-এর short label support।
+5. Service Worker cache key v21, যাতে নতুন app shell update হয়।
+6. cache version বদলানোর কারণে তিনটি পুরোনো test assertion v21-এ আপডেট।
+
+ইনস্টল
+------
+1. বর্তমান Run69 source-এর backup নিন।
+2. ZIP extract করুন।
+3. ZIP-এর “Hostel Life/” folder-এর ভিতরের contents আপনার project root-এ
+   copy/overwrite করুন।
+4. project root-এ চালান:
+
+   npm test
+   npm run build
+
+5. Build সফল হলে Vercel-এ স্বাভাবিকভাবে deploy করুন।
+6. Deploy শেষে browser-এ Hard Reload করুন। Installed PWA থাকলে পুরো app বন্ধ করে
+   আবার খুলুন, যাতে Service Worker v21 activate হয়।
+
+যাচাই
+-----
+- Focused language tests: 16/16 passed.
+- Full suite: 870 tests; 860 passed, 10 existing baseline failures.
+- Run69 baseline-এ একই 10টি test আগেও ব্যর্থ ছিল; Run70 নতুন failure যোগ করেনি।
+- কোনো SQL migration, database change, Supabase request বা network API যোগ হয়নি।
+
+সীমাবদ্ধতা
+----------
+এই পরিবেশে Vite dependencies অনুপস্থিত থাকায় npm run build চালানো যায়নি। Deploy-এর
+আগে আপনার environment-এ Build সফল হওয়া নিশ্চিত করুন।

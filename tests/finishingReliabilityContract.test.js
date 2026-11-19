@@ -33,7 +33,7 @@ test('assistant-manager picker has distinct selected-state cards and responsive 
 
 test('avatar chooser resets the file before opening and format hint avoids compression claims', () => {
   assert.match(profile, /fileRef\.current\.value = '';/);
-  assert.match(profile, /ছবির ফরম্যাট: JPG, PNG, WEBP/);
+  assert.doesNotMatch(profile, /ছবির ফরম্যাট: JPG, PNG, WEBP/); // requested removal of unnecessary avatar helper copy
   assert.doesNotMatch(profile, /১৯০ KB-এর মধ্যে compress হবে|স্বয়ংক্রিয়ভাবে.*compress/i);
   assert.match(profileService, /MIME_BY_EXTENSION/);
   assert.match(profileService, /loadImage\(file\)/);

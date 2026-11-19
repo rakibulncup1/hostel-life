@@ -1,0 +1,190 @@
+/* Run79 — one coherent dark surface system and natural English wrapping.
+   CSS-only presentation layer. No component, data, auth, or business-flow changes. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #22292f;
+  --surface: #2d353d;
+  --surface-2: #354049;
+  --surface-raised: #3d4851;
+  --surface-soft: #303941;
+  --surface-elevated: #424d56;
+  --input-bg: #272f36;
+  --text: #edf1f3;
+  --muted: #bdc6cc;
+  --line: #4a5660;
+  --border: #4a5660;
+  --primary: #bdc9c1;
+  --primary-strong: #d9e2dc;
+  --primary-soft: #3a4741;
+  --danger: #e5a3a3;
+  --danger-soft: #493438;
+  --warning: #dec18c;
+  --warning-soft: #494133;
+  --shadow: 0 14px 34px rgba(0,0,0,.19);
+  --card-shadow: 0 8px 22px rgba(0,0,0,.14);
+  --soft-shadow: 0 6px 18px rgba(0,0,0,.11);
+  --lift-shadow: 0 14px 30px rgba(0,0,0,.16);
+  background: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(html, body, #root, .app-shell, .app-main) {
+  background-color: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(
+  .app-header, .bottom-nav, .drawer, .menu-drawer, .app-sidebar,
+  .modal-panel, .card, .form-panel, .notification-panel-card,
+  .profile-section-card, .profile-overview-card, .dining-panel,
+  .history-filter-card, .ranking-card, .developer-card, .manager-form-card,
+  .archive-table-card, .market-table-card, .dashboard-card, .summary-card,
+  .member-detail-card, .hero-card, .empty-state-card, .profile-identity-card
+) {
+  background-color: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(
+  .metric, .setting-row, .history-preview-row, .form-hint,
+  .profile-inline-note, .drawer-language-row, .network-pill,
+  .icon-button, .theme-choice, .table-head, .market-table-head,
+  .archive-table-head, .profile-section-head, .profile-detail-list > div,
+  .profile-email-readonly, .profile-password-hint, .history-filter-toolbar,
+  .table-toolbar, .filter-panel, .summary-metric-card,
+  .member-period-summary-grid .metric, .account-grid > div,
+  .member-stats-grid > div
+) {
+  background-color: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(input, select, textarea),
+:root[data-theme="dark"] .password-field input {
+  background-color: var(--input-bg);
+  border-color: var(--line);
+  color: var(--text);
+  color-scheme: dark;
+}
+:root[data-theme="dark"] :is(input, textarea)::placeholder { color: #aeb9c0; opacity: 1; }
+:root[data-theme="dark"] select option { background: var(--surface); color: var(--text); }
+:root[data-theme="dark"] :is(.primary-button, .btn-primary, .profile-section-action[aria-expanded="true"]) {
+  background: #c1cdc5;
+  border-color: #c1cdc5;
+  color: #202923;
+}
+:root[data-theme="dark"] :is(.secondary-button, .text-button, .profile-section-action, .icon-button:not(.ghost)) {
+  background: #35404a;
+  border-color: #53606a;
+  color: #e7ecef;
+}
+:root[data-theme="dark"] :is(.role-badge, .member-badge, .profile-section-icon,
+  .profile-email-readonly, .profile-hostel-details .monospace-value,
+  .language-switcher, .language-switcher-segmented, .app-header-language-control) {
+  background: #37424a;
+  border-color: #56626b;
+  color: #e2e8e5;
+}
+:root[data-theme="dark"] .profile-experience .profile-identity-card {
+  background: linear-gradient(125deg, #303a42 0%, #39444c 100%);
+  border-color: #53606a;
+}
+:root[data-theme="dark"] :is(.table-wrap, .table-scroll, table, th, td) { border-color: var(--line); }
+:root[data-theme="dark"] th { background: var(--surface-2); color: #e5eaed; }
+:root[data-theme="dark"] td { color: var(--text); }
+:root[data-theme="dark"] a { color: #c7d4cc; }
+:root[data-theme="dark"] :is(.danger, .text-danger) { color: var(--danger); }
+
+/* Dashboard: keep semantic meaning in small accents, not saturated full-card fills. */
+:root[data-theme="dark"] .dashboard-reimagined {
+  --dash-ink: #edf1f3;
+  --dash-muted: #bdc6cc;
+  --dash-line: #4a5660;
+  --dash-blue: #b7c8d8;
+  --dash-blue-bg: #303b45;
+  --dash-blue-line: #465866;
+  --dash-green: #b6d1c0;
+  --dash-green-bg: #2f3d36;
+  --dash-green-line: #465b4e;
+  --dash-amber: #ddc69e;
+  --dash-amber-bg: #3b362d;
+  --dash-amber-line: #5a5040;
+  --dash-violet: #c8c0df;
+  --dash-violet-bg: #393645;
+  --dash-violet-line: #514b61;
+  --dash-coral: #dfb7ad;
+  --dash-coral-bg: #3b3434;
+  --dash-coral-line: #5b4845;
+  --dash-teal: #b6d0d0;
+  --dash-teal-bg: #2f3b3c;
+  --dash-teal-line: #46595a;
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card,
+:root[data-theme="dark"] .dashboard-reimagined .summary-card,
+:root[data-theme="dark"] .dashboard-reimagined .my-account-card,
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-directory {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .meal-card.hero-card :is(.meal-stat-breakfast, .meal-stat-lunch, .meal-stat-dinner) {
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .summary-card .metric,
+:root[data-theme="dark"] .dashboard-reimagined .account-grid > div,
+:root[data-theme="dark"] .dashboard-reimagined .member-stats-grid > div {
+  color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined :is(.summary-card, .my-account-card, .dashboard-directory) :is(h1,h2,h3,p,span,strong,small) {
+  color: inherit;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .default-meal-box {
+  border-color: #4d6256;
+  background: #303a35;
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .default-meal-box > div:first-child strong {
+  color: #c2d7c9;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .default-meal-box > div:first-child small {
+  color: #c0c9c4;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .default-meal-box .secondary-button {
+  border-color: #53645a;
+  background: #3a4840;
+  color: #e1e9e3;
+}
+
+/* English: retain existing font sizes. Fix only shrink, wrapping and content sizing. */
+:root[data-language="en"] :is(
+  .page-stack, .form-grid, .summary-grid, .profile-grid, .dashboard-grid,
+  .dashboard-primary-grid, .dashboard-finance-grid, .account-grid, .meal-grid,
+  .profile-section-card, .profile-overview-card, .dining-panel, .form-panel,
+  .modal-panel, .dashboard-card, .summary-card, .member-detail-card
+) { min-width: 0; }
+:root[data-language="en"] :is(
+  .card, .profile-section-card, .profile-overview-card, .dining-panel,
+  .form-panel, .modal-panel, .dashboard-card, .summary-card,
+  .member-detail-card, .dashboard-reimagined .meal-card,
+  .dashboard-reimagined .my-account-card, .dashboard-reimagined .summary-card
+) { min-width: 0; max-width: 100%; height: auto; }
+:root[data-language="en"] :is(
+  .card, .profile-section-card, .profile-overview-card, .dining-panel,
+  .form-panel, .modal-panel, .dashboard-card, .summary-card,
+  .member-detail-card, .dashboard-reimagined
+) :is(h1,h2,h3,p,span,small,label,strong,b,em,li) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+:root[data-language="en"] :is(
+  .card, .profile-section-card, .dashboard-card, .summary-card,
+  .member-detail-card, .dashboard-reimagined .meal-card,
+  .dashboard-reimagined .my-account-card
+) > * { min-width: 0; }
+:root[data-language="en"] :is(button, .btn, .primary-button, .secondary-button) {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+}

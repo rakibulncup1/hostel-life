@@ -1,0 +1,18 @@
+Hostel Life — Run87 Compact Public Entry & About Header Patch
+Base: Run86 Public Entry Compact + Run86 Build Repair (user-confirmed working chain)
+
+Production files:
+  MODIFY  src/main.jsx
+  ADD     src/styles/run87-public-entry-compact.css
+  MODIFY  public/about.html
+  ADD     public/landing-assets/run87-about-header.css
+
+Test/documentation files:
+  ADD     tests/run87-public-entry-and-about-header.test.mjs
+  ADD     README_RUN87_BN.md
+  ADD     VERIFICATION_REPORT_RUN87_BN.md
+  ADD     PATCH_MANIFEST_RUN87.txt
+  ADD     SHA256SUMS_RUN87.txt
+
+No other project files are included. No React component, auth service, route,
+Supabase, database, signed-in page, shared theme token, or business logic was changed.

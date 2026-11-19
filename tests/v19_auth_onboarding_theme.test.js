@@ -12,8 +12,8 @@ const css = read('src/styles/public-entry.css');
 const run65Css = read('src/styles/run65-entry-windows.css');
 
  test('auth pages offer personal theme choices while the one-time Light rollout runs', () => {
-  assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
-  assert.match(onboarding, /<EntryThemeSwitcher\s*\/>/);
+  assert.doesNotMatch(auth, /EntryThemeSwitcher/);
+  assert.doesNotMatch(onboarding, /EntryThemeSwitcher/);
   assert.match(theme, /THEME_KEY = 'hostel-life-theme'/);
   assert.match(theme, /THEME_VALUES.*system.*light.*dark.*blue/s);
   assert.match(switcher, /saveThemePreference\(nextTheme\)/);

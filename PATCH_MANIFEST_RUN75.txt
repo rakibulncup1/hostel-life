@@ -1,0 +1,37 @@
+Hostel Life Run75 Finishing Patch
+Base: Run74 successfully applied project (Run72 + Run73 + Run74)
+
+REPLACE
+public/about.html
+public/landing-assets/public-controls.js
+public/language-runtime.js
+public/privacy-policy.html
+public/terms-of-service.html
+src/app/theme.js
+src/main.jsx
+tests/publicLandingOriginalScreens.test.js
+tests/publicLandingPolish.test.js
+tests/publicShowcaseExpansion.test.js
+tests/run67-menu-telegram-invite-finish.test.mjs
+tests/run68_public_site_code_native.test.mjs
+
+ADD
+public/landing-assets/run75-about-finish.css
+src/styles/run75-finishing.css
+tests/run75-finishing-patch.test.mjs
+
+Documentation
+README_RUN75_PATCH_BN.md
+TEST_REPORT_RUN75_BN.md
+PATCH_MANIFEST_RUN75.txt
+SHA256SUMS_RUN75.txt
+
+No delete operations.
+No assets copied in this patch. These existing files must be present in the Run74 base:
+public/landing-assets/dashboard.webp
+public/landing-assets/dining.webp
+public/landing-assets/market-entry.webp
+public/landing-assets/deposit.webp
+public/landing-assets/meal-request.webp
+public/landing-assets/allowance.webp
+public/landing-assets/final-report-anonymized.webp

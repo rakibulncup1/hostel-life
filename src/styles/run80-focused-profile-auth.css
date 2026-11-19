@@ -1,0 +1,248 @@
+/* Run80 — focused Profile, member search and authentication visual corrections.
+   Presentation-only overrides. All selectors are scoped to the affected areas. */
+
+/* Profile: remove the lightly tinted strips behind each line of copy. Keep the
+   enclosing cards and subtle separators so the information remains structured. */
+:root[data-theme="dark"] .profile-experience .profile-section-card,
+:root[data-theme="dark"] .profile-experience .profile-overview-card {
+  background-color: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] .profile-experience .profile-section-head,
+:root[data-theme="dark"] .profile-experience .profile-detail-list > div,
+:root[data-theme="dark"] .profile-experience .profile-detail-list span,
+:root[data-theme="dark"] .profile-experience .profile-detail-list strong {
+  background: transparent !important;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .profile-experience .profile-detail-list > div {
+  border-bottom-color: var(--line);
+}
+:root[data-theme="dark"] .profile-experience .profile-detail-list span { color: var(--muted); }
+:root[data-theme="dark"] .profile-experience .profile-detail-list strong { color: var(--text); }
+:root[data-theme="dark"] .profile-experience {
+  --profile-blue-bg: #354049;
+  --profile-blue-border: #4a5660;
+  --profile-blue-ink: #d6dfe4;
+  --profile-green-bg: #354049;
+  --profile-green-border: #4a5660;
+  --profile-green-ink: #d6dfe4;
+  --profile-violet-bg: #354049;
+  --profile-violet-border: #4a5660;
+  --profile-violet-ink: #d6dfe4;
+  --profile-teal-bg: #354049;
+  --profile-teal-border: #4a5660;
+  --profile-teal-ink: #d6dfe4;
+}
+:root[data-theme="dark"] .profile-experience .profile-identity-card {
+  background: linear-gradient(120deg, #2d353d 0%, #354049 100%);
+  border-color: var(--line);
+}
+:root[data-theme="dark"] .profile-experience .profile-section-icon,
+:root[data-theme="dark"] .profile-experience .profile-email-readonly,
+:root[data-theme="dark"] .profile-experience .profile-hostel-details .monospace-value,
+:root[data-theme="dark"] .profile-experience .profile-theme-section .theme-choice.selected,
+:root[data-theme="dark"] .profile-experience .profile-role-line .member-badge.assistant {
+  background: #354049;
+  border-color: #4a5660;
+  color: #dce4e8;
+}
+:root[data-theme="dark"] .profile-experience .profile-section-icon svg { color: #dce4e8; }
+:root[data-theme="dark"] .profile-experience .profile-section-heading .eyebrow { color: #c3cdd2; }
+:root[data-theme="dark"] .profile-experience .profile-theme-section .theme-choice.selected {
+  box-shadow: inset 0 0 0 1px rgba(217, 226, 220, .08);
+}
+
+/* Dashboard member directory: one quiet search field, transparent input text area. */
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search {
+  background: #2d353d;
+  border-color: #4a5660;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search:focus-within {
+  border-color: #87988e;
+  box-shadow: 0 0 0 3px rgba(189, 201, 193, .12);
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search input {
+  min-width: 0;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search input::placeholder {
+  color: #aeb9c0;
+  opacity: 1;
+  -webkit-text-fill-color: #aeb9c0;
+}
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search > svg { color: #bdc9c1; }
+:root[data-theme="dark"] .dashboard-reimagined .dashboard-member-search > button {
+  background: transparent;
+  border: 0;
+  color: #cbd4d9;
+}
+
+/* Login and registration: align the branding and form surfaces with the app's
+   graphite palette instead of the previous near-black green treatment. */
+:root[data-theme="dark"] .auth-page {
+  background: radial-gradient(ellipse at 50% 0%, rgba(189, 201, 193, .055), transparent 44%), #22292f;
+  color: #edf1f3;
+}
+:root[data-theme="dark"] .auth-page::before { content: none; }
+:root[data-theme="dark"] .auth-shell,
+:root[data-theme="dark"] .auth-shell:not(.auth-shell-compact) {
+  border-color: #4a5660;
+  background: #2d353d;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .25), 0 1px 0 rgba(255,255,255,.035) inset;
+  color: #edf1f3;
+}
+:root[data-theme="dark"] .auth-brand-panel {
+  border-right-color: #4a5660;
+  background: linear-gradient(150deg, #354049 0%, #303941 55%, #2d353d 100%);
+  color: #edf1f3;
+}
+:root[data-theme="dark"] .auth-brand-panel h1 { color: #edf1f3; }
+:root[data-theme="dark"] .auth-brand-panel p { color: #c1cbd1; }
+/* The monogram SVG has a fixed evergreen tile; neutralise that tile only on dark auth screens. */
+:root[data-theme="dark"] .auth-brand-mark svg rect:first-child,
+:root[data-theme="dark"] .auth-compact-brand svg rect:first-child {
+  fill: #46525a;
+}
+:root[data-theme="dark"] .auth-brand-mark svg path,
+:root[data-theme="dark"] .auth-compact-brand svg path {
+  stroke: #e2e8eb;
+}
+:root[data-theme="dark"] .auth-brand-mark {
+  border-color: #59666f;
+  background: linear-gradient(145deg, #46535c, #354049);
+  box-shadow: 0 10px 24px rgba(0,0,0,.17), 0 1px 0 rgba(255,255,255,.06) inset;
+}
+:root[data-theme="dark"] .auth-eyebrow,
+:root[data-theme="dark"] .auth-form-panel .auth-header .eyebrow { color: #c5d0ca; }
+:root[data-theme="dark"] .auth-brand-panel .auth-brand-quote,
+:root[data-theme="dark"] .auth-brand-feature-list span {
+  border-color: #4a5660;
+  background: rgba(255,255,255,.045);
+  color: #d5dde1;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .auth-form-panel {
+  background: #2d353d;
+  color: #edf1f3;
+}
+:root[data-theme="dark"] .auth-form-panel .auth-form-intro,
+:root[data-theme="dark"] .auth-form-panel .auth-toolbar-pill {
+  border-color: #4a5660;
+  background: #354049;
+  color: #d4ddd8;
+}
+:root[data-theme="dark"] .auth-form-panel .auth-header h2 { color: #edf1f3; }
+:root[data-theme="dark"] .auth-form-panel .auth-header p,
+:root[data-theme="dark"] .auth-form-panel .auth-switch { color: #bdc6cc; }
+:root[data-theme="dark"] .auth-form-panel .field-label,
+:root[data-theme="dark"] .auth-form-panel .field-label > span { color: #dce4e8; }
+:root[data-theme="dark"] .auth-form-panel .field-label input,
+:root[data-theme="dark"] .auth-form-panel .field-label select,
+:root[data-theme="dark"] .auth-form-panel .field-label textarea,
+:root[data-theme="dark"] .auth-form-panel .password-field input {
+  background: #252d34;
+  border-color: #4a5660;
+  color: #edf1f3;
+  -webkit-text-fill-color: #edf1f3;
+  caret-color: #d9e2dc;
+}
+:root[data-theme="dark"] .auth-form-panel .field-label input::placeholder,
+:root[data-theme="dark"] .auth-form-panel .password-field input::placeholder { color: #aeb9c0; }
+:root[data-theme="dark"] .auth-form-panel .field-label input:focus,
+:root[data-theme="dark"] .auth-form-panel .field-label select:focus,
+:root[data-theme="dark"] .auth-form-panel .field-label textarea:focus,
+:root[data-theme="dark"] .auth-form-panel .password-field input:focus {
+  border-color: #aab8af;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(189, 201, 193, .13);
+}
+:root[data-theme="dark"] .auth-form-panel .primary-button.large {
+  border-color: #c3cec7;
+  background: #bdc9c1;
+  color: #202923;
+  box-shadow: 0 8px 20px rgba(0,0,0,.16);
+}
+:root[data-theme="dark"] .auth-form-panel .primary-button.large:hover:not(:disabled) {
+  background: #cbd5cf;
+}
+:root[data-theme="dark"] .auth-form-panel .text-button,
+:root[data-theme="dark"] .auth-form-panel .text-button.align-end,
+:root[data-theme="dark"] .auth-form-panel .auth-switch .text-button {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #d0ddd5;
+  text-decoration: none;
+}
+:root[data-theme="dark"] .auth-form-panel .text-button:hover { color: #f0f4f1; text-decoration: underline; }
+:root[data-theme="dark"] .auth-form-panel .auth-switch {
+  border-top-color: #4a5660;
+  background: transparent;
+}
+:root[data-theme="dark"] .auth-form-panel .auth-legal-links a { color: #bdc9c1; }
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy,
+:root[data-theme="dark"] .auth-form-panel .success-panel {
+  border-color: #4a5660;
+  background: #303941;
+  color: #edf1f3;
+}
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy-title,
+:root[data-theme="dark"] .auth-form-panel .success-panel h3 { color: #edf1f3; }
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy-title svg,
+:root[data-theme="dark"] .auth-form-panel .success-panel-icon {
+  background: #424d56;
+  color: #d9e2dc;
+}
+:root[data-theme="dark"] .auth-form-panel .password-reset-policy p,
+:root[data-theme="dark"] .auth-form-panel .success-panel p {
+  border: 0;
+  border-left: 2px solid #68766e;
+  border-radius: 0;
+  background: transparent;
+  color: #c1cbd1;
+}
+
+/* Forgot/reset password: compact single-column card on desktop. The mobile
+   full-screen treatment and all form behaviour remain unchanged. */
+@media (min-width: 701px) {
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact {
+    display: block;
+    width: min(500px, 100%);
+    min-height: 0;
+    margin: 0 auto;
+    border-radius: 22px;
+  }
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact .auth-brand-panel { display: none; }
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact .auth-form-panel {
+    width: 100%;
+    max-width: 460px;
+    margin-inline: auto;
+    padding: 26px 30px 28px;
+  }
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact .auth-compact-brand {
+    margin-bottom: 15px;
+    color: #edf1f3;
+  }
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact .auth-header { margin-bottom: 15px; }
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact .auth-header h2 {
+    margin-top: 3px;
+    font-size: 25px;
+  }
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact .password-reset-policy {
+    gap: 8px;
+    padding: 12px 13px;
+    background: #303941;
+  }
+  :root[data-theme="dark"] .auth-page .auth-shell.auth-shell-compact .password-reset-policy p {
+    padding: 3px 0 3px 10px;
+  }
+}

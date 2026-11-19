@@ -1,0 +1,157 @@
+/* Run82 — About-only Dark Theme surface audit.
+   Deliberately scoped to the static About page and the resolved dark theme.
+   No shared theme tokens, application pages, layout geometry or light styles are changed. */
+:root[data-theme="dark"] body.about-page {
+  --run82-about-page: #20282f;
+  --run82-about-section: #242d34;
+  --run82-about-surface: #2d373f;
+  --run82-about-raised: #35414a;
+  --run82-about-inset: #273139;
+  --run82-about-chip: #3a464e;
+  --run82-about-border: #4b5963;
+  --run82-about-heading: #eef2f4;
+  --run82-about-copy: #cbd5db;
+  --run82-about-muted: #afbdc5;
+}
+
+/* Fix the two clearly missed pale panels visible in the supplied screenshot:
+   the three proof cards and the padded section-description panel. */
+:root[data-theme="dark"] body.about-page :is(.proof-item, .section-head p, .hero-copy) {
+  background: var(--run82-about-surface);
+  border-color: var(--run82-about-border);
+  color: var(--run82-about-copy);
+  box-shadow: none;
+}
+:root[data-theme="dark"] body.about-page .proof-item strong {
+  color: var(--run82-about-heading);
+}
+:root[data-theme="dark"] body.about-page .proof-item small {
+  color: var(--run82-about-muted);
+}
+:root[data-theme="dark"] body.about-page .proof-item .proof-icon {
+  background: var(--run82-about-raised);
+  border-color: var(--run82-about-border);
+  color: var(--run82-about-copy);
+}
+:root[data-theme="dark"] body.about-page .section-head p {
+  background: var(--run82-about-surface);
+  color: var(--run82-about-copy);
+}
+
+/* About page section and card surfaces. Keep the existing spacing and sizing. */
+:root[data-theme="dark"] body.about-page :is(
+  .proof-band, .section, .showcase-section
+) {
+  background-color: var(--run82-about-section);
+  border-color: var(--run82-about-border);
+}
+:root[data-theme="dark"] body.about-page :is(.section-tint, .section-blue, .section-warm) {
+  background: linear-gradient(145deg, #28323a 0%, #303b44 100%);
+  border-color: var(--run82-about-border);
+}
+:root[data-theme="dark"] body.about-page :is(
+  .feature-card, .showcase-card, .workflow-card, .closing-inner,
+  .product-note, .product-note-label
+) {
+  background: var(--run82-about-surface);
+  border-color: var(--run82-about-border);
+  color: var(--run82-about-copy);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .14);
+}
+:root[data-theme="dark"] body.about-page :is(
+  .hero-copy, .hero-points span, .feature-image-frame, .showcase-media,
+  .screen-card, .code-preview, .mini-preview, .showcase-code-preview,
+  .menu-preview, .report-preview, .request-preview
+) {
+  background: var(--run82-about-inset);
+  border-color: var(--run82-about-border);
+  color: var(--run82-about-copy);
+}
+:root[data-theme="dark"] body.about-page :is(.screen-toolbar, .screen-note) {
+  background: var(--run82-about-raised);
+  border-color: var(--run82-about-border);
+  color: var(--run82-about-copy);
+}
+
+/* Small preview tiles that still had explicit white/pastel defaults. */
+:root[data-theme="dark"] body.about-page :is(
+  .preview-date, .preview-stat, .preview-meal-panel, .preview-action-tile,
+  .preview-bottom-line, .mini-date-strip span, .mini-meal-list > div,
+  .mini-market-row, .mini-preview-total, .deposit-summary, .deposit-fields,
+  .deposit-confirm, .allowance-summary > div, .allowance-list > div,
+  .request-summary-grid > div, .request-table-head, .request-table-row,
+  .report-metric-grid > div, .report-table-head, .report-table-row,
+  .menu-preview-item, .report-preview-foot
+) {
+  background: var(--run82-about-raised);
+  border-color: var(--run82-about-border);
+  color: var(--run82-about-copy);
+  box-shadow: none;
+}
+:root[data-theme="dark"] body.about-page :is(
+  .preview-sample-pill, .mini-preview-pill, .feature-tag, .feature-meta,
+  .workflow-number, .proof-icon, .menu-preview-item i,
+  .preview-action-icon, .preview-app-mark, .menu-preview-mark,
+  .mini-meal-icon
+) {
+  background: var(--run82-about-chip);
+  border-color: var(--run82-about-border);
+  color: var(--run82-about-copy);
+  box-shadow: none;
+}
+:root[data-theme="dark"] body.about-page :is(
+  .preview-stat--green, .preview-stat--blue, .preview-stat--amber,
+  .preview-action-icon--green, .preview-action-icon--blue,
+  .preview-action-icon--amber, .request-status--waiting,
+  .request-status--review, .request-status--done,
+  .mini-date-strip .is-active, .menu-preview-item--active
+) {
+  background: #3d4b44;
+  border-color: #59685f;
+  color: #e4ece7;
+}
+
+/* Explicit, readable text hierarchy for the code-native sample interfaces. */
+:root[data-theme="dark"] body.about-page :is(
+  h1, h2, h3, h4, .proof-item strong, .feature-copy h3,
+  .showcase-copy h3, .workflow-card h3, .closing-copy h2,
+  .preview-app-name strong, .preview-heading-row strong,
+  .preview-stat strong, .preview-panel-heading strong,
+  .preview-meal-row b, .preview-action-tile strong,
+  .mini-preview-heading strong, .mini-preview-total strong,
+  .menu-preview-brand strong, .report-preview-brand strong,
+  .report-metric-grid strong, .request-table-row strong,
+  .report-table-row b, .deposit-summary strong, .allowance-summary strong,
+  .allowance-list b
+) {
+  color: var(--run82-about-heading);
+}
+:root[data-theme="dark"] body.about-page :is(
+  p, .hero-copy, .section-head p, .feature-copy p, .showcase-copy p,
+  .workflow-card p, .closing-copy p, .proof-item small, .feature-meta,
+  .screen-note, .preview-overline, .preview-stat > span,
+  .preview-stat small, .preview-panel-heading span, .preview-meal-row,
+  .preview-action-tile small, .preview-app-name small,
+  .menu-preview-label, .menu-preview-item span, .report-table-row,
+  .request-table-row, .mini-preview-total, .showcase-media figcaption,
+  .report-preview-foot, .deposit-summary span, .deposit-fields span,
+  .allowance-summary small, .allowance-list span,
+  .request-summary-grid small, .report-metric-grid small,
+  .preview-heading-row, .product-note p, .footer-bottom,
+  .footer-links a, .footer-brand
+) {
+  color: var(--run82-about-copy);
+}
+:root[data-theme="dark"] body.about-page :is(
+  .eyebrow, .section-kicker, .showcase-index, .feature-index,
+  .preview-sample-pill, .mini-preview-pill, .feature-tag,
+  .product-note-label, .report-preview-brand small
+) {
+  color: #c6d5cb;
+}
+
+/* Real screenshot img elements are intentionally not selected or filtered. */
+:root[data-theme="dark"] body.about-page .hero-gallery::before {
+  background: linear-gradient(145deg, rgba(120, 145, 132, .10), rgba(39, 49, 57, .10));
+  border-color: rgba(150, 171, 158, .18);
+}

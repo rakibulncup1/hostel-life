@@ -1,0 +1,81 @@
+/* Run76: targeted readability and graphite theme refinement.
+   English-only typography rules and dark-only surfaces; Light Theme is untouched. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151a1f;
+  --surface: #20272e;
+  --surface-2: #2a333b;
+  --surface-raised: #303a43;
+  --surface-soft: #252d34;
+  --surface-elevated: #333e47;
+  --text: #f0f3f5;
+  --muted: #b2bcc4;
+  --line: #414c56;
+  --border: #414c56;
+  --primary: #c2cdc6;
+  --primary-strong: #e0e7e2;
+  --primary-soft: #303a42;
+  --input-bg: #1b2228;
+  --shadow: 0 14px 34px rgba(0, 0, 0, .24);
+}
+
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .app-shell {
+  background-color: var(--bg);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(
+  .app-header, .app-sidebar, .menu-drawer, .modal-panel, .card,
+  .profile-section-card, .profile-overview-card, .dining-panel,
+  .form-panel, .history-filter-card, .ranking-card, .developer-card,
+  .manager-form-card, .archive-table-card, .market-table-card,
+  .dashboard-card, .summary-card, .member-detail-card
+) {
+  background-color: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(
+  .table-head, .market-table-head, .archive-table-head,
+  .profile-section-head, .profile-detail-list > div,
+  .profile-email-readonly, .profile-password-hint,
+  .history-filter-toolbar, .table-toolbar, .filter-panel,
+  .member-period-summary-grid .metric, .summary-metric-card
+) {
+  background-color: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+:root[data-theme="dark"] :is(
+  .card, .profile-section-card, .dining-panel, .form-panel,
+  .modal-panel, .member-detail-card
+) :is(input, select, textarea),
+:root[data-theme="dark"] .field-label :is(input, select, textarea),
+:root[data-theme="dark"] .password-field input {
+  color: var(--text);
+  background-color: var(--input-bg);
+  border-color: var(--line);
+}
+:root[data-theme="dark"] :is(input, select, textarea)::placeholder {
+  color: #929da6;
+  opacity: 1;
+}
+:root[data-theme="dark"] :is(.primary-button, .btn-primary, .profile-section-action[aria-expanded="true"]) {
+  color: #1a2025;
+  background: #cbd4ce;
+  border-color: #cbd4ce;
+}
+:root[data-theme="dark"] :is(.secondary-button, .text-button, .profile-section-action) {
+  color: #e2e7ea;
+  background: #2a333b;
+  border-color: #4a5660;
+}
+:root[data-theme="dark"] :is(
+  .profile-section-icon, .profile-identity-hostel, .member-badge, .role-badge
+) {
+  color: #dce3df;
+  background: #303a42;
+  border-color: #4a565f;
+}
+
+/* Run77 restores the original English font scale; wrapping is handled separately. */

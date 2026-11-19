@@ -10,12 +10,12 @@ const main = read('src/main.jsx');
 const publicCss = read('src/styles/public-entry.css');
 const adminCss = read('src/styles/platform-visual-refresh.css');
 
- test('public entry pages load the scoped visual stylesheet and theme switcher', () => {
+ test('auth and onboarding keep compact entry layouts without duplicate theme controls', () => {
   assert.match(main, /styles\/public-entry\.css/);
   assert.match(main, /styles\/run65-entry-windows\.css/);
   assert.match(main, /styles\/platform-visual-refresh\.css/);
-  assert.match(auth, /<EntryThemeSwitcher\s*\/>/);
-  assert.match(onboarding, /<EntryThemeSwitcher\s*\/>/);
+  assert.doesNotMatch(auth, /EntryThemeSwitcher/);
+  assert.doesNotMatch(onboarding, /EntryThemeSwitcher/);
 });
 
 test('registration and onboarding preserve responsive presentation hooks', () => {

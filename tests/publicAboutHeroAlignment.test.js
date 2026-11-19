@@ -12,10 +12,11 @@ test('desktop About hero keeps the dashboard preview aligned with the main headl
   assert.match(css, /\.about-page \.hero\s*\{\s*padding-block:\s*clamp\(40px, 4vw, 56px\) clamp\(44px, 4\.5vw, 62px\);/);
 });
 
-test('mobile About hero retains its single-column layout and natural screenshot sizing', () => {
+test('mobile About hero retains its single-column layout and code-preview sizing', () => {
   const css = read('public/landing-assets/public-experience.css');
   assert.match(css, /@media \(max-width: 760px\)\s*\{[\s\S]*?\.about-page \.hero-grid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/);
-  assert.match(css, /\.screen-card img\s*\{\s*width:\s*100%;\s*height:\s*auto;\s*object-fit:\s*contain;/);
+  assert.match(css, /\.code-preview\s*\{[\s\S]*?width:\s*100%/);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.about-page \.screen-card--primary[\s\S]*?width:\s*100%/);
 });
 
 test('About hero and daily-feature copy remain concise and scannable', () => {
@@ -23,5 +24,5 @@ test('About hero and daily-feature copy remain concise and scannable', () => {
   assert.ok(html.includes('মেসের দৈনন্দিন ব্যবস্থাপনা'));
   assert.ok(html.includes('দৈনিক মিল, বাজারের খরচ ও সদস্যদের জমার তথ্য রাখুন এক জায়গায়।'));
   assert.ok(html.includes('মিল, বাজার ও জমার জন্য আলাদা অংশ—প্রয়োজনীয় তথ্য যোগ করুন'));
-  assert.ok(html.includes('<strong>দৈনিক মিল</strong><small>মিল, অনুরোধ ও সংশোধন</small>'));
+  assert.match(html, /<strong[^>]*>দৈনিক মিল<\/strong><small[^>]*>মিল, অনুরোধ ও সংশোধন<\/small>/);
 });

@@ -49,7 +49,7 @@ export function applyTheme(theme = getThemePreference()) {
   root.dataset.themePreference = preference;
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) {
-    const browserThemeColor = effective === 'dark' ? '#09100d' : effective === 'blue' ? '#edf5fc' : '#f4f8f5';
+    const browserThemeColor = effective === 'dark' ? '#22292f' : effective === 'blue' ? '#edf5fc' : '#f4f8f5';
     themeMeta.setAttribute('content', browserThemeColor);
   }
   return effective;

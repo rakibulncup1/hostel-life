@@ -1,3 +1,4 @@
+import { getUiLocale } from '../i18n/locale.js';
 const MEAL_KEYS = ['breakfast', 'lunch', 'dinner'];
 
 function toNumber(value) {
@@ -69,7 +70,7 @@ export function formatUpcomingMealDate(dateValue) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '—';
   const date = new Date(`${raw}T12:00:00+06:00`);
   if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('bn-BD', {
+  return new Intl.DateTimeFormat(getUiLocale(), {
     timeZone: 'Asia/Dhaka',
     weekday: 'long',
     day: 'numeric',
