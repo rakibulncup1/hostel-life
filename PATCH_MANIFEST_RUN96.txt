@@ -1,0 +1,24 @@
+Hostel Life — Run96 CSS Delivery Reliability Patch
+Baseline: Run95 fully applied (Run79–Run95 chain).
+
+REPLACE
+package.json
+public/service-worker.js
+tests/googleOauthPublicInfoPages.test.js
+tests/logoutSecurityTelemetryVercelRegression.test.js
+tests/run63-focused-followup.test.mjs
+tests/run67-menu-telegram-invite-finish.test.mjs
+tests/run70-language-switcher-visibility.test.mjs
+
+ADD
+.github/workflows/frontend-integrity.yml
+scripts/verify-stylesheet-integrity.mjs
+tests/run96_stylesheet_delivery_reliability.test.mjs
+
+No existing visual CSS, authentication, database schema, RLS, SQL migration,
+Edge Function, user data, or application business logic changed.
+No new dependency was added; package-lock.json remains unchanged.
+
+Run source check: npm run verify:styles
+Run targeted regression: node --test tests/run96_stylesheet_delivery_reliability.test.mjs
+Build pipeline: legal pages -> source CSS check -> Vite -> dist CSS check

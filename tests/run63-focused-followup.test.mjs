@@ -87,7 +87,8 @@ test('Notice dialogs are bounded and internally scrollable on small screens', as
   assert.match(css, /@media \(max-width: 640px\)[\s\S]*?\.system-notice-dialog/);
 });
 
-test('Build regenerates both public legal pages before Vite production build', async () => {
+test('Build regenerates public legal pages, verifies source CSS, builds Vite, then verifies emitted CSS', async () => {
   const pkg = JSON.parse(await read('../package.json'));
-  assert.match(pkg.scripts.build, /^node scripts\/generate-public-legal-pages\.mjs && vite build$/);
+  assert.match(pkg.scripts.build, /^node scripts\/generate-public-legal-pages\.mjs && node scripts\/verify-stylesheet-integrity\.mjs --source && vite build && node scripts\/verify-stylesheet-integrity\.mjs --dist$/);
+  assert.equal(pkg.scripts['verify:styles'], 'node scripts/verify-stylesheet-integrity.mjs --source');
 });

@@ -25,5 +25,5 @@ test('Run70 reuses the existing local bilingual runtime without database or netw
   assert.doesNotMatch(platform, /LanguageSwitcher|platform-language-control/);
   assert.doesNotMatch(component, /supabase|fetch\(/i);
   assert.doesNotMatch(main, /Run70.*migration/i);
-  assert.match(read('public/service-worker.js'), /hostel-life-shell-v21/);
+  assert.match(read('public/service-worker.js'), /hostel-life-shell-v22/);
 });

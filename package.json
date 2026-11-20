@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/generate-public-legal-pages.mjs && vite build",
+    "build": "node scripts/generate-public-legal-pages.mjs && node scripts/verify-stylesheet-integrity.mjs --source && vite build && node scripts/verify-stylesheet-integrity.mjs --dist",
+    "verify:styles": "node scripts/verify-stylesheet-integrity.mjs --source",
     "preview": "vite preview",
     "test": "node --test"
   },

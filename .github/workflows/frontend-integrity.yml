@@ -1,0 +1,36 @@
+name: Frontend delivery integrity
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  stylesheet-and-build-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify source stylesheet references
+        run: npm run verify:styles
+
+      - name: Run stylesheet delivery regression tests
+        run: node --test tests/run96_stylesheet_delivery_reliability.test.mjs
+
+      - name: Build and verify deployed HTML/CSS assets
+        run: npm run build
