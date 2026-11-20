@@ -1,0 +1,213 @@
+/* Run98 — public About hero, mobile header and feature ribbon only. */
+
+/* The hero copy is a composed panel rather than loose text on the page canvas. */
+.about-page .hero-copy-column {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: clamp(20px, 2.5vw, 30px);
+  border: 1px solid color-mix(in srgb, var(--green) 17%, var(--line));
+  border-radius: 24px;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--paper) 72%, #fff), #ffffff);
+  box-shadow: 0 12px 30px rgba(22, 54, 37, .055);
+}
+.about-page .hero-copy-column h1 {
+  color: var(--ink);
+  max-width: 17ch;
+  margin: 0 0 14px;
+  font-size: clamp(34px, 4vw, 53px);
+  line-height: 1.22;
+  letter-spacing: -.045em;
+}
+.about-page .hero-copy-column h1 em { color: var(--green-dark); }
+.about-page .hero-copy-column .hero-copy {
+  color: var(--muted);
+  max-width: 47ch;
+  font-size: 14px;
+  line-height: 1.85;
+}
+.about-page .hero-copy-column .hero-actions .btn-secondary {
+  border-color: var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+}
+.about-page .hero-copy-column .hero-actions .btn-download {
+  border-color: color-mix(in srgb, var(--green) 20%, var(--line));
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+.about-page .hero-copy-column .hero-actions {
+  gap: 9px;
+  margin-top: 21px;
+}
+.about-page .hero-copy-column .hero-points {
+  gap: 8px;
+  margin-top: 17px;
+}
+.about-page .hero-copy-column .hero-points > span {
+  min-height: 31px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 86%, var(--paper));
+  color: var(--ink-soft);
+  font-size: 10.5px;
+}
+
+/* The three primary capabilities fill their row evenly and read as deliberate cards. */
+.about-page .proof-band {
+  padding-block: 10px;
+  background: color-mix(in srgb, var(--paper) 78%, #e7f1eb);
+}
+.about-page .proof-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 14px;
+  padding: 8px 0;
+}
+.about-page .proof-item {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 86px;
+  justify-content: flex-start;
+  gap: 13px;
+  padding: 14px 17px;
+  border: 1px solid color-mix(in srgb, var(--green) 15%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--paper));
+  box-shadow: 0 6px 17px rgba(22, 54, 37, .045);
+}
+.about-page .proof-item > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.about-page .proof-item strong {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.about-page .proof-item small {
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+.about-page .hero-copy-column .tick {
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+.about-page .proof-icon {
+  width: 42px;
+  height: 42px;
+  flex-basis: 42px;
+  border-radius: 13px;
+}
+
+:root[data-theme="dark"] .about-page .hero-copy-column {
+  border-color: #46534b;
+  background: linear-gradient(145deg, #29343a, #252e35);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .16);
+}
+:root[data-theme="dark"] .about-page .hero-copy-column h1 { color: #edf4ef; }
+:root[data-theme="dark"] .about-page .hero-copy-column h1 em { color: #8cd9b5; }
+:root[data-theme="dark"] .about-page .hero-copy-column .hero-copy { color: #bdcbc2; }
+:root[data-theme="dark"] .about-page .hero-copy-column .hero-actions .btn-secondary { border-color: #46534b; background: #303b40; color: #d5dfda; }
+:root[data-theme="dark"] .about-page .hero-copy-column .hero-actions .btn-download { border-color: #46534b; background: #303b40; color: #b7e5cb; }
+:root[data-theme="dark"] .about-page .hero-copy-column .tick { background: #334c41; color: #9be0bb; }
+:root[data-theme="dark"] .about-page .hero-copy-column .hero-points > span {
+  border-color: #46534b;
+  background: #303b40;
+  color: #d5dfda;
+}
+:root[data-theme="dark"] .about-page .proof-band {
+  background: #20282e;
+}
+:root[data-theme="dark"] .about-page .proof-item {
+  border-color: #46534b;
+  background: #293139;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .about-page .proof-item strong { color: #e7eeea; }
+:root[data-theme="dark"] .about-page .proof-item small { color: #b5c0ba; }
+
+/* Mobile header exposes the app-download action in the top action row. */
+@media (max-width: 860px) {
+  .about-page .nav-actions {
+    grid-template-columns: 48px minmax(0, .9fr) minmax(0, 1fr) minmax(0, .78fr);
+    gap: 6px;
+  }
+  .about-page .nav-actions .nav-download {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .about-page .nav-actions .nav-download > span:first-child {
+    font-size: 12px;
+    line-height: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .about-page .hero {
+    padding-top: 19px;
+    padding-bottom: 25px;
+  }
+  .about-page .hero-grid { gap: 16px; }
+  .about-page .hero-copy-column {
+    padding: 18px 17px;
+    border-radius: 19px;
+  }
+  .about-page .hero-copy-column h1 {
+    max-width: 19ch;
+    margin-bottom: 11px;
+    font-size: clamp(29px, 7.4vw, 37px);
+    line-height: 1.28;
+  }
+  .about-page .hero-copy-column .hero-copy {
+    font-size: 13px;
+    line-height: 1.75;
+  }
+  .about-page .hero-copy-column .hero-actions {
+    margin-top: 15px;
+    gap: 7px;
+  }
+  .about-page .hero-copy-column .hero-points {
+    margin-top: 12px;
+    gap: 6px;
+  }
+  .about-page .hero-copy-column .hero-points > span {
+    min-height: 29px;
+    padding: 4px 8px;
+    font-size: 9.5px;
+  }
+  .about-page .proof-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding-block: 8px;
+  }
+  .about-page .proof-item {
+    min-height: 70px;
+    padding: 11px 13px;
+    border-radius: 13px;
+  }
+}
+
+@media (max-width: 390px) {
+  .about-page .nav-actions {
+    grid-template-columns: 36px minmax(0, .9fr) minmax(0, 1fr) minmax(0, .7fr);
+    gap: 4px;
+  }
+  .about-page .nav-actions .btn {
+    min-height: 32px;
+    padding-inline: 4px;
+    font-size: 8px;
+  }
+  .about-page .nav-actions .public-language-switcher {
+    min-width: 0;
+    padding-inline: 2px;
+  }
+  .about-page .hero-copy-column { padding: 16px 14px; }
+  .about-page .hero-copy-column .hero-actions .btn { font-size: 10px; }
+}

@@ -14,7 +14,7 @@ const migration = read('supabase/migrations/Run93_google_registration_access_cod
 test('Google uses a larger official button with one consistent Continue label', () => {
   assert.match(authPage, /size:\s*'large'/);
   assert.match(authPage, /text:\s*'continue_with'/);
-  assert.match(authPage, /Math\.min\(280,/);
+  assert.match(authPage, /Math\.min\(400,/);
   assert.match(css, /\.auth-page \.google-signin-button\s*\{[\s\S]*?width:\s*280px/);
   assert.match(css, /\.auth-page \.google-signin-section\s*\{[\s\S]*?width:\s*min\(100%, 320px\)/);
 });

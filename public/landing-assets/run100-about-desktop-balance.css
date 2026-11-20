@@ -1,0 +1,116 @@
+/* Run100 — About desktop hero: remove the strong side accent and use the left
+   column's available height for the three feature rows. Mobile flow is intact. */
+@media (min-width: 761px) {
+  .about-page .hero-grid {
+    align-items: stretch !important;
+    gap: clamp(30px, 4vw, 58px);
+  }
+  .about-page .hero-copy-column {
+    display: flex;
+    min-width: 0;
+    min-height: 100%;
+    flex-direction: column;
+    align-self: stretch;
+  }
+  .about-page .hero-gallery {
+    align-self: stretch;
+    align-content: start;
+    margin-top: 0;
+    padding-top: 0 !important;
+  }
+  .about-page .hero-copy-column h1 {
+    max-width: 16ch;
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: clamp(38px, 4.3vw, 58px);
+    line-height: 1.19;
+    letter-spacing: -.047em;
+  }
+  .about-page .hero-copy-column .hero-copy {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 15px 17px;
+    border: 1px solid #d5e5df;
+    border-left: 1px solid #d5e5df;
+    border-radius: 15px;
+    background: linear-gradient(125deg, #eaf4f0 0%, #edf3f8 100%);
+    color: #40594f;
+    box-shadow: 0 7px 19px rgba(28, 64, 50, .055);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .about-page .hero-copy-column .hero-actions {
+    flex: 0 0 auto;
+    margin-top: 18px;
+  }
+  .about-page .hero-copy-column .hero-points {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(3, minmax(66px, 1fr));
+    align-content: stretch;
+    gap: 12px;
+    width: 100%;
+    min-height: 250px;
+    margin-top: clamp(22px, 2.5vw, 34px);
+    padding: 0;
+  }
+  .about-page .hero-copy-column .hero-points > span {
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    min-height: 66px;
+    height: 100%;
+    align-items: center;
+    gap: 13px;
+    padding: 14px 16px;
+    border: 1px solid #d7e7df;
+    border-radius: 14px;
+    background: linear-gradient(112deg, #f1f7f4, #eef4f8);
+    color: #315646;
+    box-shadow: 0 5px 15px rgba(28, 64, 50, .045);
+    font-size: 13px;
+    font-weight: 850;
+    line-height: 1.5;
+  }
+  .about-page .hero-copy-column .hero-points > span .tick {
+    width: 27px;
+    height: 27px;
+    flex: 0 0 27px;
+    border-radius: 9px;
+    background: #e1f0e8;
+    color: #17744e;
+    font-size: 14px;
+  }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-copy {
+    border-color: #465a51;
+    border-left-color: #465a51;
+    background: linear-gradient(125deg, #293b35 0%, #2b3741 100%);
+    color: #d5e1db;
+    box-shadow: none;
+  }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-points > span {
+    border-color: #465a51;
+    background: linear-gradient(112deg, #2c3d36, #303b43);
+    color: #e1ebe5;
+    box-shadow: none;
+  }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-points > span .tick {
+    background: #354e42;
+    color: #a6e3c1;
+  }
+}
+
+/* The supporting information panel keeps one calm border on mobile too; the
+   previous thick green left stripe is removed without changing mobile layout. */
+@media (max-width: 760px) {
+  .about-page .hero-copy-column .hero-copy {
+    border-left-width: 1px;
+    border-left-color: #d7e5de;
+  }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-copy {
+    border-left-color: #465d50;
+  }
+}

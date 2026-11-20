@@ -231,7 +231,7 @@ export function GoogleOAuthCallbackPage() {
     <main className="google-oauth-callback-page">
       <section className="google-oauth-callback-card" aria-live="polite">
         <div className="google-oauth-callback-brand"><BrandMark size={38} /><strong>Hostel Life</strong></div>
-        {status === 'checking' && <div className="google-oauth-callback-status"><span className="spinner"/><h1>{isEnglish ? 'Verifying your Google account' : 'Google account যাচাই করা হচ্ছে'}</h1><p>{message}</p></div>}
+        {status === 'checking' && <div className="google-oauth-callback-status google-oauth-callback-checking"><span className="spinner"/><h1>{isEnglish ? 'Verifying your Google account' : 'Google account যাচাই করা হচ্ছে'}</h1><span className="google-oauth-progress-track" aria-hidden="true"><i/></span><p>{message}</p></div>}
         {status === 'profile' && (
           <form className="google-oauth-profile-form" onSubmit={completeProfile}>
             <div className="google-oauth-profile-heading">

@@ -1,0 +1,23 @@
+Hostel Life — Run98 Targeted Professional UI Refinement
+Baseline: Run97 Vercel Missing CSS Repair patch applied.
+
+REPLACE
+src/features/auth/AuthPage.jsx
+src/features/auth/GoogleOAuthCallbackPage.jsx
+src/features/menu/AppDownloadPage.jsx
+src/features/menu/MenuPages.jsx
+src/main.jsx
+public/about.html
+public/app-english-translations.js
+tests/run90_google_oauth_preparation.test.mjs
+tests/run92_google_button_compact_and_clickable.test.mjs
+tests/run94_google_and_bulk_hostel_delete.test.mjs
+tests/publicAboutHeroAlignment.test.js
+
+ADD
+src/styles/run98-professional-visual-polish.css
+public/landing-assets/run98-about-header-hero.css
+tests/run98_professional_ui_refinement.test.mjs
+
+NO DATABASE MIGRATION OR ENVIRONMENT VARIABLE REQUIRED.
+No Supabase, auth service, business calculation, install logic, route, or user data changed.

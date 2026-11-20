@@ -28,11 +28,12 @@ test('Google consent remains required before enabling the real sign-in flow', ()
   assert.match(authPage, /eligibilityAccepted: true/);
 });
 
-test('Google button receives a slightly taller container without increasing its width', () => {
+test('Google button sizing baseline remains intact before the scoped Run98 width refinement', () => {
   assert.match(run94Css, /\.auth-page \.google-signin-sdk-slot\s*\{\s*min-height:\s*48px/);
   assert.match(run94Css, /\.auth-page \.google-signin-button\s*\{\s*min-height:\s*48px/);
   assert.match(main, /run94-focused-fixes\.css/);
-  assert.match(authPage, /Math\.min\(280/);
+  assert.match(main, /run98-professional-visual-polish\.css/);
+  assert.match(authPage, /Math\.min\(400/);
 });
 
 test('hostel-creation permission code layout is only overridden on desktop', () => {

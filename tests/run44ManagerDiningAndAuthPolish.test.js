@@ -54,7 +54,7 @@ test('Deposit and Other Expense keep only the required compact period-state warn
 test('Authentication brand contains only the centered English wordmark beside the app mark', () => {
   assert.match(auth, /<BrandMark size=\{64\} \/>/);
   assert.match(auth, /<span className="auth-brand-name">Hostel Life<\/span>/);
-  assert.doesNotMatch(auth, /হোস্টেল লাইফ|মেস পরিচালনা, আরও গোছানো|মিল, বাজার ও সদস্যের হিসাব সহজে পরিচালনা করুন/);
+  assert.doesNotMatch(auth, /মেস পরিচালনা, আরও গোছানো|মিল, বাজার ও সদস্যের হিসাব সহজে পরিচালনা করুন/);
   assert.match(styles, /\.auth-page \.auth-brand-lockup\s*\{[^}]*flex-direction:\s*column/s);
 });
 

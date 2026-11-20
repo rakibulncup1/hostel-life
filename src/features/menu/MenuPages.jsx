@@ -315,14 +315,14 @@ function RankingPage({ kind }) {
     <div className="page-stack">
       <PageHeader
         eyebrow=""
-        title={depositor ? 'বেশি ডিপোজিটকারী' : shopper ? 'বেশি বাজারকারী' : 'শীর্ষ খাদক'}
+        title={depositor ? 'বেশি ডিপোজিটকারী' : shopper ? 'বাজারের মোট খরচ অনুযায়ী' : 'শীর্ষ খাদক'}
       />
       <section className="card ranking-card">
         <div className="ranking-card-head">
           <div className={`ranking-hero-icon ${depositor ? 'depositor' : shopper ? 'shopper' : 'eater'}`}><Icon name={depositor ? 'wallet' : shopper ? 'shopping-bag' : 'trophy'} size={25} /></div>
           <div>
             <span className="eyebrow">অগ্রাধিকার তালিকা</span>
-            <h2>{depositor ? 'এই মাসের বেশি ডিপোজিটকারীরা' : shopper ? 'বাজারের সেরা ক্রেতারা' : 'এই মাসের শীর্ষ খাদকরা'}</h2>
+            <h2>{depositor ? 'এই মাসের বেশি ডিপোজিটকারীরা' : shopper ? 'বাজারের মোট খরচ অনুযায়ী' : 'এই মাসের শীর্ষ খাদকরা'}</h2>
           </div>
           <button className="icon-button compact-icon ghost" type="button" onClick={load} aria-label="রিফ্রেশ"><Icon name="refresh" size={17} /></button>
         </div>

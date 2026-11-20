@@ -1,0 +1,101 @@
+/* Run99 — public About hero alignment and desktop feature stack.
+   Mobile hero flow is intentionally kept as established in Run98. */
+
+@media (min-width: 761px) {
+  .about-page .hero-grid {
+    align-items: stretch;
+    gap: clamp(30px, 4vw, 58px);
+  }
+  .about-page .hero-copy-column {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 100%;
+    flex-direction: column;
+    align-self: stretch;
+  }
+  .about-page .hero-gallery {
+    align-self: stretch;
+    align-content: start;
+    padding-top: 0;
+  }
+  .about-page .hero-copy-column h1 {
+    max-width: 18ch;
+  }
+  .about-page .hero-copy-column .hero-copy {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    margin: 2px 0 0;
+    padding: 14px 16px;
+    border: 1px solid #d7e8dd;
+    border-left: 4px solid #3b9a70;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #e8f4ec 0%, #f0f7f2 100%);
+    color: #42594b;
+    font-size: 14px;
+    line-height: 1.78;
+  }
+  .about-page .hero-copy-column .hero-actions {
+    margin-top: 18px;
+  }
+  .about-page .hero-copy-column .hero-points {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: space-evenly;
+    gap: 9px;
+    width: 100%;
+    margin-top: auto;
+    padding-top: 20px;
+  }
+  .about-page .hero-copy-column .hero-points > span {
+    display: flex;
+    width: 100%;
+    min-height: 58px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid #d9e8df;
+    border-radius: 13px;
+    background: linear-gradient(110deg, #f0f7f2, #e9f3ed);
+    color: #2d5842;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.45;
+  }
+  .about-page .hero-copy-column .hero-points > span .tick {
+    width: 25px;
+    height: 25px;
+    flex: 0 0 25px;
+    font-size: 14px;
+  }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-copy {
+    border-color: #465d50;
+    border-left-color: #65bd91;
+    background: linear-gradient(135deg, #263e34, #2d4039);
+    color: #d0ded5;
+  }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-points > span {
+    border-color: #465d50;
+    background: linear-gradient(110deg, #2b3c35, #303f3a);
+    color: #e0ece4;
+  }
+}
+
+@media (max-width: 760px) {
+  .about-page .hero-copy-column .hero-copy {
+    border: 1px solid #d7e8dd;
+    border-left: 3px solid #3b9a70;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #e8f4ec 0%, #f0f7f2 100%);
+    color: #42594b;
+    padding: 11px 12px;
+  }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-copy {
+    border-color: #465d50;
+    border-left-color: #65bd91;
+    background: linear-gradient(135deg, #263e34, #2d4039);
+    color: #d0ded5;
+  }
+}

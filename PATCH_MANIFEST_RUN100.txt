@@ -1,0 +1,26 @@
+Hostel Life — Run100 Targeted UI Completion Patch
+Baseline: Run99 fully applied project.
+
+REPLACE
+src/features/auth/AuthPage.jsx
+src/main.jsx
+public/about.html
+
+ADD
+src/styles/run100-final-ui-refinement.css
+public/landing-assets/run100-about-desktop-balance.css
+tests/run100_ui_followup_completion.test.mjs
+
+SCOPE
+- About Desktop hero alignment, supporting panel and feature-row spacing.
+- Login/Registration Desktop field height and form spacing.
+- Registration Password + Confirm Password desktop two-column layout; stack below 850px.
+- Consent/Google button width and placeholder-to-GIS width/theme alignment.
+- Member Details six summary metric card height.
+- Google verification checking card viewport fit and visual polish.
+
+NOT CHANGED
+- Database, Supabase, migrations, RLS, Edge Functions.
+- Auth/OAuth service, nonce, ID token exchange or callback logic.
+- Age/legal consent, registration/access-code or hostel join-code validation.
+- Routes, services, RPCs, financial/business logic or calculations.

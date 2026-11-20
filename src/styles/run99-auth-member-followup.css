@@ -1,0 +1,178 @@
+/* Run99 — focused Auth and member-detail follow-up.
+   Presentation only; keep all consent, signup, financial and account logic intact. */
+
+/* Desktop: center the welcome/create-account title inside its existing panel. */
+@media (min-width: 761px) {
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .auth-header {
+    text-align: center;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .auth-header > div {
+    display: grid;
+    justify-items: center;
+    width: 100%;
+    margin-inline: auto;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .auth-header .eyebrow {
+    justify-self: center;
+    margin-inline: auto;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .auth-header h2,
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .auth-header p {
+    margin-inline: auto;
+    text-align: center;
+  }
+}
+
+/* Registration consent: same compact measure and rhythm as the Google consent. */
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-combined-consent {
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  margin-inline: auto;
+  padding: 10px 13px;
+  gap: 10px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-combined-consent input {
+  flex: 0 0 16px;
+  width: 16px !important;
+  min-width: 16px;
+  height: 16px;
+  min-height: 16px !important;
+  margin-top: 2px;
+}
+
+/* Keep the placeholder's visual state aligned with the actual Google GIS theme.
+   The official button uses filled_blue in light mode and filled_black in dark mode. */
+.auth-page .google-signin-button {
+  border: 1px solid #1a73e8 !important;
+  border-radius: 8px !important;
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 5px 14px rgba(26, 115, 232, .16) !important;
+}
+.auth-page .google-signin-button:hover:not(:disabled) {
+  border-color: #1765cc !important;
+  background: #1765cc !important;
+  color: #ffffff !important;
+}
+.auth-page .google-signin-button:disabled {
+  border-color: #1a73e8 !important;
+  background: #1a73e8 !important;
+  color: #ffffff !important;
+  opacity: .76;
+}
+:root[data-theme="dark"] .auth-page .google-signin-button,
+:root[data-theme="dark"] .auth-page .google-signin-button:disabled {
+  border-color: #303134 !important;
+  background: #303134 !important;
+  color: #e8eaed !important;
+  box-shadow: none !important;
+}
+:root[data-theme="dark"] .auth-page .google-signin-button:hover:not(:disabled) {
+  border-color: #3c4043 !important;
+  background: #3c4043 !important;
+  color: #e8eaed !important;
+}
+
+/* Make About / Privacy / Terms useful, visible footer destinations on Auth. */
+.auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel > .auth-legal-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel > .auth-legal-links a {
+  display: flex;
+  min-width: 0;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
+  color: var(--primary-strong);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel > .auth-legal-links a:hover {
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 82%, var(--surface));
+  text-decoration: none;
+}
+:root[data-theme="dark"] .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel > .auth-legal-links a {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+}
+:root[data-theme="dark"] .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel > .auth-legal-links a:hover {
+  border-color: color-mix(in srgb, var(--primary) 48%, var(--line));
+  background: color-mix(in srgb, var(--primary-soft) 45%, var(--surface-2));
+}
+
+/* The six member-period totals should read as primary summary cards, not tiny chips. */
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
+  grid-auto-rows: minmax(94px, auto);
+  gap: 10px;
+  padding: 13px 14px 9px;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
+  min-height: 94px;
+  padding: 13px 14px;
+  border-radius: 13px;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > span {
+  font-size: 11px;
+  line-height: 1.45;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
+  font-size: clamp(17px, 1.5vw, 20px);
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-combined-consent {
+    width: 100%;
+    padding: 9px 11px;
+    gap: 9px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel > .auth-legal-links {
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    font-size: 10.5px;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel > .auth-legal-links a {
+    min-height: 38px;
+    padding: 6px 5px;
+    border-radius: 9px;
+    font-size: 10.5px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
+    grid-auto-rows: minmax(88px, auto);
+    gap: 8px;
+    padding: 11px 12px 8px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
+    min-height: 88px;
+    padding: 11px 11px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > span {
+    font-size: 10.5px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
+    font-size: clamp(16px, 4.2vw, 19px);
+  }
+}

@@ -151,11 +151,11 @@ function GoogleSignInButton({ mode = 'login', fullName = '', phone = '', disable
     const googleId = window.google?.accounts?.id;
     const host = hostRef.current;
     if (!googleId || !host) return;
-    const width = Math.max(200, Math.min(280, Math.floor(host.getBoundingClientRect().width || 280)));
+    const width = Math.max(200, Math.min(400, Math.floor(host.getBoundingClientRect().width || 400)));
     host.replaceChildren();
     googleId.renderButton(host, {
       type: 'standard',
-      theme: darkTheme ? 'filled_black' : 'outline',
+      theme: darkTheme ? 'filled_black' : 'filled_blue',
       size: 'large',
       text: 'continue_with',
       shape: 'rectangular',
@@ -697,15 +697,17 @@ function RegisterForm() {
               <span>ইমেইল <small className="register-email-label-note">(সঠিক ইমেইল ব্যবহার করুন)</small></span>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="আপনার ইমেইল" autoComplete="email" required />
             </label>
-            <label className="field-label">
-              <span>পাসওয়ার্ড</span>
-              <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} placeholder="কমপক্ষে ৮ অক্ষর" autoComplete="new-password" />
-            </label>
-            <label className="field-label">
-              <span>পাসওয়ার্ড আবার দিন</span>
-              <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
-            </label>
-            {registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
+            <div className="two-field-grid auth-password-confirm-grid">
+              <label className="field-label">
+                <span>পাসওয়ার্ড</span>
+                <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} placeholder="কমপক্ষে ৮ অক্ষর" autoComplete="new-password" />
+              </label>
+              <label className="field-label">
+                <span>পাসওয়ার্ড আবার দিন</span>
+                <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
+              </label>
+            </div>
+            {registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="হোস্টেল লাইফের দেওয়া কোড" /></label>}
             <label ref={registerConsentRef} className="auth-legal-consent auth-combined-consent">
               <input type="checkbox" checked={eligibilityAccepted} onChange={(event) => setEligibilityAccepted(event.target.checked)} required />
               <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>

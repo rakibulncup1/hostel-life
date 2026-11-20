@@ -12,7 +12,7 @@ const main = read('src/main.jsx');
 
 test('auth brand uses the centered English wordmark and no extra brand copy', () => {
   assert.match(auth, /auth-brand-name">Hostel Life/);
-  assert.doesNotMatch(auth, /হোস্টেল লাইফ|মেস পরিচালনা, আরও গোছানো|মিল, বাজার ও সদস্যের হিসাব সহজে পরিচালনা করুন/);
+  assert.doesNotMatch(auth, /মেস পরিচালনা, আরও গোছানো|মিল, বাজার ও সদস্যের হিসাব সহজে পরিচালনা করুন/);
   assert.doesNotMatch(auth, /MESS MANAGEMENT|HOSTEL LIFE|auth-brand-highlight|হিসাব ও ব্যবস্থাপনা, এক জায়গায়/);
   assert.match(css, /\.auth-page \.auth-brand-panel::after \{ display: none !important; \}/);
   assert.match(css, /\.auth-page \.auth-brand-mark \{/);

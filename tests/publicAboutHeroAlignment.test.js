@@ -21,7 +21,7 @@ test('mobile About hero retains its single-column layout and code-preview sizing
 
 test('About hero and daily-feature copy remain concise and scannable', () => {
   const html = read('public/about.html');
-  assert.ok(html.includes('মেসের দৈনন্দিন ব্যবস্থাপনা'));
+  assert.ok(!html.includes('মেসের দৈনন্দিন ব্যবস্থাপনা'), 'The decorative glowing About hero eyebrow should remain removed.');
   assert.ok(html.includes('দৈনিক মিল, বাজারের খরচ ও সদস্যদের জমার তথ্য রাখুন এক জায়গায়।'));
   assert.ok(html.includes('মিল, বাজার ও জমার জন্য আলাদা অংশ—প্রয়োজনীয় তথ্য যোগ করুন'));
   assert.match(html, /<strong[^>]*>দৈনিক মিল<\/strong><small[^>]*>মিল, অনুরোধ ও সংশোধন<\/small>/);

@@ -1,0 +1,230 @@
+/* Run100 — final focused sizing/alignment pass.
+   Keep all rules limited to Auth, Google callback and member detail UI. */
+
+/* Desktop Auth forms: reduce unnecessary vertical height without changing the
+   branding/form split or the compact password/OTP screens. */
+@media (min-width: 850px) {
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .auth-header {
+    margin-bottom: 11px;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .form-stack {
+    gap: 10px;
+  }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-form-panel .auth-register-form {
+    gap: 10px;
+  }
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .field-label > input,
+  .auth-page .auth-shell:not(.auth-shell-compact):not(.auth-shell-verification) .auth-form-panel .password-field > input {
+    box-sizing: border-box;
+    min-height: 44px !important;
+    height: 44px;
+    padding-block: 8px;
+  }
+}
+
+/* Registration password + confirmation share one row on desktop. The row
+   collapses back to a single column before fields become cramped. */
+@media (min-width: 850px) {
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form .auth-password-confirm-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+  }
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form .auth-password-confirm-grid > .field-label {
+    min-width: 0;
+  }
+}
+@media (max-width: 849px) {
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form .auth-password-confirm-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+
+/* Registration consent and Google action: one aligned width. */
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-combined-consent {
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  max-width: 100%;
+  margin-inline: auto;
+}
+.auth-page .auth-shell-register:not(.auth-shell-compact) .google-signin-section {
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+/* The official Google Identity Services iframe had a legacy 280px container
+   cap. Expand its host to the same 400px width as the placeholder so the real
+   button does not suddenly shrink after consent. */
+.auth-page .google-signin-section {
+  box-sizing: border-box;
+  width: min(100%, 400px);
+  max-width: 100%;
+}
+.auth-page .google-signin-widget {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+.auth-page .google-signin-sdk-slot {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: 100%;
+  min-height: 40px;
+  margin-inline: auto;
+}
+.auth-page .google-signin-sdk-slot iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+}
+.auth-page .google-signin-button {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-height: 40px;
+  height: 40px;
+  padding: 8px 16px;
+  border-radius: 4px !important;
+  font: 500 14px/20px Arial, sans-serif;
+  transition: none !important;
+  opacity: 1 !important;
+}
+.auth-page .google-signin-button:disabled {
+  cursor: wait;
+  opacity: 1 !important;
+  box-shadow: none !important;
+}
+.auth-page .google-signin-button:hover:not(:disabled) {
+  filter: brightness(.97);
+}
+:root[data-theme="dark"] .auth-page .google-signin-button,
+:root[data-theme="dark"] .auth-page .google-signin-button:disabled {
+  background: #303134 !important;
+  border-color: #303134 !important;
+  color: #e8eaed !important;
+  opacity: 1 !important;
+}
+:root[data-theme="dark"] .auth-page .google-signin-button:hover:not(:disabled) {
+  background: #3c4043 !important;
+  border-color: #3c4043 !important;
+}
+
+/* Registration/login Google action should keep its full row on narrow screens. */
+@media (max-width: 760px) {
+  .auth-page .google-signin-section {
+    width: 100%;
+  }
+  .auth-page .google-signin-sdk-slot {
+    width: 100% !important;
+  }
+}
+
+/* Member detail: make the six headline totals visibly substantial relative to
+   the balance/history sections. Both grid rows and cards receive the height. */
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
+  grid-auto-rows: minmax(112px, auto) !important;
+  align-items: stretch;
+  gap: 11px;
+  padding: 15px 16px 10px;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
+  box-sizing: border-box;
+  min-height: 112px !important;
+  height: 100%;
+  padding: 16px 16px;
+  border-radius: 14px;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > span {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
+  font-size: clamp(19px, 1.65vw, 22px);
+  line-height: 1.4;
+}
+@media (max-width: 760px) {
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
+    grid-auto-rows: minmax(104px, auto) !important;
+    gap: 9px;
+    padding: 12px 13px 9px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
+    min-height: 104px !important;
+    padding: 12px 12px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > span {
+    font-size: 11px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
+    font-size: clamp(17px, 4.5vw, 20px);
+  }
+}
+
+/* Google callback/checking view: the previous min-height + content-box padding
+   could create a vertical scrollbar on an otherwise short status card. */
+.google-oauth-callback-page {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: clamp(16px, 3vh, 28px) clamp(14px, 3vw, 28px);
+  overflow-x: hidden;
+  align-content: center;
+}
+.google-oauth-callback-card {
+  box-sizing: border-box;
+  width: min(100%, 420px);
+  padding: clamp(22px, 3vw, 30px);
+  border-radius: 22px;
+  box-shadow: 0 18px 48px rgba(20, 45, 34, .095);
+}
+.google-oauth-callback-brand {
+  gap: 10px;
+  margin-bottom: 19px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border, #dce5df);
+  font-size: 15px;
+}
+.google-oauth-callback-checking {
+  justify-items: center;
+  gap: 12px;
+  padding: 4px 4px 2px;
+  text-align: center;
+}
+.google-oauth-callback-checking .spinner {
+  width: 42px;
+  height: 42px;
+  border-width: 3px;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--primary-soft) 78%, transparent);
+}
+.google-oauth-callback-checking h1 {
+  margin: 0;
+  max-width: 26ch;
+  font-size: clamp(19px, 2.8vw, 22px);
+  line-height: 1.38;
+  text-wrap: balance;
+}
+.google-oauth-callback-checking p {
+  max-width: 38ch;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.google-oauth-progress-track {
+  width: min(100%, 220px);
+  height: 4px;
+}
+:root[data-theme="dark"] .google-oauth-callback-brand {
+  border-bottom-color: var(--line);
+}
+@media (prefers-reduced-motion: reduce) {
+  .google-oauth-callback-page .spinner,
+  .google-oauth-progress-track i {
+    animation: none !important;
+  }
+}
