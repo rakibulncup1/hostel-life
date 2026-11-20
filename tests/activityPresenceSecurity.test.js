@@ -261,6 +261,6 @@ test('Notification delivery is visible per recipient without copying message con
   assert.match(migration, /recipient_user_id/);
   assert.match(adminPage, /নোটিফিকেশন পাঠানো হয়েছে/);
   const policy = fs.readFileSync(path.join(root, 'src/content/legalDocuments.js'), 'utf8');
-  assert.match(policy, /নিরাপত্তা ও লগইন-সংক্রান্ত রেকর্ড/);
-  assert.match(policy, /IP address ও ব্রাউজার\/ডিভাইস-সংক্রান্ত তথ্য ৩০ দিনের .{1,12} পূর্ণ হলে নির্ধারিত দৈনিক .{1,12} cleanup-এ/);
+  assert.match(policy, /নিরাপত্তা ও লগইন-সংক্রান্ত তথ্য/);
+  assert.match(policy, /ইন্টারনেট সংযোগের ঠিকানা \(IP address\) এবং ব্রাউজার\/ডিভাইসের সাধারণ তথ্য ৩০ দিন পর মুছে ফেলা হয়/);
 });

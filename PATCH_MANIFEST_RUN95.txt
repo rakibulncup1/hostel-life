@@ -1,0 +1,32 @@
+Hostel Life — Run95 Targeted Patch Manifest
+Baseline: Run94 fully applied working project.
+
+REPLACE — PRODUCTION
+src/features/auth/AuthPage.jsx
+src/content/legalDocuments.js
+public/app-english-translations.js
+public/privacy-policy.html
+public/terms-of-service.html
+
+REPLACE — REGRESSION TESTS
+ tests/activityPresenceSecurity.test.js
+ tests/ageEligibilityAndLocalPublicRoutes.test.js
+ tests/publicLandingOriginalScreens.test.js
+ tests/publicLandingPolish.test.js
+ tests/publicShowcaseExpansion.test.js
+ tests/run61AppFinishingPolish.test.mjs
+ tests/run63-focused-followup.test.mjs
+ tests/run90_google_oauth_preparation.test.mjs
+ tests/run91_google_phone_completion_gate.test.mjs
+ tests/run93_google_registration_access_code_exemption.test.mjs
+ tests/superAdminRun37OperationalFinish.test.js
+ tests/superAdminSecurityReviewCenterMfa.test.js
+
+ADD — REGRESSION TEST
+ tests/run95_google_consent_feedback_and_public_legal_copy.test.mjs
+
+NOT INCLUDED
+- Full project or dependencies/node_modules
+- Environment files, credentials or OAuth client secrets
+- Database dumps, SQL migrations or live user data
+- Stylesheets, routes, services, Edge Functions or other app features

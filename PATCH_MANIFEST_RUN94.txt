@@ -1,0 +1,25 @@
+Hostel Life — Run94 Targeted Patch Manifest
+Baseline: Run93 Google Registration Access Code Patch applied.
+
+REPLACE
+src/features/auth/AuthPage.jsx
+src/features/platform/SuperAdminPage.jsx
+src/services/platformService.js
+src/main.jsx
+tests/run92_google_button_compact_and_clickable.test.mjs
+tests/focusedUiFollowup.test.js
+
+ADD
+src/styles/run94-focused-fixes.css
+supabase/migrations/Run94_activity_hostel_delete_guard_and_bulk_delete.sql
+tests/run94_google_and_bulk_hostel_delete.test.mjs
+
+NOT INCLUDED
+- Full project or dependencies/node_modules
+- Environment files, credentials, OAuth client secrets
+- Any direct database dump or user data
+- Changes to the existing admin-delete-unlinked-user Edge Function
+
+Migration: Run94_activity_hostel_delete_guard_and_bulk_delete.sql
+Maximum selected hostels per bulk action: 25
+Auth account cleanup: optional; post-commit; guarded Edge Function only.

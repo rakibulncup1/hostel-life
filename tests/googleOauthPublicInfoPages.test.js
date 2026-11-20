@@ -34,8 +34,8 @@ test('privacy page explains actual user-facing data flows without exposing imple
   for (const phrase of ['নাম', 'ইমেইল', 'মোবাইল নম্বর', 'মিল', 'বাজার', 'জমা', 'খরচ', 'Telegram', 'Google Sign-In', 'প্রোফাইল ছবি', 'তথ্য সংরক্ষণ', 'support.sec1.info@gmail.com']) {
     assert.ok(html.includes(phrase), `privacy page should disclose ${phrase}`);
   }
-  assert.match(html, /Google Sign-In সংযুক্ত নেই/);
-  assert.match(html, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না/);
+  assert.match(html, /Google Sign-In সংযুক্ত করা হয়েছে/);
+  assert.match(html, /Google আপনার পরিচয় যাচাই করে আপনার নাম, ইমেইল ঠিকানা/);
   assert.doesNotMatch(html, /Supabase|Vercel|IndexedDB|User-Agent|ap-southeast-1|public bucket|openid|userinfo\.email|userinfo\.profile|অভিভাবক|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র|প্রকাশের আগে পূরণ করতে হবে/);
 });
 
@@ -79,10 +79,13 @@ test('login and registration pages expose public legal links before sign-in', ()
   assert.match(auth, /href="\/about"/);
 });
 
-test('Google OAuth is not part of the product and no staging/provider setup guide is shipped', () => {
-  const authService = read('src/services/authService.js');
-  const supabaseConfig = read('supabase/config.toml');
-  assert.doesNotMatch(authService, /signInWithOAuth|signInWithIdToken/);
-  assert.doesNotMatch(supabaseConfig, /google|oauth/i);
-  assert.equal(fs.existsSync(path.join(root, 'README_GOOGLE_OAUTH_STAGE1_BN.md')), false);
+test('Google OAuth uses the existing ID-token exchange and remains an opt-in frontend feature', () => {
+  const authPage = read('src/features/auth/AuthPage.jsx');
+  const oauthService = read('src/services/googleOAuthService.js');
+  const envExample = read('.env.example');
+  assert.match(authPage, /GoogleSignInButton/);
+  assert.match(oauthService, /signInWithIdToken/);
+  assert.match(oauthService, /VITE_GOOGLE_OAUTH_ENABLED === 'true'/);
+  assert.match(envExample, /VITE_GOOGLE_OAUTH_ENABLED=false/);
+  assert.doesNotMatch(authPage + oauthService, /CLIENT_SECRET|client_secret/i);
 });

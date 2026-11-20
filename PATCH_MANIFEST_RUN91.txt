@@ -1,0 +1,22 @@
+Hostel Life — Run91 Google OAuth Preparation Patch
+Base: Run90 Google OAuth preparation working tree (run91_work/project_before_phone_gate)
+Feature flag default: VITE_GOOGLE_OAUTH_ENABLED=false
+
+Production files:
+- src/app/App.jsx
+- src/content/legalDocuments.js
+- src/features/auth/AuthPage.jsx
+- src/features/auth/GoogleOAuthCallbackPage.jsx
+- src/services/googleOAuthService.js
+- src/styles/google-oauth-auth-ui.css
+- public/app-english-translations.js
+- public/privacy-policy.html
+- public/terms-of-service.html
+- supabase/migrations/Run91_google_profile_phone_completion_gate.sql
+
+Tests:
+- tests/run90_google_oauth_preparation.test.mjs (updated assertions)
+- tests/run91_google_phone_completion_gate.test.mjs (new tests)
+
+No .env secrets, Google Client Secret, Supabase service-role key, SQL table alterations,
+RLS policy drops, Edge Function changes, or unrelated UI modules are included.

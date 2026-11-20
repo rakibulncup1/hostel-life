@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../components/Icon';
 import { BrandMark } from '../../components/BrandMark';
 import { useToast } from '../../components/Toast';
@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
 import { applyTheme, getThemePreference } from '../../app/theme';
 import { getUiLocale } from '../../i18n/locale.js';
+import { GOOGLE_OAUTH_FEATURE_ENABLED, prepareGoogleOAuth, completeGoogleOAuthCredential, refreshPendingGoogleOAuthProfile, clearPendingGoogleOAuth } from '../../services/googleOAuthService';
 
 function go(path, replace = false) {
   if (replace) window.history.replaceState({}, '', path);
@@ -22,6 +23,12 @@ function formatOtpWait(seconds) {
   const remainder = safeSeconds % 60;
   const formatter = new Intl.NumberFormat(getUiLocale(), { minimumIntegerDigits: 2, useGrouping: false });
   return `${formatter.format(minutes)}:${formatter.format(remainder)}`;
+}
+
+function getGoogleConsentRequiredMessage() {
+  return getUiLocale() === 'en-US'
+    ? 'To continue with Google, confirm that you are at least 18 and check the box to accept the Terms of Service and Privacy Policy.'
+    : 'Google-এর মাধ্যমে চালিয়ে যেতে আপনার বয়স কমপক্ষে ১৮ বছর—এটি নিশ্চিত করুন এবং ব্যবহারের শর্তাবলী ও গোপনীয়তা নীতিতে সম্মতি জানিয়ে বক্সে টিক দিন।';
 }
 
 const authLinks = [
@@ -56,6 +63,214 @@ function saveRegisterOtpFlow(value) {
 function clearRegisterOtpFlow() {
   try { window.sessionStorage.removeItem(REGISTER_OTP_FLOW_KEY); }
   catch { /* Browser storage can be restricted. */ }
+}
+
+function GoogleBrandMark() {
+  return (
+    <span className="google-signin-mark" aria-hidden="true">
+      <svg viewBox="0 0 48 48" role="presentation" focusable="false">
+        <path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.4-1.9 4.4-3.9 5.8l6.3 4.9c3.7-3.4 6.2-8.5 6.2-14.4Z"/>
+        <path fill="#34A853" d="M24 44c5.4 0 10-1.8 13.4-5l-6.3-4.9c-1.7 1.1-4 1.8-7.1 1.8-5.4 0-10-3.6-11.6-8.5l-6.5 5C9.3 39.3 16 44 24 44Z"/>
+        <path fill="#FBBC05" d="M12.4 27.4c-.4-1.1-.7-2.3-.7-3.6s.2-2.5.7-3.6l-6.5-5C4.7 17.6 3.8 20.6 3.8 23.8s.9 6.2 2.1 8.6l6.5-5Z"/>
+        <path fill="#EA4335" d="M24 11.8c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 5.8 29.4 3.8 24 3.8c-8 0-14.7 4.7-18.1 11.4l6.5 5c1.6-4.9 6.2-8.4 11.6-8.4Z"/>
+      </svg>
+    </span>
+  );
+}
+
+let googleIdentityServicesPromise = null;
+
+function loadGoogleIdentityServices(locale = 'bn') {
+  if (window.google?.accounts?.id) return Promise.resolve();
+  if (!googleIdentityServicesPromise) {
+    googleIdentityServicesPromise = new Promise((resolve, reject) => {
+      let script = document.querySelector('script[data-hostel-google-identity]');
+      if (script?.dataset.loaded === 'true' && window.google?.accounts?.id) {
+        resolve();
+        return;
+      }
+      const onLoad = () => {
+        if (window.google?.accounts?.id) {
+          script.dataset.loaded = 'true';
+          resolve();
+        } else {
+          reject(new Error('Google Identity Services লোড হয়েছে, কিন্তু button API পাওয়া যায়নি।'));
+        }
+      };
+      const onError = () => {
+        if (script?.dataset.hostelGoogleIdentity === 'true') script.remove();
+        reject(new Error('Google sign-in service লোড করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করুন।'));
+      };
+      if (!script) {
+        script = document.createElement('script');
+        // Google recommends the hl query parameter for localizing the GIS
+        // library itself. renderButton.locale below keeps the button language
+        // aligned with the in-app language after a consent change.
+        const googleLanguage = locale === 'en' ? 'en' : 'bn';
+        script.src = `https://accounts.google.com/gsi/client?hl=${googleLanguage}`;
+        script.async = true;
+        script.defer = true;
+        script.dataset.hostelGoogleIdentity = 'true';
+        script.addEventListener('load', onLoad, { once: true });
+        script.addEventListener('error', onError, { once: true });
+        document.head.appendChild(script);
+      } else {
+        script.addEventListener('load', onLoad, { once: true });
+        script.addEventListener('error', onError, { once: true });
+      }
+    }).catch((error) => {
+      googleIdentityServicesPromise = null;
+      throw error;
+    });
+  }
+  return googleIdentityServicesPromise;
+}
+
+function GoogleSignInButton({ mode = 'login', fullName = '', phone = '', disabled = false, consentAccepted = true, loading = false, onError, onSuccess, onLoading, onNeedConsent }) {
+  const hostRef = useRef(null);
+  const callbacksRef = useRef({});
+  const renderButtonRef = useRef(null);
+  const [uiState, setUiState] = useState(disabled ? 'disabled' : (consentAccepted ? 'loading' : 'awaiting-consent'));
+  const [english, setEnglish] = useState(() => getUiLocale() === 'en-US');
+  const [darkTheme, setDarkTheme] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
+  const [retryCount, setRetryCount] = useState(0);
+  callbacksRef.current = { onError, onSuccess, onLoading, onNeedConsent };
+
+  useEffect(() => {
+    const updateLocale = () => setEnglish(getUiLocale() === 'en-US');
+    const updateTheme = () => setDarkTheme(document.documentElement.getAttribute('data-theme') === 'dark');
+    window.addEventListener('hostel-life-language-changed', updateLocale);
+    window.addEventListener('hostel-life-theme-change', updateTheme);
+    return () => {
+      window.removeEventListener('hostel-life-language-changed', updateLocale);
+      window.removeEventListener('hostel-life-theme-change', updateTheme);
+    };
+  }, []);
+
+  renderButtonRef.current = () => {
+    const googleId = window.google?.accounts?.id;
+    const host = hostRef.current;
+    if (!googleId || !host) return;
+    const width = Math.max(200, Math.min(280, Math.floor(host.getBoundingClientRect().width || 280)));
+    host.replaceChildren();
+    googleId.renderButton(host, {
+      type: 'standard',
+      theme: darkTheme ? 'filled_black' : 'outline',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'rectangular',
+      logo_alignment: 'left',
+      width,
+      // Keep Google's official button label in the selected app language.
+      locale: english ? 'en' : 'bn',
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    if (disabled || !consentAccepted) {
+      clearPendingGoogleOAuth();
+      setUiState(disabled ? 'disabled' : 'awaiting-consent');
+      if (hostRef.current) hostRef.current.replaceChildren();
+      return undefined;
+    }
+    setUiState('loading');
+    (async () => {
+      const prepared = await prepareGoogleOAuth({
+        mode,
+        fullName,
+        phone,
+        eligibilityAccepted: true,
+      });
+      await loadGoogleIdentityServices(english ? 'en' : 'bn');
+      if (cancelled || !hostRef.current) return;
+      const googleId = window.google?.accounts?.id;
+      if (!googleId) throw new Error('Google sign-in button প্রস্তুত করা যায়নি।');
+      googleId.initialize({
+        client_id: prepared.clientId,
+        nonce: prepared.hashedNonce,
+        context: mode === 'register' ? 'signup' : 'signin',
+        ux_mode: 'popup',
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        use_fedcm_for_prompt: true,
+        callback: async (response) => {
+          if (!response?.credential) {
+            callbacksRef.current.onError?.(new Error('Google থেকে পরিচয় যাচাইয়ের তথ্য পাওয়া যায়নি। আবার চেষ্টা করুন।'));
+            return;
+          }
+          callbacksRef.current.onLoading?.(true);
+          try {
+            await completeGoogleOAuthCredential(response.credential);
+            callbacksRef.current.onSuccess?.();
+          } catch (error) {
+            clearPendingGoogleOAuth();
+            callbacksRef.current.onError?.(error);
+          } finally {
+            callbacksRef.current.onLoading?.(false);
+          }
+        },
+      });
+      renderButtonRef.current?.();
+      if (!cancelled) setUiState('ready');
+    })().catch((error) => {
+      if (!cancelled) {
+        setUiState('error');
+        callbacksRef.current.onError?.(error);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [mode, disabled, consentAccepted, retryCount]);
+
+  // Locale/theme changes re-render the official Google button without resetting
+  // the credential callback and nonce configuration unnecessarily.
+  useEffect(() => {
+    if (uiState === 'ready') renderButtonRef.current?.();
+  }, [english, darkTheme, uiState]);
+
+  useEffect(() => {
+    if (!disabled && consentAccepted) refreshPendingGoogleOAuthProfile({ fullName, phone });
+  }, [fullName, phone, disabled, consentAccepted]);
+
+  const awaitingConsent = !disabled && !consentAccepted;
+  const retryAvailable = !disabled && consentAccepted && uiState === 'error';
+  const usePlaceholder = disabled || awaitingConsent || uiState !== 'ready';
+  const placeholderDisabled = disabled || loading || uiState === 'loading' || (!awaitingConsent && !retryAvailable);
+  const placeholderLabel = loading
+    ? (english ? 'Connecting to Google…' : 'Google-এ সংযোগ হচ্ছে…')
+    : awaitingConsent
+      ? (english ? 'Continue with Google' : 'Google দিয়ে চালিয়ে যান')
+      : retryAvailable
+        ? (english ? 'Try Google again' : 'আবার Google দিয়ে চেষ্টা করুন')
+        : (english ? 'Continue with Google' : 'Google দিয়ে চালিয়ে যান');
+
+  return (
+    <div className={`google-signin-widget ${loading ? 'is-loading' : ''}`} aria-busy={loading || uiState === 'loading'}>
+      <div ref={hostRef} className="google-signin-sdk-slot" hidden={usePlaceholder} />
+      {usePlaceholder && (
+        <button
+          type="button"
+          className="google-signin-button"
+          disabled={placeholderDisabled}
+          aria-disabled={placeholderDisabled ? 'true' : 'false'}
+          onClick={() => {
+            if (awaitingConsent) callbacksRef.current.onNeedConsent?.();
+            else if (retryAvailable) setRetryCount((value) => value + 1);
+          }}
+        >
+          <GoogleBrandMark />
+          <span>{placeholderLabel}</span>
+        </button>
+      )}
+      {retryAvailable && <p className="google-signin-help">{english ? 'Check your connection and Google Client ID / allowed origin, then retry.' : 'ইন্টারনেট, Google Client ID এবং অনুমোদিত website origin পরীক্ষা করে আবার চেষ্টা করুন।'}</p>}
+      {loading && <span className="google-signin-progress" role="status">{english ? 'Connecting to Google…' : 'Google-এ সংযোগ হচ্ছে…'}</span>}
+    </div>
+  );
+}
+
+function GoogleSignInDivider() {
+  const english = getUiLocale() === 'en-US';
+  return <div className="google-signin-divider"><span>{english ? 'or' : 'অথবা'}</span></div>;
 }
 
 function PasswordField({ value, onChange, placeholder = 'পাসওয়ার্ড', autoComplete = 'current-password' }) {
@@ -126,6 +341,14 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sessionPolicyNotice, setSessionPolicyNotice] = useState('');
+  const [googleEligibilityAccepted, setGoogleEligibilityAccepted] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const googleConsentRef = useRef(null);
+
+  const focusGoogleConsent = () => {
+    googleConsentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    googleConsentRef.current?.querySelector('input')?.focus({ preventScroll: true });
+  };
 
   useEffect(() => {
     const readStoredNotice = () => {
@@ -172,6 +395,8 @@ function LoginForm() {
     }
   };
 
+
+
   return (
     <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার ইমেইল ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।">
       {sessionPolicyNotice && <div className="auth-session-dialog-backdrop" role="presentation"><section className="auth-session-dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-session-dialog-title" aria-describedby="auth-session-dialog-description"><span className="auth-session-dialog-icon"><Icon name="shield-alert" size={25}/></span><h3 id="auth-session-dialog-title">নিরাপত্তার কারণে লগআউট</h3><p id="auth-session-dialog-description">{sessionPolicyNotice}</p><button type="button" className="primary-button large" onClick={() => setSessionPolicyNotice('')}>বুঝেছি, আবার লগইন করব</button></section></div>}
@@ -189,6 +414,26 @@ function LoginForm() {
           {submitting ? 'লগইন হচ্ছে...' : 'অ্যাকাউন্টে প্রবেশ করুন'}
         </button>
       </form>
+      {GOOGLE_OAUTH_FEATURE_ENABLED && <div className="google-signin-section">
+        <GoogleSignInDivider />
+        <label ref={googleConsentRef} className="auth-legal-consent google-signin-consent">
+          <input type="checkbox" checked={googleEligibilityAccepted} onChange={(event) => setGoogleEligibilityAccepted(event.target.checked)} />
+          <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
+        </label>
+        <GoogleSignInButton
+          mode="login"
+          disabled={!online}
+          consentAccepted={googleEligibilityAccepted}
+          onNeedConsent={() => {
+            focusGoogleConsent();
+            toast.error(getGoogleConsentRequiredMessage());
+          }}
+          loading={googleSubmitting}
+          onLoading={setGoogleSubmitting}
+          onSuccess={() => go('/auth/google-callback', true)}
+          onError={(error) => toast.error(getFriendlySupabaseError(error, error?.message || 'Google দিয়ে প্রবেশ করা যায়নি।'))}
+        />
+      </div>}
       <AuthSwitch current="login" />
     </AuthFrame>
   );
@@ -205,8 +450,15 @@ function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [permissionCode, setPermissionCode] = useState(() => restoredOtpFlow?.permissionCode || '');
   const [registrationCodeRequired, setRegistrationCodeRequired] = useState(false);
+  const [registrationPolicyStatus, setRegistrationPolicyStatus] = useState('loading');
   const [eligibilityAccepted, setEligibilityAccepted] = useState(() => Boolean(restoredOtpFlow?.eligibilityAccepted));
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const registerConsentRef = useRef(null);
+  const focusRegisterConsent = () => {
+    registerConsentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    registerConsentRef.current?.querySelector('input')?.focus({ preventScroll: true });
+  };
   const [otpStep, setOtpStep] = useState(() => Boolean(restoredOtpFlow?.otpStep));
   const [verificationCode, setVerificationCode] = useState('');
   const [resendUntil, setResendUntil] = useState(() => Number(restoredOtpFlow?.resendUntil) || 0);
@@ -242,8 +494,25 @@ function RegisterForm() {
   useEffect(() => {
     let active = true;
     fetchPlatformPublicSettings().then((settings) => {
-      if (active) setRegistrationCodeRequired(Boolean(settings?.registration_code_required));
-    }).catch(() => { /* Older installations have no platform settings RPC; DB remains authoritative. */ });
+      if (!active) return;
+      if (typeof settings?.registration_code_required !== 'boolean') {
+        // Fail closed for email/password registration if the policy cannot be read.
+        // Google registration is independent of this UI state; the database trigger
+        // applies its provider-specific exception after validating Google's token.
+        setRegistrationCodeRequired(true);
+        setRegistrationPolicyStatus('unavailable');
+        return;
+      }
+      setRegistrationCodeRequired(settings.registration_code_required);
+      setRegistrationPolicyStatus('loaded');
+    }).catch(() => {
+      // Keep email/password registration fail-closed until the policy is known.
+      // Google sign-up is separate and remains available after 18+ consent.
+      if (active) {
+        setRegistrationCodeRequired(true);
+        setRegistrationPolicyStatus('unavailable');
+      }
+    });
     return () => { active = false; };
   }, []);
 
@@ -300,7 +569,7 @@ function RegisterForm() {
         ageConfirmationAt: acceptedAt,
         termsAcceptedAt: acceptedAt,
         privacyPolicyAcceptedAt: acceptedAt,
-        legalPolicyVersion: '2026-11-11',
+        legalPolicyVersion: '2026-11-20',
       });
       if (error) throw error;
 
@@ -341,6 +610,8 @@ function RegisterForm() {
       setSubmitting(false);
     }
   };
+
+
 
   const resendCode = async () => {
     if (!otpStep || resendCountdown > 0 || submitting) return;
@@ -435,16 +706,34 @@ function RegisterForm() {
               <PasswordField value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="একই পাসওয়ার্ড আবার" autoComplete="new-password" />
             </label>
             {registrationCodeRequired && <label className="field-label"><span>অনুমতি কোড</span><input value={permissionCode} onChange={(e) => setPermissionCode(e.target.value.toUpperCase())} autoCapitalize="characters" maxLength={20} required placeholder="Super Admin-এর দেওয়া কোড" /><small className="platform-form-help">নতুন অ্যাকাউন্ট খোলার অনুমতি যাচাই করতে কোডটি লাগবে।</small></label>}
-            <label className="auth-legal-consent auth-combined-consent">
+            <label ref={registerConsentRef} className="auth-legal-consent auth-combined-consent">
               <input type="checkbox" checked={eligibilityAccepted} onChange={(event) => setEligibilityAccepted(event.target.checked)} required />
               <span>আমি নিশ্চিত করছি, আমার বয়স কমপক্ষে ১৮ বছর এবং <a href="/terms-of-service" target="_blank" rel="noreferrer">ব্যবহারের শর্তাবলী</a> ও <a href="/privacy-policy" target="_blank" rel="noreferrer">গোপনীয়তা নীতি</a> মেনে নিচ্ছি।</span>
             </label>
-            <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted}>
+            <button className="primary-button large" type="submit" disabled={submitting || !online || !eligibilityAccepted || registrationPolicyStatus === 'loading'}>
               {submitting ? 'রেজিস্ট্রেশন হচ্ছে...' : 'রেজিস্ট্রেশন করুন'}
             </button>
           </>
         )}
       </form>
+      {!otpStep && GOOGLE_OAUTH_FEATURE_ENABLED && <div className="google-signin-section">
+        <GoogleSignInDivider />
+        <GoogleSignInButton
+          mode="register"
+          fullName={name}
+          phone={phone}
+          disabled={!online}
+          consentAccepted={eligibilityAccepted}
+          onNeedConsent={() => {
+            focusRegisterConsent();
+            toast.error(getGoogleConsentRequiredMessage());
+          }}
+          loading={googleSubmitting}
+          onLoading={setGoogleSubmitting}
+          onSuccess={() => go('/auth/google-callback', true)}
+          onError={(error) => toast.error(getFriendlySupabaseError(error, error?.message || 'Google দিয়ে রেজিস্ট্রেশন করা যায়নি।'))}
+        />
+      </div>}
       {!otpStep && <AuthSwitch current="register" />}
     </AuthFrame>
   );

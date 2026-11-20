@@ -12,7 +12,7 @@ test('registration uses one required checkbox for 18+ and policy acceptance', ()
   assert.match(auth, /আমার বয়স কমপক্ষে ১৮ বছর/);
   assert.match(auth, /ব্যবহারের শর্তাবলী/);
   assert.match(auth, /গোপনীয়তা নীতি/);
-  assert.match(auth, /disabled=\{submitting \|\| !online \|\| !eligibilityAccepted\}/);
+  assert.match(auth, /disabled=\{submitting \|\| !online \|\| !eligibilityAccepted \|\| registrationPolicyStatus === 'loading'\}/);
   assert.doesNotMatch(auth, /ageEligibility|radio|auth-age-block-message|অভিভাবক/);
   assert.doesNotMatch(auth, /type="date"|জন্মতারিখ|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র/);
 });
@@ -36,8 +36,8 @@ test('public legal pages are concise, have real contact details and no unfinishe
     assert.doesNotMatch(page, /প্রকাশের আগে পূরণ করতে হবে|\[বাস্তব|\[সেবার|Supabase|Vercel|ap-southeast-1|Region|database|ডাটাবেজ|অভিভাবক|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র/);
     assert.match(page, /কমপক্ষে ১৮ বছর/);
   }
-  assert.match(privacy, /Google Sign-In সংযুক্ত নেই/);
-  assert.match(privacy, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা হয় না/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত করা হয়েছে এবং এটি ঐচ্ছিক/);
+  assert.match(terms, /Google দিয়ে নতুন account তৈরি করতে Hostel Life-এর Registration Access Code প্রয়োজন হয় না/);
 });
 
 test('About is the default document on Vite dev, preview and Vercel root', () => {

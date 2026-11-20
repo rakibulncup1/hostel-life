@@ -104,7 +104,7 @@ test('Privacy policy states security telemetry and operational retention boundar
   assert.match(privacy,/৩০ দিন/);
   assert.match(privacy,/৩৫ দিন/);
   assert.match(privacy,/৪৮ ঘণ্টা/);
-  assert.match(privacy,/প্রশাসনিক নিরীক্ষা-রেকর্ড .*আলাদা সংরক্ষণ ব্যবস্থায় রাখা হয়/);
+  assert.match(privacy,/কোনো নিরাপত্তা-সংক্রান্ত বিষয় পর্যালোচনা প্রয়োজন হলে, সংশ্লিষ্ট তথ্য পর্যালোচনা শেষ না হওয়া পর্যন্ত রাখা হতে পারে/);
 });
 
 test('Database and Logs diagnostics are read-only, time-bounded and distinguish Postgres from ClickHouse Logs', () => {

@@ -79,7 +79,7 @@ test('IP-only Worker and Edge resolver never consume or return location metadata
 
 test('Privacy policy discloses attempted-email and IP-only security monitoring', () => {
   const privacy = read('public/privacy-policy.html');
-  assert.match(privacy, /Security Event/);
+  assert.match(privacy, /ইন্টারনেট সংযোগের ঠিকানা \(IP address\)/);
   assert.match(privacy, /৩০ দিনের/);
   assert.doesNotMatch(privacy, /IPinfo Lite/);
   assert.match(privacy, /Password, OTP code/);

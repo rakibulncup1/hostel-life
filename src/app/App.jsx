@@ -8,6 +8,7 @@ import { ProfilePage } from '../features/profile/ProfilePage';
 import { AllMembersPage, KhalaMoneyViewPage, TopDepositorsPage, TopEatersPage, TopShoppersPage, DeveloperInfoPage, PrivacyPolicyPage, TermsPage, HowToUsePage, SendNotificationPage } from '../features/menu/MenuPages';
 import { NewMonthPage, CloseCurrentMonthPage, ChangeManagerPage, AssistantManagersPage, HostelSettingsPage, KhalaMoneyPage, MemberManagementPage, JoinRequestReviewPage, ReportsPage, MealSheetPage } from '../features/manager/ManagerPages';
 import { AuthPage } from '../features/auth/AuthPage';
+import { GoogleOAuthCallbackPage } from '../features/auth/GoogleOAuthCallbackPage';
 import { ForcedPasswordChange } from '../features/auth/ForcedPasswordChange';
 import { OnboardingPage } from '../features/onboarding/OnboardingPage';
 import { InactiveMembershipPage } from '../features/account/InactiveMembershipPage';
@@ -22,6 +23,7 @@ import { getThemePreference, applyTheme } from './theme';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { PlatformCommunicationOverlays } from '../components/PlatformCommunicationOverlays';
 import { useAuth } from '../contexts/AuthContext';
+import { isGoogleOAuthExchanging, isGoogleOAuthIdentity, isValidGooglePhone } from '../services/googleOAuthService';
 
 const SUPER_ADMIN_RETURN_KEY = 'hostel-life-super-admin-return-v1';
 const SUPER_ADMIN_RETURN_TTL_MS = 10 * 60 * 1000;
@@ -111,10 +113,23 @@ export function App() {
   const withPublicCommunications = (content) => <>{content}<PlatformCommunicationOverlays communications={publicSettings?.communications} /></>;
 
   useEffect(() => {
+    // OAuth callback must finish consent/profile finalization before normal
+    // authenticated-route redirects choose Dashboard or Onboarding.
+    if (pathname === '/auth/google-callback' || isGoogleOAuthExchanging()) return;
     // The install guide contains no member data and is intentionally public.
     // Keep every other /app/* route behind the existing authentication guard.
     if (pathname === '/app/menu/app-download') return;
     if (auth.authLoading || auth.user?.app_metadata?.must_change_password) return;
+
+    // Google-linked accounts must complete their mobile profile before any
+    // invitation, onboarding, or signed-in application route is available.
+    if (auth.isAuthenticated && auth.identityReady && isGoogleOAuthIdentity(auth.user)
+      && !isValidGooglePhone(auth.profile?.phone)
+      && pathname !== '/auth/reset-password') {
+      if (pathname !== '/auth/google-callback') navigateTo('/auth/google-callback', true);
+      return;
+    }
+
     if (pathname === '/super-admin') {
       if (!auth.isAuthenticated) {
         // Remember the requested protected route so a Super Admin who signs in
@@ -205,7 +220,7 @@ export function App() {
     if (!inApp && !inAuth && !inOnboarding && !pathname.startsWith('/account/')) {
       navigateTo('/app/dashboard', true);
     }
-  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityReady, auth.identityError, auth.membership]);
+  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityReady, auth.identityError, auth.membership, auth.user?.id, auth.user?.app_metadata?.provider, auth.user?.app_metadata?.providers, auth.profile?.phone]);
 
   useEffect(() => {
     const isEnglish = uiLanguage === 'en';
@@ -249,6 +264,13 @@ export function App() {
 
   // Public, informational PWA install page; no authenticated data or AppShell.
   if (pathname === '/app/menu/app-download') return withPublicCommunications(<AppDownloadPage />);
+
+  if (pathname === '/auth/google-callback') return withPublicCommunications(<GoogleOAuthCallbackPage />);
+
+  if (auth.isAuthenticated && auth.identityReady && isGoogleOAuthIdentity(auth.user)
+    && !isValidGooglePhone(auth.profile?.phone) && pathname !== '/auth/reset-password') {
+    return withPublicCommunications(<GoogleOAuthCallbackPage />);
+  }
 
   if (pathname.startsWith('/auth/') || pathname === '/auth') {
     if (auth.isAuthenticated && pathname !== '/auth/reset-password' && !auth.authLoading) {

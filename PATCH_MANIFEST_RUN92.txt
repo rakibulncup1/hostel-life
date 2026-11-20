@@ -1,0 +1,14 @@
+Hostel Life — Run92 Google Button Polish Patch
+Base: Run91 Google OAuth Preparation Patch
+
+Production files:
+  .env.example
+  src/features/auth/AuthPage.jsx
+  src/styles/google-oauth-auth-ui.css
+
+Tests:
+  tests/run90_google_oauth_preparation.test.mjs
+  tests/run91_google_phone_completion_gate.test.mjs
+  tests/run92_google_button_compact_and_clickable.test.mjs
+
+No SQL migrations or backend security logic changed.

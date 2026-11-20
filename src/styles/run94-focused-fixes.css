@@ -1,0 +1,117 @@
+/* Run94: small public-auth and Super Admin usability corrections. */
+
+/* Keep the official Google Identity Services button aligned with the app's
+   vertical rhythm. Width remains capped by the existing Run92 rules. */
+.auth-page .google-signin-sdk-slot {
+  min-height: 48px;
+}
+.auth-page .google-signin-button {
+  min-height: 48px;
+}
+
+/* The permission-code helper text makes the desktop two-column creation form
+   visually uneven. Keep the same comfortable single-column order as mobile,
+   but constrain and center it on desktop. Mobile styling stays untouched. */
+@media (min-width: 761px) {
+  .onboarding-page .onboarding-entry-form-create.has-permission-code {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    width: min(500px, 100%);
+    margin-inline: auto;
+    gap: 10px;
+  }
+
+  .onboarding-page .onboarding-entry-form-create.has-permission-code > .primary-button {
+    grid-column: 1;
+    width: 100%;
+  }
+}
+
+/* Super Admin hostel selection controls are limited to the hostel directory. */
+.platform-page .platform-hostel-bulk-toolbar {
+  display: grid;
+  gap: 9px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--surface-2);
+}
+.platform-page .platform-hostel-bulk-toolbar > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+.platform-page .platform-hostel-bulk-toolbar strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.platform-page .platform-hostel-bulk-toolbar small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.platform-page .platform-hostel-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.platform-page .platform-hostel-bulk-actions > button {
+  min-height: 36px;
+}
+.platform-page .platform-hostel-entry.has-bulk-select {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+}
+.platform-page .platform-hostel-select {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-height: 48px;
+  cursor: pointer;
+}
+.platform-page .platform-hostel-select input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.platform-page .platform-hostel-select input:disabled {
+  cursor: not-allowed;
+}
+.platform-page .platform-hostel-entry.has-bulk-select > .platform-hostel-row {
+  min-width: 0;
+}
+.platform-page .platform-bulk-delete-hostel-list {
+  display: grid;
+  gap: 4px;
+  max-height: 150px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 9px 12px 9px 30px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .platform-page .platform-hostel-bulk-toolbar {
+    padding: 10px;
+  }
+  .platform-page .platform-hostel-bulk-actions > button {
+    flex: 1 1 135px;
+  }
+  .platform-page .platform-hostel-entry.has-bulk-select {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+  .platform-page .platform-hostel-entry.has-bulk-select > .platform-hostel-row {
+    grid-column: 2;
+  }
+  .platform-page .platform-hostel-entry.has-bulk-select > .platform-quick-flags {
+    grid-column: 2;
+    padding-left: 0;
+    justify-content: flex-start;
+  }
+}

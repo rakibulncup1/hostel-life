@@ -97,9 +97,10 @@ test('privacy disclosures match current geo-disabled and retention behavior acro
     assert.match(policy, /GPS/);
     assert.match(policy, /দেশ[, ]? শহর বা অঞ্চল/);
     assert.match(policy, /৩০ দিনের?/);
-    assert.match(policy, /অ্যাপের সেশন তথ্যে থাকা IP address/);
-    assert.match(policy, /Google Sign-In সংযুক্ত নেই/);
-    assert.match(policy, /Google অ্যাকাউন্টের তথ্য সংগ্রহ বা ব্যবহার করা (হয়|হয়) না/);
+    assert.match(policy, /ইন্টারনেট সংযোগের ঠিকানা \(IP address\)/);
+    assert.match(policy, /Google Sign-In সংযুক্ত করা হয়েছে এবং এটি ঐচ্ছিক/);
+    assert.match(policy, /Google আপনার পরিচয় যাচাই করে আপনার নাম, ইমেইল ঠিকানা/);
+    assert.match(policy, /Google Sign-In সংযুক্ত করা হয়েছে এবং এটি ঐচ্ছিক/);
   }
   assert.match(legalContent, /Password, OTP code/);
   assert.match(publicPrivacy, /Password, OTP code/);
@@ -107,7 +108,7 @@ test('privacy disclosures match current geo-disabled and retention behavior acro
   assert.match(publicPrivacy, /ঐচ্ছিক টেলিগ্রাম সংযোগ/);
   assert.match(legalContent, /টেলিগ্রাম চ্যাট আইডি/);
   assert.match(publicPrivacy, /টেলিগ্রাম চ্যাট আইডি/);
-  assert.match(publicPrivacy, /ব্যবহারকারীর তথ্য বিক্রি বা ভাড়া দেওয়া হয় না/);
+  assert.match(publicPrivacy, /আপনার তথ্য বিক্রি বা ভাড়া দেওয়া হয় না/);
 });
 
 test('terms align in-app and public rules for private invitations and public site links', () => {
@@ -152,6 +153,6 @@ test('app-managed session IP and browser metadata are cleared after 30 days with
   assert.match(retentionMigration, /blocked_until <= v_now/);
   assert.doesNotMatch(retentionMigration, /DROP TABLE|TRUNCATE|DELETE FROM public\.(profiles|hostel_memberships|monthly_periods|daily_meal_records)/i);
   assert.match(retentionVerify, /hl_login_sessions_metadata_retention/);
-  assert.match(legalContent, /অ্যাপের সেশন তথ্যে থাকা IP address.*৩০ দিনের .{1,12} পূর্ণ হলে নির্ধারিত দৈনিক .{1,12} cleanup-এ মুছে ফেলা/);
-  assert.match(publicPrivacy, /অ্যাপের সেশন তথ্যে থাকা IP address.*৩০ দিনের .{1,12} পূর্ণ হলে নির্ধারিত দৈনিক .{1,12} cleanup-এ মুছে ফেলা/);
+  assert.match(legalContent, /ইন্টারনেট সংযোগের ঠিকানা \(IP address\).*সাধারণ তথ্য ৩০ দিন পর মুছে ফেলা হয়/);
+  assert.match(publicPrivacy, /ইন্টারনেট সংযোগের ঠিকানা \(IP address\).*সাধারণ তথ্য ৩০ দিন পর মুছে ফেলা হয়/);
 });

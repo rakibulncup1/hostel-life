@@ -63,15 +63,17 @@ test('public pages share a balanced palette, compact centered footer and respons
     assert.match(css, /@media \(max-width: 760px\)/);
     assert.match(css, /\.legal-hero/);
     assert.match(html, /support\.sec1\.info@gmail\.com/);
-    assert.match(html, file.includes('privacy-policy') ? /সর্বশেষ হালনাগাদ: ১৫ নভেম্বর ২০২৬/ : /সর্বশেষ হালনাগাদ: ১৫ নভেম্বর ২০২৬/);
+    assert.match(html, /সর্বশেষ হালনাগাদ: ২০ নভেম্বর ২০২৬/);
     assert.doesNotMatch(html, /Supabase|ap-southeast-1|YOUR_PROJECT|প্রকাশের আগে পূরণ করতে হবে|জন্ম নিবন্ধন|জাতীয় পরিচয়পত্র|অভিভাবক/);
   }
 });
 
-test('policy accurately says Google Sign-In is currently inactive and the product is 18+ only', () => {
+test('policy accurately discloses optional Google Sign-In and the product remains 18+ only', () => {
   const privacy = read('public/privacy-policy.html');
   const terms = read('public/terms-of-service.html');
-  assert.match(privacy, /Google Sign-In সংযুক্ত নেই/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত করা হয়েছে এবং এটি ঐচ্ছিক/);
+  assert.match(terms, /Google দিয়ে নতুন account তৈরি করতে Hostel Life-এর Registration Access Code প্রয়োজন হয় না/);
+  assert.match(terms, /Google Sign-In ঐচ্ছিক/);
   assert.match(privacy, /বয়স কমপক্ষে ১৮ বছর/);
   assert.match(terms, /বয়স কমপক্ষে ১৮ বছর/);
 });

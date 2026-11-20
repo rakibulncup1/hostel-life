@@ -196,6 +196,21 @@ export async function platformAdminPermanentlyDeleteHostel(hostelId, deleteMembe
   return firstRow(data) || data;
 }
 
+export async function platformAdminPermanentlyDeleteHostels(hostelIds, includeMemberUserIds, confirmation) {
+  assertSupabase();
+  const ids = Array.isArray(hostelIds) ? [...new Set(hostelIds.map((id) => String(id || '').trim()))] : [];
+  if (ids.length < 2 || ids.length > 25 || ids.some((id) => !id)) {
+    throw new Error('একবারে ২–২৫টি ভিন্ন মেস নির্বাচন করতে হবে।');
+  }
+  const { data, error } = await supabase.rpc('platform_admin_permanently_delete_hostels', {
+    p_hostel_ids: ids,
+    p_include_member_user_ids: Boolean(includeMemberUserIds),
+    p_confirmation: confirmation,
+  });
+  if (error) throw error;
+  return firstRow(data) || data;
+}
+
 export async function platformAdminPermanentlyDeleteMember(hostelId, membershipId, deleteAuthAccount, confirmation) {
   assertSupabase();
   const { data, error } = await supabase.rpc('platform_admin_permanently_delete_member', {

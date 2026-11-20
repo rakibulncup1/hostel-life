@@ -71,7 +71,8 @@ test('Public privacy policy explains user-facing data and the implemented retent
   assert.match(privacy, /৩০ দিনের/);
   assert.match(privacy, /৪৮ ঘণ্টা/);
   assert.match(privacy, /৩৫ দিন/);
-  assert.match(privacy, /Google Sign-In সংযুক্ত নেই/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত করা হয়েছে এবং এটি ঐচ্ছিক/);
+  assert.match(privacy, /Google Sign-In সংযুক্ত করা হয়েছে এবং এটি ঐচ্ছিক/);
   assert.doesNotMatch(privacy, /HMAC|fingerprint|identity_fingerprint|service_role|schema|trigger/i);
   assert.doesNotMatch(privacy, /আনুমানিক দেশ বা অঞ্চল/);
   assert.doesNotMatch(privacy, /Authenticator secret/);

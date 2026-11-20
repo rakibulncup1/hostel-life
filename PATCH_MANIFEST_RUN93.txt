@@ -1,0 +1,29 @@
+Hostel Life Run93 — targeted patch manifest
+Base: Latest working project with Run92 applied (includes Run91 Google OAuth preparation).
+This ZIP is not a full project archive. Extract at project root, preserving paths.
+
+REPLACE
+src/features/auth/AuthPage.jsx
+src/services/googleOAuthService.js
+src/main.jsx
+src/styles/google-oauth-auth-ui.css
+src/content/legalDocuments.js
+public/app-english-translations.js
+public/privacy-policy.html
+public/terms-of-service.html
+tests/ageEligibilityAndLocalPublicRoutes.test.js
+tests/googleOauthPublicInfoPages.test.js
+tests/publicLandingOriginalScreens.test.js
+tests/publicLandingPolish.test.js
+tests/publicShowcaseExpansion.test.js
+tests/run61AppFinishingPolish.test.mjs
+tests/run63-focused-followup.test.mjs
+tests/run90_google_oauth_preparation.test.mjs
+tests/run91_google_phone_completion_gate.test.mjs
+tests/run92_google_button_compact_and_clickable.test.mjs
+
+ADD
+supabase/migrations/Run93_google_registration_access_code_exemption.sql
+tests/run93_google_registration_access_code_exemption.test.mjs
+
+No files are deleted. No package/dependency files, environment secrets, node_modules, .git, or full app source are included.

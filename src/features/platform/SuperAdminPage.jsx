@@ -14,7 +14,7 @@ import {
   platformAdminListHostelMembers, platformAdminListHostelRoleBadges, platformAdminListHostels, platformAdminSetGate,
   platformAdminSetHostelStatus, platformAdminSetUserBlocked, platformAdminUpdatePublicSettings,
   platformAdminGetSessionPolicy, platformAdminSetSessionPolicy,
-  platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel,
+  platformAdminSetHostelFlag, platformAdminSetUserFlag, platformAdminPermanentlyDeleteHostel, platformAdminPermanentlyDeleteHostels,
   platformAdminPermanentlyDeleteMember, uploadDeveloperPhoto,
   platformAdminListClosedPeriods, platformAdminGetRetention, platformAdminUpdateRetention,
   platformAdminListExpiredArchives, platformAdminDeleteExpiredArchive,
@@ -360,6 +360,7 @@ export function SuperAdminPage({ user }) {
   const [notice, setNotice] = useState('');
   const [overview, setOverview] = useState({});
   const [hostels, setHostels] = useState([]);
+  const [bulkHostelSelectedIds, setBulkHostelSelectedIds] = useState([]);
   const [selected, setSelected] = useState(null);
   const [members, setMembers] = useState([]);
   const [memberListLoadedHostelId, setMemberListLoadedHostelId] = useState('');
@@ -963,6 +964,29 @@ export function SuperAdminPage({ user }) {
   useEffect(() => { setHostelPage(1); }, [hostelQuery, hostelFilter]);
   useEffect(() => { setMemberPage(1); }, [memberQuery, memberFilter, selected?.hostel_id]);
   const visibleHostels = filteredHostels.slice((hostelPage - 1) * pageSize, hostelPage * pageSize);
+  useEffect(() => {
+    const availableIds = new Set(hostels.map((hostel) => String(hostel.hostel_id)));
+    setBulkHostelSelectedIds((old) => old.filter((id) => availableIds.has(id)));
+  }, [hostels]);
+  const visibleHostelIds = visibleHostels.map((hostel) => String(hostel.hostel_id));
+  const toggleBulkHostelSelection = (hostelId, checked) => {
+    const id = String(hostelId || '');
+    setBulkHostelSelectedIds((old) => {
+      if (!checked) return old.filter((item) => item !== id);
+      if (!id || old.includes(id) || old.length >= 25) return old;
+      return [...old, id];
+    });
+  };
+  const selectVisibleHostelsForBulk = () => {
+    setBulkHostelSelectedIds((old) => {
+      const next = [...old];
+      for (const id of visibleHostelIds) {
+        if (next.length >= 25) break;
+        if (!next.includes(id)) next.push(id);
+      }
+      return next;
+    });
+  };
   const visibleMembers = sortedMembers.slice((memberPage - 1) * pageSize, memberPage * pageSize);
 
   const loadRetention = useCallback(async () => {
@@ -1796,6 +1820,92 @@ export function SuperAdminPage({ user }) {
     finally { setBusy(false); }
   };
 
+  const permanentlyDeleteHostels = async () => {
+    if (!deleteDialog || deleteDialog.kind !== 'hostels') return;
+    const ids = [...new Set((deleteDialog.hostelIds || []).map((id) => String(id || '').trim()))];
+    const confirmation = deleteConfirmation.trim();
+    const required = `DELETE ${ids.length} HOSTELS`;
+    if (ids.length < 2 || ids.length > 25 || ids.some((id) => !id)) {
+      setError('একবারে ২–২৫টি ভিন্ন মেস নির্বাচন করতে হবে।');
+      return;
+    }
+    if (confirmation !== required) {
+      setError('নিচের নিশ্চিতকরণ বাক্যটি হুবহু লিখুন।');
+      return;
+    }
+
+    const shouldDeleteMemberAccounts = Boolean(deleteAccounts);
+    setBusy(true); setError(''); setNotice('');
+    try {
+      // The database RPC locks every selected hostel and deletes all of them
+      // in one transaction. Candidate user IDs are captured before cascades.
+      const result = await platformAdminPermanentlyDeleteHostels(ids, shouldDeleteMemberAccounts, confirmation);
+      if (result?.status !== 'deleted' || Number(result?.hostel_count) !== ids.length) {
+        throw new Error('Database bulk-delete response যাচাই করা যায়নি। Auth account cleanup চালানো হয়নি। Supabase result পরীক্ষা করুন।');
+      }
+
+      let authDeleted = 0;
+      let authKeptOrUnverified = 0;
+      let auditWarnings = 0;
+      const candidates = shouldDeleteMemberAccounts
+        ? [...new Set((Array.isArray(result?.candidate_user_ids) ? result.candidate_user_ids : [])
+          .map((id) => String(id || '').trim())
+          .filter((id) => id && id !== String(user?.id || '')))]
+        : [];
+
+      // Auth Admin cannot participate in a Postgres transaction. Reuse the
+      // existing guarded Edge Function, in its supported batches of 25.
+      for (let start = 0; start < candidates.length; start += 25) {
+        const batch = candidates.slice(start, start + 25);
+        const expected = `DELETE ${batch.length} ORPHAN AUTH ACCOUNTS`;
+        try {
+          const { data, error: cleanupError } = await supabase.functions.invoke('admin-delete-unlinked-user', {
+            body: { action: 'delete_many', user_ids: batch, confirmation: expected },
+          });
+          if (cleanupError || data?.error || !Array.isArray(data?.results)) {
+            authKeptOrUnverified += batch.length;
+            continue;
+          }
+          const outcomes = new Map(data.results.map((item) => [String(item?.user_id || ''), item]));
+          for (const id of batch) {
+            const outcome = outcomes.get(id);
+            if (outcome?.deleted) {
+              authDeleted += 1;
+              if (outcome.audit_warning) auditWarnings += 1;
+            } else {
+              // Shared-hostel, protected, current-admin or unverified accounts
+              // are deliberately retained by the server-side guard.
+              authKeptOrUnverified += 1;
+            }
+          }
+        } catch {
+          authKeptOrUnverified += batch.length;
+        }
+      }
+
+      setDeleteDialog(null); setDeleteConfirmation(''); setDeleteAccounts(false);
+      setBulkHostelSelectedIds((old) => old.filter((id) => !ids.includes(id)));
+      if (selected && ids.includes(String(selected.hostel_id))) {
+        hostelMembersRequestRef.current += 1;
+        memberActivityRequestRef.current += 1;
+        memberSessionRequestRef.current += 1;
+        setSelected(null); setMembers([]); setMemberListLoadedHostelId(''); setMemberActivityTarget(null);
+      }
+      await refresh();
+
+      const hostelLabel = `${ids.length.toLocaleString(getUiLocale())}টি মেস`;
+      if (!shouldDeleteMemberAccounts) {
+        setNotice(`${hostelLabel} ও সংশ্লিষ্ট ডেটা স্থায়ীভাবে মুছে ফেলা হয়েছে। Auth login account-গুলো অক্ষত রাখা হয়েছে।`);
+      } else {
+        setNotice(`${hostelLabel} স্থায়ীভাবে মুছে ফেলা হয়েছে। ${authDeleted.toLocaleString(getUiLocale())}টি Auth account মুছে ফেলা হয়েছে; ${authKeptOrUnverified.toLocaleString(getUiLocale())}টি অন্য মেসে যুক্ত, সুরক্ষিত অথবা যাচাই করা যায়নি বলে রাখা হয়েছে.${auditWarnings ? ` ${auditWarnings.toLocaleString(getUiLocale())}টি account-এর Audit Log যাচাই প্রয়োজন।` : ''}`);
+      }
+    } catch (cause) {
+      setError(errorText(cause, 'নির্বাচিত মেসগুলো স্থায়ীভাবে মুছে ফেলা যায়নি।'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const permanentlyDeleteMember = async (member) => {
     if (!selected || !member) return;
     const deleteAuthAccount = deleteAccounts;
@@ -2408,7 +2518,16 @@ export function SuperAdminPage({ user }) {
         <div className="platform-filter-pills" role="group" aria-label="মেস ফিল্টার">
           {[['all','সব মেস'],['active','সক্রিয়'],['suspended','স্থগিত'],['recent','নতুন'],['favorite','⭐ পছন্দের'],['trusted','✓ বিশ্বস্ত']].map(([key,label])=><button type="button" key={key} className={hostelFilter===key?'active':''} onClick={()=>setHostelFilter(key)}>{label}</button>)}
         </div>
-        {filteredHostels.length===0?<p className="platform-empty">এই ফিল্টারে কোনো মেস পাওয়া যায়নি।</p>:<div className="platform-hostel-list">{visibleHostels.map((hostel)=><div className={`platform-hostel-entry ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} key={hostel.hostel_id}>
+        <div className="platform-hostel-bulk-toolbar">
+          <div><strong>{bulkHostelSelectedIds.length.toLocaleString(getUiLocale())}টি মেস নির্বাচিত</strong><small>একসাথে সর্বোচ্চ ২৫টি মেস বেছে স্থায়ীভাবে মুছতে পারবেন। নির্বাচন পৃষ্ঠা বদলালেও থাকবে।</small></div>
+          <div className="platform-hostel-bulk-actions">
+            <button type="button" className="secondary-button compact" disabled={busy || visibleHostels.length === 0 || bulkHostelSelectedIds.length >= 25} onClick={selectVisibleHostelsForBulk}>এই পাতার সব নির্বাচন</button>
+            <button type="button" className="secondary-button compact" disabled={busy || bulkHostelSelectedIds.length === 0} onClick={() => setBulkHostelSelectedIds([])}>নির্বাচন বাতিল</button>
+            <button type="button" className="danger-button" disabled={busy || bulkHostelSelectedIds.length < 2} onClick={() => { setDeleteDialog({kind:'hostels', hostelIds:[...bulkHostelSelectedIds]}); setDeleteConfirmation(''); setDeleteAccounts(false); setError(''); }}>নির্বাচিত মেস মুছুন</button>
+          </div>
+        </div>
+        {filteredHostels.length===0?<p className="platform-empty">এই ফিল্টারে কোনো মেস পাওয়া যায়নি।</p>:<div className="platform-hostel-list">{visibleHostels.map((hostel)=><div className={`platform-hostel-entry has-bulk-select ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} key={hostel.hostel_id}>
+          <label className="platform-hostel-select"><input type="checkbox" aria-label={`${hostel.name || 'মেস'} bulk deletion-এর জন্য নির্বাচন করুন`} checked={bulkHostelSelectedIds.includes(String(hostel.hostel_id))} disabled={busy || (!bulkHostelSelectedIds.includes(String(hostel.hostel_id)) && bulkHostelSelectedIds.length >= 25)} onChange={(event) => toggleBulkHostelSelection(hostel.hostel_id, event.target.checked)}/></label>
           <button className={`platform-hostel-row ${selected?.hostel_id===hostel.hostel_id?'selected':''}`} type="button" disabled={busy} onClick={()=>openHostel(hostel)}>
             <span className="platform-hostel-icon"><Icon name="home" size={19}/></span><span className="platform-hostel-copy"><strong>{hostel.name}</strong><small>{hostel.member_count} জন সক্রিয় সদস্য · {hostel.created_at?new Date(hostel.created_at).toLocaleDateString():'—'}</small><small className="platform-hostel-id">{hostel.hostel_id}</small></span><span className={`platform-status status-${hostel.platform_status||'active'}`}>{hostel.platform_status==='soft_deleted'?'বন্ধ':hostel.platform_status==='suspended'?'স্থগিত':'সক্রিয়'}</span>
           </button>
@@ -2776,22 +2895,30 @@ export function SuperAdminPage({ user }) {
         <div className="platform-history-pager"><span>{codeHistoryTotal.toLocaleString(getUiLocale())}টি কোড · পৃষ্ঠা {codeHistoryTotal ? codeHistoryPage + 1 : 0} / {Math.max(1,Math.ceil(codeHistoryTotal/pageSize))}</span><div><button className="secondary-button compact" type="button" disabled={codeHistoryLoading || codeHistoryPage===0} onClick={()=>setCodeHistoryPage(value=>Math.max(0,value-1))}>আগের</button><button className="secondary-button compact" type="button" disabled={codeHistoryLoading || (codeHistoryPage+1)*pageSize>=codeHistoryTotal} onClick={()=>setCodeHistoryPage(value=>value+1)}>পরের</button></div></div>
       </section>
     </>}
-     {deleteDialog && selected && (() => {
+     {deleteDialog && (selected || deleteDialog.kind === 'hostels') && (() => {
       const member = deleteDialog.kind === 'member' ? deleteDialog.member : null;
-      const required = member ? `DELETE MEMBER ${member.user_id}` : `DELETE HOSTEL ${selected.hostel_id}`;
+      const isBulkHostelDelete = deleteDialog.kind === 'hostels';
+      const bulkHostelIds = isBulkHostelDelete ? [...new Set(deleteDialog.hostelIds || [])] : [];
+      const bulkHostelNames = bulkHostelIds.map((id) => hostels.find((row) => String(row.hostel_id) === String(id))?.name || String(id));
+      const required = member ? `DELETE MEMBER ${member.user_id}` : isBulkHostelDelete ? `DELETE ${bulkHostelIds.length} HOSTELS` : `DELETE HOSTEL ${selected.hostel_id}`;
       return <div className="modal-backdrop" role="presentation"><section className="card platform-delete-dialog" role="dialog" aria-modal="true" aria-label="স্থায়ী ডিলিট নিশ্চিতকরণ">
         <div className="modal-head"><div><span className="eyebrow">Super Admin · অপরিবর্তনীয় কাজ</span><h2>স্থায়ীভাবে মুছে ফেলার নিশ্চিতকরণ</h2></div><button className="icon-button" type="button" disabled={busy} aria-label="বন্ধ করুন" onClick={() => setDeleteDialog(null)}><Icon name="x" size={19}/></button></div>
-        <p className="platform-delete-warning">{member ? `“${member.full_name || 'সদস্য'}”-এর মেস-সম্পর্কিত সব ডেটা স্থায়ীভাবে মুছে যাবে।` : `“${selected.name}” মেস এবং তার সব সদস্য, মিল ও আর্থিক ডেটা স্থায়ীভাবে মুছে যাবে।`} এই পরিবর্তন ফেরানো যাবে না। আগে ব্যাকআপ নিশ্চিত করুন।</p>
+        <p className="platform-delete-warning">{isBulkHostelDelete ? `${bulkHostelIds.length}টি নির্বাচিত মেস এবং সেগুলোর সদস্যপদ, মিল, হিসাব ও সংশ্লিষ্ট ডেটা এক database transaction-এ স্থায়ীভাবে মুছে যাবে।` : member ? `“${member.full_name || 'সদস্য'}”-এর মেস-সম্পর্কিত সব ডেটা স্থায়ীভাবে মুছে যাবে।` : `“${selected.name}” মেস এবং তার সব সদস্য, মিল ও আর্থিক ডেটা স্থায়ীভাবে মুছে যাবে।`} এই পরিবর্তন ফেরানো যাবে না। আগে ডেটাবেজ backup নিশ্চিত করুন।</p>
+        {isBulkHostelDelete && <ul className="platform-bulk-delete-hostel-list">{bulkHostelNames.map((name, index) => <li key={`${bulkHostelIds[index]}-${index}`}>{name}</li>)}</ul>}
         <label className="platform-toggle platform-delete-auth-toggle">
           <span>
-            <strong>{member ? 'সদস্যের Auth লগইন অ্যাকাউন্টও মুছুন' : 'এই মেসের সদস্যদের Auth account-ও মুছুন'}</strong>
-            <small>{member ? 'অন্য মেসে যুক্ত থাকলে বা সুরক্ষিত অ্যাকাউন্ট হলে সেটি অক্ষত থাকবে।' : (memberListLoadedHostelId === selected.hostel_id ? `${members.length}টি সদস্য-রেকর্ডের account server-side যাচাই করা হবে। অন্য মেসে যুক্ত বা Super Admin account মুছবে না।` : 'সদস্য তালিকা যাচাই না হওয়া পর্যন্ত এই বিকল্প ব্যবহার করা যাবে না।')}</small>
+            <strong>{member ? 'সদস্যের Auth লগইন অ্যাকাউন্টও মুছুন' : isBulkHostelDelete ? 'নির্বাচিত মেসগুলোর সদস্যদের Auth account-ও মুছুন' : 'এই মেসের সদস্যদের Auth account-ও মুছুন'}</strong>
+            <small>{member ? 'অন্য মেসে যুক্ত থাকলে বা সুরক্ষিত অ্যাকাউন্ট হলে সেটি অক্ষত থাকবে।' : isBulkHostelDelete ? 'সব নির্বাচিত মেস মুছে ফেলার পর সার্ভার প্রতিটি account-এর অন্য মেসের membership ও Super Admin role আবার যাচাই করবে। নিজের Admin account কখনো মুছবে না।' : (memberListLoadedHostelId === selected?.hostel_id ? `${members.length}টি সদস্য-রেকর্ডের account server-side যাচাই করা হবে। অন্য মেসে যুক্ত বা Super Admin account মুছবে না।` : 'সদস্য তালিকা যাচাই না হওয়া পর্যন্ত এই বিকল্প ব্যবহার করা যাবে না।')}</small>
           </span>
-          <input type="checkbox" checked={Boolean(deleteAccounts)} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy || (!member && memberListLoadedHostelId !== selected.hostel_id)}/>
+          {isBulkHostelDelete ? (
+            <input type="checkbox" checked={Boolean(deleteAccounts)} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy}/>
+          ) : (
+            <input type="checkbox" checked={Boolean(deleteAccounts)} onChange={event => setDeleteAccounts(event.target.checked)} disabled={busy || (!member && memberListLoadedHostelId !== selected.hostel_id)}/>
+          )}
         </label>
         <label className="field-label"><span>নিচের বাক্যটি হুবহু লিখুন</span><code className="platform-delete-phrase">{required}</code><input type="text" autoComplete="off" spellCheck={false} value={deleteConfirmation} onChange={event => setDeleteConfirmation(event.target.value)} placeholder="DELETE ..." disabled={busy}/></label>
         {error && <div className="inline-error">{error}</div>}
-        <div className="confirm-actions"><button className="secondary-button" type="button" disabled={busy} onClick={() => setDeleteDialog(null)}>বাতিল</button><button className="danger-button" type="button" disabled={busy || deleteConfirmation.trim() !== required} onClick={() => member ? permanentlyDeleteMember(member) : permanentlyDeleteHostel()}>{busy ? 'মুছে ফেলা হচ্ছে...' : 'বুঝেছি, স্থায়ীভাবে মুছুন'}</button></div>
+        <div className="confirm-actions"><button className="secondary-button" type="button" disabled={busy} onClick={() => setDeleteDialog(null)}>বাতিল</button><button className="danger-button" type="button" disabled={busy || deleteConfirmation.trim() !== required || (isBulkHostelDelete && (bulkHostelIds.length < 2 || bulkHostelIds.length > 25))} onClick={() => member ? permanentlyDeleteMember(member) : isBulkHostelDelete ? permanentlyDeleteHostels() : permanentlyDeleteHostel()}>{busy ? 'মুছে ফেলা হচ্ছে...' : 'বুঝেছি, স্থায়ীভাবে মুছুন'}</button></div>
       </section></div>;
     })()}
     <footer className="platform-footer">Hostel Life · Platform administration · Access is enforced by database functions.</footer>
