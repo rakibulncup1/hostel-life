@@ -1,0 +1,15 @@
+Hostel Life — Run97 Vercel CSS Missing-File Repair
+Baseline: Run96 / Vercel main commit 83c2390 as described in the supplied log.
+
+ADD
+public/landing-assets/run81-about-dark-surface-system.css
+tests/run97_restore_missing_about_stylesheet.test.mjs
+
+NOT CHANGED
+public/about.html
+package.json / lockfiles / Vite configuration
+Vercel configuration / Environment Variables
+Google OAuth / Supabase / database / Service Worker
+All other stylesheets and application features
+
+Production file restored byte-for-byte from Run81 original patch.

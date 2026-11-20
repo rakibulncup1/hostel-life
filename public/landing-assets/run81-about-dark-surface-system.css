@@ -1,0 +1,345 @@
+/* Run81 — complete About page dark surfaces.
+   This stylesheet intentionally changes color/contrast only; the Light theme,
+   responsive layout, image sizes, controls and page flow remain untouched. */
+:root[data-theme="dark"] .about-page {
+  color-scheme: dark;
+  --about-bg: #20272d;
+  --about-section: #242d34;
+  --about-surface: #2d373f;
+  --about-raised: #35414a;
+  --about-inset: #273139;
+  --about-border: #4b5963;
+  --about-heading: #f0f3f5;
+  --about-copy: #d0d8dd;
+  --about-muted: #b4c0c7;
+  --about-accent: #bdcdc4;
+  --about-accent-soft: #3a4942;
+  background: var(--about-bg);
+  color: var(--about-heading);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  header.site-header, main, main > section, .hero, .hero-grid, .proof-band,
+  .section, .section-tint, .section-blue, .section-warm, .showcase-section,
+  .closing, footer.site-footer
+) {
+  background: var(--about-bg);
+  border-color: var(--about-border);
+  color: var(--about-heading);
+}
+
+:root[data-theme="dark"] .about-page :is(.hero, .hero-grid, .section-tint, .section-blue, .section-warm, .closing) {
+  background: linear-gradient(145deg, #28323a 0%, #303b44 100%);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .proof-band, .site-header, .site-footer, .feature-card, .showcase-card,
+  .workflow-card, .closing-inner, .product-note, .product-note-label,
+  .mobile-menu-panel, .public-theme-panel, .public-theme-control > summary
+) {
+  background: var(--about-surface);
+  border-color: var(--about-border);
+  color: var(--about-heading);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .16);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .feature-image-frame, .showcase-media, .screen-card, .code-preview,
+  .mini-preview, .showcase-code-preview, .menu-preview, .report-preview,
+  .request-preview, .deposit-summary, .deposit-fields, .allowance-summary > div,
+  .allowance-list > div, .mini-preview-total, .preview-bottom-line,
+  .preview-meal-panel, .preview-action-tile, .preview-stat, .preview-date,
+  .request-summary-grid > div, .report-metric-grid > div, .screen-toolbar,
+  .screen-note, .showcase-preview-top, .preview-appbar, .mini-date-strip span,
+  .mini-table-head, .mini-meal-list > div, .mini-market-row,
+  .report-table-head, .report-table-row, .request-table-head,
+  .request-table-row, .menu-preview-item, .report-preview-foot,
+  .allowance-list, .deposit-confirm
+) {
+  background-color: var(--about-raised);
+  border-color: var(--about-border);
+  color: var(--about-copy);
+  box-shadow: none;
+}
+
+/* Give preview canvases a slightly deeper inset so pale blocks do not survive
+   from the light mockup defaults. Actual screenshot assets are not recolored. */
+:root[data-theme="dark"] .about-page :is(
+  .feature-image-frame, .showcase-media, .screen-card, .code-preview,
+  .mini-preview, .showcase-code-preview, .menu-preview, .report-preview,
+  .request-preview
+) {
+  background: var(--about-inset);
+  border-color: var(--about-border);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .preview-appbar, .preview-meal-panel, .request-summary-grid > div,
+  .report-metric-grid > div, .report-table-head, .report-table-row,
+  .request-table-head, .request-table-row, .menu-preview-item,
+  .mini-meal-list > div, .mini-market-row, .allowance-summary > div,
+  .allowance-list > div, .deposit-summary, .deposit-fields,
+  .preview-stat, .preview-action-tile, .preview-date, .preview-bottom-line,
+  .mini-preview-total, .report-preview-foot, .screen-toolbar, .screen-note
+) {
+  background: var(--about-raised);
+  border-color: var(--about-border);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  h1, h2, h3, h4, .hero h1, .hero h1 em, .section-head h2,
+  .feature-copy h3, .showcase-copy h3, .workflow-card h3,
+  .closing-copy h2, .proof-item strong, .preview-app-name strong,
+  .preview-heading-row strong, .preview-stat strong,
+  .preview-panel-heading strong, .preview-meal-row b,
+  .preview-action-tile strong, .menu-preview-brand strong,
+  .report-preview-brand strong, .report-metric-grid strong,
+  .mini-preview-total strong, .request-table-row strong,
+  .report-table-row b, .deposit-summary strong, .deposit-amount b,
+  .allowance-summary strong, .allowance-list b, .mini-market-row b
+) {
+  color: var(--about-heading);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  p, .hero-copy, .hero-points, .section-head p, .feature-copy p,
+  .showcase-copy p, .workflow-card p, .closing-copy p, .feature-meta,
+  .feature-meta span, .screen-note, .preview-overline,
+  .preview-stat > span, .preview-stat small, .preview-panel-heading span,
+  .preview-meal-row, .preview-action-tile small, .preview-app-name small,
+  .menu-preview-label, .menu-preview-item span, .report-table-row,
+  .request-table-row, .mini-preview-total, .showcase-media figcaption,
+  .proof-item small, .report-preview-foot, .deposit-summary span,
+  .deposit-fields span, .deposit-confirm span, .allowance-summary small,
+  .allowance-list span, .mini-table-head, .mini-date-strip span,
+  .request-summary-grid small, .report-metric-grid small,
+  .preview-heading-row, .product-note p, .footer-bottom,
+  .footer-links a, .footer-brand
+) {
+  color: var(--about-copy);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .eyebrow, .section-kicker, .showcase-index, .feature-index,
+  .product-note-label, .preview-sample-pill, .mini-preview-pill,
+  .feature-tag, .report-preview-brand small, .preview-overline
+) {
+  color: var(--about-accent);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .feature-tag, .preview-sample-pill, .mini-preview-pill,
+  .feature-meta, .workflow-number, .proof-icon
+) {
+  background: var(--about-raised);
+  border-color: var(--about-border);
+}
+
+:root[data-theme="dark"] .about-page .workflow-number {
+  background: #435149;
+  color: #edf3ef;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .preview-action-icon, .preview-app-mark, .menu-preview-mark,
+  .preview-meal-dot, .deposit-confirm i, .report-preview-foot i,
+  .feature-meta i, .tick
+) {
+  background-color: #46544c;
+  color: #e4ece7;
+  border-color: #66766d;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .preview-action-icon--green, .preview-action-icon--blue,
+  .preview-action-icon--amber, .preview-stat--green, .preview-stat--blue,
+  .request-status--waiting, .request-status--review, .request-status--done,
+  .mini-preview-pill, .preview-sample-pill
+) {
+  background: #3b4842;
+  border-color: #59675f;
+  color: #dfe8e2;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  a, .nav-links a, .footer-links a, .brand, .footer-brand,
+  .public-theme-control > summary, .mobile-menu > summary
+) {
+  color: #e4ece8;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .hero-actions .btn-secondary, .nav-actions .btn-secondary,
+  .nav-download, .closing-actions .btn-secondary,
+  .public-theme-panel button, .mobile-menu-panel a
+) {
+  background: var(--about-raised);
+  border-color: var(--about-border);
+  color: #e7edef;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .hero-actions .btn-primary, .nav-actions .btn-primary,
+  .closing-actions .btn-primary, .menu-register
+) {
+  background: #bdcdc4;
+  border-color: #bdcdc4;
+  color: #202923;
+}
+
+:root[data-theme="dark"] .about-page .feature-card::before,
+:root[data-theme="dark"] .about-page .feature-card:nth-child(2)::before,
+:root[data-theme="dark"] .about-page .feature-card:nth-child(3)::before {
+  background: #8a9b91;
+  opacity: .55;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .screen-card img, .showcase-media img
+) {
+  border-color: var(--about-border);
+}
+
+/* Keep all English feature, preview and workflow copy inside its own grid cell.
+   Do not enlarge or reduce the existing type scale. */
+:root[data-language="en"] .about-page :is(
+  .hero-grid, .hero-copy, .hero-points, .feature-card, .feature-copy,
+  .feature-copy h3, .feature-copy p, .showcase-card, .showcase-copy,
+  .showcase-copy h3, .showcase-copy p, .workflow-card,
+  .workflow-card h3, .workflow-card p, .product-note, .product-note p,
+  .preview-action-tile, .preview-action-tile strong, .preview-action-tile small,
+  .menu-preview-item, .report-table-row, .request-table-row
+) {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: manual;
+}
+
+:root[data-language="en"] .about-page .feature-card .feature-copy,
+:root[data-language="en"] .about-page .showcase-copy {
+  align-self: stretch;
+}
+
+@media (min-width: 761px) {
+  :root[data-language="en"] .about-page .showcase-card--wide {
+    grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+  }
+  :root[data-language="en"] .about-page .showcase-card--menu,
+  :root[data-language="en"] .about-page .showcase-card--report {
+    grid-template-columns: minmax(0, 1fr) minmax(0, .82fr);
+  }
+}
+
+@media (max-width: 760px) {
+  :root[data-language="en"] .about-page .hero-points {
+    grid-template-columns: 1fr;
+  }
+  :root[data-language="en"] .about-page .showcase-card--wide,
+  :root[data-language="en"] .about-page .showcase-card--menu,
+  :root[data-language="en"] .about-page .showcase-card--report {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Small nested labels and icon tiles had independent pale defaults in the
+   market, deposit, allowance, dining and menu mockups. Neutralise each one. */
+:root[data-theme="dark"] .about-page :is(
+  .mini-preview, .code-preview, .showcase-code-preview, .request-preview,
+  .menu-preview, .report-preview
+) :is(strong, b, small, span) {
+  color: var(--about-copy);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .mini-preview-heading strong, .preview-app-name strong,
+  .preview-heading-row strong, .preview-panel-heading strong,
+  .preview-meal-row b, .preview-action-tile strong,
+  .menu-preview-brand strong, .report-preview-brand strong,
+  .report-metric-grid strong, .mini-preview-total strong,
+  .request-table-row strong, .deposit-summary strong,
+  .deposit-amount b, .allowance-summary strong, .allowance-list b,
+  .mini-market-row b
+) {
+  color: var(--about-heading);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .mini-date-strip span, .mini-meal-list > div,
+  .mini-meal-icon, .mini-meal-icon--noon,
+  .mini-meal-icon--night, .mini-preview--market .mini-market-row,
+  .mini-preview-total, .deposit-confirm, .menu-preview-item--active,
+  .menu-preview-item--active i, .menu-preview-item i
+) {
+  background: #3a464e;
+  border-color: var(--about-border);
+  color: var(--about-copy);
+}
+
+:root[data-theme="dark"] .about-page .mini-date-strip .is-active {
+  background: #52645a;
+  border-color: #728379;
+  color: #f1f5f2;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .preview-stat--green, .preview-stat--blue,
+  .request-status--waiting, .request-status--review,
+  .request-status--done
+) {
+  background: #3b4842;
+  border-color: #59675f;
+  color: #e1e9e4;
+}
+
+:root[data-theme="dark"] .about-page .request-status {
+  white-space: normal;
+}
+
+:root[data-theme="dark"] .about-page .feature-meta i,
+:root[data-theme="dark"] .about-page .report-preview-foot i,
+:root[data-theme="dark"] .about-page .deposit-confirm i {
+  background: #9eafa5;
+  box-shadow: none;
+}
+
+:root[data-theme="dark"] .about-page .proof-item {
+  background: var(--about-surface);
+  border-color: var(--about-border);
+  color: var(--about-heading);
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .hero-actions .btn-download, .closing-actions .btn-download
+) {
+  background: var(--about-raised);
+  border-color: var(--about-border);
+  color: #e7edef;
+}
+
+:root[data-theme="dark"] .about-page :is(
+  .public-theme-panel button:hover, .public-theme-panel button.is-active,
+  .mobile-menu-panel a:hover, .nav-links a:hover,
+  .footer-links a:hover, .hero-actions .btn-secondary:hover,
+  .closing-actions .btn-secondary:hover
+) {
+  background: #46534b;
+  border-color: #66766d;
+  color: #f2f5f3;
+}
+
+:root[data-language="en"] .about-page :is(
+  .hero-points span, .feature-meta span, .preview-sample-pill,
+  .mini-preview-pill, .mini-table-head span, .mini-market-row span,
+  .mini-meal-list > div > span, .deposit-summary span,
+  .deposit-fields span, .allowance-list span, .request-table-row > span,
+  .report-table-row > span, .menu-preview-item > span,
+  .report-preview-foot, .request-status
+) {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
