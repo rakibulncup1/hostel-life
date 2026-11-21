@@ -1,0 +1,72 @@
+{
+  "patch": "Run106",
+  "baseline": "Hostel Life project after accepted Run104 and Run105 patches",
+  "scope": [
+    "About language switcher visual refinement",
+    "Login footer grouping",
+    "Member detail PDF professional multi-page layout"
+  ],
+  "source_files": 5,
+  "test_files": 3,
+  "files": [
+    {
+      "path": "public/landing-assets/run102-about-interaction.css",
+      "size_bytes": 4073,
+      "sha256": "0181f3a77d9c4466266783aecfd60e5d614fd12708a410c69ca1170cd33cdc0a"
+    },
+    {
+      "path": "src/features/auth/AuthPage.jsx",
+      "size_bytes": 50627,
+      "sha256": "5f39b347bfe4e1840575b3e2b77231645a98b10c68f96a9046e0500600021a20"
+    },
+    {
+      "path": "src/styles/run105-requested-ui-polish.css",
+      "size_bytes": 11692,
+      "sha256": "61f959d940cb43be4156be6c81b3464a82e7d31c0bde2230e45755c2383f1b26"
+    },
+    {
+      "path": "src/features/dashboard/DashboardPage.jsx",
+      "size_bytes": 91559,
+      "sha256": "da4bc230551e09c0b7e82d4c2ad8345492affe37a55e2aa0c71ac15d4ab74ae1"
+    },
+    {
+      "path": "src/services/reportService.js",
+      "size_bytes": 31718,
+      "sha256": "c861749e65bc30d9f5014265133712adab723fdec8ea2387c787ed2ab02fca28"
+    },
+    {
+      "path": "tests/run103_about_login_precision.test.mjs",
+      "size_bytes": 5366,
+      "sha256": "202573824b410613f14341b6a458841180ef79ff0f2dd02c6810463b93f22ab4"
+    },
+    {
+      "path": "tests/run105_requested_ui_patch.test.mjs",
+      "size_bytes": 6317,
+      "sha256": "d43a043ccebb1ae10dd379df28100a85e495f06b657d2cb6d2d6c798cc30cf6e"
+    },
+    {
+      "path": "tests/run106_focused_followup.test.mjs",
+      "size_bytes": 3075,
+      "sha256": "66edd5ef74cc610b82f2093a42331f067eba15e13a93d35685f6049f45e9fc0e"
+    }
+  ],
+  "validation": {
+    "targeted_tests": {
+      "passed": 26,
+      "failed": 0
+    },
+    "full_suite": {
+      "passed": 1143,
+      "failed": 24,
+      "total": 1167,
+      "baseline_failures_unchanged": true
+    },
+    "stylesheet_integrity": "passed",
+    "javascript_syntax": "passed",
+    "vite_build": "not_run_node_modules_missing"
+  },
+  "safety_notes": [
+    "No database, Supabase schema, RPC, Edge Function, permission, or authentication logic changes.",
+    "Only listed paths should be overwritten."
+  ]
+}

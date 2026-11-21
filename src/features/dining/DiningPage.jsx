@@ -2249,9 +2249,8 @@ export function DiningPage() {
   const { isOperationalManager, isPrimaryManager, isAssistantManager, period: managementPeriod, loading: managementContextLoading } = useManagementContext();
   const isOnline = useOnlineStatus();
   const [view, setViewState] = useState(() => resolveInitialDiningView());
-  const setView = (nextView) => {
-    if (!RESUMABLE_DINING_VIEWS.has(nextView)) return;
-    setViewState(nextView);
+  const [viewHistory, setViewHistory] = useState([]);
+  const persistDiningView = (nextView) => {
     try {
       const url = new URL(window.location.href);
       if (nextView === 'home') url.searchParams.delete('dining_view');
@@ -2260,6 +2259,12 @@ export function DiningPage() {
       const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
       if (next !== current) window.history.replaceState(window.history.state, '', next);
     } catch { /* The selected view remains usable without URL persistence. */ }
+  };
+  const setView = (nextView) => {
+    if (!RESUMABLE_DINING_VIEWS.has(nextView)) return;
+    if (view !== nextView) setViewHistory((history) => [...history.slice(-11), view]);
+    setViewState(nextView);
+    persistDiningView(nextView);
   };
   const [requestMode, setRequestMode] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -2371,6 +2376,20 @@ export function DiningPage() {
   if (!isOnline) return <OfflineState description="ডাইনিং-এর সব কাজ online-এ চলবে। ডাটা/ওয়াই‑ফাই চালু করে আবার চেষ্টা করুন।" />;
 
   const backToHome = () => { setView('home'); setRequestMode(null); setSelectedRequest(null); };
+  const backToPrevious = () => {
+    const fallbackParents = {
+      'late-request': 'meal-request',
+      'request-history': 'meal-request',
+      'manager-meal': 'admin-entry',
+      'admin-manual-request': 'admin-entry',
+    };
+    const previousView = viewHistory.length ? viewHistory[viewHistory.length - 1] : (fallbackParents[view] || 'home');
+    setViewHistory((history) => history.slice(0, -1));
+    setViewState(previousView);
+    persistDiningView(previousView);
+    setRequestMode(null);
+    setSelectedRequest(null);
+  };
 
   if (loadingMembers) {
     return <div className="dining-loading-wrap"><LoadingSpinner label="ডাইনিং প্রস্তুত হচ্ছে..." /></div>;
@@ -2387,14 +2406,15 @@ export function DiningPage() {
   }
 
   if (requestMode) {
+    const exitRequestEditor = () => { setRequestMode(null); setSelectedRequest(null); };
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="arrow-left" size={15} /> ডাইনিংয়ে ফিরে যান</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={exitRequestEditor}><Icon name="arrow-left" size={15} /> {view === 'request-history' ? 'অনুরোধের ইতিহাসে ফিরুন' : 'ফিরে যান'}</button></div>
         <MealRequestEditor
           mode={requestMode}
           request={selectedRequest}
-          onSaved={backToHome}
-          onCancel={backToHome}
+          onSaved={exitRequestEditor}
+          onCancel={exitRequestEditor}
           managerMode={managerDiningUi}
         />
       </div>
@@ -2402,13 +2422,13 @@ export function DiningPage() {
   }
 
   if (view === 'late-request') {
-    return <div className={`${managerPageStackClass} dining-experience`}><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div><LateMealRequestForm onSaved={backToHome} onCancel={backToHome} managerMode={managerDiningUi} /></div>;
+    return <div className={`${managerPageStackClass} dining-experience`}><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div><LateMealRequestForm onSaved={backToPrevious} onCancel={backToPrevious} managerMode={managerDiningUi} /></div>;
   }
 
   if (view === 'request-history') {
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div>
         <RequestHistory
           onEdit={(request) => { setSelectedRequest(request); setRequestMode('edit'); }}
           onCorrect={(request) => { setSelectedRequest(request); setRequestMode('correction'); }}
@@ -2421,7 +2441,7 @@ export function DiningPage() {
   if (view === 'meal-request') {
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="arrow-left" size={15} /> ডাইনিংয়ে ফিরে যান</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="arrow-left" size={15} /> ফিরে যান</button></div>
         <PersonalTomorrowMealCard />
         <SectionHeader eyebrow="ডাইনিং" title="মিল অনুরোধ" description="নতুন অনুরোধ, ইতিহাস ও লেট আবেদন।" className="dining-request-hub-heading" />
         <div className="request-entry-choice-grid">
@@ -2455,10 +2475,10 @@ export function DiningPage() {
     const marketMembers = members.some((member) => member.member_status === 'active') ? members : fallbackOwnMember;
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div>
         {periodLoadError && <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>চলমান মাসের তথ্য যাচাই করা যায়নি</strong><p>{periodLoadError} সার্ভারের validation-ই চূড়ান্ত; তারিখ/মাস নিশ্চিত না হলে এন্ট্রি দেবেন না।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
         {memberDirectoryError && canOperateDining && <div className="state-card state-card-warning"><Icon name="warning" size={18}/><div><strong>সদস্য তালিকা সম্পূর্ণ লোড হয়নি</strong><p>{memberDirectoryError} নিজের নামে এন্ট্রি দেওয়ার জন্য fallback দেখানো হতে পারে; অন্য সদস্যের নামে এন্ট্রির আগে তালিকা পুনরায় লোড করুন।</p><button className="secondary-button compact" type="button" onClick={loadMembers}>আবার চেষ্টা করুন</button></div></div>}
-        <MarketEntryForm isManager={canOperateDining} members={marketMembers} ownMembershipId={membership?.membership_id} period={runningPeriod} onSaved={() => loadMembers({ quiet: true })} onCancel={backToHome} />
+        <MarketEntryForm isManager={canOperateDining} members={marketMembers} ownMembershipId={membership?.membership_id} period={runningPeriod} onSaved={() => loadMembers({ quiet: true })} onCancel={backToPrevious} />
       </div>
     );
   }
@@ -2466,8 +2486,8 @@ export function DiningPage() {
   if (view === 'admin-entry') {
     return <div className={`${managerPageStackClass} dining-experience`}>
       <div className="subpage-back-row">
-        <button className="secondary-button compact" type="button" onClick={backToHome}>
-          <Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং
+        <button className="secondary-button compact" type="button" onClick={backToPrevious}>
+          <Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান
         </button>
       </div>
       <div className="request-entry-choice-grid admin-entry-choice-grid">
@@ -2485,13 +2505,13 @@ export function DiningPage() {
   }
 
   if (view === 'admin-manual-request') {
-    return <div className={`${managerPageStackClass} dining-experience`}><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={() => setView('admin-entry')}><Icon name="chevron" size={15} className="rotate-left" /> এডমিন এন্ট্রি</button></div><ManualMemberMealRequest members={members} period={runningPeriod} onSaved={loadMembers} onCancel={() => setView('admin-entry')} /></div>;
+    return <div className={`${managerPageStackClass} dining-experience`}><div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div><ManualMemberMealRequest members={members} period={runningPeriod} onSaved={loadMembers} onCancel={() => setView('admin-entry')} /></div>;
   }
 
   if (view === 'manager-meal') {
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div>
         <ManagerMealEntry members={members} onSaved={loadMembers} canManageFinalMeals={canManageFinalMeals} />
       </div>
     );
@@ -2501,7 +2521,7 @@ export function DiningPage() {
   if (view === 'manager-request') {
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div>
         <ManagerMealRequests />
       </div>
     );
@@ -2510,7 +2530,7 @@ export function DiningPage() {
   if (view === 'deposit') {
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div>
         <ManagerDepositForm members={members} period={runningPeriod} onSaved={loadMembers} />
       </div>
     );
@@ -2519,7 +2539,7 @@ export function DiningPage() {
   if (view === 'other-expense') {
     return (
       <div className={`${managerPageStackClass} dining-experience`}>
-        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToHome}><Icon name="chevron" size={15} className="rotate-left" /> ডাইনিং</button></div>
+        <div className="subpage-back-row"><button className="secondary-button compact" type="button" onClick={backToPrevious}><Icon name="chevron" size={15} className="rotate-left" /> ফিরে যান</button></div>
         <ManagerOtherExpenseForm members={members} period={runningPeriod} onSaved={loadMembers} />
       </div>
     );

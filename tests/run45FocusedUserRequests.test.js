@@ -122,7 +122,7 @@ test('cold relaunch helper resets app routes to Dashboard but preserves public a
 
 test('archived summary PDF pre-opens a user-authorized report window before network wait', () => {
   assert.match(history, /openPrintReportWindow\(\)/);
-  assert.match(history, /const detail = await fetchArchivedMonthDetail\(row\.period_id\);\s*printArchivedMonthlyReport\(detail, reportWindow\);/);
+  assert.match(history, /const detail = await fetchArchivedMonthDetail\(row\.period_id\);\s*printArchivedMonthlyReport\(detail, reportWindow, \{ generatedBy:/);
   assert.match(history, /reportWindow && !reportWindow\.closed\) reportWindow\.close\(\)/);
 });
 

@@ -1,278 +1,548 @@
---- a/src/features/auth/AuthPage.jsx
-+++ b/src/features/auth/AuthPage.jsx
-@@ -292,7 +292,7 @@
-   );
+--- Run108/src/services/reportService.js
++++ Run109/src/services/reportService.js
+@@ -228,8 +228,89 @@
+   return `"${escaped}"`;
  }
  
--function AuthFrame({ title, subtitle, children, compact = false, minimal = false, headerAction = null }) {
-+function AuthFrame({ title, subtitle, children, compact = false, minimal = false }) {
-   return (
-     <main className={`auth-page ${minimal ? 'auth-page-verification' : ''}`}>
-       <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''} ${title === 'একটি অ্যাকাউন্ট তৈরি করুন' ? 'auth-shell-register' : title === 'অ্যাকাউন্টে প্রবেশ করুন' ? 'auth-shell-login' : ''} ${minimal ? 'auth-shell-verification' : ''}`}>
-@@ -315,13 +315,12 @@
-           <div className="auth-form-toolbar">
-             <span className="auth-form-toolbar-label auth-toolbar-pill"><Icon name={minimal ? 'mail-check' : 'shield-check'} size={15} /> {minimal ? 'ইমেইল যাচাই' : 'নিরাপদ অ্যাকাউন্ট'}</span>
-           </div>
--          <div className={`auth-header ${headerAction ? 'auth-header-with-action' : ''}`}>
-+          <div className="auth-header">
-             <div className="auth-header-copy">
-               {!minimal && <span className="eyebrow">{title === "অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>}
-               <h2 data-i18n-key={title === 'অ্যাকাউন্টে প্রবেশ করুন' ? 'auth.login.heading' : undefined}>{title}</h2>
-               {!minimal && <p>{subtitle}</p>}
-             </div>
--            {headerAction}
-           </div>
-           {children}
-           {!minimal && <nav className="auth-legal-links" aria-label="আইনি তথ্য ও পরিচিতি">
-@@ -402,7 +401,6 @@
-     <AuthFrame
-       title="অ্যাকাউন্টে প্রবেশ করুন"
-       subtitle="আপনার ইমেইল ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।"
--      headerAction={<button type="button" className="text-button auth-header-forgot" onClick={() => go('/auth/forgot-password')}>পাসওয়ার্ড ভুলে গেছেন?</button>}
-     >
-       {sessionPolicyNotice && <div className="auth-session-dialog-backdrop" role="presentation"><section className="auth-session-dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-session-dialog-title" aria-describedby="auth-session-dialog-description"><span className="auth-session-dialog-icon"><Icon name="shield-alert" size={25}/></span><h3 id="auth-session-dialog-title">নিরাপত্তার কারণে লগআউট</h3><p id="auth-session-dialog-description">{sessionPolicyNotice}</p><button type="button" className="primary-button large" onClick={() => setSessionPolicyNotice('')}>বুঝেছি, আবার লগইন করব</button></section></div>}
-       <form className="form-stack" onSubmit={submit}>
-@@ -747,11 +745,18 @@
- 
- function AuthSwitch({ current }) {
-   return (
--    <div className="auth-switch">
--      <span>{current === 'login' ? 'এখনো অ্যাকাউন্ট নেই?' : 'ইতিমধ্যে অ্যাকাউন্ট আছে?'}</span>
--      {authLinks.filter((link) => link.path !== `/auth/${current}`).map((link) => (
--        <button type="button" className="text-button" key={link.path} onClick={() => go(link.path)}>{link.label}</button>
--      ))}
-+    <div className={`auth-switch ${current === 'login' ? 'auth-switch-login' : ''}`}>
-+      <span className="auth-switch-prompt">
-+        <span>{current === 'login' ? 'এখনো অ্যাকাউন্ট নেই?' : 'ইতিমধ্যে অ্যাকাউন্ট আছে?'}</span>
-+        {authLinks.filter((link) => link.path !== `/auth/${current}`).map((link) => (
-+          <button type="button" className="text-button" key={link.path} onClick={() => go(link.path)}>{link.label}</button>
-+        ))}
-+      </span>
-+      {current === 'login' && (
-+        <button type="button" className="text-button auth-forgot-inline" onClick={() => go('/auth/forgot-password')}>
-+          পাসওয়ার্ড ভুলে গেছেন?
-+        </button>
-+      )}
-     </div>
-   );
- }
---- a/src/styles/run103-about-login-precision.css
-+++ b/src/styles/run103-about-login-precision.css
-@@ -1,35 +1,26 @@
--/* Run103 — About showcase translation completion and Login header refinement.
--   Presentation/localization only. No auth or account logic is changed. */
--
--.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-with-action {
-+/* Run103 — About showcase translation completion and focused login/member layout refinements.
-+   Presentation only: password recovery navigation remains on the login footer row. */
-+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-login {
-   display: flex;
-   align-items: center;
-   justify-content: space-between;
-+  flex-wrap: nowrap;
-   gap: 12px;
-   width: 100%;
-   text-align: left;
- }
--.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-with-action > .auth-header-copy {
--  flex: 1 1 auto;
-+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-prompt {
-+  display: inline-flex;
-+  align-items: center;
-+  flex: 0 1 auto;
-   min-width: 0;
--  width: auto;
--  margin: 0;
--  text-align: left;
--}
--.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-with-action .eyebrow { display: none; }
--.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-with-action h2 {
--  max-width: none;
--  margin: 0;
--  color: #477461 !important;
--  font-size: clamp(20px, 2vw, 24px);
--  line-height: 1.3;
--  text-align: left;
--  text-wrap: nowrap;
-+  gap: 8px;
-+  white-space: nowrap;
- }
--.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-forgot {
-+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
-   flex: 0 0 auto;
-   margin: 0;
--  padding: 6px 0 6px 8px;
-+  padding: 4px 0 4px 8px;
-   color: #477461;
-   font-size: 12px;
-   font-weight: 700;
-@@ -37,26 +28,104 @@
-   white-space: nowrap;
-   text-align: right;
- }
--:root[data-theme="dark"] .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-with-action h2 { color: #9bc8ae !important; }
--:root[data-theme="dark"] .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-forgot { color: #a7d2b9; }
-+:root[data-theme="dark"] .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
-+  color: #a7d2b9;
+-// Inline copy of public/icons/hostel-life-mark.svg keeps the report logo available in isolated print windows.
+-const REPORT_BRAND_MARK_DATA_URI = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0IiBmaWxsPSJub25lIj48cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxNyIgZmlsbD0iIzEyM0IzNSIvPjxwYXRoIGQ9Ik0xMyAyOUwzMiAxNEw1MSAyOSIgc3Ryb2tlPSIjRERGM0U4IiBzdHJva2Utd2lkdGg9IjQuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHBhdGggZD0iTTE4IDI5VjQ2QzE4IDQ4IDIwIDUwIDIyIDUwSDQyQzQ0IDUwIDQ2IDQ4IDQ2IDQ2VjI5IiBzdHJva2U9IiNERjNGRTgiIHN0cm9rZS13aWR0aD0iNC41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PHBhdGggZD0iTTI4IDUwVjM2SDM2VjUwIiBzdHJva2U9IiNERjNGRTgiIHN0cm9rZS13aWR0aD0iNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==';
++function formatReportHeaderDate(value) {
++  if (!value) return '—';
++  const raw = String(value).trim();
++  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
++    ? new Date(`${raw}T00:00:00Z`)
++    : new Date(raw);
++  if (Number.isNaN(date.getTime())) return raw;
++  try {
++    return new Intl.DateTimeFormat(getUiLocale(), {
++      day: '2-digit',
++      month: 'short',
++      year: 'numeric',
++      timeZone: 'UTC',
++    }).format(date);
++  } catch {
++    return raw;
++  }
 +}
 +
-+/* Member details: a centered, wider working area with six compact metrics in
-+   two balanced desktop rows. Narrow phones retain a readable two-column grid. */
-+.dashboard-reimagined .member-period-detail-modal {
-+  box-sizing: border-box;
-+  width: min(920px, calc(100vw - 36px)) !important;
-+  max-width: 920px !important;
-+  margin-inline: auto;
-+  padding: clamp(12px, 1.6vw, 18px);
-+  justify-self: center;
++function createReportHeaderCanvas(width, height, draw) {
++  const canvas = document.createElement('canvas');
++  canvas.width = width;
++  canvas.height = height;
++  const context = canvas.getContext('2d');
++  if (!context) return '';
++  context.clearRect(0, 0, width, height);
++  context.textBaseline = 'alphabetic';
++  context.direction = 'ltr';
++  draw(context, width, height);
++  try { return canvas.toDataURL('image/png'); }
++  catch { return ''; }
 +}
-+.dashboard-reimagined .member-period-detail-modal > .modal-head {
-+  box-sizing: border-box;
-+  width: 100% !important;
-+  max-width: none !important;
-+  margin: 0 0 12px !important;
++
++function fitReportCanvasText(context, text, { weight = 500, baseSize = 48, minSize = 30, maxWidth, family = '"Noto Sans Bengali", Arial, sans-serif' } = {}) {
++  let size = baseSize;
++  const value = String(text ?? '');
++  while (size > minSize) {
++    context.font = `${weight} ${size}px ${family}`;
++    if (context.measureText(value).width <= maxWidth) break;
++    size -= 1;
++  }
++  context.font = `${weight} ${size}px ${family}`;
++  return size;
 +}
-+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
-+  display: grid;
-+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-+  grid-auto-rows: minmax(84px, auto) !important;
-+  align-items: stretch;
-+  gap: clamp(9px, 1.1vw, 12px);
-+  width: 100%;
-+  max-width: 100%;
-+  padding: 8px 0 12px !important;
-+  box-sizing: border-box;
++
++function buildReportHeaderLeftImage({ appName, tagline, reportTitle, dateRange }) {
++  return createReportHeaderCanvas(1740, 440, (context, width) => {
++    context.textAlign = 'left';
++    context.fillStyle = '#173f32';
++    context.font = '800 82px "Noto Sans Bengali", Arial, sans-serif';
++    context.fillText(appName, 4, 84);
++    context.fillStyle = '#64766c';
++    context.font = '400 48px "Noto Sans Bengali", Arial, sans-serif';
++    context.fillText(tagline, 5, 170);
++    context.fillStyle = '#244d3b';
++    fitReportCanvasText(context, reportTitle, { weight: 750, baseSize: 66, minSize: 42, maxWidth: width - 12 });
++    context.fillText(reportTitle, 5, 278);
++    context.fillStyle = '#53665b';
++    fitReportCanvasText(context, dateRange, { weight: 500, baseSize: 48, minSize: 34, maxWidth: width - 12 });
++    context.fillText(dateRange, 5, 382);
++  });
 +}
-+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
-+  box-sizing: border-box;
-+  min-width: 0;
-+  min-height: 84px !important;
-+  height: 100%;
-+  padding: 12px 14px;
-+  border-radius: 13px;
-+}
-+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > span {
-+  font-size: 11px;
-+  line-height: 1.4;
-+}
-+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
-+  font-size: clamp(16px, 1.35vw, 19px);
-+  line-height: 1.35;
-+  overflow-wrap: anywhere;
-+}
-+.dashboard-reimagined .member-period-detail-modal .member-period-balance {
-+  width: 100%;
-+  max-width: 100%;
-+  margin: 0 0 13px !important;
-+  box-sizing: border-box;
-+}
-+.dashboard-reimagined .member-period-detail-modal > .archive-detail-section {
-+  width: 100% !important;
-+  max-width: 100% !important;
-+  margin: 0 0 12px !important;
-+  box-sizing: border-box;
++
++function buildReportHeaderRightImage({ managerName, managerPhone, periodLabel, generatedBy, generatedAt, labels }) {
++  const managerLine = [
++    managerName ? `${labels.manager}: ${managerName}` : '',
++    managerPhone ? `${labels.contact}: ${managerPhone}` : '',
++  ].filter(Boolean).join('   •   ') || `${labels.manager}: —`;
++  const rows = [
++    { text: managerLine, y: 76, weight: 700, base: 57, min: 37, color: '#294a3a' },
++    { text: `${labels.month}: ${periodLabel || '—'}`, y: 176, weight: 600, base: 54, min: 38, color: '#506258' },
++    { text: `${labels.preparedBy}: ${generatedBy || '—'}`, y: 276, weight: 500, base: 49, min: 34, color: '#647269' },
++    { text: `${labels.generatedAt}: ${generatedAt}`, y: 376, weight: 400, base: 45, min: 32, color: '#748178' },
++  ];
++  return createReportHeaderCanvas(1800, 440, (context, width) => {
++    context.textAlign = 'right';
++    for (const row of rows) {
++      context.fillStyle = row.color;
++      fitReportCanvasText(context, row.text, { weight: row.weight, baseSize: row.base, minSize: row.min, maxWidth: width - 12 });
++      context.fillText(row.text, width - 6, row.y);
++    }
++  });
 +}
  
- @media (max-width: 640px) {
--  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-brand-panel { padding: 11px 13px 9px !important; }
--  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-brand-panel .auth-brand-quote {
--    margin-top: 6px !important;
--    padding: 7px 9px 8px !important;
--    font-size: 11px !important;
--  }
--  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-brand-feature-list { margin-top: 6px; gap: 4px; }
--  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-with-action { gap: 7px; }
--  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-with-action h2 {
--    font-size: clamp(15px, 4.7vw, 18px);
--    white-space: nowrap;
-+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-login {
-+    gap: 8px;
-+  }
-+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-prompt {
-+    gap: 6px;
+ export function printReport(title, subtitle, tableHtml, existingWindow = null, metadata = {}) {
+   const win = existingWindow || window.open('', '_blank', 'width=1100,height=800');
+@@ -237,27 +318,44 @@
+   const now = new Date();
+   const currentYear = Number(new Intl.DateTimeFormat('en', { timeZone: 'Asia/Dhaka', year: 'numeric' }).format(now));
+   const generatedAt = new Intl.DateTimeFormat(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(now);
+-  const titlePeriod = String(title || '').includes(' — ') ? String(title).split(' — ').slice(-1)[0].trim() : '';
++  const titleParts = String(title || '').split(' — ');
++  const titlePeriod = titleParts.length > 1 ? titleParts[1].trim() : '';
+   const periodLabel = metadata.periodLabel || titlePeriod || 'মাসিক হিসাব';
+   const managerName = String(metadata.managerName || '').trim();
+   const managerPhone = String(metadata.managerPhone || '').trim();
+   const generatedBy = String(metadata.generatedBy || metadata.preparedBy || metadata.reportCreator || '').trim();
+   const reportTitle = translateReportTitle(title);
++  const reportHeading = translateReportTitle(titleParts[0] || title);
+   const reportSubtitle = translateReportUi(subtitle || '');
+   const reportPeriodLabel = translateReportUi(periodLabel || 'মাসিক হিসাব');
++  const periodStart = metadata.periodStart || metadata.startDate || '';
++  const periodEnd = metadata.periodEnd || metadata.endDate || '';
++  const periodStatus = String(metadata.periodStatus || metadata.status || '').toLowerCase();
++  const periodDateRange = periodStart
++    ? `${formatReportHeaderDate(periodStart)} – ${(['running', 'open', 'active'].includes(periodStatus) || !periodEnd) ? translateReportUi('চলমান') : formatReportHeaderDate(periodEnd)}`
++    : translateReportUi(metadata.periodRange || periodLabel || 'তারিখের তথ্য নেই');
+   const reportMarkup = translateReportMarkup(tableHtml);
+-  const pageBrand = cssContentString([
+-    'Hostel Life',
+-    translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল মেস ব্যবস্থাপনা'),
+-    reportTitle,
+-  ].filter(Boolean).join('\n'));
+-  const pageMeta = cssContentString([
+-    `${translateReportUi('মাস')}: ${reportPeriodLabel}`,
+-    managerName ? `${translateReportUi('ম্যানেজার')}: ${managerName}` : '',
+-    managerPhone ? `${translateReportUi('যোগাযোগ')}: ${managerPhone}` : '',
+-    `${translateReportUi('প্রস্তুত করেছেন')}: ${generatedBy || '—'}`,
+-    `${translateReportUi('প্রস্তুতির সময়')}: ${generatedAt}`,
+-  ].filter(Boolean).join('\n'));
++  const reportLogoUrl = new URL('/icons/hostel-life-mark.svg', window.location.origin).href;
++  const pageBrandImage = buildReportHeaderLeftImage({
++    appName: 'Hostel Life',
++    tagline: translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'),
++    reportTitle: reportHeading,
++    dateRange: periodDateRange,
++  });
++  const pageMetaImage = buildReportHeaderRightImage({
++    managerName,
++    managerPhone,
++    periodLabel: reportPeriodLabel,
++    generatedBy,
++    generatedAt,
++    labels: {
++      manager: translateReportUi('ম্যানেজার'),
++      contact: translateReportUi('যোগাযোগ'),
++      month: translateReportUi('মাস'),
++      preparedBy: translateReportUi('প্রস্তুত করেছেন'),
++      generatedAt: translateReportUi('প্রস্তুতির সময়'),
++    },
++  });
+   const pageFooter = cssContentString([
+     `Copyright © ${currentYear} Hostel-Life. All rights reserved.`,
+     'Designed & Developed by Rakibul Islam Samrat',
+@@ -272,9 +370,9 @@
+   win.document.write(`<!doctype html><html lang="${getUiLocale() === 'en-US' ? 'en' : 'bn-BD'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(reportTitle)}</title><style>
+   :root{color-scheme:light}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{font-family:Arial,"Noto Sans Bengali",sans-serif;max-width:100%;color:#203129;font-size:11px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-body{padding:0}.report-subtitle{margin:0 0 5mm;color:#68776e;font-size:9px;line-height:1.5}.report-section-title{margin:6mm 0 2.5mm;font-size:13px;line-height:1.35;color:#245f3e;break-after:avoid;page-break-after:avoid}.report-summary{margin:0 0 5mm;width:100%;table-layout:fixed}.report-summary td{background:#f6faf7}.report-summary td strong{display:block;margin-top:3px;font-size:14px;color:#174d30}.report-summary td small{color:#718178;font-size:9px}.report-member-detail .report-member-summary{margin:0 0 5mm;border:1px solid #dbe5de;border-radius:7px;overflow:hidden}.report-member-detail .report-member-summary th{padding:6px 7px;background:#f1f6f2;color:#506257;font-size:9px}.report-member-detail .report-member-summary td{padding:6px 8px;background:#fff;vertical-align:middle}.report-member-detail .report-member-summary td strong{margin:0;color:#174d30;font-size:11px;line-height:1.4;overflow-wrap:anywhere}.report-member-detail .report-member-section{margin:0 0 4mm;break-inside:auto;page-break-inside:auto}.report-member-detail .report-section-title{margin:5mm 0 2mm;padding:0 0 1.5mm;border-bottom:1px solid #e1e9e3;font-size:12px;break-after:avoid;page-break-after:avoid}.report-member-detail .report-member-table{font-size:9px;line-height:1.4;table-layout:fixed}.report-member-detail .report-member-table th,.report-member-detail .report-member-table td{padding:5px 6px}.report-member-detail .report-member-table tr{break-inside:avoid;page-break-inside:avoid}.report-member-detail .report-member-table thead{display:table-header-group}.report-table-wrap{width:100%;max-width:100%;overflow:visible}table{width:100%;max-width:100%;border-collapse:collapse;font-size:10px;line-height:1.45;table-layout:fixed}th,td{border:1px solid #dbe4de;padding:6px 7px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}th{background:#edf5ef;color:#244d35;font-weight:800}tbody tr:nth-child(even){background:#fbfdfb}.meal-matrix{font-size:7px;table-layout:fixed}.meal-matrix th,.meal-matrix td{padding:3px 2px;text-align:center;white-space:nowrap;overflow-wrap:normal;word-break:normal}.meal-matrix th:first-child,.meal-matrix td:first-child{text-align:left;white-space:normal;width:90px}.meal-matrix th:not(:first-child){font-size:7px}tfoot td,tfoot th{background:#f2f7f3;font-weight:800}.report-note{margin:4mm 0;color:#738177;font-size:9px;line-height:1.5}
+   @page{size:${pageSize};margin:25.4mm 12.7mm 25.4mm;
+-    @top-left{content:${pageBrand};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:middle;text-align:left;width:48%;height:100%;padding:0 2mm 2mm 11mm;border-bottom:1.1pt solid #d8e3db;background-image:url("${REPORT_BRAND_MARK_DATA_URI}");background-repeat:no-repeat;background-position:left center;background-size:8.5mm 8.5mm;font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:7.6pt;line-height:1.32;font-weight:700;color:#244437}
+-    @top-right{content:${pageMeta};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:middle;text-align:right;width:52%;height:100%;padding:0 0 2mm 2mm;border-bottom:1.1pt solid #d8e3db;font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.6pt;line-height:1.32;font-weight:500;color:#53645a}
+-    @bottom-center{content:${pageFooter};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:middle;text-align:center;width:calc(100% - 25.4mm);height:100%;margin:0 auto;padding:2.2mm 0 0;border-top:.8pt solid #dfe7e1;font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.8pt;line-height:1.38;font-weight:400;color:#829087}
++    @top-left{content:${pageBrandImage ? '""' : cssContentString(['Hostel Life', translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'), reportHeading, periodDateRange].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;width:49%;height:100%;padding:0 2mm 2.4mm 0;border-bottom:1.1pt solid #d8e3db;background-image:url("${reportLogoUrl}")${pageBrandImage ? `,url("${pageBrandImage}")` : ''};background-repeat:no-repeat${pageBrandImage ? ',no-repeat' : ''};background-position:left center${pageBrandImage ? ',12.6mm center' : ''};background-size:10.6mm 10.6mm${pageBrandImage ? ',calc(100% - 12.6mm) calc(100% - 2.4mm)' : ''};font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:7.2pt;line-height:1.35;font-weight:700;color:#244437}
++    @top-right{content:${pageMetaImage ? '""' : cssContentString([`${translateReportUi('ম্যানেজার')}: ${managerName || '—'}  •  ${translateReportUi('যোগাযোগ')}: ${managerPhone || '—'}`, `${translateReportUi('মাস')}: ${reportPeriodLabel}`, `${translateReportUi('প্রস্তুত করেছেন')}: ${generatedBy || '—'}`, `${translateReportUi('প্রস্তুতির সময়')}: ${generatedAt}`].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;text-align:right;width:51%;height:100%;padding:0 0 2.4mm 2mm;border-bottom:1.1pt solid #d8e3db;${pageMetaImage ? `background-image:url("${pageMetaImage}");background-repeat:no-repeat;background-position:center center;background-size:100% calc(100% - 2.4mm);` : 'font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.4pt;line-height:1.45;font-weight:500;color:#53645a;'}}
++    @bottom-center{content:${pageFooter};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:top;text-align:center;width:calc(100% - 25.4mm);height:100%;margin:0 auto;padding:1.2mm 0 0;border-top:.8pt solid #dfe7e1;font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.8pt;line-height:1.38;font-weight:400;color:#829087}
    }
--  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header-forgot {
-+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
-     padding-left: 2px;
-     font-size: 10.5px;
-   }
-+  .dashboard-reimagined .member-period-detail-modal {
-+    width: calc(100vw - 20px) !important;
-+    max-width: calc(100vw - 20px) !important;
-+    padding: 10px;
-+  }
-+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
-+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-+    grid-auto-rows: minmax(80px, auto) !important;
-+    gap: 8px;
-+    padding: 7px 0 10px !important;
-+  }
-+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
-+    min-height: 80px !important;
-+    padding: 10px;
-+  }
-+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
-+    font-size: clamp(15px, 4vw, 18px);
-+  }
+   @media print{html,body{margin:0;padding:0}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid;page-break-inside:avoid}h1,h2,h3{break-after:avoid;page-break-after:avoid}.report-summary{break-inside:avoid}.report-section{break-inside:auto}.report-table-wrap{overflow:visible}}
+   </style></head><body class="${escapeHtml(bodyClasses)}"><main class="report-body">${subtitleMarkup}${reportMarkup}</main><script>window.onload=()=>{setTimeout(()=>window.print(),300)};<\/script></body></html>`);
+@@ -391,6 +489,9 @@
+     + `<h2 class="report-section-title">${formatNumber(5, { maximumFractionDigits: 0 })}. ${translateReportUi('দৈনিক মিলের সারসংক্ষেপ')}</h2>${dailyTable}`;
+   printReport('পূর্ণ মাসিক প্রতিবেদন', subtitle, content, existingWindow, {
+     periodLabel: detail.label || '',
++    periodStart: detail.start_date || '',
++    periodEnd: detail.end_date || '',
++    periodStatus: 'closed',
+     managerName: detail.manager_at_close_name || detail.manager_name || '',
+     managerPhone: detail.manager_at_close_phone || '',
+     generatedBy: metadata.generatedBy || metadata.preparedBy || '',
+--- Run108/src/features/manager/ManagerPages.jsx
++++ Run109/src/features/manager/ManagerPages.jsx
+@@ -1322,7 +1322,7 @@
+         : `<p>${isEnglish ? 'All members' : 'সব সদস্য'}</p>`;
+       const reportManager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
+       const personalTable = `<table><thead><tr><th>${isEnglish ? 'Date' : 'তারিখ'}</th><th>${isEnglish ? 'Status' : 'অবস্থা'}</th><th>${isEnglish ? 'Breakfast' : 'ব্রেকফাস্ট'}</th><th>${isEnglish ? 'Lunch' : 'লাঞ্চ'}</th><th>${isEnglish ? 'Dinner' : 'ডিনার'}</th><th>${isEnglish ? 'Total' : 'মোট'}</th></tr></thead><tbody>${rows}</tbody></table>`;
+-      printReport(`${isEnglish ? 'Meal Sheet' : 'মিল শিট'} — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, currentPeriodRange(bundle.period), selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
++      printReport(`${isEnglish ? 'Meal Sheet' : 'মিল শিট'} — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, currentPeriodRange(bundle.period), selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, periodStart: bundle.period.start_date || '', periodEnd: bundle.period.end_date || '', periodStatus: bundle.period.status || '', managerName: reportManager?.member_name || reportManager?.full_name || '', managerPhone: reportManager?.phone || reportManager?.phone_number || reportManager?.mobile || '', generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
+     } catch (error) { toast.error(error.message || 'রিপোর্ট প্রিন্ট করা যায়নি।'); }
+     finally { setPrintBusy(false); }
+   };
+@@ -1377,6 +1377,9 @@
+   const manager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
+   const pdfMeta = {
+     periodLabel: bundle.period.label,
++    periodStart: bundle.period.start_date || '',
++    periodEnd: bundle.period.end_date || '',
++    periodStatus: bundle.period.status || '',
+     managerName: manager?.member_name || manager?.full_name || '',
+     managerPhone: manager?.phone || manager?.phone_number || manager?.mobile || '',
+     generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '',
+--- Run108/src/features/history/HistoryPage.jsx
++++ Run109/src/features/history/HistoryPage.jsx
+@@ -288,6 +288,9 @@
+         || (selectedReportPeriod?.status === 'running' ? members.find((member) => member.is_primary_manager || member.role === 'manager') : null);
+       const reportMeta = {
+         periodLabel: selectedReportPeriod?.label || '',
++        periodStart: selectedReportPeriod?.start_date || '',
++        periodEnd: selectedReportPeriod?.end_date || '',
++        periodStatus: selectedReportPeriod?.status || '',
+         managerName: reportManager?.member_name || reportManager?.full_name || '',
+         managerPhone: reportManager?.phone || reportManager?.phone_number || reportManager?.mobile || '',
+         generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '',
+--- Run108/src/features/dashboard/DashboardPage.jsx
++++ Run109/src/features/dashboard/DashboardPage.jsx
+@@ -351,6 +351,9 @@
+     try {
+       printReport('সদস্যভিত্তিক বিস্তারিত', detail.period?.label || '', `${summaryTable}${dailyTable}${transactionTable}${marketTable}`, null, {
+         periodLabel: detail.period?.label || 'মাসিক হিসাব',
++        periodStart: detail.period?.start_date || '',
++        periodEnd: detail.period?.end_date || '',
++        periodStatus: detail.period?.status || '',
+         pageOrientation: 'portrait',
+         reportVariant: 'member-detail',
+         managerName,
+--- Run108/src/features/auth/AuthPage.jsx
++++ Run109/src/features/auth/AuthPage.jsx
+@@ -155,7 +155,7 @@
+     host.replaceChildren();
+     googleId.renderButton(host, {
+       type: 'standard',
+-      theme: 'outline',
++      theme: 'filled_blue',
+       size: 'large',
+       text: 'continue_with',
+       shape: 'rectangular',
+--- Run108/src/styles/run105-requested-ui-polish.css
++++ Run109/src/styles/run105-requested-ui-polish.css
+@@ -63,19 +63,26 @@
+ .auth-page .auth-legal-links a:hover { text-decoration: none !important; }
+ .auth-page .google-signin-button,
+ .auth-page .google-signin-button:disabled {
+-  background: linear-gradient(180deg, #ffffff 0%, #f4f7f5 100%) !important;
+-  border: 1px solid #d4dfd8 !important;
+-  box-shadow: 0 2px 6px rgba(24, 54, 37, .055), inset 0 1px 0 rgba(255,255,255,.9) !important;
++  color: #fff !important;
++  background: linear-gradient(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%) !important;
++  border: 1px solid #2f6fda !important;
++  box-shadow: 0 3px 9px rgba(42, 101, 196, .22), inset 0 1px 0 rgba(255,255,255,.2) !important;
+ }
+ .auth-page .google-signin-button:hover:not(:disabled) {
+-  background: #eef5f0 !important;
+-  border-color: #b9d0c1 !important;
++  color: #fff !important;
++  background: linear-gradient(135deg, #3478e8 0%, #285fc3 100%) !important;
++  border-color: #2459b8 !important;
++  box-shadow: 0 4px 11px rgba(42, 101, 196, .28) !important;
 +}
-+@media (max-width: 380px) {
-+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-login {
-+    flex-wrap: wrap;
-+  }
-+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
-+    margin-left: auto;
-+  }
++.auth-page .google-signin-button:focus-visible {
++  outline-color: rgba(66, 133, 244, .35) !important;
+ }
+ :root[data-theme="dark"] .auth-page .google-signin-button,
+ :root[data-theme="dark"] .auth-page .google-signin-button:disabled {
+-  background: #26333c !important;
+-  border-color: #46575f !important;
+-  box-shadow: 0 2px 7px rgba(0,0,0,.16) !important;
++  color: #fff !important;
++  background: linear-gradient(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%) !important;
++  border-color: #4c87e9 !important;
++  box-shadow: 0 3px 10px rgba(0,0,0,.22) !important;
  }
  
- /* Preserve Google's official outline-button identity with a subtly deeper neutral fill. */
---- a/tests/run103_about_login_precision.test.mjs
-+++ b/tests/run103_about_login_precision.test.mjs
+ /* Google account checking and failure share the same calm, centered composition. */
+--- Run108/tests/run90_google_oauth_preparation.test.mjs
++++ Run109/tests/run90_google_oauth_preparation.test.mjs
+@@ -33,7 +33,7 @@
+   assert.match(authPage, /use_fedcm_for_prompt:\s*true/);
+   assert.match(authPage, /googleId\.renderButton\(/);
+   assert.match(authPage, /text:\s*'continue_with'/);
+-  assert.match(authPage, /theme:\s*'outline'/);
++  assert.match(authPage, /theme:\s*'filled_blue'/);
+   assert.match(authPage, /locale:\s*english \? 'en' : 'bn'/);
+ });
+ 
+--- Run108/tests/run98_professional_ui_refinement.test.mjs
++++ Run109/tests/run98_professional_ui_refinement.test.mjs
+@@ -20,7 +20,7 @@
+ 
+ test('Google CTA fills the available auth width and uses a highlighted official theme', () => {
+   assert.match(auth, /Math\.min\(400,/);
+-  assert.match(auth, /theme: 'outline'/);
++  assert.match(auth, /theme: 'filled_blue'/);
+   assert.match(appCss, /\.auth-page \.google-signin-section\s*\{[^}]*width:\s*min\(100%, 400px\)/s);
+   assert.match(appCss, /\.auth-page \.google-signin-consent\s*\{[^}]*width:\s*100%/s);
+   assert.match(appCss, /\.auth-page \.google-signin-sdk-slot\s*\{[^}]*min-height:\s*52px/s);
+--- Run108/tests/run99_ui_followup_polish.test.mjs
++++ Run109/tests/run99_ui_followup_polish.test.mjs
 @@ -9,6 +9,7 @@
- const about = read('public/about.html');
- const runtime = read('public/language-runtime.js');
+ 
+ const appCss = read('src/styles/run99-auth-member-followup.css');
+ const run101Css = read('src/styles/run101-ui-completion.css');
++const run105Css = read('src/styles/run105-requested-ui-polish.css');
+ const aboutCss = read('public/landing-assets/run99-about-hero-alignment.css');
  const auth = read('src/features/auth/AuthPage.jsx');
-+const dashboard = read('src/features/dashboard/DashboardPage.jsx');
- const css = read('src/styles/run103-about-login-precision.css');
+ const translations = read('public/app-english-translations.js');
+@@ -52,9 +53,9 @@
+ });
+ 
+ test('Google placeholder colours match the configured official GIS themes', () => {
+-  assert.match(auth, /theme:\s*'outline'/);
+-  assert.match(run101Css, /\.auth-page \.google-signin-button,[\s\S]*?background: #fff !important/);
+-  assert.match(run101Css, /:root\[data-theme="dark"\][\s\S]*?\.auth-page \.google-signin-button[\s\S]*?background: #f8f9fa !important/);
++  assert.match(auth, /theme:\s*'filled_blue'/);
++  assert.match(run105Css, /\.auth-page \.google-signin-button,[\s\S]*?background: linear-gradient\(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%\) !important/);
++  assert.match(run105Css, /:root\[data-theme="dark"\][\s\S]*?\.auth-page \.google-signin-button[\s\S]*?background: linear-gradient/);
+ });
+ 
+ test('About, Privacy and Terms footer links are visibly highlighted and responsive', () => {
+--- Run108/tests/run100_ui_followup_completion.test.mjs
++++ Run109/tests/run100_ui_followup_completion.test.mjs
+@@ -13,6 +13,7 @@
  const main = read('src/main.jsx');
+ const dashboard = read('src/features/dashboard/DashboardPage.jsx');
+ const callback = read('src/features/auth/GoogleOAuthCallbackPage.jsx');
++const googleUiCss = read('src/styles/run105-requested-ui-polish.css');
  
-@@ -50,17 +51,21 @@
-   assert.match(runtime, /'about\.sample\.report\.privacyNote':\s*'Sample data · No personal information'/);
+ test('Run100 application stylesheet is imported after Run99 and exists', () => {
+   assert.match(main, /import\s+['"]\.\/styles\/run100-final-ui-refinement\.css['"]/);
+@@ -66,11 +67,11 @@
+   assert.match(auth, /Math\.max\(200,\s*Math\.min\(400,/);
  });
  
--test('Login heading and Forgot password action share the Auth header row, not the form stack', () => {
--  assert.match(auth, /headerAction=\{<button[^>]*auth-header-forgot/);
-+test('Forgot-password action is placed on the login footer beside Registration, not the heading', () => {
-+  assert.match(auth, /<div className=\{`auth-switch \${current === 'login' \? 'auth-switch-login' : ''}`\}>/);
-+  assert.match(auth, /className="text-button auth-forgot-inline" onClick=\{\(\) => go\('\/auth\/forgot-password'\)\}/);
-+  assert.match(auth, /className="auth-switch-prompt"[\s\S]*?link\.label[\s\S]*?auth-forgot-inline/);
-+  assert.doesNotMatch(auth, /headerAction=/);
-   assert.match(auth, /title="অ্যাকাউন্টে প্রবেশ করুন"/);
-+  assert.match(auth, /আবারও স্বাগতম/);
-   assert.match(auth, /data-i18n-key=\{title === 'অ্যাকাউন্টে প্রবেশ করুন' \? 'auth\.login\.heading'/);
--  assert.doesNotMatch(auth, /<form className="form-stack"[\s\S]*?পাসওয়ার্ড ভুলে গেছেন\?/);
-   assert.match(runtime, /'auth\.login\.heading':\s*'Account Login'/);
+-test('Google placeholder disabled state preserves GIS light/dark colour without opacity shift', () => {
+-  assert.match(auth, /theme:\s*'outline'/);
++test('Google placeholder and official GIS button use the same colorful blue treatment without opacity shift', () => {
++  assert.match(auth, /theme:\s*'filled_blue'/);
+   assert.match(appCss, /\.google-signin-button:disabled\s*\{[^}]*opacity:\s*1\s*!important/);
+-  assert.match(read('src/styles/run101-ui-completion.css'), /:root\[data-theme="dark"\][\s\S]*?\.google-signin-button[\s\S]*?background: #f8f9fa !important/);
+-  assert.match(read('src/styles/run101-ui-completion.css'), /\.google-signin-button\s*,[\s\S]*?transition: none !important/);
++  assert.match(googleUiCss, /background: linear-gradient\(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%\) !important/);
++  assert.match(googleUiCss, /:root\[data-theme="dark"\][\s\S]*?\.auth-page \.google-signin-button[\s\S]*?background: linear-gradient/);
  });
  
--test('Login layout stays horizontal on desktop/mobile and branding is compact only on mobile Login', () => {
--  assert.match(css, /\.auth-header-with-action\s*\{[\s\S]*display:\s*flex/);
--  assert.match(css, /@media \(max-width:\s*640px\)[\s\S]*auth-shell-login[\s\S]*auth-brand-panel/);
-+test('Login footer actions remain side-by-side responsively and About branding is preserved', () => {
-+  assert.match(css, /\.auth-switch-login\s*\{[\s\S]*display:\s*flex[\s\S]*justify-content:\s*space-between/);
-+  assert.match(css, /\.auth-switch-prompt\s*\{[\s\S]*display:\s*inline-flex/);
-+  assert.match(css, /@media \(max-width:\s*640px\)[\s\S]*auth-shell-login/);
-   assert.match(css, /white-space:\s*nowrap/);
+ test('Member detail six summary cards have larger desktop and mobile row/card heights', () => {
+--- Run108/tests/run101_fifteen_ui_fixes.test.mjs
++++ Run109/tests/run101_fifteen_ui_fixes.test.mjs
+@@ -77,9 +77,9 @@
+   assert.match(read('src/styles/run100-final-ui-refinement.css'), /@media \(max-width: 849px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
  });
  
-@@ -74,3 +79,12 @@
- test('Run103 stylesheet is imported once at the end of app styles', () => {
-   assert.equal((main.match(/run103-about-login-precision\.css/g) || []).length, 1);
+-test('13 — Desktop registration consent/Google fill the action width; Google uses stable outline theme and footer text links', () => {
++test('13 — Desktop registration consent/Google fill the action width; Google uses the filled blue theme and footer text links', () => {
+   assert.match(appCss, /\.auth-shell-register:not\(\.auth-shell-compact\) \.auth-combined-consent,[\s\S]*?width: 100%/);
+-  assert.match(auth, /theme: 'outline'/);
++  assert.match(auth, /theme: 'filled_blue'/);
+   assert.match(appCss, /\.auth-form-panel > \.auth-legal-links a[\s\S]*?background: transparent/);
  });
+ 
+--- Run108/tests/run105_requested_ui_patch.test.mjs
++++ Run109/tests/run105_requested_ui_patch.test.mjs
+@@ -43,15 +43,15 @@
+   assert.match(dashboard, /printReport\('সদস্যভিত্তিক বিস্তারিত'/);
+   assert.match(dashboard, /class=\"report-summary report-member-summary\"[\s\S]*pageOrientation:\s*'portrait'[\s\S]*reportVariant:\s*'member-detail'/);
+   assert.doesNotMatch(dashboard, /singlePage:\s*true/);
+-  assert.match(report, /@top-left\{content:\$\{pageBrand\}/);
+-  assert.match(report, /@top-right\{content:\$\{pageMeta\}/);
++  assert.match(report, /@top-left\{content:\$\{pageBrandImage \?/);
++  assert.match(report, /@top-right\{content:\$\{pageMetaImage \?/);
+   assert.match(report, /@bottom-center\{content:\$\{pageFooter\}/);
+ });
+ 
+ test('Print reports reserve repeated branded header and footer space on every printed page', () => {
+   assert.match(report, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm/);
+-  assert.match(report, /@top-left\{content:\$\{pageBrand\}/);
+-  assert.match(report, /@top-right\{content:\$\{pageMeta\}/);
++  assert.match(report, /@top-left\{content:\$\{pageBrandImage \?/);
++  assert.match(report, /@top-right\{content:\$\{pageMetaImage \?/);
+   assert.match(report, /@bottom-center\{content:\$\{pageFooter\}/);
+   assert.doesNotMatch(report, /top:-29mm|bottom:-18mm|position:fixed[^}]*report-(?:header|footer)/);
+ });
+--- Run108/tests/run106_focused_followup.test.mjs
++++ Run109/tests/run106_focused_followup.test.mjs
+@@ -45,8 +45,8 @@
+   assert.match(reports, /report-member-detail \.report-member-summary/);
+   assert.match(reports, /report-member-detail \.report-member-table thead\{display:table-header-group\}/);
+   assert.match(reports, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm/);
+-  assert.match(reports, /@top-left\{content:\$\{pageBrand\}/);
+-  assert.match(reports, /@top-right\{content:\$\{pageMeta\}/);
++  assert.match(reports, /@top-left\{content:\$\{pageBrandImage \?/);
++  assert.match(reports, /@top-right\{content:\$\{pageMetaImage \?/);
+   assert.match(reports, /@bottom-center\{content:\$\{pageFooter\}/);
+   assert.doesNotMatch(reports, /top:-29mm|bottom:-18mm|position:fixed[^}]*report-(?:header|footer)/);
+   assert.match(reports, /Copyright ©/);
+--- Run108/tests/run107_global_report_and_ui_regressions.test.mjs
++++ Run109/tests/run107_global_report_and_ui_regressions.test.mjs
+@@ -14,8 +14,8 @@
+ 
+ test('all PDF exports share reserved repeating page header and footer areas', () => {
+   assert.match(reportService, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm;/);
+-  assert.match(reportService, /@top-left\{content:\$\{pageBrand\}/);
+-  assert.match(reportService, /@top-right\{content:\$\{pageMeta\}/);
++  assert.match(reportService, /@top-left\{content:\$\{pageBrandImage \?/);
++  assert.match(reportService, /@top-right\{content:\$\{pageMetaImage \?/);
+   assert.match(reportService, /@bottom-center\{content:\$\{pageFooter\}/);
+   assert.match(reportService, /thead\{display:table-header-group\}/);
+   assert.match(reportService, /tr\{break-inside:avoid;page-break-inside:avoid\}/);
+--- Run108/tests/run108_professional_report_header_footer.test.mjs
++++ Run109/tests/run108_professional_report_header_footer.test.mjs
+@@ -14,45 +14,49 @@
+ 
+ test('global A4 report template reserves exact half-inch side and one-inch top/bottom areas', () => {
+   assert.match(reports, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm;/);
+-  assert.match(reports, /@top-left\{content:\$\{pageBrand\}[^}]*width:48%;height:100%/);
+-  assert.match(reports, /@top-right\{content:\$\{pageMeta\}[^}]*width:52%;height:100%/);
++  assert.match(reports, /@top-left\{content:\$\{pageBrandImage \? '["']{2}'/);
++  assert.match(reports, /@top-right\{content:\$\{pageMetaImage \? '["']{2}'/);
+   assert.match(reports, /@bottom-center\{content:\$\{pageFooter\}[^}]*width:calc\(100% - 25\.4mm\);height:100%;margin:0 auto/);
+   assert.match(reports, /border-bottom:1\.1pt solid #d8e3db/);
+   assert.match(reports, /border-top:\.8pt solid #dfe7e1/);
+ });
+ 
+-test('page header carries the real app logo, brand, tagline and report type', () => {
+-  assert.match(reports, /REPORT_BRAND_MARK_DATA_URI = 'data:image\/svg\+xml;base64,/);
+-  assert.match(reports, /translateReportUi\('সহজ, স্বচ্ছ ও সুশৃঙ্খল মেস ব্যবস্থাপনা'\)/);
+-  assert.match(reports, /const pageBrand = cssContentString\(\[/);
+-  assert.match(reports, /reportTitle,/);
+-  assert.match(reports, /background-image:url\("\$\{REPORT_BRAND_MARK_DATA_URI\}"\)/);
++test('left report heading uses project logo and a high-resolution canvas hierarchy', () => {
++  assert.match(reports, /new URL\('\/icons\/hostel-life-mark\.svg', window\.location\.origin\)/);
++  assert.match(reports, /buildReportHeaderLeftImage\(/);
++  assert.match(reports, /appName: 'Hostel Life'/);
++  assert.match(reports, /tagline: translateReportUi\('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'\)/);
++  assert.match(reports, /reportTitle: reportHeading/);
++  assert.match(reports, /dateRange: periodDateRange/);
++  assert.match(reports, /context\.font = '800 82px/);
+ });
+ 
+-test('right header includes period, manager name/phone, report creator and generated timestamp', () => {
++test('right header includes month, same-line manager/contact, report creator and timestamp', () => {
+   assert.match(reports, /const generatedBy = String\(metadata\.generatedBy \|\| metadata\.preparedBy \|\| metadata\.reportCreator/);
+-  assert.match(reports, /translateReportUi\('ম্যানেজার'\)/);
+-  assert.match(reports, /translateReportUi\('যোগাযোগ'\)/);
+-  assert.match(reports, /translateReportUi\('প্রস্তুত করেছেন'\)/);
+-  assert.match(reports, /translateReportUi\('প্রস্তুতির সময়'\)/);
+-  assert.match(reports, /REPORT_BRAND_MARK_DATA_URI/);
++  assert.match(reports, /buildReportHeaderRightImage\(/);
++  assert.match(reports, /labels\.manager}: \$\{managerName/);
++  assert.match(reports, /labels\.contact}: \$\{managerPhone/);
++  assert.match(reports, /labels\.month}: \$\{periodLabel/);
++  assert.match(reports, /labels\.preparedBy}: \$\{generatedBy/);
++  assert.match(reports, /labels\.generatedAt}: \$\{generatedAt/);
+ });
+ 
+-test('footer preserves the two existing copyright/branding lines and shortens its divider by one inch', () => {
++test('every report entry point passes the report creator, manager and period metadata where available', () => {
++  assert.match(dashboard, /managerName,\s*managerPhone,\s*generatedBy: membership\?\.member_name/);
++  assert.match(dashboard, /periodStart: detail\.period\?\.start_date/);
++  assert.match(menu, /import \{ MemberPeriodDetailsModal \} from '\.\.\/dashboard\/DashboardPage'/);
++  assert.match(history, /generatedBy: membership\?\.member_name \|\| profile\?\.full_name/);
++  assert.match(history, /periodStart: selectedReportPeriod\?\.start_date/);
++  assert.match(history, /printArchivedMonthlyReport\(detail, reportWindow, \{ generatedBy:/);
++  assert.match(manager, /periodStart: bundle\.period\.start_date/);
++  assert.match(manager, /generatedBy: membership\?\.member_name \|\| profile\?\.full_name/);
++  assert.match(archive, /printArchivedMonthlyReport\(detail, null, \{ generatedBy:/);
++});
 +
++test('footer preserves the two copyright/branding lines and shortens its divider by one inch', () => {
+   assert.match(reports, /Copyright © \$\{currentYear\} Hostel-Life\. All rights reserved\./);
+   assert.match(reports, /Designed & Developed by Rakibul Islam Samrat/);
+-  assert.match(reports, /width:calc\(100% - 25\.4mm\);height:100%;margin:0 auto/);
+-});
+-
+-test('all report entry points pass the authenticated report creator and manager metadata where available', () => {
+-  assert.match(dashboard, /managerName,\s*managerPhone,\s*generatedBy: membership\?\.member_name/);
+-  assert.match(dashboard, /phone: directory\?\.phone \|\| directory\?\.phone_number/);
+-  assert.match(dashboard, /managerName=\{members\.find\([\s\S]*?\)\?\.name/);
+-  assert.match(menu, /managerName=\{members\.find\([\s\S]*?\)\?\.member_name/);
+-  assert.match(history, /generatedBy: membership\?\.member_name \|\| profile\?\.full_name/);
+-  assert.match(history, /printArchivedMonthlyReport\(detail, reportWindow, \{ generatedBy:/);
+-  assert.match(manager, /generatedBy: membership\?\.member_name \|\| profile\?\.full_name/);
+-  assert.match(archive, /printArchivedMonthlyReport\(detail, null, \{ generatedBy:/);
++  assert.match(reports, /width:calc\(100% - 25\.4mm\);height:100%;margin:0 auto;padding:1\.2mm 0 0/);
+ });
+ 
+ test('all report pages use normal content flow; no fixed header/footer offsets remain', () => {
+--- Run108/tests/run109_report_header_hierarchy_and_google_button.test.mjs
++++ Run109/tests/run109_report_header_hierarchy_and_google_button.test.mjs
+@@ -0,0 +1,65 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
 +
-+test('Member detail modal uses a centered wide frame and six compact cards across two desktop rows', () => {
-+  assert.match(css, /member-period-detail-modal\s*\{[\s\S]*width:\s*min\(920px,\s*calc\(100vw - 36px\)\) !important/);
-+  assert.match(css, /member-period-summary-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\) !important/);
-+  assert.match(css, /grid-auto-rows:\s*minmax\(84px,\s*auto\) !important/);
-+  assert.match(css, /@media \(max-width:\s*640px\)[\s\S]*member-period-summary-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\) !important/);
-+  assert.match(dashboard, /member-period-detail-modal/);
++const root = resolve(import.meta.dirname, '..');
++const read = (path) => readFileSync(resolve(root, path), 'utf8');
++const report = read('src/services/reportService.js');
++const auth = read('src/features/auth/AuthPage.jsx');
++const googleCss = read('src/styles/run105-requested-ui-polish.css');
++const manager = read('src/features/manager/ManagerPages.jsx');
++const dashboard = read('src/features/dashboard/DashboardPage.jsx');
++const history = read('src/features/history/HistoryPage.jsx');
++
++test('report header loads the exact project logo asset rather than a duplicated logo drawing', () => {
++  assert.match(report, /new URL\('\/icons\/hostel-life-mark\.svg', window\.location\.origin\)/);
++  assert.doesNotMatch(report, /REPORT_BRAND_MARK_DATA_URI/);
++  assert.match(report, /background-image:url\("\$\{reportLogoUrl\}"\)\$\{pageBrandImage \? `,url\("\$\{pageBrandImage\}"\)` : \'\'\}/);
++});
++
++test('left header follows logo + larger app name + tagline + report name + date range hierarchy', () => {
++  assert.match(report, /buildReportHeaderLeftImage\(/);
++  assert.match(report, /context\.font = '800 82px/);
++  assert.match(report, /context\.font = '400 48px/);
++  assert.match(report, /fitReportCanvasText\(context, reportTitle/);
++  assert.match(report, /fitReportCanvasText\(context, dateRange/);
++  assert.match(report, /reportTitle: reportHeading/);
++  assert.match(report, /dateRange: periodDateRange/);
++});
++
++test('manager name and phone share one meta line, followed by month, creator and generated time', () => {
++  assert.match(report, /labels\.manager\}: \$\{managerName\}/);
++  assert.match(report, /labels\.contact\}: \$\{managerPhone\}/);
++  assert.match(report, /\.filter\(Boolean\)\.join\('   •   '\)/);
++  assert.match(report, /labels\.month\}: \$\{periodLabel/);
++  assert.match(report, /labels\.preparedBy\}: \$\{generatedBy/);
++  assert.match(report, /labels\.generatedAt\}: \$\{generatedAt/);
++});
++
++test('report range uses period data and shows running instead of a not-yet-closed end date', () => {
++  assert.match(report, /function formatReportHeaderDate\(value\)/);
++  assert.match(report, /metadata\.periodStart \|\| metadata\.startDate/);
++  assert.match(report, /metadata\.periodEnd \|\| metadata\.endDate/);
++  assert.match(report, /metadata\.periodStatus \|\| metadata\.status/);
++  assert.match(report, /\['running', 'open', 'active'\]\.includes\(periodStatus\) \|\| !periodEnd/);
++  assert.match(report, /translateReportUi\('চলমান'\)/);
++  assert.match(manager, /periodStart: bundle\.period\.start_date/);
++  assert.match(manager, /periodEnd: bundle\.period\.end_date/);
++  assert.match(history, /periodStart: selectedReportPeriod\?\.start_date/);
++  assert.match(dashboard, /periodStart: detail\.period\?\.start_date/);
++});
++
++test('header line leaves breathing room and footer copyright sits slightly closer under its rule', () => {
++  assert.match(report, /padding:0 2mm 2\.4mm 0;border-bottom:1\.1pt solid/);
++  assert.match(report, /padding:0 0 2\.4mm 2mm;border-bottom:1\.1pt solid/);
++  assert.match(report, /vertical-align:top;text-align:center;width:calc\(100% - 25\.4mm\);height:100%;margin:0 auto;padding:1\.2mm 0 0;border-top:\.8pt solid/);
++});
++
++test('official Google Identity Services button uses the supported filled blue theme', () => {
++  assert.match(auth, /theme: 'filled_blue'/);
++  assert.doesNotMatch(auth, /theme: 'outline'/);
++  assert.match(googleCss, /linear-gradient\(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%\)/);
++  assert.match(googleCss, /color: #fff !important/);
++  assert.match(googleCss, /\.auth-page \.google-signin-button:hover:not\(:disabled\)/);
 +});

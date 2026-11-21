@@ -11,6 +11,7 @@ const runtime = read('public/language-runtime.js');
 const auth = read('src/features/auth/AuthPage.jsx');
 const dashboard = read('src/features/dashboard/DashboardPage.jsx');
 const css = read('src/styles/run103-about-login-precision.css');
+const run105Css = read('src/styles/run105-requested-ui-polish.css');
 const main = read('src/main.jsx');
 
 test('About feature heading and all four sample card captions have explicit English keys', () => {
@@ -51,10 +52,12 @@ test('Monthly report sample privacy note is fully translated', () => {
   assert.match(runtime, /'about\.sample\.report\.privacyNote':\s*'Sample data · No personal information'/);
 });
 
-test('Forgot-password action is placed on the login footer beside Registration, not the heading', () => {
-  assert.match(auth, /<div className=\{`auth-switch \${current === 'login' \? 'auth-switch-login' : ''}`\}>/);
-  assert.match(auth, /className="text-button auth-forgot-inline" onClick=\{\(\) => go\('\/auth\/forgot-password'\)\}/);
-  assert.match(auth, /className="auth-switch-prompt"[\s\S]*?link\.label[\s\S]*?auth-forgot-inline/);
+test('Forgot-password, registration and account prompt are arranged on the login footer', () => {
+  assert.match(auth, /<div className="auth-switch auth-switch-login">/);
+  assert.match(auth, /auth-switch-account-prompt/);
+  assert.match(auth, /auth-register-inline/);
+  assert.match(auth, /auth-forgot-inline/);
+  assert.match(auth, /go\('\/auth\/forgot-password'\)/);
   assert.doesNotMatch(auth, /headerAction=/);
   assert.match(auth, /title="অ্যাকাউন্টে প্রবেশ করুন"/);
   assert.match(auth, /আবারও স্বাগতম/);
@@ -62,10 +65,12 @@ test('Forgot-password action is placed on the login footer beside Registration, 
   assert.match(runtime, /'auth\.login\.heading':\s*'Account Login'/);
 });
 
-test('Login footer actions remain side-by-side responsively and About branding is preserved', () => {
-  assert.match(css, /\.auth-switch-login\s*\{[\s\S]*display:\s*flex[\s\S]*justify-content:\s*space-between/);
-  assert.match(css, /\.auth-switch-prompt\s*\{[\s\S]*display:\s*inline-flex/);
-  assert.match(css, /@media \(max-width:\s*640px\)[\s\S]*auth-shell-login/);
+test('Login footer keeps account creation grouped at left and password recovery at right', () => {
+  assert.match(auth, /<span className=\"auth-register-group\">[\s\S]*auth-switch-account-prompt[\s\S]*auth-register-inline/);
+  assert.match(run105Css, /auth-switch-login\s*\{[\s\S]*display:\s*flex\s*!important/);
+  assert.match(run105Css, /auth-register-group[\s\S]*display:\s*inline-flex/);
+  assert.match(run105Css, /auth-forgot-inline[\s\S]*margin:\s*0 0 0 auto\s*!important/);
+  assert.match(run105Css, /@media \(max-width:\s*520px\)/);
   assert.match(css, /white-space:\s*nowrap/);
 });
 
@@ -76,8 +81,10 @@ test('Google outline button fill is subtly deepened without replacing Google bra
   assert.doesNotMatch(css, /google-signin-mark|google-signin-sdk-slot|iframe/);
 });
 
-test('Run103 stylesheet is imported once at the end of app styles', () => {
+test('Run103 and Run105 stylesheets are imported once in the correct order', () => {
   assert.equal((main.match(/run103-about-login-precision\.css/g) || []).length, 1);
+  assert.equal((main.match(/run105-requested-ui-polish\.css/g) || []).length, 1);
+  assert.ok(main.indexOf('run105-requested-ui-polish.css') > main.indexOf('run103-about-login-precision.css'));
 });
 
 

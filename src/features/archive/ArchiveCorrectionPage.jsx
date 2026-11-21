@@ -125,7 +125,7 @@ function ReadOnlyReport({ detail }) {
 
 export function ArchiveCorrectionPage() {
   const toast = useToast();
-  const { isManager } = useAuth();
+  const { isManager, membership, profile } = useAuth();
   const { isPrimaryManager, period } = useManagementContext();
   const primary = period ? Boolean(isPrimaryManager) : Boolean(isManager);
   const [months, setMonths] = useState([]);
@@ -303,7 +303,7 @@ export function ArchiveCorrectionPage() {
         <button type="button" className="secondary-button compact" onClick={() => { setSelectedPeriodId(''); setDetail(null); setBundle(null); setEditing(null); setActiveKind('all'); setArchiveView('correction'); }}><Icon name="arrow-left" size={15}/> সব মাস</button>
         <div className="archive-detail-title"><span className="archive-eyebrow">নির্বাচিত মাসের হিসাব</span><h2>{detailLabel}</h2><p>{formatDateBangla(detailStart)} – {formatDateBangla(detailEnd)}</p></div>
         <span className="archive-correction-status"><i className="archive-status-dot"/> মাস বন্ধ</span>
-        <button type="button" className="secondary-button compact archive-month-pdf-button" disabled={!Array.isArray(detail?.members)} title={!Array.isArray(detail?.members) ? 'পূর্ণ রিপোর্টের জন্য Run41 migration প্রয়োজন' : 'পূর্ণ মাসিক প্রতিবেদন PDF / প্রিন্ট'} onClick={() => { try { printArchivedMonthlyReport(detail); } catch (error) { toast.error(error?.message || 'রিপোর্ট তৈরি করা যায়নি।'); } }}><Icon name="file-text" size={15}/> পূর্ণ রিপোর্ট PDF</button>
+        <button type="button" className="secondary-button compact archive-month-pdf-button" disabled={!Array.isArray(detail?.members)} title={!Array.isArray(detail?.members) ? 'পূর্ণ রিপোর্টের জন্য Run41 migration প্রয়োজন' : 'পূর্ণ মাসিক প্রতিবেদন PDF / প্রিন্ট'} onClick={() => { try { printArchivedMonthlyReport(detail, null, { generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '' }); } catch (error) { toast.error(error?.message || 'রিপোর্ট তৈরি করা যায়নি।'); } }}><Icon name="file-text" size={15}/> পূর্ণ রিপোর্ট PDF</button>
       {closerAccess && selected?.can_reopen && <button type="button" className="primary-button compact" onClick={restoreMonth} disabled={busy}><Icon name="refresh-cw" size={16}/> ভুলবশত বন্ধ? আবার চালু করুন</button>}
       </div>
       {loadingDetail && <section className="card archive-correction-section"><LoadingSpinner label="নির্বাচিত মাসের তথ্য লোড হচ্ছে..."/></section>}

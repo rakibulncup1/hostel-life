@@ -17,6 +17,7 @@ import { getMealPartsTotal } from '../../utils/mealTotals';
 import { resolveDashboardPeriodStatus } from '../../utils/period';
 import { clearSevenDayMeals, getSevenDates, readSevenDayMeals, saveSevenDayMeals } from '../../services/sevenDayMealStore';
 import { formatUpcomingMealDate } from '../../utils/sevenDayMeals';
+import { printReport } from '../../services/reportService';
 import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
 import { DEFAULT_MEAL_COUNT_MODES, getMealPeopleCount, normalizeMealCountModes } from '../../utils/mealCountModes';
 
@@ -298,7 +299,8 @@ function MemberCard({ member, onClick }) {
   );
 }
 
-export function MemberPeriodDetailsModal({ detail, loading, memberName, offlineSavedAt = null, offlineUnavailable = false, onClose }) {
+export function MemberPeriodDetailsModal({ detail, loading, memberName, managerName = '', managerPhone = '', offlineSavedAt = null, offlineUnavailable = false, onClose, styleScopeClass = '' }) {
+  const { membership, profile } = useAuth();
   useEffect(() => {
     const handler = (event) => {
       if (event.key === 'Escape') onClose();
@@ -312,13 +314,59 @@ export function MemberPeriodDetailsModal({ detail, loading, memberName, offlineS
     };
   }, [onClose]);
 
+  const toast = useToast();
   const summary = detail?.summary || {};
   const meals = Array.isArray(detail?.daily_meals) ? detail.daily_meals : [];
   const transactions = Array.isArray(detail?.transactions) ? detail.transactions : [];
   const markets = Array.isArray(detail?.market_entries) ? detail.market_entries : [];
-  return <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+  const exportMemberReport = () => {
+    if (!detail) return;
+    const esc = (value) => String(value ?? '—').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    const rows = (items, render, columns = 1) => items.length ? items.map(render).join('') : `<tr><td colspan="${columns}">কোনো তথ্য নেই</td></tr>`;
+    const summaryRows = [
+      ['সদস্যের নাম', detail.member?.name || memberName || 'সদস্য'],
+      ['মোট ফাইনাল মিল', formatMeal(summary.final_meals)],
+      ['মোট জমা', formatCurrency(summary.total_deposit)],
+      ['মিল খরচ', formatCurrency(summary.meal_cost)],
+      ['বাজারের মোট', formatCurrency(summary.total_market)],
+      ['অন্যান্য খরচ', formatCurrency(summary.other_expense)],
+      ['মিল রেট', formatCurrency(summary.meal_rate)],
+      [safeNumber(summary.balance) < 0 ? 'বর্তমান বকেয়া' : 'বর্তমান অবশিষ্ট', formatCurrency(Math.abs(safeNumber(summary.balance)))],
+    ];
+    const summaryPairs = [];
+    for (let index = 0; index < summaryRows.length; index += 2) {
+      const first = summaryRows[index];
+      const second = summaryRows[index + 1];
+      summaryPairs.push(`<tr><th>${esc(first[0])}</th><td><strong>${esc(first[1])}</strong></td>${second ? `<th>${esc(second[0])}</th><td><strong>${esc(second[1])}</strong></td>` : '<th></th><td></td>'}</tr>`);
+    }
+    const summaryTable = `<table class="report-summary report-member-summary"><colgroup><col style="width:19%"><col style="width:31%"><col style="width:19%"><col style="width:31%"></colgroup><tbody>${summaryPairs.join('')}</tbody></table>`;
+    const dailyTable = `<section class="report-member-section"><h2 class="report-section-title">প্রতিদিনের চূড়ান্ত মিল</h2><table class="report-member-table"><thead><tr><th>তারিখ</th><th>ব্রেকফাস্ট</th><th>লাঞ্চ</th><th>ডিনার</th><th>মোট</th></tr></thead><tbody>${rows(meals, (row) => `<tr><td>${esc(formatDateWithWeekday(row.date || row.meal_date))}</td><td>${esc(formatMeal(row.breakfast))}</td><td>${esc(formatMeal(row.lunch))}</td><td>${esc(formatMeal(row.dinner))}</td><td>${esc(formatMeal(row.total))}</td></tr>`, 5)}</tbody></table></section>`;
+    const transactionTable = `<section class="report-member-section"><h2 class="report-section-title">লেনদেনের ইতিহাস</h2><table class="report-member-table"><thead><tr><th>ধরন</th><th>তারিখ</th><th>বিবরণ</th><th>পরিমাণ</th></tr></thead><tbody>${rows(transactions, (row) => `<tr><td>${esc(row.transaction_type)}</td><td>${esc(formatDateWithWeekday(row.entry_date))}</td><td>${esc(row.description || '—')}</td><td>${esc(formatCurrency(row.amount))}</td></tr>`, 4)}</tbody></table></section>`;
+    const marketRows = markets.flatMap((row) => {
+      const items = Array.isArray(row.items) ? row.items : [];
+      const itemText = items.map((item) => [item.name || item.item_name, item.quantity, item.amount != null ? formatCurrency(item.amount) : ''].filter(Boolean).join(' · ')).join(', ') || 'বাজারের আইটেম';
+      return [{ ...row, itemText }];
+    });
+    const marketTable = `<section class="report-member-section"><h2 class="report-section-title">সদস্যের নামে বাজার</h2><table class="report-member-table"><thead><tr><th>তারিখ</th><th>আইটেম</th><th>মোট</th></tr></thead><tbody>${rows(marketRows, (row) => `<tr><td>${esc(formatDateWithWeekday(row.entry_date))}</td><td>${esc(row.itemText)}</td><td>${esc(formatCurrency(row.total_amount))}</td></tr>`, 3)}</tbody></table></section>`;
+    try {
+      printReport('সদস্যভিত্তিক বিস্তারিত', detail.period?.label || '', `${summaryTable}${dailyTable}${transactionTable}${marketTable}`, null, {
+        periodLabel: detail.period?.label || 'মাসিক হিসাব',
+        periodStart: detail.period?.start_date || '',
+        periodEnd: detail.period?.end_date || '',
+        periodStatus: detail.period?.status || '',
+        pageOrientation: 'portrait',
+        reportVariant: 'member-detail',
+        managerName,
+        managerPhone,
+        generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '',
+      });
+    } catch (error) {
+      toast.error(error?.message || 'সদস্যের রিপোর্ট তৈরি করা যায়নি।');
+    }
+  };
+  return <div className={`modal-backdrop ${styleScopeClass}`.trim()} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="modal-panel card large-modal member-period-detail-modal" role="dialog" aria-modal="true" aria-label={`${memberName || 'সদস্য'}-এর বিস্তারিত হিসাব`}>
-      <div className="modal-head"><div><span className="eyebrow">সদস্যভিত্তিক বিস্তারিত</span><h2>{detail?.member?.name || memberName || 'সদস্যের হিসাব'}</h2><small>{detail?.period?.label || 'বর্তমানে কোনো রানিং মাস নেই'}</small>{offlineSavedAt && <small className="dashboard-offline-saved-at">অফলাইন কপি · {formatDateTime12(offlineSavedAt)}</small>}</div><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
+      <div className="modal-head"><div><span className="eyebrow">সদস্যভিত্তিক বিস্তারিত</span><h2>{detail?.member?.name || memberName || 'সদস্যের হিসাব'}</h2><small>{detail?.period?.label || 'বর্তমানে কোনো রানিং মাস নেই'}</small>{offlineSavedAt && <small className="dashboard-offline-saved-at">অফলাইন কপি · {formatDateTime12(offlineSavedAt)}</small>}</div><div className="member-detail-head-actions"><button className="secondary-button compact member-detail-pdf-button" type="button" onClick={exportMemberReport} disabled={!detail || loading} title="সদস্যের বিস্তারিত PDF ডাউনলোড"><Icon name="file-text" size={15}/> PDF</button><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div></div>
       {loading ? <div className="loading-wrap"><span className="spinner"/><span>সদস্যের হিসাব লোড হচ্ছে...</span></div> : offlineUnavailable && !detail ? <div className="dashboard-offline-detail-empty"><Icon name="offline" size={24}/><strong>এই বিস্তারিত হিসাবের অফলাইন কপি নেই</strong><span>অনলাইনে একবার নিজের সম্পূর্ণ হিসাব খুললে পরবর্তী সময়ে এই ডিভাইসে অফলাইনে দেখা যাবে।</span></div> : <>
         <div className="member-period-summary-grid"><MetricCard label="মোট ফাইনাল মিল" value={formatMeal(summary.final_meals)}/><MetricCard label="মোট জমা" value={formatCurrency(summary.total_deposit)}/><MetricCard label="মিল খরচ" value={formatCurrency(summary.meal_cost)}/><MetricCard label="বাজারের মোট" value={formatCurrency(summary.total_market)}/><MetricCard label="অন্যান্য খরচ" value={formatCurrency(summary.other_expense)}/><MetricCard label="মিল রেট" value={formatCurrency(summary.meal_rate)}/></div>
         <div className={`member-period-balance ${safeNumber(summary.balance)<0?'balance-negative':'balance-positive'}`}><span>{safeNumber(summary.balance)<0?'বর্তমান বকেয়া':'বর্তমান অবশিষ্ট'}</span><strong>{formatCurrency(Math.abs(safeNumber(summary.balance)))}</strong></div>
@@ -652,6 +700,7 @@ function mapDirectoryMember(row, hasRunningPeriod = true) {
     membership_id: row.membership_id,
     name: row.member_name || 'সদস্য',
     avatar_url: row.avatar_url || row.photo_url || row.profile_photo_url || null,
+    phone: row.phone || row.phone_number || row.mobile || '',
     status: row.member_status || 'active',
     role: row.role || 'member',
     is_assistant_manager: Boolean(row.is_assistant_manager),
@@ -876,6 +925,7 @@ export function DashboardPage() {
             membership_id: id,
             name: member.name || directory?.member_name || prior?.name || 'সদস্য',
             avatar_url: null,
+            phone: directory?.phone || directory?.phone_number || directory?.mobile || member.phone || member.phone_number || prior?.phone || '',
             status: directory?.member_status || member.status || prior?.status || 'active',
             role: member.role || directory?.role || prior?.role || 'member',
             is_assistant_manager: Boolean(member.is_assistant_manager ?? directory?.is_assistant_manager ?? prior?.is_assistant_manager),
@@ -1414,6 +1464,8 @@ export function DashboardPage() {
           memberName={selectedMemberId === membership?.membership_id
             ? account?.name
             : members.find((member) => member.membership_id === selectedMemberId)?.name}
+          managerName={members.find((member) => member.is_primary_manager || member.role === 'manager')?.name || ''}
+          managerPhone={members.find((member) => member.is_primary_manager || member.role === 'manager')?.phone || ''}
           offlineSavedAt={!online ? memberDetailSavedAt : null}
           offlineUnavailable={memberDetailUnavailable}
           onClose={closeMemberDetail}

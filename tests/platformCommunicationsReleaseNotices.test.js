@@ -40,8 +40,9 @@ test('release dialog is device-scoped and never shows a stale release to a first
   assert.match(shell, /hostel-life-device-last-seen-release-v2/);
   assert.match(shell, /if \(!lastDeviceRelease\)[\s\S]{0,420}APP_RELEASE\.id[\s\S]{0,160}return;/);
   assert.match(shell, /lastDeviceRelease !== APP_RELEASE\.id/);
-  assert.match(shell, /আপডেটের বিস্তারিত/);
   assert.match(shell, /release_notes_published/);
+  assert.match(shell, /publishedReleaseNotes\.map/);
+  assert.doesNotMatch(shell, /releaseFeaturesOpen|আপডেটের বিস্তারিত/);
   assert.match(shell, /<SystemNoticeDialog/);
   assert.doesNotMatch(shell, /release-notice-dialog|release-features-dialog/);
   assert.match(shell, /refreshForRelease/);

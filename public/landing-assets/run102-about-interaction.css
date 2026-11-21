@@ -1,0 +1,136 @@
+/* Run102 — About page only: balanced mobile controls and a compact language toggle. */
+.about-page .nav-actions .public-language-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 48px;
+  min-height: 34px;
+  padding: 4px 8px 4px 20px;
+  border: 1px solid #cbd9cf;
+  border-radius: 999px;
+  background: #edf4ef;
+  color: #28563c;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.85);
+}
+.about-page .nav-actions .public-language-switcher::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #b8cbbd;
+  box-shadow: 0 1px 3px rgba(20,50,30,.12);
+  transform: translateY(-50%);
+}
+:root[data-theme="dark"] .about-page .nav-actions .public-language-switcher {
+  color: #d7e8dc;
+  background: #26372f;
+  border-color: #52675a;
+}
+:root[data-theme="dark"] .about-page .nav-actions .public-language-switcher::before {
+  background: #d9e6dd;
+  border-color: #71897a;
+}
+@media (max-width: 760px) {
+  .about-page .nav-actions { align-items: center !important; }
+  .about-page .nav-actions > * { min-width: 0; }
+  .about-page .nav-actions .public-language-switcher { justify-content: flex-end; }
+}
+
+
+/* Run106 — refined public About language action. Keep the existing toggle logic. */
+.about-page .nav-actions .public-language-switcher {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center !important;
+  gap: 7px;
+  box-sizing: border-box;
+  min-width: 80px;
+  min-height: 36px;
+  padding: 0 10px 0 8px;
+  border: 1px solid #d7e2da;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9f7 100%);
+  color: #285b3e;
+  font-size: 10.5px;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: .01em;
+  box-shadow: 0 1px 2px rgba(25, 55, 38, .06), inset 0 1px 0 rgba(255, 255, 255, .9);
+  white-space: nowrap;
+  transition: background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.about-page .nav-actions .public-language-switcher::before {
+  content: "文A";
+  position: static;
+  display: inline-grid;
+  flex: 0 0 21px;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 0;
+  border-radius: 6px;
+  background: #eaf3ed;
+  color: #326b49;
+  box-shadow: none;
+  font-size: 8px;
+  font-weight: 850;
+  line-height: 1;
+  letter-spacing: -.04em;
+  transform: none;
+}
+.about-page .nav-actions .public-language-switcher:hover {
+  border-color: #9bbda6;
+  background: #f0f7f2;
+  box-shadow: 0 2px 5px rgba(25, 55, 38, .09);
+}
+.about-page .nav-actions .public-language-switcher:active { transform: translateY(1px); }
+.about-page .nav-actions .public-language-switcher:focus-visible {
+  outline: 3px solid rgba(55, 125, 82, .22);
+  outline-offset: 2px;
+}
+:root[data-theme="dark"] .about-page .nav-actions .public-language-switcher {
+  border-color: #4b6254;
+  background: linear-gradient(180deg, #2d3b33 0%, #26332c 100%);
+  color: #e0eee4;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .035);
+}
+:root[data-theme="dark"] .about-page .nav-actions .public-language-switcher::before {
+  background: #3c5645;
+  color: #d9eee0;
+}
+:root[data-theme="blue"] .about-page .nav-actions .public-language-switcher {
+  border-color: #c8d9e8;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f7fc 100%);
+  color: #315d82;
+}
+:root[data-theme="blue"] .about-page .nav-actions .public-language-switcher::before {
+  background: #e4eff9;
+  color: #315d82;
+}
+@media (max-width: 760px) {
+  .about-page .nav-actions .public-language-switcher {
+    min-width: 76px;
+    min-height: 33px;
+    padding-inline: 7px;
+    gap: 5px;
+    font-size: 9.5px;
+  }
+  .about-page .nav-actions .public-language-switcher::before {
+    flex-basis: 19px;
+    width: 19px;
+    height: 19px;
+    font-size: 7.5px;
+  }
+}
+@media (max-width: 390px) {
+  .about-page .nav-actions .public-language-switcher { min-width: 72px; padding-inline: 6px; }
+}

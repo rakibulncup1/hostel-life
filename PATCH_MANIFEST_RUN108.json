@@ -1,0 +1,63 @@
+{
+  "patch": "Run108 Global Report Design",
+  "baseline": "Hostel Life.zip + accepted Run104, Run105, Run106, Run107 patches",
+  "created_date": "2026-11-21",
+  "scope": "Global PDF/print report header/footer and report creator metadata only",
+  "geometry": {
+    "paper": "A4 portrait and landscape",
+    "side_margins_mm": 12.7,
+    "top_reserved_mm": 25.4,
+    "bottom_reserved_mm": 25.4,
+    "footer_rule_total_inset_mm": 25.4
+  },
+  "files": [
+    "src/services/reportService.js",
+    "src/features/archive/ArchiveCorrectionPage.jsx",
+    "src/features/dashboard/DashboardPage.jsx",
+    "src/features/history/HistoryPage.jsx",
+    "src/features/manager/ManagerPages.jsx",
+    "src/features/menu/MenuPages.jsx",
+    "tests/run45FocusedUserRequests.test.js",
+    "tests/run105_requested_ui_patch.test.mjs",
+    "tests/run106_focused_followup.test.mjs",
+    "tests/run107_global_report_and_ui_regressions.test.mjs",
+    "tests/run108_professional_report_header_footer.test.mjs"
+  ],
+  "sha256": {
+    "src/services/reportService.js": "ea964cb3348b37db882cb9ffcca012037834dcb3322ac639d41ea317d0bd8039",
+    "src/features/archive/ArchiveCorrectionPage.jsx": "f8d63dbcc18750008b79234558a664120cb4576efbdbe591c93c17bcd251f045",
+    "src/features/dashboard/DashboardPage.jsx": "d8c5e831820a7832fac922915f42e8d9507062a2f6fd7b9bb0523cd32694aafd",
+    "src/features/history/HistoryPage.jsx": "509147fc60b55e098c20e30877855e6345eb87e5c3ea3c9dc1b6ac49d59d3ab8",
+    "src/features/manager/ManagerPages.jsx": "428aedf324c4c19b884bef089b7176acd4e3a432a915ab52047e38acd1a2cecc",
+    "src/features/menu/MenuPages.jsx": "4c9a42b96b3acaef0450dfb9fec3974083762389a90c7d457a4cb175472f4c32",
+    "tests/run45FocusedUserRequests.test.js": "cacaf3327e5c7c02d8d513d05832c42cbb99e406d7094032b4e7b232b0cc2f0f",
+    "tests/run105_requested_ui_patch.test.mjs": "f1afe65e59b033c37914a787119f17c6134ca020fd47a908c3aaac9d5c0056fd",
+    "tests/run106_focused_followup.test.mjs": "53edca5170ac367a208d0223444d13d71c35cd31093964b0b193733ea6568ee5",
+    "tests/run107_global_report_and_ui_regressions.test.mjs": "52b34e8b8124951017afa2f8274e78888de2821aa277b017b8ce89758d2ea38d",
+    "tests/run108_professional_report_header_footer.test.mjs": "a80796783fa483453a58898ce482ef4f23e02d00d52d84e8d57afeea176be02e"
+  },
+  "tests": {
+    "targeted": "30/30 passed",
+    "full_suite": {
+      "total": 1180,
+      "passed": 1156,
+      "failed": 24
+    },
+    "run107_baseline": {
+      "total": 1174,
+      "passed": 1150,
+      "failed": 24
+    },
+    "failure_titles_match_baseline": true
+  },
+  "render_validation": {
+    "engine": "WeasyPrint 68",
+    "sample_pages": 11,
+    "pages_visually_inspected": [
+      1,
+      2
+    ],
+    "chromium_headless": "unavailable in this runtime",
+    "vite_build": "not run; node_modules absent"
+  }
+}

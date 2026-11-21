@@ -13,6 +13,7 @@ const aboutHtml = read('public/about.html');
 const main = read('src/main.jsx');
 const dashboard = read('src/features/dashboard/DashboardPage.jsx');
 const callback = read('src/features/auth/GoogleOAuthCallbackPage.jsx');
+const googleUiCss = read('src/styles/run105-requested-ui-polish.css');
 
 test('Run100 application stylesheet is imported after Run99 and exists', () => {
   assert.match(main, /import\s+['"]\.\/styles\/run100-final-ui-refinement\.css['"]/);
@@ -66,11 +67,11 @@ test('Google official button host is no longer constrained to the old 280px widt
   assert.match(auth, /Math\.max\(200,\s*Math\.min\(400,/);
 });
 
-test('Google placeholder disabled state preserves GIS light/dark colour without opacity shift', () => {
-  assert.match(auth, /theme:\s*'outline'/);
+test('Google placeholder and official GIS button use the same colorful blue treatment without opacity shift', () => {
+  assert.match(auth, /theme:\s*'filled_blue'/);
   assert.match(appCss, /\.google-signin-button:disabled\s*\{[^}]*opacity:\s*1\s*!important/);
-  assert.match(read('src/styles/run101-ui-completion.css'), /:root\[data-theme="dark"\][\s\S]*?\.google-signin-button[\s\S]*?background: #f8f9fa !important/);
-  assert.match(read('src/styles/run101-ui-completion.css'), /\.google-signin-button\s*,[\s\S]*?transition: none !important/);
+  assert.match(googleUiCss, /background: linear-gradient\(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%\) !important/);
+  assert.match(googleUiCss, /:root\[data-theme="dark"\][\s\S]*?\.auth-page \.google-signin-button[\s\S]*?background: linear-gradient/);
 });
 
 test('Member detail six summary cards have larger desktop and mobile row/card heights', () => {

@@ -77,9 +77,9 @@ test('12 — Mobile Registration mirrors compact Login spacing and keeps passwor
   assert.match(read('src/styles/run100-final-ui-refinement.css'), /@media \(max-width: 849px\)[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
 });
 
-test('13 — Desktop registration consent/Google fill the action width; Google uses stable outline theme and footer text links', () => {
+test('13 — Desktop registration consent/Google fill the action width; Google uses the filled blue theme and footer text links', () => {
   assert.match(appCss, /\.auth-shell-register:not\(\.auth-shell-compact\) \.auth-combined-consent,[\s\S]*?width: 100%/);
-  assert.match(auth, /theme: 'outline'/);
+  assert.match(auth, /theme: 'filled_blue'/);
   assert.match(appCss, /\.auth-form-panel > \.auth-legal-links a[\s\S]*?background: transparent/);
 });
 

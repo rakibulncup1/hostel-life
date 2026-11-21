@@ -126,7 +126,7 @@ export function TelegramConnectionPage() {
           <span className="telegram-brand-icon"><TelegramLogo size={52}/></span>
           <span className={`telegram-state ${status?.connected ? 'is-connected' : 'is-offline'}`}>{status?.connected ? 'সংযুক্ত' : 'সংযুক্ত নয়'}</span>
           <h2>{status?.connected ? 'টেলিগ্রাম সংযুক্ত আছে' : 'বিজ্ঞপ্তি পেতে সংযোগ করুন'}</h2>
-          <p>{status?.connected ? 'আপনার মেসের গুরুত্বপূর্ণ বিজ্ঞপ্তি এই অ্যাকাউন্টে পাঠানো হবে।' : 'একবার সংযোগ করুন, এরপর বিজ্ঞপ্তি স্বয়ংক্রিয়ভাবে পৌঁছাবে।'}</p>
+          <p>{status?.connected ? 'মেসের গুরুত্বপূর্ণ বিজ্ঞপ্তি এই Telegram অ্যাকাউন্টে পাবেন।' : 'একবার সংযোগ করুন, এরপর বিজ্ঞপ্তি স্বয়ংক্রিয়ভাবে পৌঁছাবে।'}</p>
         </div>
 
         {status?.connected ? (
@@ -134,7 +134,6 @@ export function TelegramConnectionPage() {
             <div className="telegram-account-row"><span>সংযুক্ত অ্যাকাউন্ট</span><strong>{status.provider_username ? `@${status.provider_username.replace(/^@/, '')}` : 'Telegram অ্যাকাউন্ট'}</strong></div>
             {status.bot_username && <div className="telegram-account-row"><span>Hostel Life Bot</span><strong>@{String(status.bot_username).replace(/^@/, '')}</strong></div>}
             <div className="telegram-account-row"><span>সংযুক্তির সময়</span><strong>{formatDate(status.connected_at)}</strong></div>
-            <div className="telegram-connected-note"><Icon name="bell" size={16}/><span>গুরুত্বপূর্ণ মেস বিজ্ঞপ্তি এই অ্যাকাউন্টে পাঠানো হবে।</span></div>
             <div className="telegram-actions"><button type="button" className="secondary-button" disabled={busy} onClick={verify}><Icon name="refresh" size={16}/> সংযোগ যাচাই</button><button type="button" className="danger-button" disabled={busy} onClick={disconnect}>সংযোগ বিচ্ছিন্ন</button></div>
           </div>
         ) : (

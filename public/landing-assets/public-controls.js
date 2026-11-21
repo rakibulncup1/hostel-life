@@ -56,6 +56,14 @@
     save(button.getAttribute('data-theme-choice'));
     button.closest('details')?.removeAttribute('open');
   });
+  document.addEventListener('click', (event) => {
+    if (event.target.closest('.public-theme-control')) return;
+    document.querySelectorAll('.public-theme-control[open]').forEach((control) => control.removeAttribute('open'));
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    document.querySelectorAll('.public-theme-control[open]').forEach((control) => control.removeAttribute('open'));
+  });
   window.addEventListener('storage', (event) => {
     if (event.key === THEME_KEY || event.key === DEFAULT_KEY || event.key === null) apply();
   });

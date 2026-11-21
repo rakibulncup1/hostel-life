@@ -87,19 +87,21 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
-    const syncSystemTheme = () => {
-      if (getThemePreference() === 'system') applyTheme('system');
+    const isInviteRoute = pathname === '/invite' || pathname.startsWith('/invite/');
+    const applyPageTheme = () => {
+      if (isInviteRoute) applyTheme('light');
+      else if (getThemePreference() === 'system') applyTheme('system');
+      else applyTheme(getThemePreference());
     };
-    media?.addEventListener?.('change', syncSystemTheme);
-    return () => media?.removeEventListener?.('change', syncSystemTheme);
-  }, []);
+    applyPageTheme();
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    media?.addEventListener?.('change', applyPageTheme);
+    return () => media?.removeEventListener?.('change', applyPageTheme);
+  }, [pathname]);
 
   useEffect(() => {
     let active = true;
-    // Run the Light-theme rollout before public settings arrive. Platform settings
-    // are still fetched for notices and public communications, never for appearance.
-    applyTheme(getThemePreference());
+    // Platform settings are fetched for notices and public communications, never appearance.
     const loadSettings = (force = false) => fetchPlatformPublicSettings({ force }).then((settings) => {
       if (!active) return;
       setPublicSettings(settings || null);

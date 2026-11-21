@@ -59,7 +59,7 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [marketDetail, setMarketDetail] = useState(null);
-  const { isManager, membership, operationalRole } = useAuth();
+  const { isManager, membership, operationalRole, profile } = useAuth();
   // Role flags are useful for quick UI state, but the canonical period context is the
   // source of truth for primary-manager membership. The backend re-checks authorization
   // on save; this helper makes sure the edit controls do not disappear due to an RPC
@@ -288,8 +288,12 @@ export function HistoryPage() {
         || (selectedReportPeriod?.status === 'running' ? members.find((member) => member.is_primary_manager || member.role === 'manager') : null);
       const reportMeta = {
         periodLabel: selectedReportPeriod?.label || '',
+        periodStart: selectedReportPeriod?.start_date || '',
+        periodEnd: selectedReportPeriod?.end_date || '',
+        periodStatus: selectedReportPeriod?.status || '',
         managerName: reportManager?.member_name || reportManager?.full_name || '',
         managerPhone: reportManager?.phone || reportManager?.phone_number || reportManager?.mobile || '',
+        generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '',
         pageOrientation: tab === 'market' ? 'landscape' : 'portrait',
       };
       if (tab === 'market') {
@@ -330,7 +334,7 @@ export function HistoryPage() {
     setExportBusy(true);
     try {
       const detail = await fetchArchivedMonthDetail(row.period_id);
-      printArchivedMonthlyReport(detail, reportWindow);
+      printArchivedMonthlyReport(detail, reportWindow, { generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '' });
     } catch (error) {
       try { if (reportWindow && !reportWindow.closed) reportWindow.close(); } catch { /* Best effort close. */ }
       toast.error(getFriendlySupabaseError(error, 'এই মাসের পূর্ণ রিপোর্ট তৈরি করা যায়নি। সংরক্ষিত পুরোনো মাসের শুধু সারসংক্ষেপ থাকলে বিস্তারিত PDF তৈরি করা সম্ভব নয়।'));
@@ -619,6 +623,7 @@ function MarketEditModal({ detail, members, busy, onClose, onSaved, onBusy }) {
 }
 
 function MonthDetailModal({ detail, onClose, onError }) {
+  const { membership: currentMembership, profile: currentProfile } = useAuth();
   const isDetail = Array.isArray(detail.markets);
   const markets = Array.isArray(detail.markets) ? detail.markets : [];
   const meals = Array.isArray(detail.meals) ? detail.meals : [];
@@ -627,7 +632,7 @@ function MonthDetailModal({ detail, onClose, onError }) {
   const totalMarket = activeMarkets.reduce((sum, row) => sum + Number(row.total || 0), 0);
   const totalMeals = meals.reduce((sum, row) => sum + Number(row.breakfast || 0) + Number(row.lunch || 0) + Number(row.dinner || 0), 0);
   const printArchive = () => {
-    try { printArchivedMonthlyReport(detail); }
+    try { printArchivedMonthlyReport(detail, null, { generatedBy: currentMembership?.member_name || currentProfile?.full_name || currentProfile?.display_name || '' }); }
     catch (error) { onError?.(error); }
   };
   return <div className="modal-backdrop"><div className="modal-panel card large-modal history-month-detail-modal"><div className="modal-head"><div><span className="eyebrow">পূর্ববর্তী মাস</span><h2>{detail.label}</h2><small>{formatDateBangla(detail.start_date)} → {formatDateBangla(detail.end_date)}</small></div><div className="modal-head-actions"><button className="secondary-button compact" type="button" onClick={printArchive} disabled={!Array.isArray(detail.members)} title={!Array.isArray(detail.members) ? 'পূর্ণ রিপোর্টের জন্য Run41 migration প্রয়োজন' : 'পূর্ণ মাসিক প্রতিবেদন PDF / প্রিন্ট'}><Icon name="file-text" size={15} /> PDF / প্রিন্ট</button><button className="icon-button" type="button" onClick={onClose} aria-label="বন্ধ করুন"><Icon name="x" size={19} /></button></div></div>{Array.isArray(detail.edit_audit) && detail.edit_audit.some((item) => /^(insert|update|delete):/.test(item.action || '')) && <div className="archive-last-edit-note"><Icon name="clock" size={16}/><span>শেষ সংশোধন: <strong>{detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).actor_name}</strong> · {formatDateTime12(detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).created_at)} — {detail.edit_audit.find((item) => /^(insert|update|delete):/.test(item.action || '')).summary}</span></div>}{isDetail ? <div className="archive-detail-body"><div className="archive-detail-grid"><div className="metric"><span>মোট বাজার</span><strong>{formatCurrency(totalMarket)}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(totalMeals)}</strong></div><div className="metric"><span>লেনদেন</span><strong>{formatNumber(ledger.length)}</strong></div></div><section className="archive-detail-section"><div className="section-heading"><h3>বাজার</h3><span>{formatNumber(markets.length)}টি</span></div>{markets.slice(0, 100).map((row) => <div className={`archive-list-row ${row.status === 'void' ? 'is-void' : ''}`} key={row.id}><div><strong>{row.member_name}</strong><small>{formatDateWithWeekday(row.entry_date)}</small></div><div><strong>{formatCurrency(row.total)}</strong><span className="member-badge subtle">{row.status === 'void' ? 'বাতিল' : 'কার্যকর'}</span></div></div>)}</section><section className="archive-detail-section"><div className="section-heading"><h3>দৈনিক মিল</h3><span>{formatNumber(meals.length)} দিন</span></div>{meals.slice(0, 100).map((row) => <div className="archive-list-row" key={row.date}><div><strong>{formatDateWithWeekday(row.date)}</strong><small>ব্রেকফাস্ট {formatNumber(row.breakfast)} · লাঞ্চ {formatNumber(row.lunch)} · ডিনার {formatNumber(row.dinner)}</small></div><span className="member-badge subtle">{row.status}</span></div>)}</section></div> : <div className="archive-summary-grid"><div className="metric"><span>মোট জমা</span><strong>{formatCurrency(detail.total_deposit)}</strong></div><div className="metric"><span>মোট বাজার</span><strong>{formatCurrency(detail.total_market_expense)}</strong></div><div className="metric"><span>মোট খরচ</span><strong>{formatCurrency(Number(detail.total_market_expense || 0) + Number(detail.total_other_expense || 0))}</strong></div><div className="metric"><span>মোট মিল</span><strong>{formatNumber(detail.total_meals)}</strong></div><div className="metric"><span>মিল রেট</span><strong>৳{formatNumber(detail.meal_rate, { maximumFractionDigits: 4 })}</strong></div><div className="metric"><span>অবশিষ্ট ফান্ড</span><strong>{formatCurrency(detail.fund_remaining)}</strong></div></div>}</div></div>;

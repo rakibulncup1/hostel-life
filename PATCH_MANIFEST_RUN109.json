@@ -1,0 +1,42 @@
+{
+  "patch": "Run109 Global Header & Google Sign-in",
+  "baseline": "Hostel Life ZIP + accepted Run104 through Run108 patches",
+  "incremental_parent": "Run108",
+  "scope": [
+    "Global PDF report header hierarchy",
+    "Global PDF footer copyright placement",
+    "Google Identity Services filled-blue button appearance"
+  ],
+  "source_file_count": 6,
+  "test_file_count": 10,
+  "files": [
+    "src/services/reportService.js",
+    "src/features/manager/ManagerPages.jsx",
+    "src/features/history/HistoryPage.jsx",
+    "src/features/dashboard/DashboardPage.jsx",
+    "src/features/auth/AuthPage.jsx",
+    "src/styles/run105-requested-ui-polish.css",
+    "tests/run90_google_oauth_preparation.test.mjs",
+    "tests/run98_professional_ui_refinement.test.mjs",
+    "tests/run99_ui_followup_polish.test.mjs",
+    "tests/run100_ui_followup_completion.test.mjs",
+    "tests/run101_fifteen_ui_fixes.test.mjs",
+    "tests/run105_requested_ui_patch.test.mjs",
+    "tests/run106_focused_followup.test.mjs",
+    "tests/run107_global_report_and_ui_regressions.test.mjs",
+    "tests/run108_professional_report_header_footer.test.mjs",
+    "tests/run109_report_header_hierarchy_and_google_button.test.mjs"
+  ],
+  "tests": {
+    "targeted": "77/77 passed",
+    "full_suite": "1162/1186 passed",
+    "existing_failures": 24,
+    "new_failures": 0
+  },
+  "build": {
+    "vite_production_build": "not run; node_modules directory absent",
+    "stylesheet_integrity": "passed",
+    "node_check_report_service": "passed"
+  },
+  "backend_changes": false
+}

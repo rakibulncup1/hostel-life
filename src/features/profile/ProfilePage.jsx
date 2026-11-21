@@ -188,7 +188,6 @@ export function ProfilePage() {
               <Icon name={passwordOpen ? 'x' : 'lock'} size={15} />{passwordOpen ? 'বন্ধ করুন' : 'পরিবর্তন'}
             </button>
           </div>
-          {!passwordOpen && <p className="profile-password-hint">নিরাপত্তার প্রয়োজনে যেকোনো সময় পাসওয়ার্ড হালনাগাদ করতে পারবেন।</p>}
           {passwordOpen && (
             <form id="profile-password-form" className="profile-form" onSubmit={savePassword}>
               <div className="profile-form-grid profile-password-form-grid">
@@ -229,7 +228,6 @@ export function ProfilePage() {
               <div><span className="eyebrow">অভিজ্ঞতা</span><h2>ভাষা</h2></div>
             </div>
           </div>
-          <p className="profile-language-description">অ্যাপের সব মেনু, পৃষ্ঠা ও নির্দেশনার ভাষা নির্বাচন করুন।</p>
           <div className="profile-language-options" role="group" aria-label="ভাষা নির্বাচন">
             <LanguageSwitcher variant="segmented" withLabel className="profile-language-control" />
           </div>

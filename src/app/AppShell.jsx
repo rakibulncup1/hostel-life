@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from '../components/Header';
 import { Icon } from '../components/Icon';
-import { BrandMark } from '../components/BrandMark';
 import { BottomNav } from '../components/BottomNav';
 import { MenuDrawer } from '../components/MenuDrawer';
 import { NotificationsPopover } from '../components/NotificationsPopover';
@@ -72,13 +71,18 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
   const [theme, setTheme] = useState(() => getThemePreference());
   const [installNudgeOpen, setInstallNudgeOpen] = useState(false);
   const [releaseNoticeOpen, setReleaseNoticeOpen] = useState(false);
-  const [releaseFeaturesOpen, setReleaseFeaturesOpen] = useState(false);
   const [telegramNudgeOpen, setTelegramNudgeOpen] = useState(false);
   const [priorityMessages, setPriorityMessages] = useState([]);
   const priorityMessageIdsRef = useRef(new Set());
   const telegramNudgeCheckedUserRef = useRef('');
 
   const active = pathToKey(pathname);
+  const publishedReleaseNotes = platformSettingsReadyForUser !== user.id
+    ? []
+    : platformSettings?.communications?.release_notes_published === true
+      && Array.isArray(platformSettings?.communications?.release_notes)
+      ? platformSettings.communications.release_notes.filter((item) => String(item || '').trim())
+      : [];
   const systemAnnouncementVisible = Boolean(platformSettings?.announcement_enabled
     && (String(platformSettings.announcement_title || '').trim() || String(platformSettings.announcement_body || '').trim()));
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
@@ -169,7 +173,6 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
     try { localStorage.setItem(key, APP_RELEASE.id); }
     catch { try { sessionStorage.setItem(key, APP_RELEASE.id); } catch { /* no persistent storage available */ } }
     setReleaseNoticeOpen(false);
-    setReleaseFeaturesOpen(false);
   };
 
   const dismissReleaseNotice = markReleaseSeen;
@@ -497,15 +500,18 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         kicker="HOSTEL LIFE · নতুন সংস্করণ"
         icon="refresh-cw"
         title="সিস্টেম আপডেট হয়েছে"
-        description="নতুন সংস্করণ ব্যবহার করতে একবার রিফ্রেশ করুন।"
+        description={publishedReleaseNotes.length ? '' : 'নতুন সংস্করণ ব্যবহার করতে একবার রিফ্রেশ করুন।'}
         meta={`আপডেটের সময়: ${new Date(APP_RELEASE.builtAt).toLocaleString(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' })}`}
         onClose={dismissReleaseNotice}
         actions={<>
           <button type="button" className="primary-button" onClick={refreshForRelease}>এখনই রিফ্রেশ করুন</button>
-          {platformSettingsReadyForUser !== user.id ? null : platformSettings?.communications?.release_notes_published === true && (platformSettings?.communications?.release_notes || []).length > 0 && <button type="button" className="secondary-button system-notice-feature-trigger" onClick={() => setReleaseFeaturesOpen(true)}>আপডেটের বিস্তারিত</button>}
           <button type="button" className="text-button release-dismiss" onClick={dismissReleaseNotice}>পরে করব</button>
         </>}
-      />}
+      >
+        {publishedReleaseNotes.length > 0 && <div className="system-notice-feature-list" aria-label="এই সংস্করণের পরিবর্তন">
+          {publishedReleaseNotes.map((feature, index) => <article className="system-notice-feature" key={`${index}-${feature}`}><p>{feature}</p></article>)}
+        </div>}
+      </SystemNoticeDialog>}
 
       {priorityMessages.length > 0 && !releaseNoticeOpen && !installNudgeOpen && <SystemNoticeDialog
         kicker="HOSTEL LIFE · গুরুত্বপূর্ণ বার্তা"
@@ -517,20 +523,9 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
         actions={<button type="button" className="primary-button" onClick={dismissPriorityMessage}>বুঝেছি</button>}
       />}
 
-      {releaseFeaturesOpen && platformSettingsReadyForUser === user?.id && <SystemNoticeDialog
-        kicker="HOSTEL LIFE · আপডেট"
-        icon="sparkles"
-        title="এই সংস্করণের পরিবর্তন"
-        onClose={() => setReleaseFeaturesOpen(false)}
-        actions={<button type="button" className="primary-button" onClick={() => setReleaseFeaturesOpen(false)}>ফিরে যান</button>}
-      >
-        <div className="release-brand-icon"><BrandMark size={42}/></div>
-        <div className="system-notice-feature-list">{(platformSettings?.communications?.release_notes || []).map((feature, index) => <article className="system-notice-feature" key={`${index}-${feature}`}><span><Icon name="check-circle" size={17}/></span><p>{feature}</p></article>)}</div>
-      </SystemNoticeDialog>}
-
       <PlatformCommunicationOverlays
         communications={platformSettings?.communications}
-        blocked={releaseNoticeOpen || releaseFeaturesOpen || installNudgeOpen || telegramNudgeOpen || priorityMessages.length > 0}
+        blocked={releaseNoticeOpen || installNudgeOpen || telegramNudgeOpen || priorityMessages.length > 0}
       />
     </div>
   );

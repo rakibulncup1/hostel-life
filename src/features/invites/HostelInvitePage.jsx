@@ -167,7 +167,7 @@ export function HostelInvitePage({ pathname }) {
           {!otherActiveHostel && status?.status === 'rejected' && <><InviteStatus status="rejected" note={status.review_note}/><button className="secondary-button large" type="button" onClick={exitInvitation}>পরে</button></>}
           {!otherActiveHostel && status?.status === 'approved' && <div className="hostel-invite-status approved"><Icon name="check-circle" size={18}/><div><strong>অনুরোধ অনুমোদিত</strong><span>সদস্যপদের তথ্য আপডেট হচ্ছে।</span></div></div>}
           {!otherActiveHostel && (status?.status === 'not_submitted' || !status) && info && <>
-            <p className="hostel-invite-lead">এখানে কোডের প্রয়োজন নেই। নিচের বোতাম থেকে যোগদানের অনুরোধ পাঠান।</p>
+
             <label className="field-label"><span>ম্যানেজারের জন্য বার্তা (ঐচ্ছিক)</span><textarea rows={3} maxLength={500} value={requestNote} onChange={(event) => setRequestNote(event.target.value)} placeholder="নিজের পরিচয় বা প্রয়োজনীয় তথ্য লিখুন"/></label>
             <button className="primary-button large" type="button" disabled={busy || !online} onClick={submitRequest}>{busy ? 'অনুরোধ পাঠানো হচ্ছে...' : 'যোগদানের অনুরোধ পাঠান'}</button>
           </>}

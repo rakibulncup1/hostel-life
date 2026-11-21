@@ -39,7 +39,7 @@ export function AppDownloadPage() {
 
   return (
     <main className="app-download-page">
-      <header className="page-title-row menu-page-title app-download-menu-intro">
+      <header className="page-title-row menu-page-title card menu-page-intro-card app-download-menu-intro">
         <div className="menu-page-title-copy">
           <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15}/> ফিরে যান</button>
           <h1>অ্যাপ ইনস্টল</h1>

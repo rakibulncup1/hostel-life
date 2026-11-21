@@ -1,0 +1,538 @@
+/* Run105 baseline + Run106 focused follow-up refinements.
+   Presentation-only rules; no business rules or permissions are changed here. */
+
+/* Login footer: keep account creation together at left and recovery at right. */
+.auth-page .auth-switch-login {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100%;
+  text-align: left !important;
+}
+.auth-page .auth-switch-login .auth-register-group {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 7px;
+  white-space: nowrap;
+}
+.auth-page .auth-switch-login .auth-switch-account-prompt {
+  min-width: 0;
+  color: var(--muted, #68776e);
+  white-space: nowrap;
+  text-align: left;
+}
+.auth-page .auth-switch-login .auth-register-inline {
+  flex: 0 0 auto;
+  padding: 3px 0 !important;
+  color: var(--primary-strong, #176b45) !important;
+  font-weight: 850;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.auth-page .auth-switch-login .auth-forgot-inline {
+  flex: 0 0 auto;
+  margin: 0 0 0 auto !important;
+  padding: 4px 0 4px 8px !important;
+  color: #a54a4a !important;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-align: right;
+  text-decoration: none;
+}
+:root[data-theme="dark"] .auth-page .auth-switch-login .auth-forgot-inline { color: #e2a3a3 !important; }
+@media (max-width: 520px) {
+  .auth-page .auth-switch-login { gap: 7px !important; }
+  .auth-page .auth-switch-login .auth-register-group { gap: 5px; }
+  .auth-page .auth-switch-login .auth-switch-account-prompt,
+  .auth-page .auth-switch-login .auth-register-inline { font-size: 10px; }
+  .auth-page .auth-switch-login .auth-forgot-inline { padding-left: 3px !important; font-size: 9.5px; }
+}
+@media (max-width: 360px) {
+  .auth-page .auth-switch-login { gap: 4px !important; }
+  .auth-page .auth-switch-login .auth-register-group { gap: 4px; }
+  .auth-page .auth-switch-login .auth-switch-account-prompt,
+  .auth-page .auth-switch-login .auth-register-inline,
+  .auth-page .auth-switch-login .auth-forgot-inline { font-size: 9px; }
+}
+.auth-page .auth-legal-links a,
+.auth-page .auth-legal-links a:hover { text-decoration: none !important; }
+.auth-page .google-signin-button,
+.auth-page .google-signin-button:disabled {
+  color: #fff !important;
+  background: linear-gradient(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%) !important;
+  border: 1px solid #2f6fda !important;
+  box-shadow: 0 3px 9px rgba(42, 101, 196, .22), inset 0 1px 0 rgba(255,255,255,.2) !important;
+}
+.auth-page .google-signin-button:hover:not(:disabled) {
+  color: #fff !important;
+  background: linear-gradient(135deg, #3478e8 0%, #285fc3 100%) !important;
+  border-color: #2459b8 !important;
+  box-shadow: 0 4px 11px rgba(42, 101, 196, .28) !important;
+}
+.auth-page .google-signin-button:focus-visible {
+  outline-color: rgba(66, 133, 244, .35) !important;
+}
+:root[data-theme="dark"] .auth-page .google-signin-button,
+:root[data-theme="dark"] .auth-page .google-signin-button:disabled {
+  color: #fff !important;
+  background: linear-gradient(135deg, #4285f4 0%, #2f6fda 58%, #2459b8 100%) !important;
+  border-color: #4c87e9 !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,.22) !important;
+}
+
+/* Google account checking and failure share the same calm, centered composition. */
+.google-oauth-callback-brand {
+  display: grid !important;
+  justify-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px !important;
+  width: 100%;
+}
+.google-oauth-callback-status { justify-items: center; text-align: center; }
+.google-oauth-callback-error-icon { margin-inline: auto; }
+.google-oauth-callback-error p,
+.google-oauth-callback-error h1 { text-align: center; }
+.google-oauth-callback-error .primary-button { justify-self: center; min-width: min(220px, 100%); }
+
+/* Dining meal-sheet toolbar sizing. */
+.report-toolbar .report-actions { align-items: end; }
+.report-toolbar .report-member-filter { min-width: 150px; }
+.report-toolbar .report-member-filter select {
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 11px;
+}
+.report-toolbar .report-actions .report-pdf-button { min-height: 36px; height: 36px; }
+
+/* Archive: softer card surfaces, centered month list and no coloured side rails. */
+.archive-correction-page .archive-correction-header,
+.archive-correction-page .archive-list-section {
+  background: color-mix(in srgb, var(--surface-2) 40%, var(--surface)) !important;
+}
+.archive-correction-page .archive-hero-guidance,
+.archive-correction-page .archive-correction-access-note,
+.archive-correction-page .archive-detail-toolbar .archive-reopen-hint {
+  border-left: 1px solid var(--archive-line, var(--line)) !important;
+  background: var(--surface-2) !important;
+  box-shadow: none !important;
+}
+.archive-correction-page .archive-list-heading {
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  text-align: center;
+}
+.archive-correction-page .archive-list-heading > div { display: grid; justify-items: center; gap: 1px; }
+.archive-correction-page .archive-list-heading h2 { margin: 0 !important; }
+.archive-correction-page .archive-month-card {
+  grid-template-columns: minmax(0, 1fr) !important;
+  justify-items: center;
+  gap: 7px !important;
+  padding: 16px 14px !important;
+  text-align: center !important;
+  background: color-mix(in srgb, var(--surface-2) 58%, var(--surface)) !important;
+}
+.archive-correction-page .archive-month-index { width: 32px; height: 32px; border-radius: 10px; }
+.archive-correction-page .archive-month-copy { justify-items: center; text-align: center; }
+.archive-correction-page .archive-month-copy > span { justify-content: center; text-align: center; }
+.archive-correction-page .archive-month-open { justify-content: center; white-space: normal; }
+.archive-correction-page .archive-month-pdf-button {
+  background: var(--surface-2) !important;
+  border-color: var(--line) !important;
+}
+.archive-correction-page .archive-full-report {
+  padding: clamp(12px, 2vw, 20px);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--surface-2) 58%, var(--surface));
+}
+
+/* Reports cards: center the icon, title and PDF marker on narrow screens. */
+@media (max-width: 600px) {
+  .reports-page .report-download-grid-four .report-option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) !important;
+    justify-items: center;
+    align-content: center;
+    gap: 7px;
+    padding: 15px 12px;
+    text-align: center;
+    background: color-mix(in srgb, var(--surface-2) 38%, var(--surface));
+  }
+  .reports-page .report-download-grid-four .report-option-icon,
+  .reports-page .report-download-grid-four .report-option strong,
+  .reports-page .report-download-grid-four .report-option small,
+  .reports-page .report-download-grid-four .report-option b {
+    grid-column: auto;
+    grid-row: auto;
+    margin: 0;
+    text-align: center;
+  }
+  .reports-page .report-download-grid-four .report-option small { max-width: 34ch; }
+}
+
+/* Member cards open as a whole; the old underlined name treatment is removed. */
+.all-member-card { cursor: pointer; }
+.all-member-card:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.all-member-card .member-name-detail-trigger { text-decoration: none !important; }
+.member-detail-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex: 0 0 auto; }
+.member-detail-pdf-button { min-height: 35px; height: 35px; white-space: nowrap; }
+.dashboard-reimagined .member-period-detail-modal > .modal-head { align-items: center; }
+
+/* Help page: remove the answer's left stripe and unnecessary indentation. */
+.howto-timing-footnote > svg { display: none !important; }
+.howto-faq-answer { padding-left: 0 !important; padding-right: 0 !important; }
+.howto-faq-answer p {
+  padding: 10px 0 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* App download page's intro header is a card matching the content card width. */
+.app-download-page .app-download-menu-intro {
+  box-sizing: border-box;
+  width: min(100%, 620px) !important;
+  margin: 0 auto 14px !important;
+  padding: 15px 18px !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 16px !important;
+  background: var(--surface-2) !important;
+  box-shadow: none !important;
+}
+.app-download-page .app-download-single-card { width: min(100%, 620px); }
+
+/* Manager info panels stay neutral; remove only the requested coloured accents. */
+.manager-change-guidance,
+.assistant-manager-guidance,
+.member-management-guidance,
+.notice-delivery-hint {
+  border-left: 1px solid var(--line) !important;
+  box-shadow: none !important;
+}
+.manager-invite-card .manager-invite-create,
+.manager-invite-card .manager-invite-share { justify-self: center; }
+.manager-invite-card .manager-invite-ready,
+.manager-invite-card .manager-invite-created { justify-content: center; text-align: center; }
+.manager-invite-card .manager-invite-created { margin-inline: auto; }
+
+/* Khala money history cards receive a subtle, consistent surface. */
+.khala-ledger-copy {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.khala-ledger-copy .khala-ledger-recipient { justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+/* Minimal, professional system and admin notice dialogs. */
+.system-notice-dialog { border-color: var(--line) !important; box-shadow: 0 18px 50px rgba(15, 32, 23, .16) !important; }
+.system-notice-close,
+.system-notice-close:hover,
+.system-notice-close:focus-visible,
+.platform-communication-close,
+.platform-communication-close:hover,
+.platform-communication-close:focus-visible {
+  border: 0 !important;
+  outline-offset: 3px;
+  border-radius: 50% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.platform-communication-dialog {
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(15, 32, 23, .16) !important;
+}
+.system-notice-feature-list { display: grid; gap: 8px; width: 100%; margin-top: 8px; }
+.system-notice-feature-list .system-notice-feature {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.system-notice-feature-list .system-notice-feature p { margin: 0; color: var(--text); font-size: 12px; line-height: 1.65; }
+.system-notice-feature-list .system-notice-feature > span { display: none; }
+
+/* Invitation route is always light, including the pre-React loading state. */
+html[data-invite-page],
+html[data-invite-page] body,
+html[data-invite-page] #root {
+  color-scheme: light !important;
+  background: #f4f8f5 !important;
+  color: #18251d !important;
+}
+html[data-invite-page] .hostel-invite-page {
+  --surface: #ffffff;
+  --surface-2: #f2f7f3;
+  --text: #18251d;
+  --muted: #64736a;
+  --line: #dce7df;
+  --primary: #198052;
+  --primary-strong: #176743;
+  --primary-soft: #e8f4ec;
+  color-scheme: light !important;
+  background: #f4f8f5 !important;
+  color: #18251d !important;
+}
+html[data-invite-page] .hostel-invite-page :is(.hostel-invite-card, .hostel-invite-loading-card) {
+  background: #ffffff !important;
+  color: #18251d !important;
+  border-color: #dce7df !important;
+}
+html[data-invite-page] .hostel-invite-page :is(h1, h2, strong, .hostel-invite-brand) { color: #18251d !important; }
+html[data-invite-page] .hostel-invite-page :is(p, small, .hostel-invite-footer, .hostel-invite-topbar) { color: #64736a !important; }
+html[data-invite-page] .hostel-invite-page textarea { color-scheme: light !important; background: #fff !important; color: #18251d !important; border-color: #dce7df !important; }
+
+@media (max-width: 520px) {
+  .report-toolbar .report-member-filter { min-width: 125px; }
+}
+
+
+.manager-invite-card .manager-invite-heading {
+  justify-content: center;
+  text-align: center;
+}
+.manager-invite-card .manager-invite-heading > div {
+  justify-items: center;
+}
+
+
+/* Run107: global layout safety fixes requested after production review. */
+
+/* Login: account creation is centered on its own line; recovery sits below it. */
+.auth-page .auth-switch-login {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  align-items: center;
+  gap: 3px !important;
+  width: 100%;
+  text-align: center !important;
+}
+.auth-page .auth-switch-login .auth-register-group {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  gap: 7px;
+  white-space: normal;
+  text-align: center;
+}
+.auth-page .auth-switch-login .auth-switch-account-prompt,
+.auth-page .auth-switch-login .auth-register-inline {
+  white-space: normal;
+  text-align: center;
+}
+.auth-page .auth-switch-login .auth-forgot-inline {
+  display: block;
+  justify-self: center;
+  margin: 0 auto !important;
+  padding: 3px 8px !important;
+  text-align: center !important;
+  white-space: normal;
+}
+@media (max-width: 520px) {
+  .auth-page .auth-switch-login { gap: 2px !important; }
+  .auth-page .auth-switch-login .auth-register-group { gap: 6px; }
+  .auth-page .auth-switch-login .auth-switch-account-prompt,
+  .auth-page .auth-switch-login .auth-register-inline { font-size: 11px; }
+  .auth-page .auth-switch-login .auth-forgot-inline { font-size: 10.5px; }
+}
+@media (max-width: 360px) {
+  .auth-page .auth-switch-login .auth-register-group { gap: 5px; }
+  .auth-page .auth-switch-login .auth-switch-account-prompt,
+  .auth-page .auth-switch-login .auth-register-inline { font-size: 10px; }
+}
+
+/* Help FAQ: constrain every disclosure layer to the viewport/card width. */
+.howto-page .howto-faq-groups,
+.howto-page .howto-faq-group,
+.howto-page .howto-faq-list,
+.howto-page .howto-faq-item,
+.howto-page .howto-faq-answer {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.howto-page .howto-faq-group { overflow: hidden; }
+.howto-page .howto-faq-group-heading {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto 28px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+.howto-page .howto-faq-group-heading > * { min-width: 0; }
+.howto-page .howto-faq-group-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.howto-page .howto-faq-group-heading h2,
+.howto-page .howto-faq-group-heading p { max-width: 100%; overflow-wrap: anywhere; }
+.howto-page .howto-faq-group-count {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.howto-page .howto-faq-group-icon,
+.howto-page .howto-faq-group-chevron { min-width: 0; }
+.howto-page .howto-faq-list { padding-inline: clamp(7px, 2.2vw, 13px); }
+.howto-page .howto-faq-item > summary {
+  display: grid;
+  grid-template-columns: 29px minmax(0, 1fr) 29px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.howto-page .howto-faq-index,
+.howto-page .howto-faq-chevron { min-width: 0; }
+.howto-page .howto-faq-question {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.howto-page .howto-faq-answer {
+  display: block;
+  overflow: hidden;
+  padding: 0 clamp(10px, 2.2vw, 15px) 13px !important;
+}
+.howto-page .howto-faq-answer > p {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 0 !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  white-space: normal;
+}
+@media (max-width: 480px) {
+  .howto-page .howto-faq-group-heading {
+    grid-template-columns: 36px minmax(0, 1fr) 26px;
+    grid-template-rows: auto auto;
+    gap: 5px 8px;
+    padding: 12px 10px;
+  }
+  .howto-page .howto-faq-group-icon { grid-column: 1; grid-row: 1 / span 2; }
+  .howto-page .howto-faq-group-heading > div { grid-column: 2; grid-row: 1; }
+  .howto-page .howto-faq-group-count { grid-column: 2; grid-row: 2; justify-self: start; }
+  .howto-page .howto-faq-group-chevron { grid-column: 3; grid-row: 1; }
+  .howto-page .howto-faq-item > summary { grid-template-columns: 26px minmax(0, 1fr) 26px; gap: 7px; padding-inline: 9px; }
+}
+
+/* Khala payment history: one contained card with recipient, amount and actions. */
+.manager-ledger-row.khala-manager-ledger-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: stretch;
+  gap: 11px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  padding: 13px 14px !important;
+  overflow: hidden;
+}
+.khala-manager-ledger-row .khala-entry-card-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px 14px;
+  width: 100%;
+  min-width: 0;
+}
+.khala-manager-ledger-row .khala-ledger-copy {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  width: 100%;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.khala-manager-ledger-row .khala-ledger-recipient { justify-content: flex-start; gap: 2px; }
+.khala-manager-ledger-row .khala-ledger-recipient > strong {
+  max-width: 100%;
+  font-size: clamp(14px, 1.6vw, 17px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.khala-manager-ledger-row .khala-ledger-copy > small,
+.khala-manager-ledger-row .khala-ledger-description {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+.khala-manager-ledger-row .khala-entry-card-amount {
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  gap: 3px;
+  min-width: 108px;
+  max-width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-2) 70%, var(--surface));
+  text-align: right;
+}
+.khala-manager-ledger-row .khala-entry-card-amount > span { color: var(--muted); font-size: 9px; font-weight: 750; }
+.khala-manager-ledger-row .khala-entry-card-amount > strong {
+  max-width: 100%;
+  color: var(--primary-strong);
+  font-size: clamp(14px, 1.7vw, 18px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.khala-manager-ledger-row .khala-entry-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  width: 100%;
+  min-width: 0;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+}
+.khala-manager-ledger-row .khala-entry-card-footer > * { min-width: 0; }
+.khala-manager-ledger-row .khala-entry-card-footer .khala-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  margin-left: auto;
+}
+.khala-manager-ledger-row .khala-entry-card-footer .member-badge { white-space: normal; }
+@media (max-width: 480px) {
+  .manager-ledger-row.khala-manager-ledger-row { padding: 11px 12px !important; }
+  .khala-manager-ledger-row .khala-entry-card-main { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .khala-manager-ledger-row .khala-entry-card-amount { min-width: 92px; padding: 8px 9px; }
+  .khala-manager-ledger-row .khala-entry-card-amount > strong { font-size: 14px; }
+}
+@media (max-width: 390px) {
+  .khala-manager-ledger-row .khala-entry-card-main { grid-template-columns: minmax(0, 1fr); }
+  .khala-manager-ledger-row .khala-ledger-copy { grid-row: auto !important; }
+  .khala-manager-ledger-row .khala-entry-card-amount { grid-row: auto; justify-items: start; min-width: 0; text-align: left; }
+}

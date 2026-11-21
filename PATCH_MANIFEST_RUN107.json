@@ -1,0 +1,88 @@
+{
+  "patch": "Run107",
+  "baseline": "Run106 cumulative project (Hostel Life original ZIP + accepted Run104, Run105, Run106 patches)",
+  "scope": [
+    "global multi-page branded report header/footer layout",
+    "login footer alignment",
+    "Help FAQ viewport overflow",
+    "Khala payment history card layout",
+    "All Members shared Dashboard member detail modal styling"
+  ],
+  "backend_changed": false,
+  "database_sql_changed": false,
+  "permissions_changed": false,
+  "files": [
+    {
+      "path": "src/services/reportService.js",
+      "sha256": "5d39bcf32ac7ba68c761a11330481029fc25051f486cbb45055ebf1df213c148",
+      "size_bytes": 30296
+    },
+    {
+      "path": "src/features/dashboard/DashboardPage.jsx",
+      "sha256": "aca2a7c91a58aec3a891c61684e654f5f458a11337844fa5ee32ffe533d0f4d5",
+      "size_bytes": 91609
+    },
+    {
+      "path": "src/features/menu/MenuPages.jsx",
+      "sha256": "1872b3c93201d0b61cea7651e94bc4962660919740b332af4a2bde53a1b8a665",
+      "size_bytes": 82962
+    },
+    {
+      "path": "src/features/manager/ManagerPages.jsx",
+      "sha256": "66a4025a5559f6a12820e7053b5075340f608bcbe92ef30bf5727269c32ab0b0",
+      "size_bytes": 126854
+    },
+    {
+      "path": "src/styles/run105-requested-ui-polish.css",
+      "sha256": "b653ffa3ebc9160f25c24bd049d79f4707570ff738856f521623d03ec98ed9dd",
+      "size_bytes": 19078
+    },
+    {
+      "path": "tests/run105_requested_ui_patch.test.mjs",
+      "sha256": "b704698faaa41f6e33509ee0b3cf94ff896515fe16166b4cad6096dcfc7b2c68",
+      "size_bytes": 6549
+    },
+    {
+      "path": "tests/run106_focused_followup.test.mjs",
+      "sha256": "36b9c00e1579284934a26f75844395c92267db98ef938dc23f0b8a2b805356eb",
+      "size_bytes": 3215
+    },
+    {
+      "path": "tests/run107_global_report_and_ui_regressions.test.mjs",
+      "sha256": "f46ffdfa2b4924b80abfa8ee1da44c1bd48e0db0decb3226cdadd4e8fcc7bc36",
+      "size_bytes": 4564
+    },
+    {
+      "path": "PATCH.diff",
+      "sha256": "b66211282fc3e2e79d139e3a496e1564c4311fff52ada27e6e046958d5694f1d",
+      "size_bytes": 37712
+    },
+    {
+      "path": "README_RUN107_BN.txt",
+      "sha256": "68f9e63e6f6692aec366326d70d6a7385e30cf7f9b9b25aa0211cbcf53c98bae",
+      "size_bytes": 6036
+    }
+  ],
+  "verification": {
+    "focused_tests": "24/24 passed",
+    "full_suite": {
+      "total": 1174,
+      "passed": 1150,
+      "failed": 24,
+      "new_failures_vs_run106_baseline": 0
+    },
+    "stylesheet_integrity": "passed",
+    "jsx_js_parse": "passed",
+    "chromium_pdf_samples": {
+      "portrait_pages": 9,
+      "landscape_pages": 14
+    },
+    "responsive_widths_px": [
+      320,
+      360,
+      390,
+      768
+    ],
+    "vite_production_build": "not run; node_modules absent from supplied ZIP"
+  }
+}

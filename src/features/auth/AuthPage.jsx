@@ -155,7 +155,7 @@ function GoogleSignInButton({ mode = 'login', fullName = '', phone = '', disable
     host.replaceChildren();
     googleId.renderButton(host, {
       type: 'standard',
-      theme: 'outline',
+      theme: 'filled_blue',
       size: 'large',
       text: 'continue_with',
       shape: 'rectangular',
@@ -744,19 +744,28 @@ function RegisterForm() {
 }
 
 function AuthSwitch({ current }) {
+  if (current === 'login') {
+    const registerLink = authLinks.find((link) => link.path === '/auth/register');
+    return (
+      <div className="auth-switch auth-switch-login">
+        <span className="auth-register-group">
+          <span className="auth-switch-account-prompt">এখনো অ্যাকাউন্ট নেই?</span>
+          {registerLink && <button type="button" className="text-button auth-register-inline" onClick={() => go(registerLink.path)}>{registerLink.label}</button>}
+        </span>
+        <button type="button" className="text-button auth-forgot-inline" onClick={() => go('/auth/forgot-password')}>
+          পাসওয়ার্ড ভুলে গেছেন?
+        </button>
+      </div>
+    );
+  }
   return (
-    <div className={`auth-switch ${current === 'login' ? 'auth-switch-login' : ''}`}>
+    <div className="auth-switch">
       <span className="auth-switch-prompt">
-        <span>{current === 'login' ? 'এখনো অ্যাকাউন্ট নেই?' : 'ইতিমধ্যে অ্যাকাউন্ট আছে?'}</span>
+        <span>ইতিমধ্যে অ্যাকাউন্ট আছে?</span>
         {authLinks.filter((link) => link.path !== `/auth/${current}`).map((link) => (
           <button type="button" className="text-button" key={link.path} onClick={() => go(link.path)}>{link.label}</button>
         ))}
       </span>
-      {current === 'login' && (
-        <button type="button" className="text-button auth-forgot-inline" onClick={() => go('/auth/forgot-password')}>
-          পাসওয়ার্ড ভুলে গেছেন?
-        </button>
-      )}
     </div>
   );
 }

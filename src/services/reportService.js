@@ -217,30 +217,167 @@ export function openPrintReportWindow() {
   return win;
 }
 
+function cssContentString(value) {
+  const escaped = String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/</g, '\\3C ')
+    .replace(/>/g, '\\3E ')
+    .replace(/\r\n?|\n/g, '\\A ')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ');
+  return `"${escaped}"`;
+}
+
+function formatReportHeaderDate(value) {
+  if (!value) return '—';
+  const raw = String(value).trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}T00:00:00Z`)
+    : new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  try {
+    return new Intl.DateTimeFormat(getUiLocale(), {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(date);
+  } catch {
+    return raw;
+  }
+}
+
+function createReportHeaderCanvas(width, height, draw) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  if (!context) return '';
+  context.clearRect(0, 0, width, height);
+  context.textBaseline = 'alphabetic';
+  context.direction = 'ltr';
+  draw(context, width, height);
+  try { return canvas.toDataURL('image/png'); }
+  catch { return ''; }
+}
+
+function fitReportCanvasText(context, text, { weight = 500, baseSize = 48, minSize = 30, maxWidth, family = '"Noto Sans Bengali", Arial, sans-serif' } = {}) {
+  let size = baseSize;
+  const value = String(text ?? '');
+  while (size > minSize) {
+    context.font = `${weight} ${size}px ${family}`;
+    if (context.measureText(value).width <= maxWidth) break;
+    size -= 1;
+  }
+  context.font = `${weight} ${size}px ${family}`;
+  return size;
+}
+
+function buildReportHeaderLeftImage({ appName, tagline, reportTitle, dateRange }) {
+  return createReportHeaderCanvas(1740, 440, (context, width) => {
+    context.textAlign = 'left';
+    context.fillStyle = '#173f32';
+    context.font = '800 82px "Noto Sans Bengali", Arial, sans-serif';
+    context.fillText(appName, 4, 84);
+    context.fillStyle = '#64766c';
+    context.font = '400 48px "Noto Sans Bengali", Arial, sans-serif';
+    context.fillText(tagline, 5, 170);
+    context.fillStyle = '#244d3b';
+    fitReportCanvasText(context, reportTitle, { weight: 750, baseSize: 66, minSize: 42, maxWidth: width - 12 });
+    context.fillText(reportTitle, 5, 278);
+    context.fillStyle = '#53665b';
+    fitReportCanvasText(context, dateRange, { weight: 500, baseSize: 48, minSize: 34, maxWidth: width - 12 });
+    context.fillText(dateRange, 5, 382);
+  });
+}
+
+function buildReportHeaderRightImage({ managerName, managerPhone, periodLabel, generatedBy, generatedAt, labels }) {
+  const managerLine = [
+    managerName ? `${labels.manager}: ${managerName}` : '',
+    managerPhone ? `${labels.contact}: ${managerPhone}` : '',
+  ].filter(Boolean).join('   •   ') || `${labels.manager}: —`;
+  const rows = [
+    { text: managerLine, y: 76, weight: 700, base: 57, min: 37, color: '#294a3a' },
+    { text: `${labels.month}: ${periodLabel || '—'}`, y: 176, weight: 600, base: 54, min: 38, color: '#506258' },
+    { text: `${labels.preparedBy}: ${generatedBy || '—'}`, y: 276, weight: 500, base: 49, min: 34, color: '#647269' },
+    { text: `${labels.generatedAt}: ${generatedAt}`, y: 376, weight: 400, base: 45, min: 32, color: '#748178' },
+  ];
+  return createReportHeaderCanvas(1800, 440, (context, width) => {
+    context.textAlign = 'right';
+    for (const row of rows) {
+      context.fillStyle = row.color;
+      fitReportCanvasText(context, row.text, { weight: row.weight, baseSize: row.base, minSize: row.min, maxWidth: width - 12 });
+      context.fillText(row.text, width - 6, row.y);
+    }
+  });
+}
+
 export function printReport(title, subtitle, tableHtml, existingWindow = null, metadata = {}) {
   const win = existingWindow || window.open('', '_blank', 'width=1100,height=800');
   if (!win) throw new Error('রিপোর্ট প্রিন্ট উইন্ডো খোলা যায়নি। ব্রাউজারের pop-up অনুমতি দিন।');
   const now = new Date();
   const currentYear = Number(new Intl.DateTimeFormat('en', { timeZone: 'Asia/Dhaka', year: 'numeric' }).format(now));
   const generatedAt = new Intl.DateTimeFormat(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(now);
-  const titlePeriod = String(title || '').includes(' — ') ? String(title).split(' — ').slice(-1)[0].trim() : '';
+  const titleParts = String(title || '').split(' — ');
+  const titlePeriod = titleParts.length > 1 ? titleParts[1].trim() : '';
   const periodLabel = metadata.periodLabel || titlePeriod || 'মাসিক হিসাব';
-  const managerName = metadata.managerName || '';
-  const managerPhone = metadata.managerPhone || '';
-  const managerMeta = [managerName, managerPhone].filter(Boolean).join(' · ');
+  const managerName = String(metadata.managerName || '').trim();
+  const managerPhone = String(metadata.managerPhone || '').trim();
+  const generatedBy = String(metadata.generatedBy || metadata.preparedBy || metadata.reportCreator || '').trim();
   const reportTitle = translateReportTitle(title);
+  const reportHeading = translateReportTitle(titleParts[0] || title);
   const reportSubtitle = translateReportUi(subtitle || '');
   const reportPeriodLabel = translateReportUi(periodLabel || 'মাসিক হিসাব');
+  const periodStart = metadata.periodStart || metadata.startDate || '';
+  const periodEnd = metadata.periodEnd || metadata.endDate || '';
+  const periodStatus = String(metadata.periodStatus || metadata.status || '').toLowerCase();
+  const periodDateRange = periodStart
+    ? `${formatReportHeaderDate(periodStart)} – ${(['running', 'open', 'active'].includes(periodStatus) || !periodEnd) ? translateReportUi('চলমান') : formatReportHeaderDate(periodEnd)}`
+    : translateReportUi(metadata.periodRange || periodLabel || 'তারিখের তথ্য নেই');
   const reportMarkup = translateReportMarkup(tableHtml);
-  const footer = `<footer class="report-footer"><span>Copyright © ${currentYear} Hostel-Life. All rights reserved.</span><span>Designed &amp; Developed by Rakibul Islam Samrat</span></footer>`;
-  const header = `<header class="report-header"><div class="report-brand"><span class="report-brand-mark"><img src="/icons/hostel-life-mark.svg" alt="" width="38" height="38" /></span><div><strong>Hostel Life</strong><small>${escapeHtml(translateReportUi('মেস ব্যবস্থাপনা ও হিসাব'))}</small></div></div><div class="report-header-meta"><strong>${escapeHtml(reportPeriodLabel)}</strong>${managerMeta ? `<small>${escapeHtml(translateReportUi('ম্যানেজার'))}: ${escapeHtml(managerMeta)}</small>` : ''}<small>${escapeHtml(translateReportUi('প্রতিবেদন'))}: ${escapeHtml(reportTitle)}</small></div></header>`;
+  const reportLogoUrl = new URL('/icons/hostel-life-mark.svg', window.location.origin).href;
+  const pageBrandImage = buildReportHeaderLeftImage({
+    appName: 'Hostel Life',
+    tagline: translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'),
+    reportTitle: reportHeading,
+    dateRange: periodDateRange,
+  });
+  const pageMetaImage = buildReportHeaderRightImage({
+    managerName,
+    managerPhone,
+    periodLabel: reportPeriodLabel,
+    generatedBy,
+    generatedAt,
+    labels: {
+      manager: translateReportUi('ম্যানেজার'),
+      contact: translateReportUi('যোগাযোগ'),
+      month: translateReportUi('মাস'),
+      preparedBy: translateReportUi('প্রস্তুত করেছেন'),
+      generatedAt: translateReportUi('প্রস্তুতির সময়'),
+    },
+  });
+  const pageFooter = cssContentString([
+    `Copyright © ${currentYear} Hostel-Life. All rights reserved.`,
+    'Designed & Developed by Rakibul Islam Samrat',
+  ].join('\n'));
+  const bodyClasses = metadata.reportVariant === 'member-detail' ? 'report-member-detail' : '';
+  const pageSize = metadata.pageOrientation === 'landscape' ? 'A4 landscape' : 'A4 portrait';
+  const subtitleMarkup = reportSubtitle
+    ? `<p class="report-subtitle">${escapeHtml(reportSubtitle)}</p>`
+    : '';
+
   win.document.open();
   win.document.write(`<!doctype html><html lang="${getUiLocale() === 'en-US' ? 'en' : 'bn-BD'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(reportTitle)}</title><style>
-  :root{color-scheme:light}*{box-sizing:border-box}body{font-family:Arial,"Noto Sans Bengali",sans-serif;max-width:100%;margin:0;padding:0 0 26px;color:#203129;background:#fff;font-size:13px;line-height:1.55}.report-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 0;margin:0 0 12px;border-bottom:2px solid #dce9e0;background:linear-gradient(90deg,#f2f8f4,#fff)}.report-brand{display:flex;align-items:center;gap:10px;min-width:0}.report-brand-mark{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:11px;background:#e2f0e6;color:#226b43;font-size:14px;font-weight:900;letter-spacing:-.04em}.report-brand>div,.report-header-meta{display:grid;gap:2px;min-width:0}.report-brand strong{font-size:15px;letter-spacing:.01em}.report-brand small,.report-header-meta small{color:#69776f;font-size:10px}.report-header-meta{text-align:right}.report-header-meta strong{font-size:12px;color:#245f3e}.report-body{padding:0}.report-title{margin:0 0 4px;font-size:22px;line-height:1.35;color:#173e2a}.report-subtitle{margin:0 0 18px;color:#6c7b72;font-size:11px;line-height:1.65}.report-section-title{margin:20px 0 8px;font-size:14px;color:#245f3e}.report-summary{margin:0 0 17px;width:100%;table-layout:fixed}.report-summary td{background:#f6faf7}.report-summary td strong{display:block;margin-top:3px;font-size:15px;color:#174d30}.report-summary td small{color:#718178;font-size:9px}.report-table-wrap{width:100%;overflow:visible}table{width:100%;max-width:100%;border-collapse:collapse;font-size:11px;line-height:1.5;table-layout:fixed}th,td{border:1px solid #dbe4de;padding:7px 8px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}th{background:#edf5ef;color:#244d35;font-weight:800}tbody tr:nth-child(even){background:#fbfdfb}.meal-matrix{font-size:7px;table-layout:fixed}.meal-matrix th,.meal-matrix td{padding:3px 2px;text-align:center;white-space:nowrap;overflow-wrap:normal;word-break:normal}.meal-matrix th:first-child,.meal-matrix td:first-child{text-align:left;white-space:normal;width:90px}.meal-matrix th:not(:first-child){font-size:7px}tfoot td,tfoot th{background:#f2f7f3;font-weight:800}.report-note{margin:12px 0;color:#738177;font-size:10px;line-height:1.6}.report-footer{position:fixed;left:12.7mm;right:12.7mm;bottom:3mm;display:flex;flex-direction:column;align-items:center;text-align:center;gap:1px;border-top:1px solid #e4ebe6;padding:5px 0;color:#98a39b;font-size:8px;background:#fff}.report-footer span{min-width:0;overflow-wrap:anywhere}@page{size:${metadata.pageOrientation === 'landscape' ? 'A4 landscape' : 'A4 portrait'};margin:12.7mm 12.7mm 15mm}@media(max-width:600px){.report-header{align-items:flex-start;padding:12px;gap:8px}.report-brand-mark{width:32px;height:32px;flex-basis:32px}.report-brand strong{font-size:13px}.report-header-meta small{font-size:9px}.report-body{padding:0}.report-title{font-size:19px}table:not(.meal-matrix){font-size:10px}th,td{padding:5px 5px}.report-footer{left:14mm;right:14mm;font-size:7px}}@media print{body{padding-bottom:0;print-color-adjust:exact;-webkit-print-color-adjust:exact}.report-footer{position:fixed}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid;page-break-inside:avoid}h1,h2,h3{break-after:avoid;page-break-after:avoid}.report-header{break-after:avoid}.report-summary{break-inside:avoid}.report-section{break-inside:auto}.report-table-wrap{overflow:visible}}
-  </style></head><body>${header}<main class="report-body"><h1 class="report-title">${escapeHtml(reportTitle)}</h1><p class="report-subtitle">${escapeHtml(reportSubtitle)}<br>${escapeHtml(translateReportUi('প্রস্তুত'))}: ${escapeHtml(generatedAt)}</p>${reportMarkup}</main>${footer}<script>window.onload=()=>{setTimeout(()=>window.print(),300)};<\/script></body></html>`);
+  :root{color-scheme:light}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{font-family:Arial,"Noto Sans Bengali",sans-serif;max-width:100%;color:#203129;font-size:11px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-body{padding:0}.report-subtitle{margin:0 0 5mm;color:#68776e;font-size:9px;line-height:1.5}.report-section-title{margin:6mm 0 2.5mm;font-size:13px;line-height:1.35;color:#245f3e;break-after:avoid;page-break-after:avoid}.report-summary{margin:0 0 5mm;width:100%;table-layout:fixed}.report-summary td{background:#f6faf7}.report-summary td strong{display:block;margin-top:3px;font-size:14px;color:#174d30}.report-summary td small{color:#718178;font-size:9px}.report-member-detail .report-member-summary{margin:0 0 5mm;border:1px solid #dbe5de;border-radius:7px;overflow:hidden}.report-member-detail .report-member-summary th{padding:6px 7px;background:#f1f6f2;color:#506257;font-size:9px}.report-member-detail .report-member-summary td{padding:6px 8px;background:#fff;vertical-align:middle}.report-member-detail .report-member-summary td strong{margin:0;color:#174d30;font-size:11px;line-height:1.4;overflow-wrap:anywhere}.report-member-detail .report-member-section{margin:0 0 4mm;break-inside:auto;page-break-inside:auto}.report-member-detail .report-section-title{margin:5mm 0 2mm;padding:0 0 1.5mm;border-bottom:1px solid #e1e9e3;font-size:12px;break-after:avoid;page-break-after:avoid}.report-member-detail .report-member-table{font-size:9px;line-height:1.4;table-layout:fixed}.report-member-detail .report-member-table th,.report-member-detail .report-member-table td{padding:5px 6px}.report-member-detail .report-member-table tr{break-inside:avoid;page-break-inside:avoid}.report-member-detail .report-member-table thead{display:table-header-group}.report-table-wrap{width:100%;max-width:100%;overflow:visible}table{width:100%;max-width:100%;border-collapse:collapse;font-size:10px;line-height:1.45;table-layout:fixed}th,td{border:1px solid #dbe4de;padding:6px 7px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}th{background:#edf5ef;color:#244d35;font-weight:800}tbody tr:nth-child(even){background:#fbfdfb}.meal-matrix{font-size:7px;table-layout:fixed}.meal-matrix th,.meal-matrix td{padding:3px 2px;text-align:center;white-space:nowrap;overflow-wrap:normal;word-break:normal}.meal-matrix th:first-child,.meal-matrix td:first-child{text-align:left;white-space:normal;width:90px}.meal-matrix th:not(:first-child){font-size:7px}tfoot td,tfoot th{background:#f2f7f3;font-weight:800}.report-note{margin:4mm 0;color:#738177;font-size:9px;line-height:1.5}
+  @page{size:${pageSize};margin:25.4mm 12.7mm 25.4mm;
+    @top-left{content:${pageBrandImage ? '""' : cssContentString(['Hostel Life', translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'), reportHeading, periodDateRange].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;width:49%;height:100%;padding:0 2mm 2.4mm 0;border-bottom:1.1pt solid #d8e3db;background-image:url("${reportLogoUrl}")${pageBrandImage ? `,url("${pageBrandImage}")` : ''};background-repeat:no-repeat${pageBrandImage ? ',no-repeat' : ''};background-position:left center${pageBrandImage ? ',12.6mm center' : ''};background-size:10.6mm 10.6mm${pageBrandImage ? ',calc(100% - 12.6mm) calc(100% - 2.4mm)' : ''};font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:7.2pt;line-height:1.35;font-weight:700;color:#244437}
+    @top-right{content:${pageMetaImage ? '""' : cssContentString([`${translateReportUi('ম্যানেজার')}: ${managerName || '—'}  •  ${translateReportUi('যোগাযোগ')}: ${managerPhone || '—'}`, `${translateReportUi('মাস')}: ${reportPeriodLabel}`, `${translateReportUi('প্রস্তুত করেছেন')}: ${generatedBy || '—'}`, `${translateReportUi('প্রস্তুতির সময়')}: ${generatedAt}`].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;text-align:right;width:51%;height:100%;padding:0 0 2.4mm 2mm;border-bottom:1.1pt solid #d8e3db;${pageMetaImage ? `background-image:url("${pageMetaImage}");background-repeat:no-repeat;background-position:center center;background-size:100% calc(100% - 2.4mm);` : 'font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.4pt;line-height:1.45;font-weight:500;color:#53645a;'}}
+    @bottom-center{content:${pageFooter};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:top;text-align:center;width:calc(100% - 25.4mm);height:100%;margin:0 auto;padding:1.2mm 0 0;border-top:.8pt solid #dfe7e1;font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.8pt;line-height:1.38;font-weight:400;color:#829087}
+  }
+  @media print{html,body{margin:0;padding:0}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid;page-break-inside:avoid}h1,h2,h3{break-after:avoid;page-break-after:avoid}.report-summary{break-inside:avoid}.report-section{break-inside:auto}.report-table-wrap{overflow:visible}}
+  </style></head><body class="${escapeHtml(bodyClasses)}"><main class="report-body">${subtitleMarkup}${reportMarkup}</main><script>window.onload=()=>{setTimeout(()=>window.print(),300)};<\/script></body></html>`);
   win.document.close();
 }
-
 
 /**
  * Print a closed-month archive using the same five-section layout as the live
@@ -248,7 +385,7 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
  * detail RPC; the server computes each member's settlement using the same
  * private.member_financials helper used by the live dashboard.
  */
-export function printArchivedMonthlyReport(detail, existingWindow = null) {
+export function printArchivedMonthlyReport(detail, existingWindow = null, metadata = {}) {
   if (!detail || !Array.isArray(detail.markets) || !Array.isArray(detail.meals)
     || !Array.isArray(detail.ledger) || !Array.isArray(detail.members)) {
     throw new Error('পূর্ণ মাসিক প্রতিবেদন তৈরির জন্য আর্কাইভের বিস্তারিত হিসাব পাওয়া যায়নি। Run41 migration প্রয়োগ করুন।');
@@ -352,8 +489,12 @@ export function printArchivedMonthlyReport(detail, existingWindow = null) {
     + `<h2 class="report-section-title">${formatNumber(5, { maximumFractionDigits: 0 })}. ${translateReportUi('দৈনিক মিলের সারসংক্ষেপ')}</h2>${dailyTable}`;
   printReport('পূর্ণ মাসিক প্রতিবেদন', subtitle, content, existingWindow, {
     periodLabel: detail.label || '',
+    periodStart: detail.start_date || '',
+    periodEnd: detail.end_date || '',
+    periodStatus: 'closed',
     managerName: detail.manager_at_close_name || detail.manager_name || '',
     managerPhone: detail.manager_at_close_phone || '',
+    generatedBy: metadata.generatedBy || metadata.preparedBy || '',
     pageOrientation: 'portrait',
   });
 }

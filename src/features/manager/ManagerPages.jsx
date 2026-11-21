@@ -403,20 +403,17 @@ export function CloseCurrentMonthPage() {
         <PageHeader
           title="বর্তমান মাস শেষ করুন"
           icon="calendar"
-          description="আজ পর্যন্ত হিসাব চূড়ান্ত করে মাস বন্ধ করুন।"
         />
         <InfoPanel className="finance-context-note finance-context-note-warning month-close-primary-guidance" tone="warning" icon="alert-triangle">মাস বন্ধের আগে অপেক্ষমাণ অনুরোধ ও আর্থিক এন্ট্রি যাচাই করুন। বন্ধের পর নতুন অনুরোধ নেওয়া যাবে না।</InfoPanel>
         <section className="card manager-form-card">
           <div className="manager-current-period">
             <span>চলমান মাস</span>
             <strong>{context.period.label}</strong>
-            <small>{formatDateBangla(context.period.start_date)} থেকে · বন্ধ করলে {formatDateBangla(today)} শেষ দিন হবে</small>
-            <em>বন্ধ করার সঙ্গে সঙ্গেই আজকের হিসাবও চূড়ান্ত হবে; রাত ৯টার জন্য অপেক্ষা করতে হবে না।</em>
+            <small>{formatDateBangla(context.period.start_date)} থেকে {formatDateBangla(today)} পর্যন্ত</small>
           </div>
           {showGenericCloseBlock && <div className="manager-warning-box" role="alert"><Icon name="clock" size={18} /><div><strong>{preflightKnown ? 'এই মাসটি এখনই বন্ধ করা যাবে না।' : 'মাস বন্ধের আগে যাচাই সম্পন্ন হয়নি।'}</strong><p>{preflight?.message || 'মিলের অনুরোধ, আর্থিক এন্ট্রি ও তারিখের অবস্থা সার্ভার থেকে যাচাই করা যায়নি। নিরাপত্তার জন্য মাস বন্ধের বোতাম বন্ধ রাখা হয়েছে।'}</p>{futureFinancialCount > 0 && <small>ভবিষ্যৎ তারিখের আর্থিক এন্ট্রি আগে ঠিক করুন।</small>}<button className="secondary-button compact" type="button" onClick={load}>আবার যাচাই করুন</button></div></div>}
           {preflight?.running_period_count > 1 && <div className="manager-warning-box"><Icon name="warning" size={18} /><div><strong>মেসে একাধিক চলমান মাস পাওয়া গেছে।</strong><p>নতুন মাস শুরু করবেন না। আগে এই তথ্যের অবস্থা যাচাই করতে হবে।</p></div></div>}
           {requiresImpactConfirmation && <div className="manager-warning-box" role="alert"><Icon name="warning" size={18} /><div><strong>মাস বন্ধ করলে কিছু অনুরোধ/রেকর্ড বাতিল হবে।</strong><p>{futureRequestCount}টি ভবিষ্যৎ সক্রিয় অনুরোধ, {futureDayCount}টি ভবিষ্যৎ মিল-দিন এবং {pendingSpecialCount}টি অপেক্ষমাণ লেট/সংশোধন অনুরোধ পাওয়া গেছে। নিশ্চিত করলে এগুলো বাতিল হবে; আজ পর্যন্ত অনুমোদিত মিলের হিসাব চূড়ান্ত হবে।</p></div></div>}
-          <div className="inline-info month-close-finalization-guidance" role="status"><Icon name="info" size={16} /> মাস বন্ধ করার দিন রাত ৯টার আগেও বন্ধ করলে আজকের অনুমোদিত মিল সঙ্গে সঙ্গে চূড়ান্ত হবে। কোনো অপেক্ষমাণ লেট/সংশোধন অনুরোধ থাকলে সেটি নিশ্চিতকরণের মাধ্যমে বাতিল হবে।</div>
           {preflight && preflight.overlap_pair_count > 0 && <div className="form-hint"><Icon name="info" size={16} /> {preflight.overlap_pair_count}টি পুরোনো overlapping normal request pair আছে। এগুলো মাস বন্ধের বাধা নয়; নতুন request দেওয়ার সময় conflict protection কাজ করবে।</div>}
           {overlaps.length > 0 && <div className="manager-overlap-list"><strong>ঐতিহাসিক overlap-এর বিবরণ</strong>{overlaps.map((item) => <div className="manager-overlap-row" key={`${item.request_id_a}-${item.request_id_b}`}><span>{item.member_name_a || 'সদস্য'} · {formatDateBangla(item.start_date_a)} → {formatDateBangla(item.end_date_a)}</span><span>{item.member_name_b || 'সদস্য'} · {formatDateBangla(item.start_date_b)} → {formatDateBangla(item.end_date_b)}</span></div>)}</div>}
           <div className="archive-period-close-summary">
@@ -451,7 +448,7 @@ export function CloseCurrentMonthPage() {
               <div><strong>{formatNumber(futureDayCount)}</strong><span>ভবিষ্যৎ মিল-দিন</span></div>
               <div><strong>{formatNumber(pendingSpecialCount)}</strong><span>অপেক্ষমাণ বিশেষ অনুরোধ</span></div>
             </div>
-            <p>আজ পর্যন্ত বাতিল না হওয়া অনুমোদিত মিলের হিসাব সঙ্গে সঙ্গেই চূড়ান্ত হবে—রাত ৯টার জন্য অপেক্ষা করতে হবে না। আজকের পরের তারিখের সক্রিয় অনুরোধ ও রেকর্ড এবং অপেক্ষমাণ লেট/সংশোধন অনুরোধ বাতিল হবে।</p>
+            <p>বন্ধ করার সঙ্গে সঙ্গেই আজকের হিসাবও চূড়ান্ত হবে—রাত ৯টার জন্য অপেক্ষা করতে হবে না। আজকের পরের তারিখের সক্রিয় অনুরোধ ও রেকর্ড এবং অপেক্ষমাণ লেট/সংশোধন অনুরোধ বাতিল হবে।</p>
             <small>আগের দিনের চূড়ান্ত হিসাব ও আর্থিক ইতিহাস মুছে ফেলা বা পরিবর্তন করা হবে না।</small>
           </div>
         </ConfirmModal>}
@@ -504,8 +501,7 @@ export function ChangeManagerPage() {
     <PrimaryManagerGuard>
       <div className="page-stack">
         <PageHeader title="ম্যানেজার পরিবর্তন" icon="shield" description="দায়িত্ব হস্তান্তর করলে আপনার ম্যানেজার ক্ষমতা শেষ হবে।" />
-        <InfoPanel tone="warning" icon="shield-alert">নিশ্চিত করলে আপনার ম্যানেজার ক্ষমতা চলে যাবে। নতুন দায়িত্বপ্রাপ্ত সদস্য বেছে নিন।</InfoPanel>
-        <div className="form-hint" role="note">ম্যানেজার পরিবর্তন আলাদা অনুমতিনির্ভর কাজ; এটি আর্থিক এন্ট্রি নয়।</div>
+        <InfoPanel className="manager-change-guidance" tone="warning" icon="shield-alert">নিশ্চিত করলে আপনার ম্যানেজার ক্ষমতা চলে যাবে। নতুন দায়িত্বপ্রাপ্ত সদস্য বেছে নিন।</InfoPanel>
         {futurePeriodNotice && <div className="form-hint period-start-notice"><Icon name="info" size={15} /> {futurePeriodNotice} ম্যানেজার পরিবর্তনের এই কাজটি এখনই করা যাবে।</div>}
         <section className="card manager-form-card">
           <div className="manager-role-hero"><div className="role-person"><span>বর্তমান</span><strong>{currentName}</strong><small>ম্যানেজার</small></div><Icon name="arrow-right" size={24} /><div className="role-person"><span>নতুন</span><strong>{selected ? members.find((m) => m.membership_id === selected)?.member_name : 'নির্বাচন করুন'}</strong><small>ম্যানেজার হবে</small></div></div>
@@ -570,11 +566,11 @@ export function AssistantManagersPage() {
     <PrimaryManagerGuard>
       <div className="page-stack">
         <PageHeader title="সহকারী ম্যানেজার" icon="users" description="সক্রিয় সদস্যকে সহকারী ম্যানেজার করুন।" />
-        <InfoPanel icon="shield-check">দৈনন্দিন কাজের জন্য সহকারী নির্ধারণ করুন। মাস শুরু/বন্ধ করবেন প্রধান ম্যানেজার।</InfoPanel>
+        <InfoPanel className="assistant-manager-guidance">দৈনন্দিন কাজের জন্য সহকারী নির্ধারণ করুন। মাস শুরু/বন্ধ করবেন প্রধান ম্যানেজার।</InfoPanel>
         <section className="card manager-form-card">
           <div className="manager-warning-box"><Icon name="info" size={18} /><div><strong>সহকারী ম্যানেজার শুধু দৈনন্দিন কাজের ক্ষমতা পাবেন।</strong><p>মাস শুরু/শেষ, সদস্য নিষ্ক্রিয় করা এবং ম্যানেজার পরিবর্তন শুধু প্রধান ম্যানেজার করতে পারবেন।</p></div></div>
           <div className="assistant-selection-heading">
-            <div><strong>সক্রিয় সদস্য নির্বাচন</strong><small>চেক করে সহকারী ম্যানেজার করুন; নির্বাচন তুলে নিলে সহকারীর ক্ষমতা সরে যাবে।</small></div>
+            <div><strong>সক্রিয় সদস্য নির্বাচন</strong></div>
             <span className="assistant-selection-count"><Icon name="shield-check" size={15} /> {selected.length} জন নির্বাচিত</span>
           </div>
           <div className="assistant-grid" role="group" aria-label="সহকারী ম্যানেজার নির্বাচন">
@@ -695,7 +691,6 @@ export function HostelSettingsPage() {
     <ManagerGuard>
       <div className="page-stack">
         <PageHeader title="মেস সেটিংস" icon="lock" description="মেসের নাম ও Join Link পরিচালনা করুন।" />
-        <aside className="hostel-settings-note"><Icon name="info" size={16}/><span>Join Code ও Invitation Link দিয়ে নতুন সদস্য যুক্ত করা যাবে।</span></aside>
         <form className="card manager-form-card" onSubmit={saveName}>
           <label className="field-label"><span>মেসের নাম</span><input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} /></label>
           <button className="primary-button" type="submit" disabled={busy}>{busy ? 'সংরক্ষণ হচ্ছে...' : 'মেসের নাম সংরক্ষণ করুন'}</button>
@@ -745,7 +740,6 @@ export function HostelSettingsPage() {
               </button>
             </div>
           )}
-          <p className="manager-invite-footnote"><Icon name="shield-check" size={14}/> অ্যাকাউন্ট তৈরি ও ম্যানেজারের অনুমোদনের পর সদস্যপদ চালু হবে।</p>
         </section>
         {confirmCode && <ConfirmModal title="নতুন যুক্ত হওয়ার কোড তৈরি করবেন?" description="নতুন কোড তৈরি করলে আগের যুক্ত হওয়ার কোড দিয়ে আর নতুন সদস্য যুক্ত হতে পারবে না।" confirmLabel="নতুন কোড তৈরি করুন" busy={codeBusy} onClose={() => setConfirmCode(false)} onConfirm={regen} />}
       </div>
@@ -759,7 +753,7 @@ function JoinRequestQueue() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
-  const [reviewNote, setReviewNote] = useState('');
+  const reviewNote = '';
   const load = useCallback(async () => {
     setLoading(true);
     try { setRows(await managerListHostelJoinRequests()); }
@@ -778,7 +772,6 @@ function JoinRequestQueue() {
     try {
       await managerReviewHostelJoinRequest(row.id, approve, reviewNote);
       toast.success(approve ? `${row.full_name} এখন মেসের সদস্য।` : `${row.full_name}-এর অনুরোধ বাতিল হয়েছে।`);
-      setReviewNote('');
       await load();
     } catch (error) { toast.error(getFriendlySupabaseError(error, 'Join Request পর্যালোচনা করা যায়নি।')); }
     finally { setBusyId(''); }
@@ -788,14 +781,10 @@ function JoinRequestQueue() {
       <div>
         <span className="eyebrow">MEMBERSHIP APPROVAL</span>
         <h2>অপেক্ষমাণ অনুরোধ</h2>
-        <p>যাচাই করে সদস্যপদ অনুমোদন দিন।</p>
       </div>
       <button className="secondary-button compact manager-request-refresh" type="button" disabled={loading || !online} onClick={load}>
         <Icon name="refresh" size={15}/> রিফ্রেশ
       </button>
-    </div>
-    <div className="manager-request-note-row">
-      <label className="field-label"><span>সিদ্ধান্তের নোট <small>(ঐচ্ছিক)</small></span><input value={reviewNote} onChange={(e) => setReviewNote(e.target.value)} maxLength={500} placeholder="প্রয়োজন হলে সংক্ষিপ্ত কারণ লিখুন"/></label>
     </div>
     {loading ? <LoadingSpinner label="অনুরোধ লোড হচ্ছে..."/> : rows.length === 0 ? (
       <div className="manager-request-empty"><span><Icon name="user-check" size={25}/></span><strong>নতুন কোনো অনুরোধ নেই</strong><p>নতুন সদস্যের অনুরোধ এলে এখানে দেখা যাবে।</p></div>
@@ -832,7 +821,6 @@ export function JoinRequestReviewPage() {
   if (!online) return <AccessNotice title="ইন্টারনেট চালু করুন" text="Join Request পর্যালোচনার জন্য অনলাইন সংযোগ প্রয়োজন।" />;
   return <ManagerGuard><div className="page-stack">
     <PageHeader title="জয়েন রিকোয়েস্ট পর্যালোচনা" icon="user-check" description="নতুন সদস্যের আবেদন যাচাই করুন।" />
-    <InfoPanel icon="user-check">পরিচয় যাচাই করে আবেদন অনুমোদন বা প্রত্যাখ্যান করুন।</InfoPanel>
     <JoinRequestQueue />
   </div></ManagerGuard>;
 }
@@ -893,7 +881,7 @@ export function MemberManagementPage() {
       <PrimaryManagerGuard>
       <div className="page-stack">
         <PageHeader title="সদস্য ব্যবস্থাপনা" icon="users" description="সদস্যের অবস্থা পরিচালনা করুন।" />
-        <InfoPanel icon="users">নিষ্ক্রিয় করার আগে চলমান মিল ও অনুরোধ যাচাই করুন। পুরোনো হিসাব অক্ষত থাকবে।</InfoPanel>
+        <InfoPanel className="member-management-guidance">নিষ্ক্রিয় করার আগে চলমান মিল ও অনুরোধ যাচাই করুন। পুরোনো হিসাব অক্ষত থাকবে।</InfoPanel>
         {loading ? <LoadingSpinner label="সদস্য তালিকা লোড হচ্ছে..." /> : <div className="manager-member-list">
           {members.map((member) => {
             const isSelf = member.membership_id === membership?.membership_id;
@@ -1087,7 +1075,7 @@ export function KhalaMoneyPage() {
 
   return (
     <div className="page-stack">
-        <PageHeader title="খালার টাকা" icon="wallet" description="সব মাসের খালার হিসাব দেখুন; সংশোধন শুধু আপনার অনুমোদিত মাসে।" />
+        <PageHeader title="খালার টাকা" icon="wallet" description="আপনি যেই মাস বন্ধ করেছেন, শুধু সেই মাসের সংশোধন বা এন্ট্রি করতে পারবেন।" />
         <div className="khala-period-tabs" role="tablist" aria-label="খালার টাকার মাস নির্বাচন">
           {[{ key: 'previous', label: 'পূর্ববর্তী মাস' }, { key: 'current', label: 'বর্তমান মাস' }, { key: 'all', label: 'সকল মাস' }].map((tab) => <button key={tab.key} type="button" role="tab" aria-selected={periodTab === tab.key} className={periodTab === tab.key ? 'is-active' : ''} onClick={() => changePeriodTab(tab.key)}><span>{tab.label}</span><b>{formatNumber(periods.filter((period) => tab.key === 'all' || (tab.key === 'current' ? period.status === 'running' : period.status !== 'running')).length)}</b></button>)}
         </div>
@@ -1123,16 +1111,21 @@ export function KhalaMoneyPage() {
               <div className="manager-list-stack">
                 {visibleRows.length === 0 ? <div className="empty-state-card compact-empty"><Icon name="wallet" size={24} /><strong>কোনো এন্ট্রি নেই</strong><span>এই কাজের মাসে এখনো খালার টাকার কোনো এন্ট্রি দেওয়া হয়নি।</span></div> : visibleRows.map((row) => (
                   <article className={`card manager-ledger-row khala-manager-ledger-row ${row.status === 'void' ? 'void-row' : ''}`} key={row.entry_id}>
-                    <div className="khala-ledger-copy">
-                      <div className="khala-ledger-recipient"><span>সদস্যের নাম</span><strong>{row.recipient_name || (row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : 'সদস্যের নাম পাওয়া যায়নি')}</strong></div>
-                      <span className="khala-entry-kind">খালার পারিশ্রমিক</span>
-                      <small>প্রকৃত প্রদানের তারিখ: {formatDateWithWeekday(row.entry_date)} · এন্ট্রি: {formatDateTime12(row.created_at)}</small>
-                      <span className="khala-ledger-description">{row.description || 'খালার টাকা'}</span>
-                      <small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small>
-                      {row.updated_by_name && <small className="khala-entry-actor">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}
+                    <div className="khala-entry-card-main">
+                      <div className="khala-ledger-copy">
+                        <div className="khala-ledger-recipient"><span>সদস্যের নাম</span><strong>{row.recipient_name || (row.member_name && row.member_name !== 'খালার পারিশ্রমিক' ? row.member_name : 'সদস্যের নাম পাওয়া যায়নি')}</strong></div>
+                        <span className="khala-entry-kind">খালার পারিশ্রমিক</span>
+                        <small>প্রকৃত প্রদানের তারিখ: {formatDateWithWeekday(row.entry_date)} · এন্ট্রি: {formatDateTime12(row.created_at)}</small>
+                        <span className="khala-ledger-description">{row.description || 'খালার টাকা'}</span>
+                        <small className="khala-entry-actor">এন্ট্রি করেছেন: {row.created_by_name || row.creator_name || 'নাম পাওয়া যায়নি'}</small>
+                        {row.updated_by_name && <small className="khala-entry-actor">শেষ সম্পাদনা: {row.updated_by_name}{row.updated_at ? ` · ${formatDateTime12(row.updated_at)}` : ''}</small>}
+                      </div>
+                      <div className="khala-entry-card-amount"><span>পরিশোধিত অর্থ</span><strong>{formatCurrency(row.amount)}</strong></div>
                     </div>
-                    <strong>{formatCurrency(row.amount)}</strong>
-                    {selectedPeriod?.can_manage_khala && row.status !== 'void' ? <div className="khala-row-actions"><button className="icon-button compact-icon" type="button" disabled={busy} onClick={() => startEdit(row)} aria-label="এন্ট্রি সম্পাদনা করুন" title="সম্পাদনা"><Icon name="edit" size={15} /></button><button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন"><Icon name="trash" size={15} /></button></div> : <span className={`member-badge ${row.status === 'void' ? 'inactive' : 'subtle'}`}>{row.status === 'void' ? 'বাতিল' : selectedPeriod?.can_manage_khala ? 'পরিশোধিত' : 'শুধু দেখা'}</span>}
+                    <div className="khala-entry-card-footer">
+                      {(row.status === 'void' || !selectedPeriod?.can_manage_khala) && <span className={`member-badge ${row.status === 'void' ? 'inactive' : 'subtle'}`}>{row.status === 'void' ? 'বাতিল' : 'শুধু দেখা'}</span>}
+                      {selectedPeriod?.can_manage_khala && row.status !== 'void' && <div className="khala-row-actions"><button className="icon-button compact-icon" type="button" disabled={busy} onClick={() => startEdit(row)} aria-label="এন্ট্রি সম্পাদনা করুন" title="সম্পাদনা"><Icon name="edit" size={15} /></button><button className="icon-button compact-icon danger-icon" type="button" disabled={busy} onClick={() => { setVoidTarget(row); setVoidReason(''); }} aria-label="এন্ট্রি বাতিল করুন" title="এন্ট্রি বাতিল"><Icon name="trash" size={15} /></button></div>}
+                    </div>
                   </article>
                 ))}
               </div>
@@ -1265,6 +1258,7 @@ function formatMealSheetColumnDate(value) {
 }
 
 export function MealSheetPage() {
+  const { membership, profile } = useAuth();
   const toast = useToast();
   const online = useOnlineStatus();
   const [bundle, setBundle] = useState(null);
@@ -1328,7 +1322,7 @@ export function MealSheetPage() {
         : `<p>${isEnglish ? 'All members' : 'সব সদস্য'}</p>`;
       const reportManager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
       const personalTable = `<table><thead><tr><th>${isEnglish ? 'Date' : 'তারিখ'}</th><th>${isEnglish ? 'Status' : 'অবস্থা'}</th><th>${isEnglish ? 'Breakfast' : 'ব্রেকফাস্ট'}</th><th>${isEnglish ? 'Lunch' : 'লাঞ্চ'}</th><th>${isEnglish ? 'Dinner' : 'ডিনার'}</th><th>${isEnglish ? 'Total' : 'মোট'}</th></tr></thead><tbody>${rows}</tbody></table>`;
-      printReport(`${isEnglish ? 'Meal Sheet' : 'মিল শিট'} — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, currentPeriodRange(bundle.period), selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, managerName: reportManager?.member_name || '', managerPhone: reportManager?.phone || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
+      printReport(`${isEnglish ? 'Meal Sheet' : 'মিল শিট'} — ${bundle.period.label}${selectedMember ? ` — ${selectedMember.member_name}` : ''}`, currentPeriodRange(bundle.period), selectedMember ? `${memberSummary}${personalTable}` : matrix, null, { periodLabel: bundle.period.label, periodStart: bundle.period.start_date || '', periodEnd: bundle.period.end_date || '', periodStatus: bundle.period.status || '', managerName: reportManager?.member_name || reportManager?.full_name || '', managerPhone: reportManager?.phone || reportManager?.phone_number || reportManager?.mobile || '', generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '', pageOrientation: selectedMember ? 'portrait' : 'landscape' });
     } catch (error) { toast.error(error.message || 'রিপোর্ট প্রিন্ট করা যায়নি।'); }
     finally { setPrintBusy(false); }
   };
@@ -1343,6 +1337,7 @@ export function MealSheetPage() {
 }
 
 export function ReportsPage() {
+  const { membership, profile } = useAuth();
   const toast = useToast();
   const online = useOnlineStatus();
   const [bundle, setBundle] = useState(null);
@@ -1382,8 +1377,12 @@ export function ReportsPage() {
   const manager = (bundle.members || []).find((member) => member.is_primary_manager || member.role === 'manager');
   const pdfMeta = {
     periodLabel: bundle.period.label,
+    periodStart: bundle.period.start_date || '',
+    periodEnd: bundle.period.end_date || '',
+    periodStatus: bundle.period.status || '',
     managerName: manager?.member_name || manager?.full_name || '',
     managerPhone: manager?.phone || manager?.phone_number || manager?.mobile || '',
+    generatedBy: membership?.member_name || profile?.full_name || profile?.display_name || '',
   };
 
   const money = (value) => escapeReportHtml(formatCurrency(value));

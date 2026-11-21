@@ -1,44 +1,53 @@
-# Hostel Life — Run49 UI + Meal Count Mode Patch
+# Hostel Life — Run109 Global Header & Google Sign-in Patch
 
-এই ZIP হলো তোমার আপলোড করা `Hostel Life(1).zip`-এর জন্য **replacement patch**; এটি সম্পূর্ণ project archive নয়। ZIP extract করলে `src/`, `supabase/` ও `tests/`-এর পথ project root-এর সঙ্গে সরাসরি মিলে যাবে।
+## বেসলাইন
 
-## কী পরিবর্তন আছে
+এই প্যাচটি **Run108-সমন্বিত Hostel Life প্রজেক্টের ওপর incremental update** হিসেবে তৈরি। এটি পূর্ণাঙ্গ প্রজেক্ট ZIP নয়।
 
-- Login, registration, phone/email helper text, security badge ও password-reset desktop layout পরিমার্জন।
-- Password-reset route guard ঠিক করা, যাতে reset link active-member auto-redirect-এ আটকে না যায় এবং reset flow-তে থাকতে পারে।
-- Onboarding-এর welcome/name ও অপ্রয়োজনীয় callout কমানো; join/create form, account-switch placement এবং create-success screen সরল করা।
-- Menu, report, archive, help/how-to, Telegram, privacy/terms ও manager pages-এর নির্দিষ্ট header/eyebrow, spacing, color ও mobile layout পরিমার্জন। Landing page পরিবর্তন করা হয়নি।
-- Dining back button-এর আকার অপরিবর্তিত রেখে style polish। Market History card-এ শুধু nested total-amount box সরানো; market list/detail flow অপরিবর্তিত।
-- Match Settings-এ Breakfast, Lunch, Dinner-এর Half/Full display mode। Default: Breakfast Half; Lunch Full; Dinner Full।
+## পরিবর্তনের পরিধি
 
-## Meal count mode কীভাবে কাজ করে
+### ১. সব PDF রিপোর্টের Header
 
-এই setting শুধু Dashboard-এর meal-wise people display-কে রূপান্তর করে। Half mode-এ ৫টি stored breakfast meal unit স্ক্রিনে ১০ জন হিসেবে দেখাবে। উদাহরণ: breakfast ১০ জন (half = ৫ meal unit), lunch ১০ এবং dinner ১০ হলে weighted daily total আগের মতো ২৫ meal unit থাকবে।
+- প্রজেক্টের বিদ্যমান `public/icons/hostel-life-mark.svg` লোগো ব্যবহার করা হয়েছে।
+- লোগোর ডান পাশে বড় `Hostel Life` নাম, নিচে “সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা”, রিপোর্টের নাম এবং মাসের শুরু–শেষের তারিখ দেখানো হয়।
+- মাস চলমান থাকলে শেষের তারিখের জায়গায় “চলমান” দেখায়।
+- ডান পাশে ম্যানেজারের নাম ও যোগাযোগ নম্বর একই লাইনে থাকে; নিচে মাস, রিপোর্ট প্রস্তুতকারীর নাম ও তৈরির সময় থাকে।
+- Header-এর দুই অংশের লেখা ও divider-এর মধ্যে ফাঁকা জায়গা রাখা হয়েছে।
+- তারিখগুলো রিপোর্টের period metadata থেকে আসে; date-only মান UTC ধরে ফরম্যাট করা হয়, যাতে লোকাল timezone-এ একদিন পিছিয়ে/এগিয়ে না যায়।
 
-Raw meal records, meal transactions, market/accounting data, finalized month totals, reports বা deposit হিসাব পরিবর্তন করা হয় না। Setting বদলালে manager-এর explicit Save action-এ একবার RPC চলে; কোনো polling বা background recurring request যোগ করা হয়নি।
+### ২. সব PDF রিপোর্টের Footer
 
-Migration-এ `hostels.meal_count_modes` নামে একটি JSONB setting column যোগ হয়। বিদ্যমান `get_my_membership()` function-এ একই পুরোনো logic রেখে শুধু setting field যোগ করা হয়েছে; তার আগের execute permissions অপরিবর্তিত রাখা হয়েছে। নতুন save RPC authenticated manager ছাড়া চালানো যায় না।
+- আগের দুই লাইনের Copyright/Branding অপরিবর্তিত রাখা হয়েছে।
+- Footer divider-এর ঠিক নিচে কপিরাইট লেখা থাকে; আগের তুলনায় উপরে আনা হয়েছে।
+- আগের global page-margin কাঠামোই রাখা হয়েছে; body content Header/Footer-এর সংরক্ষিত জায়গায় প্রবেশ করে না।
 
-## Install করার নিয়ম
+### ৩. Google sign-in
 
-1. বর্তমান production project এবং database-এর backup নাও।
-2. Project root directory-তে এই ZIP extract করে matching paths overwrite করো। ZIP-এর ভেতরের `src/`, `supabase/`, `tests/` সরাসরি project root-এ merge হবে; আলাদা wrapper folder তৈরি করার দরকার নেই।
-3. Supabase SQL Editor-এ `supabase/migrations/Run49_hostel_meal_count_modes.sql` **একবার** চালাও। একই migration দ্বিতীয়বার manually চালিও না।
-4. এরপর `supabase/verify/Verify_Run49_hostel_meal_count_modes.sql` চালিয়ে সব readiness/check result প্রত্যাশামতো আছে কি না দেখো।
-5. Project-এর lockfile অনুসারে dependencies install করে স্থানীয়ভাবে test/build চালাও; তারপর প্রচলিত deployment process অনুসরণ করো।
+- Google Identity Services-এর official button-এর supported `filled_blue` theme ব্যবহার করা হয়েছে।
+- SDK আসার আগের placeholder/disabled button-এ একই নীল রঙের professional treatment দেওয়া হয়েছে; light/dark theme-এও রং স্থিতিশীল থাকে।
+- Google authentication flow, consent, Supabase token exchange বা permission logic পরিবর্তন করা হয়নি।
 
-Migration চালানোর আগে backup এবং production maintenance discipline অনুসরণ করো। Live database-এ এই migration চালানো হয়নি; verification SQL তোমার Supabase project-এ চালিয়ে ফল নিশ্চিত করতে হবে।
+## প্রয়োগ
 
-## যেগুলো ইচ্ছাকৃতভাবে বাদ/অক্ষত
+1. বর্তমান Run108-সমন্বিত প্রজেক্টের আলাদা ব্যাকআপ রাখুন।
+2. ZIP Extract করুন।
+3. ZIP-এর ভেতরের `src/` ও `tests/` ফোল্ডারের ফাইলগুলো একই path-এ বর্তমান প্রজেক্টে Replace/Copy করুন।
+4. Local environment-এ Final, Deposit, Market, Meal Sheet এবং Member Detail-এর একাধিক পৃষ্ঠার PDF খুলে প্রথম ও পরের পৃষ্ঠা যাচাই করুন।
+5. যাচাই সফল না হওয়া পর্যন্ত Production-এ প্রয়োগ করবেন না।
 
-- Landing page পরিবর্তন করা হয়নি।
-- Run48 Notification migration/verification বা Telegram Edge Function এই patch-এ নেই। তোমার নতুন project ZIP-এ থাকা customized Telegram function অক্ষত রাখতে হবে; আগের v16 ZIP থেকে Edge Function overwrite করার প্রয়োজন নেই।
-- Existing feature flows বা database meal rows-এ কোনো নতুন data rewrite যোগ করা হয়নি।
+## পরিবর্তিত ফাইলের পরিধি
 
-## QA ফলাফল ও সীমাবদ্ধতা
+মোট ১৬টি ফাইল: ৬টি source file এবং ১০টি test file। কোনো SQL migration, Supabase schema, RPC, Edge Function, permission policy, হিসাব বা authentication business logic পরিবর্তন করা হয়নি।
 
-- Test suite: ৮২০টির মধ্যে ৮১০টি passed; ১০টি failed। একই ১০টি failure আপলোড করা baseline ZIP-এও ছিল; এই patch-এর কারণে নতুন failure পাওয়া যায়নি।
-- Focused Run49/auth/onboarding regression tests passed।
-- Changed JS/JSX source TypeScript parser দিয়ে এবং নতুন CSS PostCSS parser দিয়ে parse করা হয়েছে।
-- Vite production build সম্পন্ন করা যায়নি: dependency install network timeout-এ থেমেছে এবং offline cache-এ `yallist` package অনুপস্থিত ছিল; তাই `vite` executable পাওয়া যায়নি। Build passed বলে দাবি করা হচ্ছে না।
-- Live Supabase migration/deployment করা হয়নি।
+## যাচাই
+
+- সংশ্লিষ্ট/লক্ষ্যভিত্তিক টেস্ট: **৭৭/৭৭ পাস**।
+- সম্পূর্ণ টেস্ট স্যুট: **১,১৮৬টির মধ্যে ১,১৬২টি পাস**।
+- বাকি ২৪টি ব্যর্থ টেস্টের নাম Run108 বেসলাইনের ২৪টি ব্যর্থতার সঙ্গে হুবহু একই; নতুন ব্যর্থতা যোগ হয়নি।
+- `node --check src/services/reportService.js`: পাস।
+- `node scripts/verify-stylesheet-integrity.mjs`: পাস।
+- `node_modules` অনুপস্থিত থাকায় Vite production build চালানো সম্ভব হয়নি।
+
+## গুরুত্বপূর্ণ
+
+এই প্যাচটি report template ও auth button presentation-এ সীমাবদ্ধ। তবুও লাইভ ডেটা দিয়ে local PDF preview যাচাই না করে production-এ deploy করবেন না।

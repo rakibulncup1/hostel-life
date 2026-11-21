@@ -116,11 +116,25 @@ export function AllMembersPage() {
       ) : (
         <div className="menu-member-grid">
           {members.map((member) => (
-            <article id={`member-card-${member.membership_id}`} className={`card all-member-card ${requestedMemberId === member.membership_id ? 'requested-member-card' : ''} ${member.member_status === 'inactive' ? 'member-inactive-card' : ''}`} key={member.membership_id}>
+            <article
+              id={`member-card-${member.membership_id}`}
+              className={`card all-member-card ${requestedMemberId === member.membership_id ? 'requested-member-card' : ''} ${member.member_status === 'inactive' ? 'member-inactive-card' : ''}`}
+              key={member.membership_id}
+              role="button"
+              tabIndex={0}
+              aria-label={`${member.member_name} — বিস্তারিত হিসাব দেখুন`}
+              onClick={() => openMemberDetails(member.membership_id)}
+              onKeyDown={(event) => {
+                if ((event.key === 'Enter' || event.key === ' ') && !event.repeat) {
+                  event.preventDefault();
+                  openMemberDetails(member.membership_id);
+                }
+              }}
+            >
               <div className="all-member-head">
                 <Avatar member={member} />
                 <div className="all-member-copy">
-                  <button type="button" className="member-name-detail-trigger" onClick={() => openMemberDetails(member.membership_id)}>{member.member_name}</button>
+                  <span className="member-name-detail-trigger">{member.member_name}</span>
                   <div className="member-badge-row">
                     <span className={`member-badge ${member.member_status === 'active' ? 'active' : 'inactive'}`}>{member.member_status === 'active' ? 'সক্রিয় সদস্য' : 'নিষ্ক্রিয়'}</span>
                     <span className="member-badge subtle">{hasRunningPeriod ? (member.meal_activity || 'এই মাসে মিল নেই') : 'এখনো মাস শুরু হয়নি'}</span>
@@ -143,7 +157,7 @@ export function AllMembersPage() {
           ))}
         </div>
       )}
-      {selectedMemberId && <MemberPeriodDetailsModal detail={memberDetail} loading={memberDetailLoading} memberName={members.find((item) => item.membership_id === selectedMemberId)?.member_name || 'সদস্য'} onClose={() => { setSelectedMemberId(''); setMemberDetail(null); }} />}
+      {selectedMemberId && <MemberPeriodDetailsModal detail={memberDetail} loading={memberDetailLoading} memberName={members.find((item) => item.membership_id === selectedMemberId)?.member_name || 'সদস্য'} managerName={members.find((item) => item.is_primary_manager || item.role === 'manager')?.member_name || ''} managerPhone={members.find((item) => item.is_primary_manager || item.role === 'manager')?.phone || ''} onClose={() => { setSelectedMemberId(''); setMemberDetail(null); }} styleScopeClass="dashboard-reimagined" />}
     </div>
   );
 }
@@ -322,7 +336,7 @@ function RankingPage({ kind }) {
           <div className={`ranking-hero-icon ${depositor ? 'depositor' : shopper ? 'shopper' : 'eater'}`}><Icon name={depositor ? 'wallet' : shopper ? 'shopping-bag' : 'trophy'} size={25} /></div>
           <div>
             <span className="eyebrow">অগ্রাধিকার তালিকা</span>
-            <h2>{depositor ? 'এই মাসের বেশি ডিপোজিটকারীরা' : shopper ? 'বাজারের মোট খরচ অনুযায়ী' : 'এই মাসের শীর্ষ খাদকরা'}</h2>
+            <h2>{depositor ? 'এই মাসের বেশি ডিপোজিটকারীরা' : shopper ? 'টাকার পরিমাণ অনুযায়ী' : 'এই মাসের শীর্ষ খাদকরা'}</h2>
           </div>
           <button className="icon-button compact-icon ghost" type="button" onClick={load} aria-label="রিফ্রেশ"><Icon name="refresh" size={17} /></button>
         </div>
@@ -542,7 +556,7 @@ export function HowToUsePage() {
           <article className="howto-time-card is-late"><div className="howto-time-card-top"><span className="howto-time-step">০৩</span><span>Late / Correction</span></div><strong>১০টা → ৯টা</strong><small>আগের রাত ১০টার পর থেকে মিলের দিন রাত ৯টার আগে; অনুমোদন প্রয়োজন।</small></article>
           <article className="howto-time-card is-month"><div className="howto-time-card-top"><span className="howto-time-step">০৪</span><span>নতুন মাস চালু</span></div><strong>রাত ৮টার পর</strong><small>মাস বন্ধের দিন এই সময়ের পর; নতুন মাস শুরু হবে পরের দিন।</small></article>
         </div>
-        <div className="howto-timing-footnote"><Icon name="info" size={16}/><span>মাস বন্ধ করলে রাত ৯টার অপেক্ষা না করেই বন্ধের দিনের অনুমোদিত মিল সঙ্গে সঙ্গে ফাইনাল হয়। প্রথম দিনের সাধারণ অনুরোধ রাত ১০টা পর্যন্ত দেওয়া যায়।</span></div>
+        <div className="howto-timing-footnote"><span>মাস বন্ধ করলে রাত ৯টার অপেক্ষা না করেই বন্ধের দিনের অনুমোদিত মিল সঙ্গে সঙ্গে ফাইনাল হয়। প্রথম দিনের সাধারণ অনুরোধ রাত ১০টা পর্যন্ত দেওয়া যায়।</span></div>
       </section>
 
       <section className="howto-faq-intro">
@@ -645,7 +659,7 @@ export function SendNotificationPage() {
 
   return (
     <div className="page-stack">
-      <PageHeader eyebrow="ম্যানেজার ফিচার" title="মেস নোটিশ" />
+      <PageHeader title="মেস নোটিশ" />
       {!loadingPinned && !pinFeatureReady && <div className="state-card state-card-warning"><Icon name="info" size={20} /><div><strong>মেস নোটিশের ডাটাবেস আপডেট বাকি</strong><p>{pinFeatureError || 'Supabase-এ Run21 migration প্রয়োগের পর এই ফিচার ব্যবহার করা যাবে।'}</p></div></div>}
       {loadingPinned ? <div className="loading-wrap"><span className="spinner" /><span>বর্তমান নোটিশ যাচাই হচ্ছে...</span></div> : currentPinned && (
         <section className="card current-hostel-notice-card">
@@ -658,7 +672,7 @@ export function SendNotificationPage() {
       <form className="card form-panel" onSubmit={submit}>
         <label className="field-label"><span>শিরোনাম</span><input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={160} placeholder="যেমন: আজ রাতের রান্নার সময়" /></label>
         <label className="field-label"><span>বার্তা</span><textarea value={body} onChange={(e) => setBody(e.target.value)} maxLength={2000} rows={6} placeholder="সবার জন্য প্রয়োজনীয় তথ্য লিখুন..." /></label>
-        <div className="form-hint"><Icon name="info" size={15} /> নোটিশটি সদস্যদের অ্যাপ ও ইনবক্সে দেখাবে; SMS নয়। নতুন নোটিশে আগেরটি প্রতিস্থাপিত হবে।</div>
+        <div className="form-hint notice-delivery-hint">নোটিশটি সদস্যদের অ্যাপ ও ইনবক্সে দেখাবে।</div>
         <button className="primary-button large" type="submit" disabled={busy || !pinFeatureReady}>{busy ? 'প্রকাশ করা হচ্ছে...' : 'মেসে নোটিশ প্রকাশ করুন'}</button>
       </form>
     </div>

@@ -11,6 +11,7 @@ const callback = read('src/features/auth/GoogleOAuthCallbackPage.jsx');
 const about = read('public/about.html');
 const aboutCss = read('public/landing-assets/run98-about-header-hero.css');
 const appCss = read('src/styles/run98-professional-visual-polish.css');
+const run105Css = read('src/styles/run105-requested-ui-polish.css');
 const main = read('src/main.jsx');
 const download = read('src/features/menu/AppDownloadPage.jsx');
 const menuPages = read('src/features/menu/MenuPages.jsx');
@@ -19,7 +20,7 @@ const english = read('public/app-english-translations.js');
 
 test('Google CTA fills the available auth width and uses a highlighted official theme', () => {
   assert.match(auth, /Math\.min\(400,/);
-  assert.match(auth, /theme: 'outline'/);
+  assert.match(auth, /theme: 'filled_blue'/);
   assert.match(appCss, /\.auth-page \.google-signin-section\s*\{[^}]*width:\s*min\(100%, 400px\)/s);
   assert.match(appCss, /\.auth-page \.google-signin-consent\s*\{[^}]*width:\s*100%/s);
   assert.match(appCss, /\.auth-page \.google-signin-sdk-slot\s*\{[^}]*min-height:\s*52px/s);
@@ -60,10 +61,10 @@ test('About feature ribbon uses balanced desktop cards and a compact mobile stac
   assert.match(aboutCss, /@media \(max-width: 760px\)[\s\S]*?\.proof-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
 });
 
-test('App download back navigation is no longer wrapped in a card', () => {
-  assert.match(download, /className="page-title-row menu-page-title app-download-menu-intro"/);
-  assert.doesNotMatch(download, /menu-page-title card menu-page-intro-card app-download-menu-intro/);
-  assert.match(appCss, /\.app-download-page \.app-download-menu-intro\s*\{[^}]*background:\s*transparent !important/);
+test('App download header uses the same centered card treatment as the All Members page', () => {
+  assert.match(download, /className="page-title-row menu-page-title card menu-page-intro-card app-download-menu-intro"/);
+  assert.match(run105Css, /app-download-menu-intro[\s\S]*?background:\s*var\(--surface-2\) !important/);
+  assert.match(run105Css, /app-download-single-card \{ width: min\(100%, 620px\)/);
 });
 
 test('Market-spending ranking title is neutral and has an English translation', () => {

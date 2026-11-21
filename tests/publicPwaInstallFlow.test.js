@@ -7,15 +7,15 @@ const about = read('public/about.html');
 const installScript = read('public/landing-assets/public-install.js');
 const downloadPage = read('src/features/menu/AppDownloadPage.jsx');
 
-test('all public About download links offer the native one-tap PWA prompt when available', () => {
+test('all public About download links use the shared in-app App Download page', () => {
   assert.match(about, /landing-assets\/public-install\.js/);
   const links = about.match(/<a[^>]*href="\/app\/menu\/app-download"[^>]*data-pwa-install-link/g) || [];
   assert.ok(links.length >= 3);
-  assert.match(installScript, /window\.addEventListener\('beforeinstallprompt'/);
-  assert.match(installScript, /installEvent\.prompt\(\)/);
-  assert.match(installScript, /document\.addEventListener\('click'/);
-  assert.match(installScript, /event\.preventDefault\(\)/);
-  assert.match(installScript, /window\.addEventListener\('appinstalled'/);
+  assert.match(installScript, /No click interception/);
+  assert.doesNotMatch(installScript, /beforeinstallprompt|preventDefault\(\)|installEvent\.prompt/);
+  assert.match(downloadPage, /useInstallPromptContext/);
+  assert.match(downloadPage, /canInstall \? \(/);
+  assert.match(downloadPage, /install\(\)/);
 });
 
 test('unsupported PWA platforms receive one concise platform-specific fallback instead of a long checklist', () => {

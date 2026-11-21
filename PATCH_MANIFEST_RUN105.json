@@ -1,0 +1,143 @@
+{
+  "patch": "Run105",
+  "baseline": "Hostel Life current ZIP with accepted Run104 patch applied",
+  "scope": "Requested UI, report layout, invite presentation, and navigation adjustments only",
+  "file_count": 26,
+  "files": [
+    {
+      "path": "index.html",
+      "size_bytes": 5740,
+      "sha256": "3c888126cc47e84f4806273bbcc9802491fb5e81a8fd4dbc4365ccc46e6e3edc"
+    },
+    {
+      "path": "public/about.html",
+      "size_bytes": 46422,
+      "sha256": "d1abef6c48ec145825b1aa40825ff1bf63bbb58a0721bc81d630461d8706507e"
+    },
+    {
+      "path": "public/landing-assets/public-controls.js",
+      "size_bytes": 3231,
+      "sha256": "90a694402396a13294fa2751433c252f103e0cd662c9581de3fc5ab45da09670"
+    },
+    {
+      "path": "public/landing-assets/public-install.js",
+      "size_bytes": 285,
+      "sha256": "7e52e8a36aa7859d5e25e9e2b5202e19ed30a1dec6fc361f6dfeb4cc708ee493"
+    },
+    {
+      "path": "public/landing-assets/run102-about-interaction.css",
+      "size_bytes": 1328,
+      "sha256": "0cc897d51e09f40e90c6ed4a7d1276f36b0324d43e3167a4b28603357e05d685"
+    },
+    {
+      "path": "src/app/App.jsx",
+      "size_bytes": 19553,
+      "sha256": "1b644e8306bd95ef5c675a87694709b1ac79647c22f3a431a232e02ac3d9b2ef"
+    },
+    {
+      "path": "src/app/AppShell.jsx",
+      "size_bytes": 27942,
+      "sha256": "bd80595f2534c7c586b71343059020a287103d297bc26baa607ba9071bdb2df2"
+    },
+    {
+      "path": "src/features/auth/AuthPage.jsx",
+      "size_bytes": 50560,
+      "sha256": "2c26bd5b4d2bbb5e708e4fa19f97c9820f865ea2253ecd45da69437256687de9"
+    },
+    {
+      "path": "src/features/dashboard/DashboardPage.jsx",
+      "size_bytes": 90880,
+      "sha256": "0fd59e37e5e2859546ed42b8091e5ef02ae84572d37bce561603602fdcc9383f"
+    },
+    {
+      "path": "src/features/dining/DiningPage.jsx",
+      "size_bytes": 179989,
+      "sha256": "d72eb84f1c2d1cbfd0f349a4c1e8fbc66e5fdc3800f80024a48325d63d03ec96"
+    },
+    {
+      "path": "src/features/invites/HostelInvitePage.jsx",
+      "size_bytes": 12610,
+      "sha256": "3252266673fdb5cdafaaf92f6a423c35be8c3c20fc8c6947ac9bc6f51d7a4fda"
+    },
+    {
+      "path": "src/features/manager/ManagerPages.jsx",
+      "size_bytes": 126492,
+      "sha256": "f8db6330f0db5632a5c6451dee714681df6c4bc3ebbbcfe36b5f85c7574ada13"
+    },
+    {
+      "path": "src/features/menu/AppDownloadPage.jsx",
+      "size_bytes": 4897,
+      "sha256": "58790f81cd596cbf77d3d3148f6415159919e77965a44493cd49dc6366f56782"
+    },
+    {
+      "path": "src/features/menu/MenuPages.jsx",
+      "size_bytes": 82923,
+      "sha256": "720e5ac2ecf3c3c4d7cf74386f1ce6893e1c0ef1084822b7456d8b666706b4f1"
+    },
+    {
+      "path": "src/features/profile/ProfilePage.jsx",
+      "size_bytes": 16336,
+      "sha256": "9ff532b513d81c975c540f8b7b186d23d23721c72d3db8bd1f18e828a17417e8"
+    },
+    {
+      "path": "src/features/telegram/TelegramConnectionPage.jsx",
+      "size_bytes": 10261,
+      "sha256": "5776a72eaadb49b5695088df434f8da4cc36b195b88339aa32b8da717ee4bbef"
+    },
+    {
+      "path": "src/main.jsx",
+      "size_bytes": 3980,
+      "sha256": "8ad49342201716881124330578715ae51c69b875abf2090d40eb836a47725763"
+    },
+    {
+      "path": "src/services/reportService.js",
+      "size_bytes": 30467,
+      "sha256": "e06897e54d0dae587005400d4d2c2412537eff15bad3a232e92c82b74a3dfffd"
+    },
+    {
+      "path": "src/styles/run105-requested-ui-polish.css",
+      "size_bytes": 11150,
+      "sha256": "616010db42db2ebf063ea0b901c644c88ed86391dc03afabc470726d41e30f47"
+    },
+    {
+      "path": "tests/nov1_followup_contract.test.js",
+      "size_bytes": 6752,
+      "sha256": "5a87c5b8ab459029537ad9e02b27b38d4f0dd8542b89f688f2887d0088f7389a"
+    },
+    {
+      "path": "tests/platformCommunicationsReleaseNotices.test.js",
+      "size_bytes": 9650,
+      "sha256": "1111b7901a49d9d6ec1db21a4e218dc0d7361c626be1b1e9a582ca15e3f39bca"
+    },
+    {
+      "path": "tests/publicPwaInstallFlow.test.js",
+      "size_bytes": 1458,
+      "sha256": "344c19295540389c7a2e0ae1b8a55a3fc4cb20308ad129ee4848360de938b347"
+    },
+    {
+      "path": "tests/run90_google_oauth_preparation.test.mjs",
+      "size_bytes": 9260,
+      "sha256": "edee498b08c27f68868c9852f069b9f1e10635e48ba4435fa1b84042fc13f7fd"
+    },
+    {
+      "path": "tests/run98_professional_ui_refinement.test.mjs",
+      "size_bytes": 6015,
+      "sha256": "525764e4d4c85520ccff39af2f1868d6255c8ad4c2c60799e05529c9c8869c64"
+    },
+    {
+      "path": "tests/run103_about_login_precision.test.mjs",
+      "size_bytes": 5260,
+      "sha256": "bfaf8a371f5b6c1a30afb378a66c6dd320a3a7cbf27d21ca073fa6275a93d0c2"
+    },
+    {
+      "path": "tests/run105_requested_ui_patch.test.mjs",
+      "size_bytes": 6050,
+      "sha256": "8e7ea8143ffd64d695f804c9087ab74480d6280caab7a4c81300834927cfbfa0"
+    }
+  ],
+  "notes": [
+    "No SQL migration, Edge Function, RPC implementation, permission policy, or database schema file is included.",
+    "Apply on top of the exact Run104 baseline and overwrite only the listed paths.",
+    "External social preview cards may be cached and are controlled by platform crawlers; this patch forces the invite landing page itself to light appearance."
+  ]
+}
