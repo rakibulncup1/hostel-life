@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+
+const report = fs.readFileSync('src/services/reportService.js', 'utf8');
+
+test('Run113 places the real project logo beside the Hostel Life name at the name-line visual center', () => {
+  assert.match(report, /const appNameBaselineY = 24/);
+  assert.match(report, /const appNameMetrics = context\.measureText\(appName\)/);
+  assert.match(report, /const appNameVisualCenterY = appNameBaselineY \+ \(\(appNameDescent - appNameAscent\) \/ 2\)/);
+  assert.match(report, /const logoSize = Math\.round\(7 \* pixelsPerMm\)/);
+  assert.match(report, /const logoY = Math\.round\(appNameVisualCenterY - \(logoSize \/ 2\)\)/);
+  assert.match(report, /const leftTextX = logoX \+ logoSize \+ Math\.round\(1\.8 \* pixelsPerMm\)/);
+  assert.match(report, /context\.drawImage\(logoImage, logoX, logoY, logoSize, logoSize\)/);
+});
+
+test('Run113 keeps exactly half an inch above and below the one-inch header before report content starts', () => {
+  assert.match(report, /const REPORT_HEADER_HEIGHT_MM = 25\.4/);
+  assert.match(report, /@page\{size:\$\{pageSize\};margin:50\.8mm 12\.7mm 38\.1mm/);
+  assert.match(report, /@top-center\{content:\$\{headerContent\};vertical-align:top;padding-top:12\.7mm;/);
+  // Physical layout: 12.7mm top inset + 25.4mm header + 12.7mm clear gap = 50.8mm page top margin.
+  assert.equal(12.7 + 25.4 + 12.7, 50.8);
+  assert.match(report, /<main class="report-body">\$\{subtitleMarkup\}\$\{reportMarkup\}<\/main>/);
+});
+
+test('Run113 preserves both side margins and the established footer layout without changing branding', () => {
+  assert.match(report, /margin:50\.8mm 12\.7mm 38\.1mm/);
+  assert.match(report, /@bottom-center\{content:\$\{pageFooter\}/);
+  assert.match(report, /width:calc\(100% - 25\.4mm\);height:25\.4mm;margin:0 auto;padding:1\.2mm 0 0;border-top:\.8pt solid/);
+  assert.match(report, /Copyright © \$\{currentYear\} Hostel-Life\. All rights reserved\./);
+  assert.match(report, /Designed & Developed by Rakibul Islam Samrat/);
+});

@@ -75,9 +75,12 @@ test('Run110 reports use the bilingual font stack and wait briefly for loaded fo
   assert.match(report, /Noto Sans Bengali/);
   assert.match(report, /document\.fonts\?\.ready/);
   assert.match(report, /reportFontFamily/);
-  assert.match(report, /tagline: 'Simple, transparent and organised management\.'/);
+  assert.match(report, /REPORT_HEADER_HEIGHT_MM = 25\.4/);
+  assert.match(report, /REPORT_HEADER_DPI = 96/);
+  assert.match(report, /content:\$\{headerContent\}/);
+  assert.match(report, /tagline: isEnglish \? 'Simple, transparent and organised management\.' : 'সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'/);
   assert.match(report, /brandFontFamily: '"Inter", Arial, sans-serif'/);
-  assert.match(report, /font-family:"Inter",Arial,sans-serif;font-size:7\.2pt/);
+  assert.match(report, /REPORT_HEADER_HEIGHT_MM = 25\.4/);
 });
 
 test('Run110 keeps copyright and developer branding in English in app and public footers', () => {

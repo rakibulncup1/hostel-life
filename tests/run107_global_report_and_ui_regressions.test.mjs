@@ -13,9 +13,9 @@ const manager = read('src/features/manager/ManagerPages.jsx');
 const styles = read('src/styles/run105-requested-ui-polish.css');
 
 test('all PDF exports share reserved repeating page header and footer areas', () => {
-  assert.match(reportService, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm;/);
-  assert.match(reportService, /@top-left\{content:\$\{pageBrandImage \?/);
-  assert.match(reportService, /@top-right\{content:\$\{pageMetaImage \?/);
+  assert.match(reportService, /@page\{size:\$\{pageSize\};margin:50\.8mm 12\.7mm 38\.1mm;/);
+  assert.match(reportService, /@top-center\{content:\$\{headerContent\};vertical-align:top;padding-top:12\.7mm;/);
+  assert.doesNotMatch(reportService, /background-image:url/);
   assert.match(reportService, /@bottom-center\{content:\$\{pageFooter\}/);
   assert.match(reportService, /thead\{display:table-header-group\}/);
   assert.match(reportService, /tr\{break-inside:avoid;page-break-inside:avoid\}/);

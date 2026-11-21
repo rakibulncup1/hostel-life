@@ -1,0 +1,36 @@
+{
+  "patch": "Run111 Report Header Visibility",
+  "base": "Run110 Bilingual Design System Patch",
+  "scope": "Global report header visibility only; footer preserved",
+  "runtime_files": [
+    "src/services/reportService.js"
+  ],
+  "test_files": [
+    "tests/run105_requested_ui_patch.test.mjs",
+    "tests/run106_focused_followup.test.mjs",
+    "tests/run107_global_report_and_ui_regressions.test.mjs",
+    "tests/run108_professional_report_header_footer.test.mjs",
+    "tests/run109_report_header_hierarchy_and_google_button.test.mjs",
+    "tests/run110_bilingual_design_system.test.mjs",
+    "tests/run111_report_header_visibility.test.mjs"
+  ],
+  "targeted_tests": {
+    "passed": 52,
+    "failed": 0
+  },
+  "full_suite": {
+    "run110_baseline": {
+      "tests": 1196,
+      "passed": 1178,
+      "failed": 18
+    },
+    "run111": {
+      "tests": 1202,
+      "passed": 1184,
+      "failed": 18
+    },
+    "new_failures": 0
+  },
+  "syntax_check": "passed",
+  "backend_or_business_logic_changed": false
+}

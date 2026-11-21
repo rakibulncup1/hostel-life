@@ -44,9 +44,9 @@ test('Member detail report adds scoped summary/table layout and keeps repeated b
   assert.match(reports, /metadata\.reportVariant === 'member-detail'/);
   assert.match(reports, /report-member-detail \.report-member-summary/);
   assert.match(reports, /report-member-detail \.report-member-table thead\{display:table-header-group\}/);
-  assert.match(reports, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm/);
-  assert.match(reports, /@top-left\{content:\$\{pageBrandImage \?/);
-  assert.match(reports, /@top-right\{content:\$\{pageMetaImage \?/);
+  assert.match(reports, /@page\{size:\$\{pageSize\};margin:50\.8mm 12\.7mm 38\.1mm/);
+  assert.match(reports, /@top-center\{content:\$\{headerContent\};vertical-align:top;padding-top:12\.7mm;/);
+  assert.doesNotMatch(reports, /background-image:url/);
   assert.match(reports, /@bottom-center\{content:\$\{pageFooter\}/);
   assert.doesNotMatch(reports, /top:-29mm|bottom:-18mm|position:fixed[^}]*report-(?:header|footer)/);
   assert.match(reports, /Copyright ©/);

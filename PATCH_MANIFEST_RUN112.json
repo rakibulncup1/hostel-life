@@ -1,0 +1,50 @@
+{
+  "patch": "Run112_Report_Header_Fix",
+  "base": "Run111",
+  "runtime_files": [
+    "src/services/reportService.js"
+  ],
+  "test_files": [
+    "tests/run105_requested_ui_patch.test.mjs",
+    "tests/run106_focused_followup.test.mjs",
+    "tests/run107_global_report_and_ui_regressions.test.mjs",
+    "tests/run108_professional_report_header_footer.test.mjs",
+    "tests/run109_report_header_hierarchy_and_google_button.test.mjs",
+    "tests/run110_bilingual_design_system.test.mjs",
+    "tests/run111_report_header_visibility.test.mjs",
+    "tests/run112_report_header_spacing_and_period_dedup.test.mjs"
+  ],
+  "scope": [
+    "A4 Portrait/Landscape global report header",
+    "96-DPI native-size PNG generated content in Chromium page margin box",
+    "0.5-inch outer page margins and 1-inch header/footer reserved bands",
+    "Bengali/English tagline localization",
+    "manager/contact same-line header metadata",
+    "remove duplicate date-range-only subtitle while retaining useful summaries"
+  ],
+  "preserved": [
+    "existing footer copyright/branding",
+    "database/schema",
+    "Supabase RPC",
+    "Edge Functions",
+    "permissions",
+    "financial business logic"
+  ],
+  "test_results": {
+    "targeted": {
+      "passed": 58,
+      "failed": 0
+    },
+    "full_suite": {
+      "total": 1208,
+      "passed": 1190,
+      "failed": 18
+    },
+    "baseline_run111": {
+      "total": 1202,
+      "passed": 1184,
+      "failed": 18
+    },
+    "new_regression_failures": 0
+  }
+}

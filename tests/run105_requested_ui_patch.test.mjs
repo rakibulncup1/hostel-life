@@ -43,15 +43,13 @@ test('Member detail PDF uses the shared branded report and identifies its member
   assert.match(dashboard, /printReport\('সদস্যভিত্তিক বিস্তারিত'/);
   assert.match(dashboard, /class=\"report-summary report-member-summary\"[\s\S]*pageOrientation:\s*'portrait'[\s\S]*reportVariant:\s*'member-detail'/);
   assert.doesNotMatch(dashboard, /singlePage:\s*true/);
-  assert.match(report, /@top-left\{content:\$\{pageBrandImage \?/);
-  assert.match(report, /@top-right\{content:\$\{pageMetaImage \?/);
   assert.match(report, /@bottom-center\{content:\$\{pageFooter\}/);
 });
 
 test('Print reports reserve repeated branded header and footer space on every printed page', () => {
-  assert.match(report, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm/);
-  assert.match(report, /@top-left\{content:\$\{pageBrandImage \?/);
-  assert.match(report, /@top-right\{content:\$\{pageMetaImage \?/);
+  assert.match(report, /@page\{size:\$\{pageSize\};margin:50\.8mm 12\.7mm 38\.1mm/);
+  assert.match(report, /@top-center\{content:\$\{headerContent\};vertical-align:top;padding-top:12\.7mm;/);
+  assert.doesNotMatch(report, /background-image:url/);
   assert.match(report, /@bottom-center\{content:\$\{pageFooter\}/);
   assert.doesNotMatch(report, /top:-29mm|bottom:-18mm|position:fixed[^}]*report-(?:header|footer)/);
 });

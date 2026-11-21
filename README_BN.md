@@ -1,45 +1,35 @@
-# Hostel Life — Run110 Bilingual Design System Patch
+# Hostel Life — Run113 Incremental Patch
 
-## Baseline
-এই প্যাচটি **Run109**-এর ওপর তৈরি। Run109-এর সঙ্গে মিল থাকা বর্তমান প্রজেক্টের Root Folder-এ প্রয়োগ করতে হবে। এটি পূর্ণাঙ্গ প্রজেক্ট ZIP নয়।
+## এই প্যাচে কী পরিবর্তন হয়েছে
 
-## কী পরিবর্তন হয়েছে
+এই প্যাচটি Run112-এর ওপর তৈরি এবং ব্যবহারকারীর অনুরোধ করা দুটি PDF Header পরিবর্তন ছাড়া অন্য কিছু স্পর্শ করে না।
 
-1. **Language-aware typography tokens** — `lang`/`data-language` অনুযায়ী বাংলা ও ইংরেজির আলাদা font stack, body line-height এবং inherited tabular numerals।
-2. **Bangla type** — Noto Sans Bengali; fallback হিসেবে Windows/system Bengali fonts। বাংলা অ্যাপের line-height 1.62, public About/Legal পেজে 1.68।
-3. **English type** — Inter; fallback হিসেবে system sans-serif। ইংরেজি অ্যাপের line-height 1.52, public About/Legal পেজে 1.60।
-4. **First-paint language** — saved language preference app ও public About/Privacy/Terms pages-এ CSS render হওয়ার আগেই root `lang`, `data-language` এবং `data-locale`-এ বসে। পরবর্তী language switch-এ একই attributes update হয়।
-5. **Super Admin language switch** — role, MFA ও re-authentication checks সম্পন্ন হওয়ার পর authenticated Super Admin header-এ shared local language switcher দেখা যায়। এটি কোনো নতুন database/network request যোগ করে না।
-6. **English-only product branding** — Hostel Life নাম, footer copyright/developer credit এবং report tagline ইংরেজিতে থাকে। User-provided hostel/member names অনুবাদ হয় না।
-7. **Numbers and currency** — বিদ্যমান `Intl.NumberFormat`/`৳` formatting অপরিবর্তিত; tabular numerals যোগ করা হয়েছে যাতে আর্থিক কলাম স্ক্যান করা সহজ হয়।
-8. **Translation coverage** — About inventory keys ও অডিটে চিহ্নিত Google OAuth, member selection, report metadata এবং Super Admin confirmation copy-র ইংরেজি অনুবাদ যোগ/পরিপূর্ণ করা হয়েছে। বয়স-সম্মতি, মাস বন্ধ, স্থায়ীভাবে মুছে ফেলা ও permission/security সতর্কতা রাখা হয়েছে।
-9. **PDF typography** — রিপোর্টের body selected locale-এর font stack ব্যবহার করে; product name/tagline ও footer branding Inter stack ব্যবহার করে। Font ready হওয়ার জন্য সীমিত wait আগের মতো থাকে।
+1. **Logo alignment:** প্রকল্পের বিদ্যমান `/icons/hostel-life-mark.svg` লোগোটি ছোট, পরিমিত আকারে `Hostel Life` নামের একই লাইনে বসানো হয়েছে। Canvas-এ অ্যাপের নামের প্রকৃত glyph metrics মেপে লোগোর vertical center নির্ধারণ করা হয়, ফলে লোগো আর Header-এর মাঝামাঝি নিচে ঝুলে থাকে না। নামের বাম পাশে আগের horizontal gap বজায় আছে।
+2. **Divider-এর পর ½ ইঞ্চি ফাঁকা:** A4 পৃষ্ঠার top margin এখন 50.8mm। `@top-center`-এ 12.7mm top inset, 25.4mm (এক ইঞ্চি) Header image এবং অবশিষ্ট 12.7mm gap সংরক্ষিত। অর্থাৎ পৃষ্ঠার উপর থেকে ½ ইঞ্চি ফাঁকা → ১ ইঞ্চি Header → divider-এর পরে ½ ইঞ্চি ফাঁকা → মূল রিপোর্টের তথ্য।
 
-## UI preservation
-এই প্যাচে Dashboard/card/grid/button-এর `font-size`, `min-height`, padding, grid column, card dimensions বা dashboard colour palette বদলানো হয়নি। Typography tokens ও line-height ছাড়া layout geometry অক্ষত রাখাই ছিল উদ্দেশ্য। About/Legal pages-এ আলাদা language-aware body line-height রয়েছে।
+## অপরিবর্তিত রাখা হয়েছে
 
-## প্রয়োগ
+- বাম ও ডান পাশের 12.7mm (½ ইঞ্চি) margin।
+- নিচের 38.1mm margin, 25.4mm Footer area এবং বিদ্যমান দুই লাইনের Copyright/Branding।
+- Header-এর বাকি সব লেখা, বাংলা/ইংরেজি স্লোগান, manager/contact metadata, period/date-range এবং duplicate subtitle guard।
+- রিপোর্টের টেবিল, আর্থিক হিসাব, ডেটা, Supabase, SQL, RPC, Edge Functions ও অন্যান্য UI।
 
-1. বর্তমান Run109 প্রজেক্টের একটি পূর্ণ ব্যাকআপ রাখুন।
-2. ZIP-এর ফাইলগুলো project root-এ Extract করুন এবং একই relative path-এ ফাইলগুলো Replace করুন।
-3. `npm ci` চালিয়ে project dependencies install করুন (যদি `node_modules` না থাকে)।
-4. `npm run verify:styles` চালান।
-5. `npm test` চালান।
-6. `npm run build` চালিয়ে local preview-তে Bangla/English, Dashboard, Profile, Super Admin, About/Legal, numbers/currency এবং PDF পরীক্ষা করুন।
+## প্রয়োগের নিয়ম
 
-## গুরুত্বপূর্ণ সীমাবদ্ধতা
+1. Run112-সমন্বিত বর্তমান প্রজেক্টের ব্যাকআপ রাখুন।
+2. ZIP Extract করে project root-এ একই path অনুযায়ী ফাইলগুলো কপি করুন।
+3. **অ্যাপ্লিকেশনের জন্য শুধু `src/services/reportService.js` replace করতে হবে।**
+4. `tests/` ফাইলগুলো regression test suite-এর আপডেট; এগুলোও project-এর `tests/` ফোল্ডারে কপি করলে আগের layout expectation-গুলো নতুন নির্ধারিত মাপের সঙ্গে সামঞ্জস্যপূর্ণ থাকবে।
 
-- Inter ও Noto Sans Bengali Google Fonts CDN থেকে লোড হয়। `preconnect` ও `display=swap` initial loading delay কমাতে সাহায্য করে; তবে CDN/Internet না থাকলে system fallback font ব্যবহৃত হবে। FOUT/CLS সম্পূর্ণ শূন্য হবে—এমন নিশ্চয়তা দেওয়া যাচ্ছে না।
-- এই কাজের container-এ `node_modules` অনুপস্থিত থাকায় Vite production build চালানো হয়নি। Changed JSX files TypeScript transpile syntax-check, JavaScript syntax-check, stylesheet-integrity check এবং automated tests করা হয়েছে।
-- কোনো Supabase schema, SQL migration, RPC, Edge Function, database permission বা business calculation পরিবর্তন করা হয়নি।
+## যাচাই
 
-## Verification ফলাফল
+- Run112 period/header regression checks এবং Run113-এর নতুন logo/gap regression checks সহ 9টি targeted test পাস করেছে।
+- তিন-পৃষ্ঠার A4 print-layout fixture PDF-এ প্রতিটি পৃষ্ঠায় Header/Footer পুনরাবৃত্তি, ½ ইঞ্চি top inset, ১ ইঞ্চি Header এবং divider-এর পরে ½ ইঞ্চি gap-এর geometry যাচাই করা হয়েছে।
+- এই execution environment-এ Chromium headless print সম্পন্ন হয়নি; fixture PDF-টি WeasyPrint দিয়ে তৈরি। তাই Chrome/Edge-এ প্রজেক্টের live report একবার localভাবে যাচাই করে নেওয়া উচিত।
+- পূর্ণ Vite production build চালানো হয়নি।
 
-- Targeted bilingual/report/UI regression tests: **58/58 passed**.
-- Stylesheet integrity: **PASS**.
-- Full test suite: **1,185 passed / 1,202 total / 17 failed**. এই 17টি ব্যর্থতার প্রতিটিই Run109 baseline-এর 24টি পরিচিত failure-এর subset; Run110-এ নতুন failure যোগ হয়নি এবং আগের 7টি failure এখন pass করছে।
-- Vite production build: **Not run** (container project copy-তে `node_modules` অনুপস্থিত)।
+## Base / Patch
 
-## Patch contents
-
-শুধু Run109 baseline-এর তুলনায় পরিবর্তিত 27টি source/test file রয়েছে। `MANIFEST.json`, `SHA256SUMS.txt` ও `PATCH.diff`-এ ফাইল তালিকা, checksum এবং diff দেওয়া হয়েছে।
+- Base: `Hostel_Life_Run112_Report_Header_Fix_Patch.zip`
+- Patch: `Hostel_Life_Run113_Logo_Alignment_and_Header_Gap_Patch.zip`
+- Patch scope: 1 runtime source file + 7 regression test files + documentation/manifest.

@@ -1,0 +1,42 @@
+{
+  "patch": "Run113",
+  "name": "Hostel Life Run113 — Logo Alignment and Header Gap",
+  "base": "Hostel_Life_Run112_Report_Header_Fix_Patch.zip",
+  "scope": "Minimal incremental PDF report header-only patch",
+  "runtime_files": [
+    "src/services/reportService.js"
+  ],
+  "regression_test_files": [
+    "tests/run105_requested_ui_patch.test.mjs",
+    "tests/run106_focused_followup.test.mjs",
+    "tests/run107_global_report_and_ui_regressions.test.mjs",
+    "tests/run108_professional_report_header_footer.test.mjs",
+    "tests/run111_report_header_visibility.test.mjs",
+    "tests/run112_report_header_spacing_and_period_dedup.test.mjs",
+    "tests/run113_report_header_logo_alignment_and_body_gap.test.mjs"
+  ],
+  "layout": {
+    "top_margin_mm": 50.8,
+    "top_clearance_mm": 12.7,
+    "header_height_mm": 25.4,
+    "post_header_gap_mm": 12.7,
+    "left_right_margins_mm": 12.7,
+    "bottom_margin_mm": 38.1,
+    "footer_height_mm": 25.4,
+    "geometry": "12.7mm top inset + 25.4mm header + 12.7mm post-header gap = 50.8mm top margin"
+  },
+  "preserved": [
+    "existing project logo asset",
+    "Bengali/English tagline",
+    "header metadata and date range",
+    "footer copyright and branding",
+    "report content and data/business logic",
+    "database, Supabase, SQL, RPC, Edge Functions"
+  ],
+  "validation": {
+    "targeted_tests": "9 passed",
+    "print_layout_fixture": "3-page A4 fixture inspected; header/footer repeated and physical spacing verified with WeasyPrint",
+    "chromium_headless": "not completed in this environment",
+    "production_build": "not run"
+  }
+}

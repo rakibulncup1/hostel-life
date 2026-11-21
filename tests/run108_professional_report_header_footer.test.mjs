@@ -12,28 +12,30 @@ const history = read('src/features/history/HistoryPage.jsx');
 const manager = read('src/features/manager/ManagerPages.jsx');
 const archive = read('src/features/archive/ArchiveCorrectionPage.jsx');
 
-test('global A4 report template reserves exact half-inch side and one-inch top/bottom areas', () => {
-  assert.match(reports, /@page\{size:\$\{pageSize\};margin:25\.4mm 12\.7mm 25\.4mm;/);
-  assert.match(reports, /@top-left\{content:\$\{pageBrandImage \? '["']{2}'/);
-  assert.match(reports, /@top-right\{content:\$\{pageMetaImage \? '["']{2}'/);
-  assert.match(reports, /@bottom-center\{content:\$\{pageFooter\}[^}]*width:calc\(100% - 25\.4mm\);height:100%;margin:0 auto/);
-  assert.match(reports, /border-bottom:1\.1pt solid #d8e3db/);
+test('global A4 report template reserves half-inch top/side margins, a one-inch header, a half-inch post-header gap and a one-inch footer', () => {
+  assert.match(reports, /@page\{size:\$\{pageSize\};margin:50\.8mm 12\.7mm 38\.1mm;/);
+  assert.match(reports, /@top-center\{content:\$\{headerContent\};vertical-align:top;padding-top:12\.7mm;/);
+  assert.doesNotMatch(reports, /background-image:url/);
+  assert.match(reports, /@bottom-center\{content:\$\{pageFooter\}[^}]*width:calc\(100% - 25\.4mm\);height:25\.4mm;margin:0 auto/);
+  assert.match(reports, /context\.strokeStyle = '#d8e3db'/);
   assert.match(reports, /border-top:\.8pt solid #dfe7e1/);
 });
 
 test('left report heading uses project logo and a high-resolution canvas hierarchy', () => {
   assert.match(reports, /new URL\('\/icons\/hostel-life-mark\.svg', window\.location\.origin\)/);
-  assert.match(reports, /buildReportHeaderLeftImage\(/);
+  assert.match(reports, /buildReportHeaderImage\(/);
   assert.match(reports, /appName: 'Hostel Life'/);
-  assert.match(reports, /tagline: 'Simple, transparent and organised management\.'/);
+  assert.match(reports, /tagline: isEnglish \? 'Simple, transparent and organised management\.' : 'সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'/);
   assert.match(reports, /reportTitle: reportHeading/);
   assert.match(reports, /dateRange: periodDateRange/);
-  assert.ok(reports.includes('context.font = `800 82px ${brandFontFamily || fontFamily}`'));
+  assert.match(reports, /REPORT_HEADER_DPI = 96/);
+  assert.match(reports, /REPORT_HEADER_PIXELS_PER_MM = REPORT_HEADER_DPI \/ 25\.4/);
+  assert.match(reports, /fitReportCanvasText\(context, appName, \{\s*weight: 800/);
 });
 
 test('right header includes month, same-line manager/contact, report creator and timestamp', () => {
   assert.match(reports, /const generatedBy = String\(metadata\.generatedBy \|\| metadata\.preparedBy \|\| metadata\.reportCreator/);
-  assert.match(reports, /buildReportHeaderRightImage\(/);
+  assert.match(reports, /rightRows = \[/);
   assert.match(reports, /labels\.manager}: \$\{managerName/);
   assert.match(reports, /labels\.contact}: \$\{managerPhone/);
   assert.match(reports, /labels\.month}: \$\{periodLabel/);
@@ -56,7 +58,7 @@ test('every report entry point passes the report creator, manager and period met
 test('footer preserves the two copyright/branding lines and shortens its divider by one inch', () => {
   assert.match(reports, /Copyright © \$\{currentYear\} Hostel-Life\. All rights reserved\./);
   assert.match(reports, /Designed & Developed by Rakibul Islam Samrat/);
-  assert.match(reports, /width:calc\(100% - 25\.4mm\);height:100%;margin:0 auto;padding:1\.2mm 0 0/);
+  assert.match(reports, /width:calc\(100% - 25\.4mm\);height:25\.4mm;margin:0 auto;padding:1\.2mm 0 0/);
 });
 
 test('all report pages use normal content flow; no fixed header/footer offsets remain', () => {
