@@ -27,7 +27,7 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: "Noto Sans Bengali", "Hind Siliguri", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--hl-font-family, "Noto Sans Bengali", "Hind Siliguri", "Segoe UI", system-ui, sans-serif);
   font-size: 15px;
   line-height: 1.75;
   -webkit-font-smoothing: antialiased;
@@ -1742,7 +1742,7 @@ body { background: var(--paper); color: var(--ink); }
 .about-page .report-preview-foot { font-size: 9px; }
 
 html[data-language="en"] body {
-  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: var(--hl-font-latin);
   letter-spacing: -0.012em;
 }
 html[data-language="en"] .hero h1 { line-height: 1.16; letter-spacing: -.045em; }

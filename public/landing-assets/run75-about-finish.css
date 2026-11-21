@@ -198,7 +198,7 @@
 }
 
 /* English is allowed to occupy more width; it must not collide or split every word. */
-html[data-language="en"] .about-page { font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif; letter-spacing: -.012em; }
+html[data-language="en"] .about-page { font-family: var(--hl-font-latin); letter-spacing: -.012em; }
 html[data-language="en"] .about-page :is(h1, h2, h3, p, a, button, figcaption, .feature-tag) {
   overflow-wrap: break-word;
   word-break: normal;

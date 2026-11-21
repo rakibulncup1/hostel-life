@@ -20,8 +20,8 @@ test('report header loads the exact project logo asset rather than a duplicated 
 
 test('left header follows logo + larger app name + tagline + report name + date range hierarchy', () => {
   assert.match(report, /buildReportHeaderLeftImage\(/);
-  assert.match(report, /context\.font = '800 82px/);
-  assert.match(report, /context\.font = '400 48px/);
+  assert.ok(report.includes('context.font = `800 82px ${brandFontFamily || fontFamily}`'));
+  assert.ok(report.includes('context.font = `400 48px ${brandFontFamily || fontFamily}`'));
   assert.match(report, /fitReportCanvasText\(context, reportTitle/);
   assert.match(report, /fitReportCanvasText\(context, dateRange/);
   assert.match(report, /reportTitle: reportHeading/);

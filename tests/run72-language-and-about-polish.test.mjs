@@ -76,9 +76,11 @@ test('About feature cards and management sections have complete English headings
     'about.closing.title',
     'about.closing.description',
   ]) {
-    assert.ok(runtime.includes(`"${key}"`), `missing English section copy for ${key}`);
+    assert.ok(new RegExp(`[\"']${key}[\"']\\s*:`).test(runtime), `missing English section copy for ${key}`);
   }
-  assert.match(runtime, /key\.match\(\/\^৳/);
+  const number = read('src/utils/number.js');
+  assert.match(number, /Intl\.NumberFormat\(getUiLocale\(\)/);
+  assert.match(number, /৳/);
   const about = read('public/about.html');
   assert.doesNotMatch(about, /<article class="feature-card" data-i18n-key="about\.feature\./);
 });

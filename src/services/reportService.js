@@ -211,8 +211,11 @@ export function openPrintReportWindow() {
   if (!win) throw new Error('রিপোর্ট প্রিন্ট উইন্ডো খোলা যায়নি। ব্রাউজারের pop-up অনুমতি দিন।');
   win.document.open();
   const isEnglish = getUiLocale() === 'en-US';
+  const loadingFontFamily = isEnglish
+    ? '"Inter", "Noto Sans Bengali", Arial, sans-serif'
+    : '"Noto Sans Bengali", "Inter", Arial, sans-serif';
   const loadingText = isEnglish ? 'Preparing report…' : 'রিপোর্ট প্রস্তুত হচ্ছে...';
-  win.document.write(`<!doctype html><html lang="${isEnglish ? 'en' : 'bn-BD'}"><head><meta charset="utf-8"><title>Hostel Life — ${loadingText}</title></head><body><p style="font-family:Arial,sans-serif;padding:24px">${loadingText}</p></body></html>`);
+  win.document.write(`<!doctype html><html lang="${isEnglish ? 'en' : 'bn-BD'}"><head><meta charset="utf-8"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap"><title>Hostel Life — ${loadingText}</title></head><body><p style="font-family:${loadingFontFamily};padding:24px">${loadingText}</p></body></html>`);
   win.document.close();
   return win;
 }
@@ -261,7 +264,7 @@ function createReportHeaderCanvas(width, height, draw) {
   catch { return ''; }
 }
 
-function fitReportCanvasText(context, text, { weight = 500, baseSize = 48, minSize = 30, maxWidth, family = '"Noto Sans Bengali", Arial, sans-serif' } = {}) {
+function fitReportCanvasText(context, text, { weight = 500, baseSize = 48, minSize = 30, maxWidth, family = '"Noto Sans Bengali", "Inter", Arial, sans-serif' } = {}) {
   let size = baseSize;
   const value = String(text ?? '');
   while (size > minSize) {
@@ -273,25 +276,25 @@ function fitReportCanvasText(context, text, { weight = 500, baseSize = 48, minSi
   return size;
 }
 
-function buildReportHeaderLeftImage({ appName, tagline, reportTitle, dateRange }) {
+function buildReportHeaderLeftImage({ appName, tagline, reportTitle, dateRange, fontFamily, brandFontFamily }) {
   return createReportHeaderCanvas(1740, 440, (context, width) => {
     context.textAlign = 'left';
     context.fillStyle = '#173f32';
-    context.font = '800 82px "Noto Sans Bengali", Arial, sans-serif';
+    context.font = `800 82px ${brandFontFamily || fontFamily}`;
     context.fillText(appName, 4, 84);
     context.fillStyle = '#64766c';
-    context.font = '400 48px "Noto Sans Bengali", Arial, sans-serif';
+    context.font = `400 48px ${brandFontFamily || fontFamily}`;
     context.fillText(tagline, 5, 170);
     context.fillStyle = '#244d3b';
-    fitReportCanvasText(context, reportTitle, { weight: 750, baseSize: 66, minSize: 42, maxWidth: width - 12 });
+    fitReportCanvasText(context, reportTitle, { weight: 750, baseSize: 66, minSize: 42, maxWidth: width - 12, family: fontFamily });
     context.fillText(reportTitle, 5, 278);
     context.fillStyle = '#53665b';
-    fitReportCanvasText(context, dateRange, { weight: 500, baseSize: 48, minSize: 34, maxWidth: width - 12 });
+    fitReportCanvasText(context, dateRange, { weight: 500, baseSize: 48, minSize: 34, maxWidth: width - 12, family: fontFamily });
     context.fillText(dateRange, 5, 382);
   });
 }
 
-function buildReportHeaderRightImage({ managerName, managerPhone, periodLabel, generatedBy, generatedAt, labels }) {
+function buildReportHeaderRightImage({ managerName, managerPhone, periodLabel, generatedBy, generatedAt, labels, fontFamily }) {
   const managerLine = [
     managerName ? `${labels.manager}: ${managerName}` : '',
     managerPhone ? `${labels.contact}: ${managerPhone}` : '',
@@ -306,7 +309,7 @@ function buildReportHeaderRightImage({ managerName, managerPhone, periodLabel, g
     context.textAlign = 'right';
     for (const row of rows) {
       context.fillStyle = row.color;
-      fitReportCanvasText(context, row.text, { weight: row.weight, baseSize: row.base, minSize: row.min, maxWidth: width - 12 });
+      fitReportCanvasText(context, row.text, { weight: row.weight, baseSize: row.base, minSize: row.min, maxWidth: width - 12, family: fontFamily });
       context.fillText(row.text, width - 6, row.y);
     }
   });
@@ -318,6 +321,9 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
   const now = new Date();
   const currentYear = Number(new Intl.DateTimeFormat('en', { timeZone: 'Asia/Dhaka', year: 'numeric' }).format(now));
   const generatedAt = new Intl.DateTimeFormat(getUiLocale(), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Dhaka' }).format(now);
+  const reportFontFamily = getUiLocale() === 'en-US'
+    ? '"Inter", "Noto Sans Bengali", Arial, sans-serif'
+    : '"Noto Sans Bengali", "Inter", Arial, sans-serif';
   const titleParts = String(title || '').split(' — ');
   const titlePeriod = titleParts.length > 1 ? titleParts[1].trim() : '';
   const periodLabel = metadata.periodLabel || titlePeriod || 'মাসিক হিসাব';
@@ -338,9 +344,11 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
   const reportLogoUrl = new URL('/icons/hostel-life-mark.svg', window.location.origin).href;
   const pageBrandImage = buildReportHeaderLeftImage({
     appName: 'Hostel Life',
-    tagline: translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'),
+    tagline: 'Simple, transparent and organised management.',
     reportTitle: reportHeading,
     dateRange: periodDateRange,
+    fontFamily: reportFontFamily,
+    brandFontFamily: '"Inter", Arial, sans-serif',
   });
   const pageMetaImage = buildReportHeaderRightImage({
     managerName,
@@ -348,6 +356,7 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
     periodLabel: reportPeriodLabel,
     generatedBy,
     generatedAt,
+    fontFamily: reportFontFamily,
     labels: {
       manager: translateReportUi('ম্যানেজার'),
       contact: translateReportUi('যোগাযোগ'),
@@ -367,15 +376,15 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
     : '';
 
   win.document.open();
-  win.document.write(`<!doctype html><html lang="${getUiLocale() === 'en-US' ? 'en' : 'bn-BD'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(reportTitle)}</title><style>
-  :root{color-scheme:light}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{font-family:Arial,"Noto Sans Bengali",sans-serif;max-width:100%;color:#203129;font-size:11px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-body{padding:0}.report-subtitle{margin:0 0 5mm;color:#68776e;font-size:9px;line-height:1.5}.report-section-title{margin:6mm 0 2.5mm;font-size:13px;line-height:1.35;color:#245f3e;break-after:avoid;page-break-after:avoid}.report-summary{margin:0 0 5mm;width:100%;table-layout:fixed}.report-summary td{background:#f6faf7}.report-summary td strong{display:block;margin-top:3px;font-size:14px;color:#174d30}.report-summary td small{color:#718178;font-size:9px}.report-member-detail .report-member-summary{margin:0 0 5mm;border:1px solid #dbe5de;border-radius:7px;overflow:hidden}.report-member-detail .report-member-summary th{padding:6px 7px;background:#f1f6f2;color:#506257;font-size:9px}.report-member-detail .report-member-summary td{padding:6px 8px;background:#fff;vertical-align:middle}.report-member-detail .report-member-summary td strong{margin:0;color:#174d30;font-size:11px;line-height:1.4;overflow-wrap:anywhere}.report-member-detail .report-member-section{margin:0 0 4mm;break-inside:auto;page-break-inside:auto}.report-member-detail .report-section-title{margin:5mm 0 2mm;padding:0 0 1.5mm;border-bottom:1px solid #e1e9e3;font-size:12px;break-after:avoid;page-break-after:avoid}.report-member-detail .report-member-table{font-size:9px;line-height:1.4;table-layout:fixed}.report-member-detail .report-member-table th,.report-member-detail .report-member-table td{padding:5px 6px}.report-member-detail .report-member-table tr{break-inside:avoid;page-break-inside:avoid}.report-member-detail .report-member-table thead{display:table-header-group}.report-table-wrap{width:100%;max-width:100%;overflow:visible}table{width:100%;max-width:100%;border-collapse:collapse;font-size:10px;line-height:1.45;table-layout:fixed}th,td{border:1px solid #dbe4de;padding:6px 7px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}th{background:#edf5ef;color:#244d35;font-weight:800}tbody tr:nth-child(even){background:#fbfdfb}.meal-matrix{font-size:7px;table-layout:fixed}.meal-matrix th,.meal-matrix td{padding:3px 2px;text-align:center;white-space:nowrap;overflow-wrap:normal;word-break:normal}.meal-matrix th:first-child,.meal-matrix td:first-child{text-align:left;white-space:normal;width:90px}.meal-matrix th:not(:first-child){font-size:7px}tfoot td,tfoot th{background:#f2f7f3;font-weight:800}.report-note{margin:4mm 0;color:#738177;font-size:9px;line-height:1.5}
+  win.document.write(`<!doctype html><html lang="${getUiLocale() === 'en-US' ? 'en' : 'bn-BD'}" data-language="${getUiLocale() === 'en-US' ? 'en' : 'bn'}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(reportTitle)}</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap"><style>
+  :root{color-scheme:light;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{font-family:${reportFontFamily};max-width:100%;color:#203129;font-size:11px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}.report-body{padding:0}.report-subtitle{margin:0 0 5mm;color:#68776e;font-size:9px;line-height:1.5}.report-section-title{margin:6mm 0 2.5mm;font-size:13px;line-height:1.35;color:#245f3e;break-after:avoid;page-break-after:avoid}.report-summary{margin:0 0 5mm;width:100%;table-layout:fixed}.report-summary td{background:#f6faf7}.report-summary td strong{display:block;margin-top:3px;font-size:14px;color:#174d30}.report-summary td small{color:#718178;font-size:9px}.report-member-detail .report-member-summary{margin:0 0 5mm;border:1px solid #dbe5de;border-radius:7px;overflow:hidden}.report-member-detail .report-member-summary th{padding:6px 7px;background:#f1f6f2;color:#506257;font-size:9px}.report-member-detail .report-member-summary td{padding:6px 8px;background:#fff;vertical-align:middle}.report-member-detail .report-member-summary td strong{margin:0;color:#174d30;font-size:11px;line-height:1.4;overflow-wrap:anywhere}.report-member-detail .report-member-section{margin:0 0 4mm;break-inside:auto;page-break-inside:auto}.report-member-detail .report-section-title{margin:5mm 0 2mm;padding:0 0 1.5mm;border-bottom:1px solid #e1e9e3;font-size:12px;break-after:avoid;page-break-after:avoid}.report-member-detail .report-member-table{font-size:9px;line-height:1.4;table-layout:fixed}.report-member-detail .report-member-table th,.report-member-detail .report-member-table td{padding:5px 6px}.report-member-detail .report-member-table tr{break-inside:avoid;page-break-inside:avoid}.report-member-detail .report-member-table thead{display:table-header-group}.report-table-wrap{width:100%;max-width:100%;overflow:visible}table{width:100%;max-width:100%;border-collapse:collapse;font-size:10px;line-height:1.45;table-layout:fixed}th,td{border:1px solid #dbe4de;padding:6px 7px;text-align:left;vertical-align:top;overflow-wrap:anywhere;word-break:break-word}th{background:#edf5ef;color:#244d35;font-weight:800}tbody tr:nth-child(even){background:#fbfdfb}.meal-matrix{font-size:7px;table-layout:fixed}.meal-matrix th,.meal-matrix td{padding:3px 2px;text-align:center;white-space:nowrap;overflow-wrap:normal;word-break:normal}.meal-matrix th:first-child,.meal-matrix td:first-child{text-align:left;white-space:normal;width:90px}.meal-matrix th:not(:first-child){font-size:7px}tfoot td,tfoot th{background:#f2f7f3;font-weight:800}.report-note{margin:4mm 0;color:#738177;font-size:9px;line-height:1.5}
   @page{size:${pageSize};margin:25.4mm 12.7mm 25.4mm;
-    @top-left{content:${pageBrandImage ? '""' : cssContentString(['Hostel Life', translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'), reportHeading, periodDateRange].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;width:49%;height:100%;padding:0 2mm 2.4mm 0;border-bottom:1.1pt solid #d8e3db;background-image:url("${reportLogoUrl}")${pageBrandImage ? `,url("${pageBrandImage}")` : ''};background-repeat:no-repeat${pageBrandImage ? ',no-repeat' : ''};background-position:left center${pageBrandImage ? ',12.6mm center' : ''};background-size:10.6mm 10.6mm${pageBrandImage ? ',calc(100% - 12.6mm) calc(100% - 2.4mm)' : ''};font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:7.2pt;line-height:1.35;font-weight:700;color:#244437}
-    @top-right{content:${pageMetaImage ? '""' : cssContentString([`${translateReportUi('ম্যানেজার')}: ${managerName || '—'}  •  ${translateReportUi('যোগাযোগ')}: ${managerPhone || '—'}`, `${translateReportUi('মাস')}: ${reportPeriodLabel}`, `${translateReportUi('প্রস্তুত করেছেন')}: ${generatedBy || '—'}`, `${translateReportUi('প্রস্তুতির সময়')}: ${generatedAt}`].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;text-align:right;width:51%;height:100%;padding:0 0 2.4mm 2mm;border-bottom:1.1pt solid #d8e3db;${pageMetaImage ? `background-image:url("${pageMetaImage}");background-repeat:no-repeat;background-position:center center;background-size:100% calc(100% - 2.4mm);` : 'font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.4pt;line-height:1.45;font-weight:500;color:#53645a;'}}
-    @bottom-center{content:${pageFooter};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:top;text-align:center;width:calc(100% - 25.4mm);height:100%;margin:0 auto;padding:1.2mm 0 0;border-top:.8pt solid #dfe7e1;font-family:Arial,"Noto Sans Bengali",sans-serif;font-size:6.8pt;line-height:1.38;font-weight:400;color:#829087}
+    @top-left{content:${pageBrandImage ? '""' : cssContentString(['Hostel Life', translateReportUi('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'), reportHeading, periodDateRange].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;width:49%;height:100%;padding:0 2mm 2.4mm 0;border-bottom:1.1pt solid #d8e3db;background-image:url("${reportLogoUrl}")${pageBrandImage ? `,url("${pageBrandImage}")` : ''};background-repeat:no-repeat${pageBrandImage ? ',no-repeat' : ''};background-position:left center${pageBrandImage ? ',12.6mm center' : ''};background-size:10.6mm 10.6mm${pageBrandImage ? ',calc(100% - 12.6mm) calc(100% - 2.4mm)' : ''};font-family:"Inter",Arial,sans-serif;font-size:7.2pt;line-height:1.35;font-weight:700;color:#244437}
+    @top-right{content:${pageMetaImage ? '""' : cssContentString([`${translateReportUi('ম্যানেজার')}: ${managerName || '—'}  •  ${translateReportUi('যোগাযোগ')}: ${managerPhone || '—'}`, `${translateReportUi('মাস')}: ${reportPeriodLabel}`, `${translateReportUi('প্রস্তুত করেছেন')}: ${generatedBy || '—'}`, `${translateReportUi('প্রস্তুতির সময়')}: ${generatedAt}`].join('\n'))};white-space:pre-line;box-sizing:border-box;vertical-align:middle;text-align:right;width:51%;height:100%;padding:0 0 2.4mm 2mm;border-bottom:1.1pt solid #d8e3db;${pageMetaImage ? `background-image:url("${pageMetaImage}");background-repeat:no-repeat;background-position:center center;background-size:100% calc(100% - 2.4mm);` : `font-family:${reportFontFamily};font-size:6.4pt;line-height:1.45;font-weight:500;color:#53645a;`}}
+    @bottom-center{content:${pageFooter};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:top;text-align:center;width:calc(100% - 25.4mm);height:100%;margin:0 auto;padding:1.2mm 0 0;border-top:.8pt solid #dfe7e1;font-family:"Inter","Noto Sans Bengali",Arial,sans-serif;font-size:6.8pt;line-height:1.38;font-weight:400;color:#829087}
   }
   @media print{html,body{margin:0;padding:0}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid;page-break-inside:avoid}h1,h2,h3{break-after:avoid;page-break-after:avoid}.report-summary{break-inside:avoid}.report-section{break-inside:auto}.report-table-wrap{overflow:visible}}
-  </style></head><body class="${escapeHtml(bodyClasses)}"><main class="report-body">${subtitleMarkup}${reportMarkup}</main><script>window.onload=()=>{setTimeout(()=>window.print(),300)};<\/script></body></html>`);
+  </style></head><body class="${escapeHtml(bodyClasses)}"><main class="report-body">${subtitleMarkup}${reportMarkup}</main><script>window.onload=()=>{const ready=document.fonts?.ready?.catch?.(()=>{})||Promise.resolve();Promise.race([ready,new Promise(resolve=>setTimeout(resolve,1200))]).then(()=>setTimeout(()=>window.print(),120));};<\/script></body></html>`);
   win.document.close();
 }
 

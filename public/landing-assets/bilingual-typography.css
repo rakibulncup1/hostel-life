@@ -1,0 +1,30 @@
+/* Run110 — public pages use the same language-aware type stack as the app. */
+:root {
+  --hl-font-bengali: "Noto Sans Bengali", "Nirmala UI", "Vrinda", "Segoe UI", system-ui, sans-serif;
+  --hl-font-latin: "Inter", "Noto Sans Bengali", "Segoe UI", Roboto, Arial, sans-serif;
+}
+html[data-language="bn"] body,
+html[lang^="bn"] body {
+  font-family: var(--hl-font-bengali);
+  line-height: 1.68;
+  letter-spacing: normal;
+}
+html[data-language="en"] body,
+html[lang="en"] body {
+  font-family: var(--hl-font-latin);
+  line-height: 1.60;
+  letter-spacing: -0.005em;
+}
+html[data-language="bn"] :where(button, input, select, textarea),
+html[data-language="en"] :where(button, input, select, textarea) {
+  font-family: inherit;
+}
+html[data-language="bn"] body,
+html[data-language="en"] body,
+html[data-language="bn"] body :where(strong, b, td, th, output),
+html[data-language="en"] body :where(strong, b, td, th, output) {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+/* Product identity and English credits retain the Latin brand face in every UI locale. */
+.brand, .footer-copyright, .footer-credit, .footer-brand { font-family: var(--hl-font-latin); }

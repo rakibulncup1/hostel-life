@@ -2,6 +2,19 @@
 <html lang="bn-BD">
 <head>
   <meta charset="utf-8">
+  <script>
+    (function () {
+      var language = 'bn';
+      try { language = localStorage.getItem('hostel-life-language-v1') === 'en' ? 'en' : 'bn'; } catch (_) {}
+      var root = document.documentElement;
+      root.dataset.language = language;
+      root.dataset.locale = language === 'en' ? 'en-US' : 'bn-BD';
+      root.lang = language === 'en' ? 'en' : 'bn-BD';
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f4f8f5">
   <meta name="description" data-i18n-content-key="about.meta.description" content="Hostel Life—দৈনিক মিল, বাজার, সদস্যদের জমা-খরচ ও মাসিক হিসাব এক জায়গায় সংরক্ষণ ও পর্যালোচনার বাংলা ওয়েব অ্যাপ।">
@@ -30,6 +43,7 @@
   <link rel="stylesheet" href="/landing-assets/run100-about-desktop-balance.css">
   <link rel="stylesheet" href="/landing-assets/run101-about-public-polish.css">
   <link rel="stylesheet" href="/landing-assets/run102-about-interaction.css">
+  <link rel="stylesheet" href="/landing-assets/bilingual-typography.css">
 </head>
 <body class="about-page">
   <header class="site-header">
@@ -346,8 +360,8 @@
         <nav class="footer-links" aria-label="সহায়ক লিংক" data-i18n-aria-label-key="about.aria.ee53df1e97"><a href="/about" data-i18n-key="about.copy.fe65e16b3b">পরিচিতি</a><a href="/privacy-policy" data-i18n-key="about.copy.c5e2f5cbde">গোপনীয়তা</a><a href="/terms-of-service" data-i18n-key="about.copy.26b3d0fce4">শর্তাবলী</a><a href="mailto:support.sec1.info@gmail.com" data-i18n-key="about.copy.bbfe0f8fd4">যোগাযোগ</a></nav>
       </div>
       <div class="footer-bottom">
-        <span class="footer-copyright"><span data-i18n-key="common.copyright.prefix">Copyright © </span><span id="copyright-year">2026</span><span data-i18n-key="common.copyright.suffix"> Hostel-Life. All rights reserved.</span></span>
-        <span class="footer-credit"><span data-i18n-key="common.credit.prefix">Designed &amp; Developed by </span><a href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noopener noreferrer">Rakibul Islam Samrat</a></span>
+        <span class="footer-copyright" data-no-translate><span data-i18n-key="common.copyright.prefix">Copyright © </span><span id="copyright-year">2026</span><span data-i18n-key="common.copyright.suffix"> Hostel-Life. All rights reserved.</span></span>
+        <span class="footer-credit" data-no-translate><span data-i18n-key="common.credit.prefix">Designed &amp; Developed by </span><a href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noopener noreferrer">Rakibul Islam Samrat</a></span>
       </div>
     </div>
   </footer>

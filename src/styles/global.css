@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  font-family: "Noto Sans Bengali", "Hind Siliguri", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--hl-font-family);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --bg: #f4f8f5;

@@ -1,8 +1,16 @@
-export function getUiLocale() {
-  try { return window.HostelLifeI18n?.getLanguage?.() === 'en' ? 'en-US' : 'bn-BD'; }
-  catch { return 'bn-BD'; }
+export function getUiLanguage() {
+  try {
+    const runtimeLanguage = window.HostelLifeI18n?.getLanguage?.();
+    if (runtimeLanguage === 'en' || runtimeLanguage === 'bn') return runtimeLanguage;
+  } catch { /* Continue with the early document language state. */ }
+
+  try {
+    return document.documentElement?.dataset?.language === 'en' ? 'en' : 'bn';
+  } catch {
+    return 'bn';
+  }
 }
 
-export function getUiLanguage() {
-  return getUiLocale() === 'en-US' ? 'en' : 'bn';
+export function getUiLocale() {
+  return getUiLanguage() === 'en' ? 'en-US' : 'bn-BD';
 }

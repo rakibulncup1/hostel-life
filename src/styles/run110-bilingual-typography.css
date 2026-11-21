@@ -1,0 +1,74 @@
+/* Run110 — language-aware typography tokens. Component dimensions remain owned by feature styles. */
+:root {
+  --hl-font-bengali: "Noto Sans Bengali", "Nirmala UI", "Vrinda", "Segoe UI", system-ui, sans-serif;
+  --hl-font-latin: "Inter", "Noto Sans Bengali", "Segoe UI", Roboto, Arial, sans-serif;
+  --hl-font-family: var(--hl-font-bengali);
+  --hl-body-leading: 1.62;
+  font-synthesis: none;
+  font-optical-sizing: auto;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+:root[data-language="bn"], :root[lang^="bn"] {
+  --hl-font-family: var(--hl-font-bengali);
+  --hl-body-leading: 1.62;
+  --hl-letter-spacing: normal;
+}
+
+:root[data-language="en"], :root[lang="en"] {
+  --hl-font-family: var(--hl-font-latin);
+  --hl-body-leading: 1.52;
+  --hl-letter-spacing: -0.006em;
+}
+
+html[data-language="bn"] body,
+html[lang^="bn"] body,
+html[data-language="bn"] button,
+html[lang^="bn"] button,
+html[data-language="bn"] input,
+html[lang^="bn"] input,
+html[data-language="bn"] select,
+html[lang^="bn"] select,
+html[data-language="bn"] textarea,
+html[lang^="bn"] textarea,
+html[data-language="en"] body,
+html[lang="en"] body,
+html[data-language="en"] button,
+html[lang="en"] button,
+html[data-language="en"] input,
+html[lang="en"] input,
+html[data-language="en"] select,
+html[lang="en"] select,
+html[data-language="en"] textarea,
+html[lang="en"] textarea {
+  font-family: var(--hl-font-family);
+}
+
+html[data-language="bn"] body,
+html[lang^="bn"] body {
+  line-height: var(--hl-body-leading);
+  letter-spacing: normal;
+}
+
+html[data-language="en"] body,
+html[lang="en"] body {
+  line-height: var(--hl-body-leading);
+  letter-spacing: var(--hl-letter-spacing);
+}
+
+/* Tabular figures improve scanning of financial and operational values without resizing components. */
+body, body :where(strong, b, td, th, output, .numeric, .amount, .currency, .balance, .tabular-nums, [data-numeric]) {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* User-authored mixed-language text can use the complementary script font. */
+[data-user-content] {
+  font-family: var(--hl-font-family);
+}
+
+.app-copyright-footer, .app-copyright-footer [data-no-translate], .brand-product-name, .menu-page-intro-card .eyebrow[data-no-translate] {
+  font-family: var(--hl-font-latin);
+}
+

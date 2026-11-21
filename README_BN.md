@@ -1,53 +1,45 @@
-# Hostel Life — Run109 Global Header & Google Sign-in Patch
+# Hostel Life — Run110 Bilingual Design System Patch
 
-## বেসলাইন
+## Baseline
+এই প্যাচটি **Run109**-এর ওপর তৈরি। Run109-এর সঙ্গে মিল থাকা বর্তমান প্রজেক্টের Root Folder-এ প্রয়োগ করতে হবে। এটি পূর্ণাঙ্গ প্রজেক্ট ZIP নয়।
 
-এই প্যাচটি **Run108-সমন্বিত Hostel Life প্রজেক্টের ওপর incremental update** হিসেবে তৈরি। এটি পূর্ণাঙ্গ প্রজেক্ট ZIP নয়।
+## কী পরিবর্তন হয়েছে
 
-## পরিবর্তনের পরিধি
+1. **Language-aware typography tokens** — `lang`/`data-language` অনুযায়ী বাংলা ও ইংরেজির আলাদা font stack, body line-height এবং inherited tabular numerals।
+2. **Bangla type** — Noto Sans Bengali; fallback হিসেবে Windows/system Bengali fonts। বাংলা অ্যাপের line-height 1.62, public About/Legal পেজে 1.68।
+3. **English type** — Inter; fallback হিসেবে system sans-serif। ইংরেজি অ্যাপের line-height 1.52, public About/Legal পেজে 1.60।
+4. **First-paint language** — saved language preference app ও public About/Privacy/Terms pages-এ CSS render হওয়ার আগেই root `lang`, `data-language` এবং `data-locale`-এ বসে। পরবর্তী language switch-এ একই attributes update হয়।
+5. **Super Admin language switch** — role, MFA ও re-authentication checks সম্পন্ন হওয়ার পর authenticated Super Admin header-এ shared local language switcher দেখা যায়। এটি কোনো নতুন database/network request যোগ করে না।
+6. **English-only product branding** — Hostel Life নাম, footer copyright/developer credit এবং report tagline ইংরেজিতে থাকে। User-provided hostel/member names অনুবাদ হয় না।
+7. **Numbers and currency** — বিদ্যমান `Intl.NumberFormat`/`৳` formatting অপরিবর্তিত; tabular numerals যোগ করা হয়েছে যাতে আর্থিক কলাম স্ক্যান করা সহজ হয়।
+8. **Translation coverage** — About inventory keys ও অডিটে চিহ্নিত Google OAuth, member selection, report metadata এবং Super Admin confirmation copy-র ইংরেজি অনুবাদ যোগ/পরিপূর্ণ করা হয়েছে। বয়স-সম্মতি, মাস বন্ধ, স্থায়ীভাবে মুছে ফেলা ও permission/security সতর্কতা রাখা হয়েছে।
+9. **PDF typography** — রিপোর্টের body selected locale-এর font stack ব্যবহার করে; product name/tagline ও footer branding Inter stack ব্যবহার করে। Font ready হওয়ার জন্য সীমিত wait আগের মতো থাকে।
 
-### ১. সব PDF রিপোর্টের Header
-
-- প্রজেক্টের বিদ্যমান `public/icons/hostel-life-mark.svg` লোগো ব্যবহার করা হয়েছে।
-- লোগোর ডান পাশে বড় `Hostel Life` নাম, নিচে “সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা”, রিপোর্টের নাম এবং মাসের শুরু–শেষের তারিখ দেখানো হয়।
-- মাস চলমান থাকলে শেষের তারিখের জায়গায় “চলমান” দেখায়।
-- ডান পাশে ম্যানেজারের নাম ও যোগাযোগ নম্বর একই লাইনে থাকে; নিচে মাস, রিপোর্ট প্রস্তুতকারীর নাম ও তৈরির সময় থাকে।
-- Header-এর দুই অংশের লেখা ও divider-এর মধ্যে ফাঁকা জায়গা রাখা হয়েছে।
-- তারিখগুলো রিপোর্টের period metadata থেকে আসে; date-only মান UTC ধরে ফরম্যাট করা হয়, যাতে লোকাল timezone-এ একদিন পিছিয়ে/এগিয়ে না যায়।
-
-### ২. সব PDF রিপোর্টের Footer
-
-- আগের দুই লাইনের Copyright/Branding অপরিবর্তিত রাখা হয়েছে।
-- Footer divider-এর ঠিক নিচে কপিরাইট লেখা থাকে; আগের তুলনায় উপরে আনা হয়েছে।
-- আগের global page-margin কাঠামোই রাখা হয়েছে; body content Header/Footer-এর সংরক্ষিত জায়গায় প্রবেশ করে না।
-
-### ৩. Google sign-in
-
-- Google Identity Services-এর official button-এর supported `filled_blue` theme ব্যবহার করা হয়েছে।
-- SDK আসার আগের placeholder/disabled button-এ একই নীল রঙের professional treatment দেওয়া হয়েছে; light/dark theme-এও রং স্থিতিশীল থাকে।
-- Google authentication flow, consent, Supabase token exchange বা permission logic পরিবর্তন করা হয়নি।
+## UI preservation
+এই প্যাচে Dashboard/card/grid/button-এর `font-size`, `min-height`, padding, grid column, card dimensions বা dashboard colour palette বদলানো হয়নি। Typography tokens ও line-height ছাড়া layout geometry অক্ষত রাখাই ছিল উদ্দেশ্য। About/Legal pages-এ আলাদা language-aware body line-height রয়েছে।
 
 ## প্রয়োগ
 
-1. বর্তমান Run108-সমন্বিত প্রজেক্টের আলাদা ব্যাকআপ রাখুন।
-2. ZIP Extract করুন।
-3. ZIP-এর ভেতরের `src/` ও `tests/` ফোল্ডারের ফাইলগুলো একই path-এ বর্তমান প্রজেক্টে Replace/Copy করুন।
-4. Local environment-এ Final, Deposit, Market, Meal Sheet এবং Member Detail-এর একাধিক পৃষ্ঠার PDF খুলে প্রথম ও পরের পৃষ্ঠা যাচাই করুন।
-5. যাচাই সফল না হওয়া পর্যন্ত Production-এ প্রয়োগ করবেন না।
+1. বর্তমান Run109 প্রজেক্টের একটি পূর্ণ ব্যাকআপ রাখুন।
+2. ZIP-এর ফাইলগুলো project root-এ Extract করুন এবং একই relative path-এ ফাইলগুলো Replace করুন।
+3. `npm ci` চালিয়ে project dependencies install করুন (যদি `node_modules` না থাকে)।
+4. `npm run verify:styles` চালান।
+5. `npm test` চালান।
+6. `npm run build` চালিয়ে local preview-তে Bangla/English, Dashboard, Profile, Super Admin, About/Legal, numbers/currency এবং PDF পরীক্ষা করুন।
 
-## পরিবর্তিত ফাইলের পরিধি
+## গুরুত্বপূর্ণ সীমাবদ্ধতা
 
-মোট ১৬টি ফাইল: ৬টি source file এবং ১০টি test file। কোনো SQL migration, Supabase schema, RPC, Edge Function, permission policy, হিসাব বা authentication business logic পরিবর্তন করা হয়নি।
+- Inter ও Noto Sans Bengali Google Fonts CDN থেকে লোড হয়। `preconnect` ও `display=swap` initial loading delay কমাতে সাহায্য করে; তবে CDN/Internet না থাকলে system fallback font ব্যবহৃত হবে। FOUT/CLS সম্পূর্ণ শূন্য হবে—এমন নিশ্চয়তা দেওয়া যাচ্ছে না।
+- এই কাজের container-এ `node_modules` অনুপস্থিত থাকায় Vite production build চালানো হয়নি। Changed JSX files TypeScript transpile syntax-check, JavaScript syntax-check, stylesheet-integrity check এবং automated tests করা হয়েছে।
+- কোনো Supabase schema, SQL migration, RPC, Edge Function, database permission বা business calculation পরিবর্তন করা হয়নি।
 
-## যাচাই
+## Verification ফলাফল
 
-- সংশ্লিষ্ট/লক্ষ্যভিত্তিক টেস্ট: **৭৭/৭৭ পাস**।
-- সম্পূর্ণ টেস্ট স্যুট: **১,১৮৬টির মধ্যে ১,১৬২টি পাস**।
-- বাকি ২৪টি ব্যর্থ টেস্টের নাম Run108 বেসলাইনের ২৪টি ব্যর্থতার সঙ্গে হুবহু একই; নতুন ব্যর্থতা যোগ হয়নি।
-- `node --check src/services/reportService.js`: পাস।
-- `node scripts/verify-stylesheet-integrity.mjs`: পাস।
-- `node_modules` অনুপস্থিত থাকায় Vite production build চালানো সম্ভব হয়নি।
+- Targeted bilingual/report/UI regression tests: **58/58 passed**.
+- Stylesheet integrity: **PASS**.
+- Full test suite: **1,185 passed / 1,202 total / 17 failed**. এই 17টি ব্যর্থতার প্রতিটিই Run109 baseline-এর 24টি পরিচিত failure-এর subset; Run110-এ নতুন failure যোগ হয়নি এবং আগের 7টি failure এখন pass করছে।
+- Vite production build: **Not run** (container project copy-তে `node_modules` অনুপস্থিত)।
 
-## গুরুত্বপূর্ণ
+## Patch contents
 
-এই প্যাচটি report template ও auth button presentation-এ সীমাবদ্ধ। তবুও লাইভ ডেটা দিয়ে local PDF preview যাচাই না করে production-এ deploy করবেন না।
+শুধু Run109 baseline-এর তুলনায় পরিবর্তিত 27টি source/test file রয়েছে। `MANIFEST.json`, `SHA256SUMS.txt` ও `PATCH.diff`-এ ফাইল তালিকা, checksum এবং diff দেওয়া হয়েছে।

@@ -56,15 +56,18 @@ test('Every canonical Privacy and Terms paragraph has an English translation', (
   }
 });
 
-test('Only the signed-in Profile exposes the application language control', () => {
+test('Profile, onboarding entry and the authenticated Super Admin panel expose the shared language control', () => {
   const profile = read('src/features/profile/ProfilePage.jsx');
+  const onboarding = read('src/features/onboarding/OnboardingPage.jsx');
+  const platform = read('src/features/platform/SuperAdminPage.jsx');
   assert.match(profile, /LanguageSwitcher/);
   assert.match(profile, /profile-language-section/);
+  assert.match(onboarding, /LanguageSwitcher/);
+  assert.match(platform, /LanguageSwitcher compact className="platform-language-control"/);
   for (const file of [
     'src/features/auth/AuthPage.jsx', 'src/features/auth/ForcedPasswordChange.jsx',
-    'src/features/onboarding/OnboardingPage.jsx', 'src/features/invites/HostelInvitePage.jsx',
-    'src/features/account/InactiveMembershipPage.jsx', 'src/features/account/IdentityErrorPage.jsx',
-    'src/features/menu/AppDownloadPage.jsx',
+    'src/features/invites/HostelInvitePage.jsx', 'src/features/account/InactiveMembershipPage.jsx',
+    'src/features/account/IdentityErrorPage.jsx', 'src/features/menu/AppDownloadPage.jsx',
   ]) assert.doesNotMatch(read(file), /LanguageSwitcher/ , `${file} should not duplicate the language setting`);
 });
 

@@ -98,3 +98,5 @@ import './styles/run102-auth-compact-translation.css';
 import './styles/run103-about-login-precision.css';
 
 import './styles/run105-requested-ui-polish.css';
+
+import './styles/run110-bilingual-typography.css';

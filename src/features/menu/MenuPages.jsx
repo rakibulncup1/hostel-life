@@ -21,12 +21,12 @@ import { LEGAL_DOCUMENTS, LEGAL_LAST_UPDATED } from '../../content/legalDocument
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { fetchPlatformPublicSettings } from '../../services/platformService';
 
-function PageHeader({ eyebrow = 'হোস্টেল লাইফ', title, description, back = true }) {
+function PageHeader({ eyebrow = 'Hostel Life', title, description, back = true }) {
   return (
     <div className="page-title-row menu-page-title card menu-page-intro-card">
       <div className="menu-page-title-copy">
         {back && <button className="secondary-button compact back-button" type="button" onClick={() => navigateTo('/app/dashboard')}><Icon name="arrow-left" size={15} /> ফিরে যান</button>}
-        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+        {eyebrow && <span className="eyebrow" data-no-translate>{eyebrow}</span>}
         <h1>{title}</h1>
         {description && <p>{description}</p>}
       </div>

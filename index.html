@@ -8,6 +8,19 @@
     <meta name="color-scheme" content="light dark" />
     <script>
       (function () {
+        var language = 'bn';
+        try { language = localStorage.getItem('hostel-life-language-v1') === 'en' ? 'en' : 'bn'; } catch (_) {}
+        var root = document.documentElement;
+        root.dataset.language = language;
+        root.dataset.locale = language === 'en' ? 'en-US' : 'bn-BD';
+        root.lang = language === 'en' ? 'en' : 'bn-BD';
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap" />
+    <script>
+      (function () {
         var path = window.location.pathname || '';
         if (path === '/invite' || path.indexOf('/invite/') === 0) {
           document.documentElement.setAttribute('data-invite-page', 'true');

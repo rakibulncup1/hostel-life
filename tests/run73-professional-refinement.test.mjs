@@ -49,8 +49,8 @@ test('English copy includes the previously missed About labels and descriptive t
     'সকালের মিল',
     'ম্যানেজার প্যানেল · নমুনা UI',
   ]) assert.ok(translations.includes(`"${phrase}"`), `missing translation for ${phrase}`);
-  assert.match(keyedCopy, /about\.copy\.b8cc84d169\": \"Rice\"/);
-  assert.match(keyedCopy, /about\.copy\.19adb8ceca\": \"November 2026\"/);
+  assert.ok(keyedCopy.includes("'about.copy.b8cc84d169': 'Rice'"));
+  assert.ok(keyedCopy.includes("'about.copy.19adb8ceca': 'November 2026'"));
   assert.match(keyedCopy, /legal\.toc\.title': 'On this page'/);
   assert.match(keyedCopy, /'সব সদস্য': 'All members'/);
   for (const userItem of ['চাল', 'ডাল', 'সবজি']) {

@@ -10,7 +10,7 @@ export function Header({ hostelName = 'Hostel Life', profileName = null, role = 
 
       <div className="brand-block">
         <div className="brand-name-row">
-          <div className="brand-name">{hostelName === 'Hostel Life' ? hostelName : <span data-user-content>{hostelName}</span>}</div>
+          <div className="brand-name">{hostelName === 'Hostel Life' ? <span className="brand-product-name" data-no-translate>{hostelName}</span> : <span data-user-content>{hostelName}</span>}</div>
           {periodLabel && <span className="period-badge header-period-badge"><Icon name="calendar" size={11} /> {periodLabel}</span>}
         </div>
         <div className="header-context-row">

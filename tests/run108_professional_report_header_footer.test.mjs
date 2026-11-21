@@ -25,10 +25,10 @@ test('left report heading uses project logo and a high-resolution canvas hierarc
   assert.match(reports, /new URL\('\/icons\/hostel-life-mark\.svg', window\.location\.origin\)/);
   assert.match(reports, /buildReportHeaderLeftImage\(/);
   assert.match(reports, /appName: 'Hostel Life'/);
-  assert.match(reports, /tagline: translateReportUi\('সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা'\)/);
+  assert.match(reports, /tagline: 'Simple, transparent and organised management\.'/);
   assert.match(reports, /reportTitle: reportHeading/);
   assert.match(reports, /dateRange: periodDateRange/);
-  assert.match(reports, /context\.font = '800 82px/);
+  assert.ok(reports.includes('context.font = `800 82px ${brandFontFamily || fontFamily}`'));
 });
 
 test('right header includes month, same-line manager/contact, report creator and timestamp', () => {

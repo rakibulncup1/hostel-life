@@ -263,7 +263,7 @@
 :root[data-language="en"] input,
 :root[data-language="en"] select,
 :root[data-language="en"] textarea {
-  font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: var(--hl-font-family);
   letter-spacing: -0.012em;
 }
 :root[data-language="en"] body { line-height: 1.55; }

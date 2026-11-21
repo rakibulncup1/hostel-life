@@ -21,8 +21,10 @@ test('Run70 reuses the existing local bilingual runtime without database or netw
   assert.match(component, /window\.HostelLifeI18n\?\.setLanguage\?\./);
   assert.match(component, /shortLabel/);
   assert.match(main, /run69-language-system\.css/);
+  assert.match(main, /run110-bilingual-typography\.css/);
   const platform = read('src/features/platform/SuperAdminPage.jsx');
-  assert.doesNotMatch(platform, /LanguageSwitcher|platform-language-control/);
+  assert.match(platform, /LanguageSwitcher compact className="platform-language-control"/);
+  assert.match(platform, /verifySuperAdminMfa|reauthenticated/);
   assert.doesNotMatch(component, /supabase|fetch\(/i);
   assert.doesNotMatch(main, /Run70.*migration/i);
   assert.match(read('public/service-worker.js'), /hostel-life-shell-v22/);

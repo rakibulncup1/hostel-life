@@ -15,8 +15,11 @@ test('Run74 leaves language and theme controls only on About and signed-in Profi
   assert.match(about, /data-theme-choice="dark"/);
   assert.doesNotMatch(privacy + terms, /data-language-switch|data-theme-choice=/);
   assert.match(privacy + terms, /public-controls\.js/);
-  assert.doesNotMatch(header + drawer + auth + onboarding, /LanguageSwitcher|EntryThemeSwitcher/);
+  assert.doesNotMatch(header + drawer + auth, /LanguageSwitcher|EntryThemeSwitcher/);
+  assert.match(onboarding, /LanguageSwitcher/);
   assert.match(profile, /LanguageSwitcher/);
+  const superAdmin = await read('src/features/platform/SuperAdminPage.jsx');
+  assert.match(superAdmin, /LanguageSwitcher compact className="platform-language-control"/);
   assert.match(profile, /setThemeChoice/);
   assert.match(publicControls, /hostel-life-theme/);
   assert.match(languageRuntime, /hostel-life-language-v1/);
@@ -54,7 +57,7 @@ test('English market fallback and sample report meal-rate labels remain localisa
   const [dining, translations, runtime] = await Promise.all([read('src/features/dining/DiningPage.jsx'), read('public/app-english-translations.js'), read('public/language-runtime.js')]);
   assert.match(dining, /market-buyer-readonly[^>]*>[\s\S]*?নিজের নামে/);
   assert.match(translations, /"নিজের নামে": "Under your own name"/);
-  assert.match(runtime, /about\.copy\.8eb4692fa0"?:?\s*"Meal rate"/);
+  assert.match(runtime, /['"]about\.copy\.8eb4692fa0['"]\s*:\s*['"]Meal rate['"]/);
 });
 
 test('About dashboard and dining previews use matching responsive heights', async () => {

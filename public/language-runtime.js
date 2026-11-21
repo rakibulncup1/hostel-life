@@ -238,6 +238,35 @@
     'common.copyright.prefix': 'Copyright © ', 'common.copyright.suffix': ' Hostel-Life. All rights reserved.', 'common.credit.prefix': 'Designed & Developed by ',
     'terms.contact.title': 'Questions about these terms or your account?', 'terms.contact.description': 'Contact us for help with the service, your account or any of these rules.',
     'legal.contact.action': 'Contact us ↗', 'common.copyright': 'Copyright © 2026 Hostel-Life. All rights reserved.',
+    'about.copy.26b3d0fce4': 'Terms', 'about.copy.2b43d5b58d': 'Privacy Policy',
+    'about.copy.3539014022': 'Download app ↓', 'about.copy.3a6ebf18ed': 'Rakibul Islam Samrat',
+    'about.copy.7a31e44acc': 'simpler and more organised.', 'about.copy.8eb4692fa0': 'Meal rate',
+    'about.copy.9d054cc8cf': 'Terms of Service', 'about.copy.bbfe0f8fd4': 'Contact',
+    'about.copy.c5e2f5cbde': 'Privacy', 'about.copy.c954010b41': 'Create an account ↗',
+    'about.copy.d7ceca44a3': 'Log in', 'about.copy.da0222b64d': 'Manager tools',
+    'about.copy.e769e7322a': 'Today’s meals', 'about.copy.fc486696ad': '↓',
+    'about.copy.fe65e16b3b': 'About',
+    'about.aria.e79d7a61d1': 'Hostel Life About page', 'about.aria.6d8b0e4619': 'Main navigation',
+    'about.aria.faa77e7f6e': 'Account actions', 'about.aria.f33d815f70': 'Open menu',
+    'about.aria.45372d8169': 'Mobile navigation', 'about.aria.2e6e642b0c': 'Main tasks',
+    'about.aria.7d24268dab': 'Hostel Life app interface preview',
+    'about.aria.6363fbae42': 'Dashboard preview: members, today’s meals and daily meal summary',
+    'about.aria.55ee1ba77e': 'Dining section preview: meal requests, market entries and deposits',
+    'about.aria.b7b79a89ab': 'Meal planning interface preview by day and meal',
+    'about.aria.a2eabb0c10': 'Market interface preview showing products, quantities and costs',
+    'about.aria.abe358a9ac': 'Member deposit records interface preview',
+    'about.aria.a34cf5e263': 'Monthly staff allowance overview interface preview',
+    'about.aria.9822312656': 'Manager’s meal request review list interface preview',
+    'about.aria.2facb45a45': 'Menu preview for members, reports, archives and manager tools',
+    'about.aria.c935d0aa32': 'Monthly summary and member account report preview',
+    'about.aria.2ea768efe0': 'Three steps to use Hostel Life', 'about.aria.3eec0c8b85': 'Service scope',
+    'about.aria.a48dd68cbe': 'Hostel Life home', 'about.aria.ee53df1e97': 'Helpful links',
+    'about.meta.description': 'Hostel Life is a web app for organising daily meals, market expenses, member deposits and monthly accounts in one place.',
+    'about.meta.ogTitle': 'Hostel Life — Make everyday hostel management simpler and more organised',
+    'about.meta.ogDescription': 'Manage daily meals, market purchases, member deposits and monthly accounts in one place.',
+    'about.preview.dashboard': 'Dashboard · Today’s meals',
+    'about.closing.title': 'Make everyday hostel management more organised',
+    'about.closing.description': 'Manage your hostel’s daily records in one place.',
   };
 
   const LEGAL_TEXT = {
@@ -334,10 +363,70 @@
     'বাংলাদেশ সময় · UTC+06:00': 'Bangladesh time · UTC+06:00', 'সর্বশেষ আপডেট': 'Last updated', 'শেষ সিঙ্ক': 'Last sync', 'এখন': 'Now', 'সাবমিট': 'Submitted', 'অনুসন্ধান মুছুন': 'Clear search',
     'অ্যাকাউন্ট স্ট্যাটাস': 'Account status', 'আপনার সদস্যতা বর্তমানে নিষ্ক্রিয়': 'Your membership is currently inactive', 'সংযোগ ও সেশন': 'Connections & sessions', 'ওয়েবসাইট সরাসরি খুলুন': 'Open website directly', 'পেজ রিলোড করুন': 'Reload page',
     'ভাষা': 'Language', 'অ্যাপের সব মেনু, পৃষ্ঠা ও নির্দেশনার ভাষা নির্বাচন করুন।': 'Choose the language for app menus, pages and guidance.', 'ভাষা নির্বাচন': 'Choose language', 'ভাষা সংরক্ষণ হয়েছে।': 'Language preference saved.',
+    'Google sign-in-এর আগে ১৮+ বয়স ও নীতিমালায় সম্মতি নিশ্চিত করুন।': 'Before signing in with Google, confirm that you are 18 or older and accept the applicable policies.',
+    'Google sign-in সম্পন্ন হয়েছে, কিন্তু profile প্রস্তুত করা যায়নি। আবার চেষ্টা করুন।': 'Google sign-in was completed, but your profile could not be prepared. Please try again.',
+    'আজ রাত ১০টার স্বাভাবিক cutoff শেষ হয়েছে। আজকের মিলের জন্য লেট অনুরোধ দিন; সেটি ম্যানেজারের অনুমোদনসাপেক্ষ।': 'The regular 10:00 PM cutoff has passed. Submit a late request for today’s meal; manager approval is required.',
+    'এই নামে কোনো সদস্য মেলেনি। অন্য নাম লিখুন অথবা সার্চ মুছে দিন।': 'No member was found with this name. Try another name or clear the search.',
+    'নামের বানান পরিবর্তন করুন অথবা সার্চ মুছে সব সদস্য দেখুন।': 'Check the spelling or clear the search to see all members.',
+    'থেকে': 'from', 'পর্যন্ত': 'until', 'পরিশোধিত অর্থ': 'Amount paid',
+    'নোটিশটি সদস্যদের অ্যাপ ও ইনবক্সে দেখাবে।': 'The notice will appear in members’ app and inbox.',
+    'টি মেস নির্বাচিত': 'hostels selected',
+    'একসাথে সর্বোচ্চ ২৫টি মেস বেছে স্থায়ীভাবে মুছতে পারবেন। নির্বাচন পৃষ্ঠা বদলালেও থাকবে।': 'You can permanently delete up to 25 hostels at once. Your selection will be retained when you change pages.',
+    'এই পাতার সব নির্বাচন': 'Select all on this page', 'নির্বাচন বাতিল': 'Clear selection', 'নির্বাচিত মেস মুছুন': 'Delete selected hostels',
+    'এই পরিবর্তন ফেরানো যাবে না। আগে ডেটাবেজ backup নিশ্চিত করুন।': 'This change cannot be undone. Confirm that you have a database backup first.',
     'বিষয়ভিত্তিক প্রশ্নোত্তর': 'Topic-based help', 'যে বিষয়ে জানতে চান সেটি খুলুন': 'Choose a topic to explore', 'সময় মনে রাখুন': 'Keep these times in mind',
     'অ্যাকাউন্ট থেকে মাসিক হিসাব—সহজ তিন ধাপে': 'From account setup to monthly accounts in three simple steps', 'দৈনন্দিন কাজ': 'Daily activity', 'আজকের সারসংক্ষেপ': 'Today’s summary',
     'সদস্য · আর্কাইভ · ম্যানেজার টুলস': 'Members · Archive · Manager tools', 'ব্যবস্থাপনা মেনু · নমুনা UI': 'Management menu · UI preview', 'মাসিক প্রতিবেদন · নমুনা UI': 'Monthly report · UI preview',
     'সদস্যের জমা': 'Member deposit', 'সদস্যদের জমা': 'Member deposits', 'মিল পরিকল্পনা': 'Meal planning', 'ডিপোজিট': 'Deposit', 'ডিপোজিট · জমা সংরক্ষণ': 'Deposit · Save deposit',
+    'অথবা': 'or', 'মেস সেটআপ': 'Hostel setup', '২০ নভেম্বর ২০২৬': 'November 20, 2026',
+    'Google দিয়ে চালিয়ে যান': 'Continue with Google', 'Google-এ সংযোগ হচ্ছে…': 'Connecting to Google…',
+    'আবার Google দিয়ে চেষ্টা করুন': 'Try Google again', 'Google থেকে পরিচয় যাচাইয়ের তথ্য পাওয়া যায়নি। আবার চেষ্টা করুন।': 'Google did not provide verified identity information. Please try again.',
+    'ইন্টারনেট, Google Client ID এবং অনুমোদিত website origin পরীক্ষা করে আবার চেষ্টা করুন।': 'Check your internet connection, Google Client ID and authorised website origin, then try again.',
+    'Google দিয়ে প্রবেশ করা যায়নি।': 'Could not sign in with Google.', 'Google দিয়ে রেজিস্ট্রেশন করা যায়নি।': 'Could not create an account with Google.',
+    'Google Identity Services লোড হয়েছে, কিন্তু button API পাওয়া যায়নি।': 'Google Identity Services loaded, but the button API is unavailable.',
+    'Google sign-in service লোড করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করুন।': 'Could not load the Google sign-in service. Check your internet connection.',
+    'Google sign-in button প্রস্তুত করা যায়নি।': 'Could not prepare the Google sign-in button.',
+    'Google Sign-In এখনো কনফিগার করা হয়নি।': 'Google Sign-In has not been configured yet.',
+    'Google sign-in বাতিল করা হয়েছে। চাইলে আবার চেষ্টা করুন।': 'Google sign-in was cancelled. You can try again.',
+    'Google provider এখনো সম্পূর্ণভাবে কনফিগার করা হয়নি। Google Client ID, Supabase Google provider এবং অনুমোদিত website origin যাচাই করুন।': 'The Google provider is not fully configured. Check the Google Client ID, Supabase Google provider and authorised website origin.',
+    'Google দিয়ে প্রবেশ সম্পন্ন করা যায়নি। Google Cloud ও Supabase-এর OAuth configuration যাচাই করে আবার চেষ্টা করুন।': 'Google sign-in could not be completed. Check the Google Cloud and Supabase OAuth configuration, then try again.',
+    'Google sign-in session পাওয়া যায়নি। আবার Login পেজ থেকে চেষ্টা করুন।': 'No Google sign-in session was found. Try again from the Login page.',
+    'এই পৃষ্ঠার জন্য বৈধ Google পরিচয় পাওয়া যায়নি। আবার Login পেজ থেকে শুরু করুন।': 'A valid Google identity was not found for this page. Start again from the Login page.',
+    'এই ব্রাউজারে নিরাপদ Google sign-in চালু করা যাচ্ছে না। আপডেট করা HTTPS browser ব্যবহার করুন।': 'Secure Google sign-in is not available in this browser. Use an up-to-date browser over HTTPS.',
+    'এই ব্রাউজারে নিরাপদভাবে Google sign-in প্রস্তুত করা যাচ্ছে না। Private browsing/storage settings পরীক্ষা করুন।': 'Secure Google sign-in could not be prepared in this browser. Check private-browsing and storage settings.',
+    'এই সিস্টেমে নতুন অ্যাকাউন্টের জন্য অনুমতি কোড আবশ্যক। অনুমতি কোডসহ সাধারণ রেজিস্ট্রেশন ব্যবহার করুন।': 'A permission code is required to create a new account in this system. Use the standard registration form with an access code.',
+    'একবারে ২–২৫টি ভিন্ন মেস নির্বাচন করতে হবে।': 'Select between 2 and 25 different hostels at a time.',
+    'একবারে সর্বোচ্চ ১০০ জনের ফাইনাল মিল সংরক্ষণ করা যাবে। আরও নির্দিষ্ট করে সদস্য খুঁজে কয়েক ধাপে সংরক্ষণ করুন।': 'You can save final meals for up to 100 members at a time. Narrow the member search and save in several batches.',
+    'সংরক্ষণের জন্য সদস্যের মিলের তথ্য নেই।': 'There are no member meal records to save.',
+    'অনুরোধের ইতিহাসে ফিরুন': 'Return to request history', 'উপলব্ধ': 'Available',
+    'এন্ট্রি বাতিল': 'Void entry', 'টাকার পরিমাণ অনুযায়ী': 'Ranked by amount', 'তারিখের তথ্য নেই': 'Date unavailable',
+    'নাম লিখে নির্দিষ্ট সদস্য বা কয়েকজনকে খুঁজুন...': 'Search for one or more members by name...',
+    'নাম লিখে সদস্য খুঁজুন...': 'Search members by name...', 'ফাইনাল মিলের সদস্য খুঁজুন': 'Search final-meal members',
+    'সদস্য খুঁজুন ও নির্বাচন করুন': 'Find and select a member', 'সদস্যদের মধ্যে খুঁজুন': 'Search among members', 'সার্চ মুছুন': 'Clear search',
+    'আপনি যেই মাস বন্ধ করেছেন, শুধু সেই মাসের সংশোধন বা এন্ট্রি করতে পারবেন।': 'You can make corrections or entries only for months that you have closed.',
+    'বন্ধ করার সঙ্গে সঙ্গেই আজকের হিসাবও চূড়ান্ত হবে—রাত ৯টার জন্য অপেক্ষা করতে হবে না। আজকের পরের তারিখের সক্রিয় অনুরোধ ও রেকর্ড এবং অপেক্ষমাণ লেট/সংশোধন অনুরোধ বাতিল হবে।': 'Closing the month also finalises today’s accounts immediately; there is no need to wait until 9 PM. Active requests and records for later dates, along with pending late or correction requests, will be cancelled.',
+    'মেসের গুরুত্বপূর্ণ বিজ্ঞপ্তি এই Telegram অ্যাকাউন্টে পাবেন।': 'You will receive important hostel notifications in this Telegram account.',
+    'মোবাইল নম্বর সংরক্ষণ নিশ্চিত করা যায়নি। আবার নম্বর দিয়ে চেষ্টা করুন।': 'Could not confirm that the mobile number was saved. Enter the number and try again.',
+    'অ্যাকাউন্ট সম্পূর্ণ করতে আপনার মোবাইল নম্বর নিশ্চিত করুন।': 'Confirm your mobile number to complete your account.',
+    'অ্যাকাউন্ট সম্পূর্ণ করুন': 'Complete your account', 'অ্যাকাউন্টের তথ্য সংরক্ষণ করা হচ্ছে...': 'Saving account information...',
+    'আপনার মোবাইল নম্বর লিখুন': 'Enter your mobile number', 'চালিয়ে যেতে ১৮+ বয়স, ব্যবহারের শর্তাবলী ও গোপনীয়তা নীতিতে সম্মতি দিন।': 'To continue, confirm that you are 18 or older and accept the Terms of Service and Privacy Policy.',
+    'নাম ২ থেকে ১০০ অক্ষরের মধ্যে হতে হবে।': 'Name must be between 2 and 100 characters.', 'Google account পাওয়া যায়নি।': 'Google account was not found.',
+    'প্রোফাইল সম্পন্ন করা যায়নি। আবার চেষ্টা করুন।': 'Could not complete the profile. Please try again.',
+    'Google account যাচাই করা হচ্ছে': 'Verifying Google account', 'Google account যাচাই করা হচ্ছে...': 'Verifying Google account...',
+    'Google থেকে পাওয়া নাম, ইমেইল ও প্রোফাইল ছবি প্রস্তুত। অ্যাপ ব্যবহারের আগে মোবাইল নম্বর দিন।': 'Your name, email and profile photo from Google are ready. Add your mobile number before using the app.',
+    'Google আপনার মোবাইল নম্বর দেয় না। নম্বরটি আপনার Hostel Life profile-এ সংরক্ষণ করা হবে। এই ধাপে SMS OTP যাচাই করা হবে না।': 'Google does not provide your mobile number. It will be saved to your Hostel Life profile. No SMS OTP verification is performed at this step.',
+    'Google থেকে বৈধ পরিচয় যাচাইয়ের তথ্য পাওয়া যায়নি। আবার চেষ্টা করুন।': 'Google did not provide valid identity verification information. Please try again.',
+    'Google sign-in অনুরোধের সময়সীমা শেষ হয়েছে। আবার চেষ্টা করুন।': 'The Google sign-in request timed out. Please try again.',
+    'Google sign-in-এর নিরাপদ session state সংরক্ষণ করা যায়নি।': 'Could not save the secure Google sign-in session state.',
+    'Supabase Google identity থেকে session তৈরি করতে পারেনি।': 'Supabase could not create a session from the Google identity.',
+    'Google sign-in সম্পন্ন হয়নি': 'Google sign-in was not completed', 'লগইন পেজে ফিরুন': 'Return to the login page',
+    'সদস্যের বিস্তারিত PDF ডাউনলোড': 'Download member detail PDF', 'সদস্যের রিপোর্ট তৈরি করা যায়নি।': 'Could not generate the member report.',
+    'প্রস্তুত করেছেন': 'Prepared by', 'প্রস্তুতির সময়': 'Prepared at',
+    'নির্বাচিত মেসগুলো স্থায়ীভাবে মুছে ফেলা যায়নি।': 'The selected hostels could not be permanently deleted.',
+    'নির্বাচিত মেসগুলোর সদস্যদের Auth account-ও মুছুন': 'Also delete the Auth accounts of members in the selected hostels.',
+    'সব নির্বাচিত মেস মুছে ফেলার পর সার্ভার প্রতিটি account-এর অন্য মেসের membership ও Super Admin role আবার যাচাই করবে। নিজের Admin account কখনো মুছবে না।': 'After deleting the selected hostels, the server will recheck each account’s memberships in other hostels and its Super Admin role. Your own Admin account will never be deleted.',
+    'Database bulk-delete response যাচাই করা যায়নি। Auth account cleanup চালানো হয়নি। Supabase result পরীক্ষা করুন।': 'The database bulk-delete response could not be verified. Auth account cleanup was not run. Check the Supabase result.',
+    'হোস্টেল লাইফ': 'Hostel Life', 'সহজ, স্বচ্ছ ও সুশৃঙ্খল ব্যবস্থাপনা': 'Simple, transparent and organised management.',
   };
 
   const ALL = Object.assign({}, EN, MORE_EN, LEGAL_TEXT, window.HostelLifeEnglishTranslations || {});
@@ -370,7 +459,16 @@
   // Translate only known UI templates. Captured member names, hostel names,
   // user notes, market items and other user-authored values are preserved.
   function translateDynamicUi(key) {
-    let match = key.match(/^(.+)-এর এই লেনদেন সরাসরি মুছে না দিয়ে হিসাব সমন্বয়ের রেকর্ড তৈরি হবে।$/u);
+    let match = key.match(/^([০-৯0-9,]+) জন সদস্য (পাওয়া গেছে|পাওয়া গেছে|উপলব্ধ)(?: · নির্বাচিত: (.+))?$/u);
+    if (match) return `${toLatinDigits(match[1])} members ${match[2] === 'উপলব্ধ' ? 'available' : 'found'}${match[3] ? ` · Selected: ${match[3]}` : ''}`;
+    match = key.match(/^দেখানো হচ্ছে ([০-৯0-9,]+) \/ ([০-৯0-9,]+) জন · সার্চ চালু থাকলে শুধু দেখানো সদস্যদের মিল সংরক্ষণ হবে(?: · একবারে সর্বোচ্চ ১০০ জন; আরও নির্দিষ্ট করে খুঁজুন)?$/u);
+    if (match) return `Showing ${toLatinDigits(match[1])} / ${toLatinDigits(match[2])} members · Only visible members will be saved while search is active${key.endsWith('খুঁজুন') ? ' · Up to 100 members per batch; narrow the search' : ''}`;
+    match = key.match(/^([০-৯0-9,]+) জন সক্রিয় সদস্য(?: · একবারে সর্বোচ্চ ১০০ জনের মিল সংরক্ষণ করা যাবে)?$/u);
+    if (match) return `${toLatinDigits(match[1])} active members${key.includes('সর্বোচ্চ') ? ' · Final meals can be saved for up to 100 members at a time' : ''}`;
+    match = key.match(/^(.+) · বর্তমানে নির্বাচিত$/u);
+    if (match) return `${match[1]} · Currently selected`;
+    if (key === '-এর পর') return ' after';
+    match = key.match(/^(.+)-এর এই লেনদেন সরাসরি মুছে না দিয়ে হিসাব সমন্বয়ের রেকর্ড তৈরি হবে।$/u);
     if (match) return `${match[1]}’s transaction will be adjusted through an account adjustment record instead of being deleted directly.`;
     match = key.match(/^(.+)-এর মিল$/u);
     if (match) return `${match[1]}’s meals`;
@@ -618,6 +716,7 @@
   function applyLanguage() {
     document.documentElement.lang = currentLanguage === 'en' ? 'en' : 'bn-BD';
     document.documentElement.dataset.language = currentLanguage;
+    document.documentElement.dataset.locale = currentLanguage === 'en' ? 'en-US' : 'bn-BD';
     walk(document.documentElement);
     updateLanguageControls();
     const title = document.querySelector('head title');

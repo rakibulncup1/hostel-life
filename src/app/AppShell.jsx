@@ -453,8 +453,8 @@ export function AppShell({ pathname, children, membership, profile, isManager, u
       <main className={`app-main ${pathname.startsWith('/app/menu/') ? 'menu-route' : ''}`}>
         {!isOnline && active !== 'dashboard' && !pathname.startsWith('/app/menu/privacy-policy') && !pathname.startsWith('/app/menu/terms') && !pathname.startsWith('/app/menu/how-to-use') && !pathname.startsWith('/app/menu/developer') && !pathname.startsWith('/app/menu/app-download') ? <OfflineState onBack={() => navigateTo('/app/dashboard')} /> : children}
         <footer className="app-copyright-footer">
-          <span>Copyright © {new Date().getFullYear()} Hostel-Life. All rights reserved.</span>
-          <span>Designed &amp; Developed by <a href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noreferrer">Rakibul Islam Samrat</a></span>
+          <span data-no-translate>Copyright © {new Date().getFullYear()} Hostel-Life. All rights reserved.</span>
+          <span data-no-translate>Designed &amp; Developed by <a href="https://rakibul-sec1.vercel.app/" target="_blank" rel="noreferrer">Rakibul Islam Samrat</a></span>
         </footer>
       </main>
 
