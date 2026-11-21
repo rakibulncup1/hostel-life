@@ -11,7 +11,8 @@
     "build": "node scripts/generate-public-legal-pages.mjs && node scripts/verify-stylesheet-integrity.mjs --source && vite build && node scripts/verify-stylesheet-integrity.mjs --dist",
     "verify:styles": "node scripts/verify-stylesheet-integrity.mjs --source",
     "preview": "vite preview",
-    "test": "node --test"
+    "test": "node --test",
+    "security:check": "node scripts/check-vite-security-version.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
@@ -20,6 +21,6 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.4.1",
-    "vite": "^6.3.5"
+    "vite": "^6.4.6"
   }
 }

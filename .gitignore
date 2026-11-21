@@ -25,3 +25,6 @@ tools/backup_assistant/tests/__pycache__/
 
 .vercel
 .env*
+
+# Local Supabase CLI linkage/cache contains project and pooler metadata.
+supabase/.temp/

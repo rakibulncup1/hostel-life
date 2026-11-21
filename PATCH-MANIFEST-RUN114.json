@@ -1,0 +1,22 @@
+{
+  "patch": "Run114 Security Hardening",
+  "baseline": "Hostel Life(1).zip uploaded 2026-11-21",
+  "baseline_git_head": "e68edba",
+  "scope": "Narrow security-only changes: global Vercel response headers with CSP in Report-Only mode, loopback-only Vite dev/preview servers, Dependabot and scheduled dependency auditing, a Vite security-version guard, .gitignore update for local Supabase CLI metadata, and a read-only production database verification query. No Supabase migration, application business logic, data, UI, or refresh-session settings changed.",
+  "files": [
+    ".gitignore",
+    "package.json",
+    "vercel.json",
+    "vite.config.js",
+    "tests/authenticatedInviteAndDevicePolicy.test.js",
+    "tests/security_hardening_baseline.test.mjs",
+    ".github/dependabot.yml",
+    ".github/workflows/dependency-security-audit.yml",
+    "scripts/check-vite-security-version.mjs",
+    "supabase/verify/Run114_Production_Security_Posture_READ_ONLY.sql"
+  ],
+  "required_manual_dependency_update": "The supplied lockfile pins Vite 6.4.3, affected by GHSA-p4f5-76q4-ffq7 when the dev server is network-exposed. Vite 6.4.6 is the first fixed 6.x release. The Vite registry could not be reached from this build environment, so package-lock.json was intentionally not hand-edited. Before committing/pushing, run: npm install --save-dev vite@^6.4.6. This updates package.json and package-lock.json with npm-generated integrity metadata. Then run npm run security:check.",
+  "database_sql": "supabase/verify/Run114_Production_Security_Posture_READ_ONLY.sql is diagnostic only: BEGIN READ ONLY and ROLLBACK; it is not a migration and should not be run as a deployment migration.",
+  "manual_git_cleanup": "supabase/.temp metadata is already tracked in the supplied repository. After applying the .gitignore update, run: git rm -r --cached --ignore-unmatch supabase/.temp. This removes it from the Git index but leaves the local folder on disk.",
+  "validation": "7/7 new targeted security tests pass; 19/19 targeted invite-security + new hardening tests pass; full test suite has 1200 pass and 18 failures, exactly matching the same 18 failures in the pristine uploaded ZIP; source stylesheet integrity check passes. Full Vite build and npm audit could not be executed in this sandbox."
+}

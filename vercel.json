@@ -73,14 +73,6 @@
         {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow, noarchive"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
         }
       ]
     },
@@ -110,10 +102,6 @@
           "value": "no-store, no-cache, must-revalidate, private"
         },
         {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        },
-        {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow, noarchive"
         }
@@ -127,10 +115,6 @@
           "value": "no-store, no-cache, must-revalidate, private"
         },
         {
-          "key": "Referrer-Policy",
-          "value": "no-referrer"
-        },
-        {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow, noarchive"
         }
@@ -142,14 +126,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
         }
       ]
     },
@@ -159,14 +135,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
         }
       ]
     },
@@ -176,14 +144,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
         }
       ]
     },
@@ -193,14 +153,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
         }
       ]
     },
@@ -210,14 +162,6 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
         }
       ]
     },
@@ -227,14 +171,35 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000"
         },
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         },
         {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
           "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
+          "value": "no-referrer"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Content-Security-Policy-Report-Only",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' https://accounts.google.com 'sha256-1NveDZTj+W8Bekp+qIfbm+H/Qv4qXyuJ0TlFgsx1ZWw=' 'sha256-td7sJBbBN7COrXWiN2knCUnzBYJyOD69Gxptyx/xea0=' 'sha256-WLYR+W+yirZqEjpZYwbOnJwWaPtwBRLNr/GvuuoR8XU=' 'sha256-ClSvvfUtNl/RVP1HdY+vl3o0BmbjMYU6GSMD9mckKD8=' 'sha256-1AEnQiSkFAs/Z1Ra0E17iVfs68+P1Jlw9zMJ5iGqRbk=' 'sha256-j8VLJCWGtwYzZBmCZ2gBxSCYRBLCxhfof1wJs56oZoI='; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.workers.dev; frame-src 'self' https://accounts.google.com https://*.supabase.co; form-action 'self' https://accounts.google.com https://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests"
         }
       ]
     }

@@ -44,11 +44,14 @@ export default defineConfig({
     __HOSTEL_LIFE_RELEASE__: JSON.stringify({ id: releaseId, builtAt, commit: commit.slice(0, 40) }),
   },
   server: {
-    host: true,
+    // Never expose the Vite dev server to LAN/public networks.
+    // This also reduces exposure to network-reachable Vite dev-server advisories.
+    host: '127.0.0.1',
     port: 5173,
   },
   preview: {
-    host: true,
+    // Keep the local preview server private as well.
+    host: '127.0.0.1',
     port: 4173,
   },
 });

@@ -209,10 +209,12 @@ test('Vercel and Service Worker protect invitation tokens from caching and refer
   assert.ok(!vercel.rewrites.some((route) => route.source.includes('public-hostel')));
   const inviteHeaders = ['/invite', '/invite/(.*)'].map((route) => vercel.headers.find((item) => item.source === route));
   assert.ok(inviteHeaders.every(Boolean));
+  const globalHeaders = vercel.headers.find((item) => item.source === '/(.*)')?.headers || [];
+  const globalValues = Object.fromEntries(globalHeaders.map((entry) => [entry.key.toLowerCase(), entry.value.toLowerCase()]));
   for (const header of inviteHeaders) {
     const values = Object.fromEntries(header.headers.map((entry) => [entry.key.toLowerCase(), entry.value.toLowerCase()]));
     assert.match(values['cache-control'], /no-store/);
-    assert.equal(values['referrer-policy'], 'no-referrer');
+    assert.equal(values['referrer-policy'] || globalValues['referrer-policy'], 'no-referrer');
     assert.match(values['x-robots-tag'], /noindex/);
   }
   assert.match(read('src/features/manager/ManagerPages.jsx'), /\/invite#\$\{result\.token\}/);
