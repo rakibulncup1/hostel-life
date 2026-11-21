@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
 const appCss = read('src/styles/run99-auth-member-followup.css');
+const run101Css = read('src/styles/run101-ui-completion.css');
 const aboutCss = read('public/landing-assets/run99-about-hero-alignment.css');
 const auth = read('src/features/auth/AuthPage.jsx');
 const translations = read('public/app-english-translations.js');
@@ -51,9 +52,9 @@ test('Registration consent is normalized to the login consent dimensions', () =>
 });
 
 test('Google placeholder colours match the configured official GIS themes', () => {
-  assert.match(auth, /theme:\s*darkTheme\s*\?\s*'filled_black'\s*:\s*'filled_blue'/);
-  assert.match(appCss, /\.auth-page\s+\.google-signin-button\s*\{[^}]*background:\s*#1a73e8\s*!important/);
-  assert.match(appCss, /:root\[data-theme="dark"\][\s\S]*?\.auth-page\s+\.google-signin-button[\s\S]*?background:\s*#303134\s*!important/);
+  assert.match(auth, /theme:\s*'outline'/);
+  assert.match(run101Css, /\.auth-page \.google-signin-button,[\s\S]*?background: #fff !important/);
+  assert.match(run101Css, /:root\[data-theme="dark"\][\s\S]*?\.auth-page \.google-signin-button[\s\S]*?background: #f8f9fa !important/);
 });
 
 test('About, Privacy and Terms footer links are visibly highlighted and responsive', () => {

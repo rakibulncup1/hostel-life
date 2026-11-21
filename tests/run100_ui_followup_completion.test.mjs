@@ -67,10 +67,10 @@ test('Google official button host is no longer constrained to the old 280px widt
 });
 
 test('Google placeholder disabled state preserves GIS light/dark colour without opacity shift', () => {
-  assert.match(auth, /theme:\s*darkTheme\s*\?\s*'filled_black'\s*:\s*'filled_blue'/);
+  assert.match(auth, /theme:\s*'outline'/);
   assert.match(appCss, /\.google-signin-button:disabled\s*\{[^}]*opacity:\s*1\s*!important/);
-  assert.match(appCss, /:root\[data-theme="dark"\][\s\S]*?\.google-signin-button[\s\S]*?background:\s*#303134\s*!important/);
-  assert.match(appCss, /\.google-signin-button\s*\{[^}]*border-radius:\s*4px\s*!important/);
+  assert.match(read('src/styles/run101-ui-completion.css'), /:root\[data-theme="dark"\][\s\S]*?\.google-signin-button[\s\S]*?background: #f8f9fa !important/);
+  assert.match(read('src/styles/run101-ui-completion.css'), /\.google-signin-button\s*,[\s\S]*?transition: none !important/);
 });
 
 test('Member detail six summary cards have larger desktop and mobile row/card heights', () => {

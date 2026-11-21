@@ -1,0 +1,21 @@
+Hostel Life — Run102 Targeted Translation & Auth Compactness Patch
+Baseline: Run101 Fifteen UI Fixes Patch
+Patch type: Incremental overlay. Apply only inside the existing Hostel Life project root.
+
+Files included:
+- public/language-runtime.js
+- public/privacy-policy.html
+- public/terms-of-service.html
+- src/features/auth/AuthPage.jsx
+- src/main.jsx
+- src/styles/run102-auth-compact-translation.css
+- tests/run102_requested_fixes.test.mjs
+
+Scope:
+- Restore explicit English translations for About management showcase, sample UI labels and Service overview.
+- Localize the Last updated label on public Privacy Policy and Terms pages.
+- Compact Login/Registration vertical spacing and hide redundant auth subtitles.
+- Center the official Google Sign-In logo to match the placeholder and keep the official locale aligned with app language.
+- Add a subtle surface behind the official Google outline button without styling Google iframe internals.
+
+No database, OAuth credential/nonce flow, consent validation, auth validation, financial logic, Access Code or Join Code logic changed.

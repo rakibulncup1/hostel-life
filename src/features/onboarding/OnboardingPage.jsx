@@ -12,6 +12,8 @@ import { fetchPlatformPublicSettings } from '../../services/platformService';
 import { dhakaDateInputValue, firstDayOfMonth } from '../../utils/monthStart';
 import { normalizeRunningPeriodPayload } from '../../utils/period';
 import { applyTheme, getThemePreference } from '../../app/theme';
+import { EntryThemeSwitcher } from '../../components/EntryThemeSwitcher';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { createHostelJoinRequestFromInvite as createHostelJoinRequestFromLink, getHostelInviteLinkInfo as getHostelAccessLinkInfo, getMyHostelJoinRequestStatus } from '../../services/hostelInviteService';
 import { clearPendingHostelLinkToken, getPendingHostelLinkToken } from '../../utils/pendingHostelLink';
 
@@ -31,6 +33,7 @@ function OnboardingTopbar() {
   return (
     <div className="onboarding-topbar">
       <span className="onboarding-account-setup-chip"><Icon name="shield-check" size={15} /> অ্যাকাউন্ট সেটআপ</span>
+      <div className="entry-toolbar-actions"><LanguageSwitcher compact /><EntryThemeSwitcher /></div>
     </div>
   );
 }
@@ -292,8 +295,8 @@ export function OnboardingPage() {
             <OnboardingBrand title="মেস তৈরি সম্পন্ন" />
             <div className="creation-success-card">
               <div className="success-panel-icon"><Icon name="check" size={24} /></div>
-              <h2>“{createdHostel.name}” প্রস্তুত</h2>
-              {initialMonthStatus === 'started' && <div className="inline-success"><Icon name="check-circle" size={17} /><span>প্রথম মাস চালু হয়েছে।</span></div>}
+              <h2>{createdHostel.name}</h2>
+              {initialMonthStatus === 'started' && <div className="creation-success-verification" role="status" aria-live="polite"><span className="creation-success-verification-icon"><Icon name="check" size={18} /></span><span className="creation-success-verification-copy"><strong>মেস তৈরি হয়েছে</strong><small>প্রথম মাস চালু হয়ে গেছে।</small></span><span className="creation-success-verification-mark">যাচাইকৃত</span></div>}
               {initialMonthStatus === 'failed' && <div className="inline-error"><Icon name="warning" size={17} /><span>মেস তৈরি হয়েছে, তবে প্রথম মাস চালু হয়নি। {initialMonthError}</span></div>}
               {initialMonthStatus === 'failed' && <button type="button" className="secondary-button" disabled={submitting || !online} onClick={retryInitialMonth}>{submitting ? 'চেষ্টা হচ্ছে...' : 'প্রথম মাস চালু করুন'}</button>}
 
@@ -362,7 +365,7 @@ export function OnboardingPage() {
 
           {mode && <section id="onboarding-action-panel" className={`onboarding-action-panel onboarding-action-panel-${mode}`} aria-live="polite" aria-labelledby="onboarding-action-title">
             <div className="onboarding-action-heading">
-              <h3 id="onboarding-action-title">{mode === 'join' ? 'কোড দিয়ে মেসে যুক্ত হন' : 'নতুন মেস তৈরি'}</h3>
+              <h3 id="onboarding-action-title" className={mode === 'join' ? 'visually-hidden' : undefined}>{mode === 'join' ? 'কোড দিয়ে মেসে যুক্ত হন' : 'নতুন মেস তৈরি'}</h3>
             </div>
             {mode === 'join' ? (
               <form className="form-stack onboarding-entry-form" onSubmit={join}>

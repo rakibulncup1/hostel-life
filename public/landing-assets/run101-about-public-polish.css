@@ -1,0 +1,120 @@
+/* Run101 — public About page refinements. All selectors are About-only. */
+
+/* Keep the three capability rows stacked in the same place in both languages. */
+@media (min-width: 761px) {
+  .about-page .hero-copy-column .hero-points,
+  :root[data-language="en"] .about-page .hero-copy-column .hero-points {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: repeat(3, minmax(66px, 1fr)) !important;
+    align-content: stretch;
+    gap: 12px;
+  }
+}
+
+/* Reduce the gap before the first content section without crowding the hero. */
+@media (min-width: 761px) {
+  .about-page #features.section { padding-top: clamp(54px, 5.2vw, 68px); }
+}
+
+/* The hero's supporting sentence uses a clearer text colour, not a new fill. */
+.about-page .hero-copy-column .hero-copy { color: #315e4b; }
+:root[data-theme="dark"] .about-page .hero-copy-column .hero-copy { color: #b8d9c7; }
+
+/* More balanced mobile headline and a compact, gap-free four-action toolbar. */
+@media (max-width: 760px) {
+  .about-page .nav-actions {
+    grid-template-columns: minmax(34px, .78fr) repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    align-items: stretch;
+  }
+  .about-page .nav-actions .btn,
+  .about-page .nav-actions .public-language-switcher {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding-inline: 4px;
+    white-space: nowrap;
+    font-size: clamp(8px, 2.45vw, 10px);
+  }
+  .about-page .hero-copy-column h1 {
+    max-width: 100%;
+    font-size: clamp(31px, 8vw, 39px);
+    font-weight: 950;
+    line-height: 1.23;
+    letter-spacing: -.035em;
+    text-wrap: balance;
+  }
+  .about-page .hero-copy-column .hero-copy { color: #315e4b; }
+  :root[data-theme="dark"] .about-page .hero-copy-column .hero-copy { color: #b8d9c7; }
+}
+
+@media (max-width: 390px) {
+  .about-page .nav-actions {
+    grid-template-columns: 34px repeat(3, minmax(0, 1fr)) !important;
+    gap: 3px !important;
+  }
+  .about-page .nav-actions .btn,
+  .about-page .nav-actions .public-language-switcher {
+    padding-inline: 2px;
+    font-size: 8px;
+  }
+}
+
+/* Text-only supporting captions: no decorative dots, logo marks or pill boxes. */
+.about-page .feature-meta i { display: none !important; }
+.about-page .feature-meta span:first-child { gap: 0; }
+.about-page .feature-meta { color: #657b6e; }
+.about-page .feature-copy p,
+.about-page .proof-item small,
+.about-page .workflow-card p,
+.about-page .product-note p,
+.about-page .section-head p,
+.about-page .showcase-copy p,
+.about-page .showcase-media figcaption,
+.about-page .screen-note span {
+  color: #526d5e;
+}
+.about-page .feature-tag,
+.about-page .showcase-card .feature-tag {
+  display: inline;
+  max-width: 100%;
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #277653;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.65;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .about-page .feature-meta,
+:root[data-theme="dark"] .about-page .feature-copy p,
+:root[data-theme="dark"] .about-page .proof-item small,
+:root[data-theme="dark"] .about-page .workflow-card p,
+:root[data-theme="dark"] .about-page .product-note p,
+:root[data-theme="dark"] .about-page .section-head p,
+:root[data-theme="dark"] .about-page .showcase-copy p,
+:root[data-theme="dark"] .about-page .showcase-media figcaption,
+:root[data-theme="dark"] .about-page .screen-note span { color: #b7c8bd; }
+:root[data-theme="dark"] .about-page .feature-tag,
+:root[data-theme="dark"] .about-page .showcase-card .feature-tag { color: #8ed6ae; }
+
+/* A subtle optical adjustment for Latin copy, not visibly expanded tracking. */
+:root[data-language="en"] .about-page {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+:root[data-language="en"] .about-page .hero-copy-column h1,
+:root[data-language="en"] .about-page .section-head h2,
+:root[data-language="en"] .about-page .feature-copy h3,
+:root[data-language="en"] .about-page .showcase-copy h3 {
+  letter-spacing: -.022em;
+  font-kerning: normal;
+}
+:root[data-language="en"] .about-page .hero-copy-column .hero-copy,
+:root[data-language="en"] .about-page .feature-copy p,
+:root[data-language="en"] .about-page .showcase-copy p,
+:root[data-language="en"] .about-page .section-head p { letter-spacing: .004em; }

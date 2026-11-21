@@ -1,0 +1,8 @@
+PATCH: Hostel Life Run104 UI-only
+BASELINE: Hostel Life.zip uploaded 2026-11-21
+SCOPE: Login forgot-password action placement; Dashboard member-period details layout
+FILES:
+src/features/auth/AuthPage.jsx
+src/styles/run103-about-login-precision.css
+tests/run103_about_login_precision.test.mjs
+NO DATABASE / SUPABASE / EDGE FUNCTION / BUSINESS LOGIC CHANGES

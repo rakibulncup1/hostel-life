@@ -38,8 +38,8 @@ test('About feature previews are code-rendered and describe existing app flows',
 test('About footer follows the exact in-app copyright and developer portfolio', () => {
   const html = read('public/about.html');
   const appShell = read('src/app/AppShell.jsx');
-  assert.match(html, /Copyright © <span id="copyright-year">2026<\/span> Hostel-Life\. All rights reserved\./);
-  assert.match(html, /Designed &amp; Developed by <a href="https:\/\/rakibul-sec1\.vercel\.app\/" target="_blank" rel="noopener noreferrer"[^>]*>Rakibul Islam Samrat<\/a>/);
+  assert.match(html, /common\.copyright\.prefix[\s\S]*?<span id="copyright-year">2026<\/span>[\s\S]*?common\.copyright\.suffix/);
+  assert.match(html, /common\.credit\.prefix[\s\S]*?<a href="https:\/\/rakibul-sec1\.vercel\.app\/" target="_blank" rel="noopener noreferrer"[^>]*>Rakibul Islam Samrat<\/a>/);
   assert.match(appShell, /Copyright © \{new Date\(\)\.getFullYear\(\)\} Hostel-Life\. All rights reserved\./);
   assert.match(appShell, /https:\/\/rakibul-sec1\.vercel\.app\//);
   assert.match(html, /class="footer-main"/);

@@ -1,0 +1,25 @@
+Hostel Life — Run103 About & Login Precision Patch
+Patch type: Targeted incremental overlay
+Baseline archive: Hostel-Life-Project-Baseline-2026-11-21.zip
+Baseline archive SHA-256: 8a376b10f9bfda2f56fece5ed8e87075b62d8efaa58ebedc712668ecd70f5813
+Baseline Git HEAD: 45a04f2f63bab4e5f2f02aafe735d3b0b339a95a
+Apply location: Existing Hostel Life project root
+
+Scope:
+- Complete the requested About page English translations for Daily Activity, Everyday Management, the four feature/sample cards, and Monthly Report sample labels/amounts.
+- Put Account Login and Forgot password on one horizontal row on desktop and mobile.
+- Slightly reduce mobile Login branding height and soften the heading green.
+- Slightly deepen the neutral Google outline button background without changing Google branding or SDK iframe internals.
+
+Files:
+- public/about.html
+- public/language-runtime.js
+- src/features/auth/AuthPage.jsx
+- src/main.jsx
+- src/styles/run103-about-login-precision.css
+- tests/run103_about_login_precision.test.mjs
+- README_RUN103_BN.md
+- PATCH_MANIFEST_RUN103.txt
+- SHA256SUMS_RUN103.txt
+
+No database, authentication/business logic, OAuth credential/nonce, consent validation, or financial calculation changes.

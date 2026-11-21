@@ -66,11 +66,11 @@ test('account entry points are visible in the header, hero and closing section',
 });
 
 test('footer is compact, centered and follows the in-app copyright and portfolio credit', () => {
-  assert.match(about, /Copyright © <span id="copyright-year">2026<\/span> Hostel-Life\. All rights reserved\./);
+  assert.match(about, /common\.copyright\.prefix[\s\S]*?<span id="copyright-year">2026<\/span>[\s\S]*?common\.copyright\.suffix/);
   assert.match(about, /https:\/\/rakibul-sec1\.vercel\.app\//);
   assert.match(about, /Designed &amp; Developed by/);
   assert.match(css, /\.footer-main\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*center/s);
-  for (const html of [privacy, terms]) assert.match(html, /Copyright © <span id="copyright-year">2026<\/span> Hostel-Life\. All rights reserved\./);
+  for (const html of [privacy, terms]) assert.match(html, /common\.copyright\.prefix[\s\S]*?<span id="copyright-year">2026<\/span>[\s\S]*?common\.copyright\.suffix/);
 });
 
 test('support email is only a mailto destination and is not visibly printed', () => {

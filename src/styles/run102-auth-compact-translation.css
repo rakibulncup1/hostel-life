@@ -1,0 +1,41 @@
+/* Run102 — targeted auth compactness and stable Google action surface. */
+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header p,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-header p { display:none !important; }
+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-header,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-header { margin-bottom:12px !important; }
+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-form-panel,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-form-panel { padding-block:18px !important; }
+.auth-page .auth-shell-login:not(.auth-shell-compact) .field-label,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .field-label,
+.auth-page .auth-shell-login:not(.auth-shell-compact) .password-field,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .password-field { gap:4px !important; }
+.auth-page .auth-shell-login:not(.auth-shell-compact) .field-label > input,
+.auth-page .auth-shell-login:not(.auth-shell-compact) .password-field > input,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .field-label > input,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .password-field > input {
+  min-height:40px !important; height:40px !important; padding-block:6px !important;
+}
+.auth-page .auth-shell-login:not(.auth-shell-compact) .form-stack,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-register-form { gap:9px !important; }
+.auth-page .auth-shell-login:not(.auth-shell-compact) .primary-button.large,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .primary-button.large { min-height:41px !important; }
+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .auth-switch { margin-top:8px !important; padding-top:7px !important; }
+.auth-page .auth-shell-login:not(.auth-shell-compact) .google-signin-section,
+.auth-page .auth-shell-register:not(.auth-shell-compact) .google-signin-section { margin-top:8px !important; gap:7px !important; }
+/* A soft surface behind the official Google outline button; iframe/button artwork is untouched. */
+.auth-page .google-signin-widget {
+  box-sizing:border-box; padding:4px; border:1px solid #e4ece7; border-radius:12px;
+  background:#f4f8f5;
+}
+:root[data-theme="dark"] .auth-page .google-signin-widget {
+  border-color:#34483d; background:#202c26;
+}
+@media (max-width:640px) {
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-form-panel,
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .auth-form-panel { padding-block:12px 14px !important; }
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .field-label > input,
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .password-field > input,
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .field-label > input,
+  .auth-page .auth-shell-register:not(.auth-shell-compact) .password-field > input { min-height:39px !important; height:39px !important; }
+}

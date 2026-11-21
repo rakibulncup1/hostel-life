@@ -19,7 +19,7 @@ const english = read('public/app-english-translations.js');
 
 test('Google CTA fills the available auth width and uses a highlighted official theme', () => {
   assert.match(auth, /Math\.min\(400,/);
-  assert.match(auth, /theme: darkTheme \? 'filled_black' : 'filled_blue'/);
+  assert.match(auth, /theme: 'outline'/);
   assert.match(appCss, /\.auth-page \.google-signin-section\s*\{[^}]*width:\s*min\(100%, 400px\)/s);
   assert.match(appCss, /\.auth-page \.google-signin-consent\s*\{[^}]*width:\s*100%/s);
   assert.match(appCss, /\.auth-page \.google-signin-sdk-slot\s*\{[^}]*min-height:\s*52px/s);

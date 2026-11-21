@@ -155,11 +155,11 @@ function GoogleSignInButton({ mode = 'login', fullName = '', phone = '', disable
     host.replaceChildren();
     googleId.renderButton(host, {
       type: 'standard',
-      theme: darkTheme ? 'filled_black' : 'filled_blue',
+      theme: 'outline',
       size: 'large',
       text: 'continue_with',
       shape: 'rectangular',
-      logo_alignment: 'left',
+      logo_alignment: 'center',
       width,
       // Keep Google's official button label in the selected app language.
       locale: english ? 'en' : 'bn',
@@ -295,7 +295,7 @@ function PasswordField({ value, onChange, placeholder = 'পাসওয়া�
 function AuthFrame({ title, subtitle, children, compact = false, minimal = false }) {
   return (
     <main className={`auth-page ${minimal ? 'auth-page-verification' : ''}`}>
-      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''} ${title === 'একটি অ্যাকাউন্ট তৈরি করুন' ? 'auth-shell-register' : ''} ${minimal ? 'auth-shell-verification' : ''}`}>
+      <section className={`auth-shell ${compact ? 'auth-shell-compact' : ''} ${title === 'একটি অ্যাকাউন্ট তৈরি করুন' ? 'auth-shell-register' : title === 'অ্যাকাউন্টে প্রবেশ করুন' ? 'auth-shell-login' : ''} ${minimal ? 'auth-shell-verification' : ''}`}>
         <div className={`auth-brand-panel ${minimal ? 'auth-brand-panel-compact' : ''}`}>
           <div className="auth-brand-lockup">
             <div className="auth-brand-mark"><BrandMark size={64} /></div>
@@ -316,9 +316,9 @@ function AuthFrame({ title, subtitle, children, compact = false, minimal = false
             <span className="auth-form-toolbar-label auth-toolbar-pill"><Icon name={minimal ? 'mail-check' : 'shield-check'} size={15} /> {minimal ? 'ইমেইল যাচাই' : 'নিরাপদ অ্যাকাউন্ট'}</span>
           </div>
           <div className="auth-header">
-            <div>
-              {!minimal && <span className="eyebrow">{title === "আপনার অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>}
-              <h2>{title}</h2>
+            <div className="auth-header-copy">
+              {!minimal && <span className="eyebrow">{title === "অ্যাকাউন্টে প্রবেশ করুন" ? "আবারও স্বাগতম" : title === "একটি অ্যাকাউন্ট তৈরি করুন" ? "নতুন যাত্রা শুরু হোক" : "অ্যাকাউন্ট সহায়তা"}</span>}
+              <h2 data-i18n-key={title === 'অ্যাকাউন্টে প্রবেশ করুন' ? 'auth.login.heading' : undefined}>{title}</h2>
               {!minimal && <p>{subtitle}</p>}
             </div>
           </div>
@@ -398,7 +398,10 @@ function LoginForm() {
 
 
   return (
-    <AuthFrame title="আপনার অ্যাকাউন্টে প্রবেশ করুন" subtitle="আপনার ইমেইল ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।">
+    <AuthFrame
+      title="অ্যাকাউন্টে প্রবেশ করুন"
+      subtitle="আপনার ইমেইল ও পাসওয়ার্ড দিয়ে নিরাপদে প্রবেশ করুন।"
+    >
       {sessionPolicyNotice && <div className="auth-session-dialog-backdrop" role="presentation"><section className="auth-session-dialog" role="alertdialog" aria-modal="true" aria-labelledby="auth-session-dialog-title" aria-describedby="auth-session-dialog-description"><span className="auth-session-dialog-icon"><Icon name="shield-alert" size={25}/></span><h3 id="auth-session-dialog-title">নিরাপত্তার কারণে লগআউট</h3><p id="auth-session-dialog-description">{sessionPolicyNotice}</p><button type="button" className="primary-button large" onClick={() => setSessionPolicyNotice('')}>বুঝেছি, আবার লগইন করব</button></section></div>}
       <form className="form-stack" onSubmit={submit}>
         <label className="field-label">
@@ -409,7 +412,6 @@ function LoginForm() {
           <span>পাসওয়ার্ড</span>
           <PasswordField value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
-        <button type="button" className="text-button align-end" onClick={() => go('/auth/forgot-password')}>পাসওয়ার্ড ভুলে গেছেন?</button>
         <button className="primary-button large" type="submit" disabled={submitting || !online}>
           {submitting ? 'লগইন হচ্ছে...' : 'অ্যাকাউন্টে প্রবেশ করুন'}
         </button>
@@ -743,11 +745,18 @@ function RegisterForm() {
 
 function AuthSwitch({ current }) {
   return (
-    <div className="auth-switch">
-      <span>{current === 'login' ? 'এখনো অ্যাকাউন্ট নেই?' : 'ইতিমধ্যে অ্যাকাউন্ট আছে?'}</span>
-      {authLinks.filter((link) => link.path !== `/auth/${current}`).map((link) => (
-        <button type="button" className="text-button" key={link.path} onClick={() => go(link.path)}>{link.label}</button>
-      ))}
+    <div className={`auth-switch ${current === 'login' ? 'auth-switch-login' : ''}`}>
+      <span className="auth-switch-prompt">
+        <span>{current === 'login' ? 'এখনো অ্যাকাউন্ট নেই?' : 'ইতিমধ্যে অ্যাকাউন্ট আছে?'}</span>
+        {authLinks.filter((link) => link.path !== `/auth/${current}`).map((link) => (
+          <button type="button" className="text-button" key={link.path} onClick={() => go(link.path)}>{link.label}</button>
+        ))}
+      </span>
+      {current === 'login' && (
+        <button type="button" className="text-button auth-forgot-inline" onClick={() => go('/auth/forgot-password')}>
+          পাসওয়ার্ড ভুলে গেছেন?
+        </button>
+      )}
     </div>
   );
 }

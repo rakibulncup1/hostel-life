@@ -1,0 +1,146 @@
+/* Run103 — About showcase translation completion and focused login/member layout refinements.
+   Presentation only: password recovery navigation remains on the login footer row. */
+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-login {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-prompt {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 8px;
+  white-space: nowrap;
+}
+.auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 4px 0 4px 8px;
+  color: #477461;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+  text-align: right;
+}
+:root[data-theme="dark"] .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
+  color: #a7d2b9;
+}
+
+/* Member details: a centered, wider working area with six compact metrics in
+   two balanced desktop rows. Narrow phones retain a readable two-column grid. */
+.dashboard-reimagined .member-period-detail-modal {
+  box-sizing: border-box;
+  width: min(920px, calc(100vw - 36px)) !important;
+  max-width: 920px !important;
+  margin-inline: auto;
+  padding: clamp(12px, 1.6vw, 18px);
+  justify-self: center;
+}
+.dashboard-reimagined .member-period-detail-modal > .modal-head {
+  box-sizing: border-box;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 0 12px !important;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-auto-rows: minmax(84px, auto) !important;
+  align-items: stretch;
+  gap: clamp(9px, 1.1vw, 12px);
+  width: 100%;
+  max-width: 100%;
+  padding: 8px 0 12px !important;
+  box-sizing: border-box;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 84px !important;
+  height: 100%;
+  padding: 12px 14px;
+  border-radius: 13px;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > span {
+  font-size: 11px;
+  line-height: 1.4;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
+  font-size: clamp(16px, 1.35vw, 19px);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.dashboard-reimagined .member-period-detail-modal .member-period-balance {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 13px !important;
+  box-sizing: border-box;
+}
+.dashboard-reimagined .member-period-detail-modal > .archive-detail-section {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 0 12px !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-login {
+    gap: 8px;
+  }
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-prompt {
+    gap: 6px;
+  }
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
+    padding-left: 2px;
+    font-size: 10.5px;
+  }
+  .dashboard-reimagined .member-period-detail-modal {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    padding: 10px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(80px, auto) !important;
+    gap: 8px;
+    padding: 7px 0 10px !important;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric {
+    min-height: 80px !important;
+    padding: 10px;
+  }
+  .dashboard-reimagined .member-period-detail-modal .member-period-summary-grid > .metric > strong {
+    font-size: clamp(15px, 4vw, 18px);
+  }
+}
+@media (max-width: 380px) {
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-switch-login {
+    flex-wrap: wrap;
+  }
+  .auth-page .auth-shell-login:not(.auth-shell-compact) .auth-forgot-inline {
+    margin-left: auto;
+  }
+}
+
+/* Preserve Google's official outline-button identity with a subtly deeper neutral fill. */
+.auth-page .google-signin-button,
+.auth-page .google-signin-button:disabled,
+.auth-page .google-signin-button:hover:not(:disabled) {
+  background: #f4f6f8 !important;
+  border-color: #d6d9dd !important;
+  color: #202124 !important;
+}
+.auth-page .google-signin-button:hover:not(:disabled) { background: #edf1f5 !important; }
+:root[data-theme="dark"] .auth-page .google-signin-button,
+:root[data-theme="dark"] .auth-page .google-signin-button:disabled,
+:root[data-theme="dark"] .auth-page .google-signin-button:hover:not(:disabled) {
+  background: #f1f3f4 !important;
+  border-color: #c5c9ce !important;
+  color: #202124 !important;
+}

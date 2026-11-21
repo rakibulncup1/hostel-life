@@ -33,7 +33,7 @@ test('Google uses the official Identity Services SDK and Google-rendered sign-in
   assert.match(authPage, /use_fedcm_for_prompt:\s*true/);
   assert.match(authPage, /googleId\.renderButton\(/);
   assert.match(authPage, /text:\s*'continue_with'/);
-  assert.match(authPage, /theme:\s*darkTheme \? 'filled_black' : 'filled_blue'/);
+  assert.match(authPage, /theme:\s*'outline'/);
   assert.match(authPage, /locale:\s*english \? 'en' : 'bn'/);
 });
 

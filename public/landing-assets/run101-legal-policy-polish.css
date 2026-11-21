@@ -1,0 +1,35 @@
+/* Run101 — public Privacy/Terms page intro and two-line copyright. */
+.legal-document .legal-intro {
+  margin: clamp(13px, 2vw, 22px);
+  padding: clamp(17px, 2.4vw, 25px) clamp(17px, 3vw, 31px);
+  border: 1px solid #dce9e1;
+  border-bottom: 1px solid #dce9e1;
+  border-radius: 16px;
+  background: linear-gradient(115deg, #f0f7f2 0%, #f5f8fb 100%);
+  color: #355b49;
+  box-shadow: 0 7px 20px rgba(24, 63, 41, .045);
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.footer-bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 4px;
+  line-height: 1.65;
+}
+.footer-copyright,
+.footer-credit { display: block; min-width: 0; }
+.footer-credit a { color: #53665b; }
+:root[data-theme="dark"] .legal-document .legal-intro {
+  border-color: #40564a;
+  background: linear-gradient(115deg, #263a31 0%, #2c3740 100%);
+  color: #c5d9cc;
+  box-shadow: none;
+}
+:root[data-theme="dark"] .footer-credit a { color: #b7e0c8; }
+@media (max-width: 760px) {
+  .legal-document .legal-intro { margin: 11px; padding: 15px 14px; font-size: 12px; line-height: 1.8; }
+  .footer-bottom { gap: 3px; font-size: 10px; }
+}
