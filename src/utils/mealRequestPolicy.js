@@ -31,6 +31,18 @@ export function isNormalMealRequestWindowOpen(now = new Date()) {
   return minutesInDhaka(parts) < 22 * 60;
 }
 
+/**
+ * Manual normal requests that include tomorrow must stop at 22:00 Dhaka.
+ * Later dates remain eligible until their own preceding-night cutoff.
+ */
+export function isManualNormalRequestCutoffClosedForRange(startDate, endDate, now = new Date()) {
+  if (!startDate || !endDate || startDate > endDate || isNormalMealRequestWindowOpen(now)) return false;
+  const parts = partsForDateTime(now);
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
+  const tomorrow = shiftIsoDate(today, 1);
+  return startDate <= tomorrow && endDate >= tomorrow;
+}
+
 /** Late window: 22:00 on the preceding date until 21:00 on the meal date (Dhaka). */
 export function getLateMealRequestTargetDate(now = new Date()) {
   const parts = partsForDateTime(now);

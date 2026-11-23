@@ -1,176 +1,34 @@
 {
-  "patch": "Hostel Life Run110 Bilingual Design System",
-  "baseline": "Run109",
-  "file_count": 27,
-  "files": [
-    {
-      "path": "index.html",
-      "change": "modified",
-      "sha256": "fb488443e58a753a4b8594d2e7ceb6477a9f24d356b1abb64c0d13dbf87300c3",
-      "bytes": 6474
-    },
-    {
-      "path": "public/about.html",
-      "change": "modified",
-      "sha256": "c3f6e376e0c7f17a5778297006798326b6ea8e0bb5c2f87ebe821bbb39319d3a",
-      "bytes": 47234
-    },
-    {
-      "path": "public/landing-assets/bilingual-typography.css",
-      "change": "new",
-      "sha256": "25588858f4e31e60a26e166708f78b2b4b54c4036f89ee09a8d488bdd3cbcbc1",
-      "bytes": 1201
-    },
-    {
-      "path": "public/landing-assets/public-experience.css",
-      "change": "modified",
-      "sha256": "d0b670b350199acf603c7c25668f0fe6618970bc426363c8805d398a1518ad69",
-      "bytes": 115929
-    },
-    {
-      "path": "public/landing-assets/run75-about-finish.css",
-      "change": "modified",
-      "sha256": "6177f647c8287aa2f3de56f899ca9551cbde94b651b7875ee577d273f2065b16",
-      "bytes": 20257
-    },
-    {
-      "path": "public/language-runtime.js",
-      "change": "modified",
-      "sha256": "a7a3bfba214278beabadcc859cd8b618f8b1762d6d003e3fd6a00352f2f94f7b",
-      "bytes": 137107
-    },
-    {
-      "path": "public/privacy-policy.html",
-      "change": "modified",
-      "sha256": "b0db13d0bcb8f376942ac51045bbb0b28890bc139ee44d8338cb74c93838eb01",
-      "bytes": 23382
-    },
-    {
-      "path": "public/terms-of-service.html",
-      "change": "modified",
-      "sha256": "79ff828450d8f2f0a087df93bc097d7551dcc78d4979013f5071b3ec6684027b",
-      "bytes": 19548
-    },
-    {
-      "path": "src/app/AppShell.jsx",
-      "change": "modified",
-      "sha256": "cf7f533f431bb276fa8624a7fcd4c90a77aeeaeff636829b4c6296f2110054f3",
-      "bytes": 27978
-    },
-    {
-      "path": "src/components/Header.jsx",
-      "change": "modified",
-      "sha256": "6ef434e6eb32f00ced09b9d75487a7d257ade35912993faa564d5f86e70ab434",
-      "bytes": 2256
-    },
-    {
-      "path": "src/features/menu/MenuPages.jsx",
-      "change": "modified",
-      "sha256": "c66eb60419cc892aa2c33d89bb4d86a80767ebcb282432bb02b66c1b5c41c02f",
-      "bytes": 83168
-    },
-    {
-      "path": "src/features/platform/SuperAdminPage.jsx",
-      "change": "modified",
-      "sha256": "3d7d1f24f1a9a3c137cbf81db77d3fb1d03a7934c3e8ffe868088592c6729980",
-      "bytes": 350080
-    },
-    {
-      "path": "src/i18n/locale.js",
-      "change": "modified",
-      "sha256": "5d47ecba418ad72609a6e4dbde4db719c7997bbc5f0a118e02b9f3a4af0348d8",
-      "bytes": 478
-    },
-    {
-      "path": "src/main.jsx",
-      "change": "modified",
-      "sha256": "b1079a2048f67ccb610b6efd768666e9a6454871926cb78b377f48dcbbb7b755",
-      "bytes": 4032
-    },
-    {
-      "path": "src/services/reportService.js",
-      "change": "modified",
-      "sha256": "8aa07205f6598cc4373049e9a21c315871b8a870b9b7d09d19787a3a2781eada",
-      "bytes": 37551
-    },
-    {
-      "path": "src/styles/global.css",
-      "change": "modified",
-      "sha256": "7689205a1286aeda52813ebdf5ac2a899d4fb52c1e933e83a464ca36d36495a4",
-      "bytes": 79342
-    },
-    {
-      "path": "src/styles/run110-bilingual-typography.css",
-      "change": "new",
-      "sha256": "30d91f3bcfdd0221e137bf305828b4e87388786702e3f657fa4964b64ea310c9",
-      "bytes": 2343
-    },
-    {
-      "path": "src/styles/run73-professional-refinement.css",
-      "change": "modified",
-      "sha256": "7f5bbf697ca3099e327ec719bed92c3f52c9625d38693c20cf47374e20c42cdc",
-      "bytes": 11006
-    },
-    {
-      "path": "src/styles/run75-finishing.css",
-      "change": "modified",
-      "sha256": "2ce71d09d43e0b1f5e25085ae21afdaf09ae179f041b4b98bf5c52e219685a6b",
-      "bytes": 24384
-    },
-    {
-      "path": "tests/run108_professional_report_header_footer.test.mjs",
-      "change": "modified",
-      "sha256": "4df0fe2e9c773583ccca4827275dbb20aff16bbff9cdea1e05b5da0bc2c75d47",
-      "bytes": 4169
-    },
-    {
-      "path": "tests/run109_report_header_hierarchy_and_google_button.test.mjs",
-      "change": "modified",
-      "sha256": "1f686413a0462b75b0214b3335473cad411db5c506e7decb7bf57bc3bec10a59",
-      "bytes": 3823
-    },
-    {
-      "path": "tests/run110_bilingual_design_system.test.mjs",
-      "change": "new",
-      "sha256": "ae3ca2c34a261a9d46b7503e56843c1c72bbf2bbb78d5a4c921847b1313cccb2",
-      "bytes": 8283
-    },
-    {
-      "path": "tests/run69_bilingual_language.test.mjs",
-      "change": "modified",
-      "sha256": "d4aeae94a819b5144d8ecf7ed6472e493824abce0543c934687e9d23c36f1474",
-      "bytes": 12208
-    },
-    {
-      "path": "tests/run70-language-switcher-visibility.test.mjs",
-      "change": "modified",
-      "sha256": "fb71f6dfd2da59fe251ca01183414546fe1b2c152c0ff72bff8dd11e6da40a13",
-      "bytes": 1566
-    },
-    {
-      "path": "tests/run72-language-and-about-polish.test.mjs",
-      "change": "modified",
-      "sha256": "e34536b0eb0ee5f187799371ba3719669f40f2e0ffe666601ba14a669622c255",
-      "bytes": 3974
-    },
-    {
-      "path": "tests/run73-professional-refinement.test.mjs",
-      "change": "modified",
-      "sha256": "a3db7e8d542cfb97417d345f9b594bae01343848e17dfd5bb40b1f289becd9f6",
-      "bytes": 4459
-    },
-    {
-      "path": "tests/run74-ui-governance.test.mjs",
-      "change": "modified",
-      "sha256": "5acdce45d509f74d2d10319aad89ecf95909fdafdee948604b45a51b8ae2936b",
-      "bytes": 4132
-    }
+  "patch": "Run117",
+  "name": "Member Final Meal & Manual Request Safety Patch",
+  "authoritative_base": "Hostel Life(2).zip + successfully applied Run116 patch",
+  "incremental_only": true,
+  "changed_files": [
+    "src/features/dining/DiningPage.jsx",
+    "src/services/diningService.js",
+    "src/styles/dining-experience-v2.css",
+    "src/utils/mealRequestPolicy.js",
+    "supabase/migrations/Run96_member_final_meal_and_manual_request_conflicts.sql",
+    "tests/run116_requested_features.test.mjs",
+    "tests/run117_member_final_meal_and_manual_request_safety.test.mjs"
   ],
-  "verification": {
-    "targeted_tests": "58 passed, 0 failed",
-    "stylesheet_integrity": "PASS",
-    "full_test_suite": "1185 passed / 1202 total / 17 failed; all 17 failures were present in Run109 baseline failure set; 0 new failures",
-    "vite_build": "Not run: node_modules unavailable in working container",
-    "database_changes": false
+  "database_migration": "supabase/migrations/Run96_member_final_meal_and_manual_request_conflicts.sql",
+  "database_scope": [
+    "three narrowly scoped RPCs only",
+    "no table/column/index/trigger changes",
+    "no RLS policy changes",
+    "no meal calculation or existing request history changes"
+  ],
+  "requires_migration_before_frontend": true,
+  "validation": {
+    "targeted_tests": "24/24 passed",
+    "full_suite_baseline": "1206 passed / 21 failed / 1227 total",
+    "full_suite_after_patch": "1210 passed / 21 failed / 1231 total",
+    "existing_failure_set_unchanged": true,
+    "stylesheet_integrity": "passed",
+    "javascript_syntax": "passed",
+    "jsx_syntax": "passed with TypeScript parser",
+    "production_build": "not run; node_modules absent",
+    "live_migration": "not applied to production database"
   }
 }

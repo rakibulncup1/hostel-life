@@ -33,7 +33,7 @@ test('manual all-member requests preserve weekday exceptions and use the manager
   assert.match(component, /const \[targetMode, setTargetMode\] = useState\('single'\)/);
   assert.match(component, /applyWeekdayMealExceptions/);
   assert.match(component, /createMemberMealRequests\(/);
-  assert.match(component, /memberIds: activeMembers\.map\(\(member\) => member\.membership_id\)/);
+  assert.match(component, /memberIds: eligibleMembers\.map\(\(member\) => member\.membership_id\)/);
   assert.match(service, /supabase\.rpc\('manager_create_member_meal_requests'/);
   assert.match(migration, /perform private\.assert_signed_in\(\)/i);
   assert.match(migration, /private\.assert_hostel_manager\(v_hostel, null, false, false\)/i);

@@ -26,6 +26,7 @@ import {
   fetchMealDayStates,
   fetchMealEntryData,
   fetchMemberFinalMealMonthData,
+  fetchMemberMealRequestConflicts,
   fetchFinalMealAudit,
   fetchMemberDirectory,
   fetchMyMealRequests,
@@ -41,7 +42,7 @@ import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
 import { canSubmitMealDay, getMealDayStatusText, isDhakaFinalizationDue } from '../../utils/mealPolicy';
-import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
+import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isManualNormalRequestCutoffClosedForRange, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
 import { parseMarketPaste, sanitizeMarketInput } from '../../utils/marketPaste';
 import { buildMarketShareText, readMarketShareSummary } from '../../utils/marketShare';
@@ -2302,6 +2303,26 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
   const [editingExceptionWeekday, setEditingExceptionWeekday] = useState(null);
   const [exceptionDraft, setExceptionDraft] = useState({ weekday: 5, ...DEFAULT_MEALS });
   const [busy, setBusy] = useState(false);
+  const [conflictPreview, setConflictPreview] = useState([]);
+  const [conflictPreviewLoading, setConflictPreviewLoading] = useState(false);
+  const [conflictPreviewError, setConflictPreviewError] = useState('');
+  const [conflictPreviewTick, setConflictPreviewTick] = useState(0);
+  const [requestClock, setRequestClock] = useState(() => new Date());
+
+  const conflictedMemberIds = useMemo(
+    () => new Set(conflictPreview.map((item) => String(item.membership_id || item.member_id || ''))),
+    [conflictPreview],
+  );
+  const eligibleMembers = useMemo(
+    () => activeMembers.filter((item) => !conflictedMemberIds.has(String(item.membership_id))),
+    [activeMembers, conflictedMemberIds],
+  );
+  const manualNextDayCutoffClosed = isManualNormalRequestCutoffClosedForRange(startDate, endDate, requestClock);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setRequestClock(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (!activeMembers.some((item) => item.membership_id === memberId)) {
@@ -2318,6 +2339,52 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
       weekdayExceptions,
     ));
   }, [startDate, endDate, weekdayExceptions]);
+
+  useEffect(() => {
+    if (targetMode !== 'all') {
+      setConflictPreview([]);
+      setConflictPreviewError('');
+      setConflictPreviewLoading(false);
+      return undefined;
+    }
+    const periodId = period?.period_id || period?.id;
+    if (!periodId || !startDate || !endDate || startDate > endDate || !activeMembers.length) {
+      setConflictPreview([]);
+      setConflictPreviewError(!periodId ? 'চলমান মাসের তথ্য পাওয়া যায়নি।' : 'সক্রিয় সদস্য বা বৈধ তারিখের পরিসর পাওয়া যায়নি।');
+      setConflictPreviewLoading(false);
+      return undefined;
+    }
+    if (activeMembers.length > 200) {
+      setConflictPreview([]);
+      setConflictPreviewError('একবারে সর্বোচ্চ ২০০ জন সক্রিয় সদস্য যাচাই করা যাবে।');
+      setConflictPreviewLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    const requestedDays = buildMealDaysForRange(startDate, endDate, DEFAULT_MEALS);
+    setConflictPreview([]);
+    setConflictPreviewError('');
+    setConflictPreviewLoading(true);
+    fetchMemberMealRequestConflicts({
+      memberIds: activeMembers.map((item) => item.membership_id),
+      periodId,
+      startDate,
+      endDate,
+      days: requestedDays.map((day) => ({ meal_date: day.meal_date })),
+    })
+      .then((conflicts) => {
+        if (active) setConflictPreview(Array.isArray(conflicts) ? conflicts : []);
+      })
+      .catch((error) => {
+        if (active) {
+          setConflictPreview([]);
+          setConflictPreviewError(getFriendlySupabaseError(error, 'আগের মিল অনুরোধ যাচাই করা যায়নি। আবার চেষ্টা করুন।'));
+        }
+      })
+      .finally(() => { if (active) setConflictPreviewLoading(false); });
+    return () => { active = false; };
+  }, [targetMode, period?.period_id, period?.id, startDate, endDate, activeMembers, conflictPreviewTick]);
 
   const applyDefaults = () => {
     setDays((current) => applyWeekdayMealExceptions(
@@ -2388,7 +2455,14 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
   const submit = async () => {
     if (targetMode === 'single' && !memberId) return toast.warning('সদস্য নির্বাচন করুন।');
     if (targetMode === 'all' && !activeMembers.length) return toast.warning('কোনো সক্রিয় সদস্য পাওয়া যায়নি।');
-    if (targetMode === 'all' && activeMembers.length > 200) return toast.warning('একবারে সর্বোচ্চ ২০০ জনের অনুরোধ তৈরি করা যাবে। সক্রিয় সদস্যদের কয়েকটি দলে ভাগ করে অনুরোধ দিন।');
+    if (targetMode === 'all' && conflictPreviewLoading) return toast.info('আগের অনুরোধ যাচাই সম্পন্ন হলে সাবমিট করতে পারবেন।');
+    if (targetMode === 'all' && conflictPreviewError) return toast.warning('আগের অনুরোধ যাচাই করা যায়নি। আগে যাচাই সম্পন্ন করুন।');
+    if (targetMode === 'all' && !eligibleMembers.length) return toast.info('নির্বাচিত তারিখে সব সক্রিয় সদস্যের অনুরোধ আগে থেকেই আছে। নতুন কিছু পাঠানো হয়নি।');
+    if (targetMode === 'all' && eligibleMembers.length > 200) return toast.warning('একবারে সর্বোচ্চ ২০০ জনের অনুরোধ তৈরি করা যাবে।');
+    if (isManualNormalRequestCutoffClosedForRange(startDate, endDate, new Date())) {
+      setRequestClock(new Date());
+      return toast.warning('বাংলাদেশ সময় রাত ১০টার সাধারণ অনুরোধের সময় শেষ। পরের দিনের জন্য এই ম্যানুয়াল অনুরোধ সাবমিট করা যাবে না।');
+    }
     if (!period) return toast.warning('কোনো running period নেই।');
     if (!startDate || !endDate || startDate > endDate) return toast.warning('তারিখের পরিসর সঠিক নয়।');
     if (startDate <= todayValue()) return toast.warning('ম্যানুয়াল সাধারণ অনুরোধ আগামীকাল বা পরবর্তী দিনের জন্য হবে। আজকের জন্য লেট অনুরোধ ব্যবহার করুন।');
@@ -2398,13 +2472,26 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
     try {
       if (targetMode === 'all') {
         const result = await createMemberMealRequests({
-          memberIds: activeMembers.map((member) => member.membership_id),
+          memberIds: eligibleMembers.map((member) => member.membership_id),
           startDate,
           endDate,
           days: normalizeDays(days),
         });
-        const createdCount = Number(result?.created_count || activeMembers.length);
-        toast.success(`${formatNumber(createdCount)} জন সক্রিয় সদস্যের জন্য ম্যানুয়াল মিল অনুরোধ তৈরি হয়েছে।`);
+        const createdCount = Number(result?.created_count ?? eligibleMembers.length);
+        const raceSkippedIds = new Set((result?.skipped_member_ids || []).map((id) => String(id)));
+        const raceSkippedNames = activeMembers
+          .filter((member) => raceSkippedIds.has(String(member.membership_id)))
+          .map((member) => member.member_name);
+        const raceSkippedCount = Number(result?.skipped_count ?? raceSkippedIds.size);
+        const preSkippedCount = conflictPreview.length;
+        if (createdCount > 0) {
+          const skippedText = preSkippedCount + raceSkippedCount > 0
+            ? ` · আগে থেকেই অনুরোধ থাকায় ${formatNumber(preSkippedCount + raceSkippedCount)} জন বাদ` : '';
+          toast.success(`${formatNumber(createdCount)} জনের জন্য ম্যানুয়াল মিল অনুরোধ তৈরি হয়েছে${skippedText}।`);
+        } else {
+          toast.info('নতুন কোনো অনুরোধ তৈরি হয়নি; নির্বাচিত সদস্যদের অনুরোধ আগে থেকেই ছিল।');
+        }
+        if (raceSkippedNames.length) console.info('[Hostel Life] Concurrent duplicate manual meal requests skipped:', raceSkippedNames);
       } else {
         await createMemberMealRequest({ memberId, startDate, endDate, days: normalizeDays(days) });
         const target = activeMembers.find((item) => item.membership_id === memberId);
@@ -2433,6 +2520,22 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
       <label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date || undefined} value={startDate} onChange={(event) => { setStartDate(event.target.value); if (endDate < event.target.value) setEndDate(event.target.value); }}/></label>
       <label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate || tomorrowValue()} max={period?.end_date || undefined} value={endDate} onChange={(event) => setEndDate(event.target.value)}/></label>
     </div>
+    {targetMode === 'all' && <section className="manual-request-conflict-panel" aria-live="polite">
+      <div className="manual-request-conflict-heading">
+        <div><strong>আগের অনুরোধ যাচাই</strong><small>নির্বাচিত তারিখে যাদের সক্রিয় অনুরোধ আছে, তাদের বাদ দিয়ে বাকিদের অনুরোধ যাবে।</small></div>
+        <span className="manual-request-conflict-count">{conflictPreviewLoading ? 'যাচাই হচ্ছে' : `${formatNumber(conflictPreview.length)} জন বাদ`}</span>
+      </div>
+      {conflictPreviewLoading ? <div className="manual-request-conflict-state"><Icon name="clock" size={15}/> সদস্যদের আগের অনুরোধ যাচাই করা হচ্ছে...</div>
+        : conflictPreviewError ? <div className="manual-request-conflict-state is-error"><Icon name="warning" size={15}/><span>{conflictPreviewError}</span><button type="button" className="secondary-button compact" onClick={() => setConflictPreviewTick((value) => value + 1)}>আবার যাচাই করুন</button></div>
+          : conflictPreview.length ? <>
+            <div className="manual-request-conflict-summary"><strong>{formatNumber(eligibleMembers.length)} জনের কাছে নতুন অনুরোধ যাবে</strong><span>{formatNumber(conflictPreview.length)} জনের আগে থেকেই নির্বাচিত তারিখে অনুরোধ রয়েছে; তারা বাদ থাকবে।</span></div>
+            <div className="manual-request-conflict-list">{conflictPreview.map((item) => <article className="manual-request-conflict-item" key={item.membership_id || item.member_id}>
+              <strong>{item.member_name || activeMembers.find((member) => member.membership_id === (item.membership_id || item.member_id))?.member_name || 'সদস্য'}</strong>
+              <span>{(item.meal_dates || []).map((mealDate) => formatDateWithWeekday(mealDate)).join(' · ')}</span>
+            </article>)}</div>
+          </> : <div className="manual-request-conflict-state is-clear"><Icon name="check-circle" size={15}/>{formatNumber(eligibleMembers.length)} জন সক্রিয় সদস্যের জন্য duplicate অনুরোধ পাওয়া যায়নি।</div>}
+    </section>}
+    {manualNextDayCutoffClosed && <div className="manager-warning-box manual-request-cutoff-warning"><Icon name="clock" size={17}/><div><strong>সাধারণ অনুরোধের সময় শেষ</strong><p>বাংলাদেশ সময় রাত ১০টা পেরিয়ে গেছে। পরের দিনের জন্য ম্যানুয়াল সাধারণ অনুরোধের সাবমিট বন্ধ থাকবে।</p></div></div>}
     <div className="default-meal-box">
       <div><strong>ডিফল্ট মিল</strong><small>প্রতিদিনের শুরুতে এই মান থাকবে; প্রতিটি দিনে আলাদা করে +/- করতে পারবেন।</small></div>
       <div className="default-meal-controls">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={defaults[key]} onChange={(event)=>setDefaults((old)=>({...old,[key]:clampMeal(event.target.value)}))}/></label>)}</div>
@@ -2458,10 +2561,9 @@ function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
       {!exceptionEditorOpen && weekdayExceptions.length < 7 && <button className="secondary-button weekday-exception-add" type="button" onClick={() => openExceptionEditor()}><Icon name="plus-circle" size={16}/> ব্যতিক্রম যোগ করুন</button>}
       {weekdayExceptions.length === 0 && <small className="weekday-exception-empty">ব্যতিক্রম না দিলে সব দিন ডিফল্ট মিল অনুসরণ করবে।</small>}
     </section>
-    <div className="request-summary-strip"><span>{formatNumber(days.length)} দিন{targetMode === 'all' ? ` · ${formatNumber(activeMembers.length)} জন` : ''}</span><strong>মোট {formatMealCompact(totalDays(days))} মিল / ব্যক্তি</strong></div>
+    <div className="request-summary-strip"><span>{formatNumber(days.length)} দিন{targetMode === 'all' ? ` · ${formatNumber(eligibleMembers.length)} জনের কাছে যাবে` : ''}</span><strong>মোট {formatMealCompact(totalDays(days))} মিল / ব্যক্তি</strong></div>
     <div className="meal-days-stack">{days.map((day)=><MealDayCard key={day.meal_date} day={day} onChange={(next)=>setDays((current)=>current.map((item)=>item.meal_date===next.meal_date?next:item))}/>)}</div>
-    <div className="manager-warning-box"><Icon name="info" size={18}/><div><strong>ডুপ্লিকেট সুরক্ষা</strong><p>কোনো সদস্যের নির্বাচিত তারিখে সক্রিয় অনুরোধ আগে থেকেই থাকলে সার্ভার পুরো ব্যাচ বাতিল করবে; পুরোনো অনুরোধ পরিবর্তন হবে না।</p></div></div>
-    <button className="primary-button large dining-submit" type="button" disabled={busy || !days.length || !activeMembers.length || (targetMode === 'all' && activeMembers.length > 200)} onClick={submit}>{busy ? 'অনুরোধ তৈরি হচ্ছে...' : targetMode === 'all' ? 'সবার জন্য অনুরোধ তৈরি করুন' : 'চূড়ান্তভাবে সাবমিট করুন'}</button>
+    <button className="primary-button large dining-submit" type="button" disabled={busy || !days.length || !activeMembers.length || manualNextDayCutoffClosed || (targetMode === 'all' && (conflictPreviewLoading || Boolean(conflictPreviewError) || !eligibleMembers.length || eligibleMembers.length > 200))} onClick={submit}>{busy ? 'অনুরোধ তৈরি হচ্ছে...' : manualNextDayCutoffClosed ? 'রাত ১০টার সাধারণ সময় শেষ' : targetMode === 'all' ? `বাকি ${formatNumber(eligibleMembers.length)} জনের জন্য অনুরোধ তৈরি করুন` : 'চূড়ান্তভাবে সাবমিট করুন'}</button>
   </section>;
 }
 

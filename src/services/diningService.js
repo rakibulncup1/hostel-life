@@ -123,6 +123,23 @@ export async function createMemberMealRequests({ memberIds, startDate, endDate, 
   return unwrapData(data);
 }
 
+export async function fetchMemberMealRequestConflicts({ memberIds, periodId, startDate, endDate, days }) {
+  assertSupabase();
+  const safeMemberIds = [...new Set((memberIds || []).filter(Boolean))];
+  if (!safeMemberIds.length || !periodId || !startDate || !endDate || !Array.isArray(days) || !days.length) {
+    return [];
+  }
+  const { data, error } = await supabase.rpc('manager_preview_member_meal_request_conflicts', {
+    p_member_ids: safeMemberIds,
+    p_period_id: periodId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_days: days,
+  });
+  if (error) throw error;
+  return Array.isArray(data?.conflicts) ? data.conflicts : [];
+}
+
 export async function createMealRequest({ startDate, endDate, days }) {
   assertSupabase();
   const { data, error } = await supabase.rpc('create_meal_request', {
@@ -270,16 +287,16 @@ export async function fetchMemberFinalMealMonthData({ memberId, periodId, startD
     if (finalizeError) throw finalizeError;
   }
 
-  const days = await fetchMealDayStates(startDate, endDate, periodId);
-  const dayIds = days.map((day) => day.id).filter(Boolean);
-  if (!dayIds.length) return { days, records: [] };
-
-  const { data, error } = await supabase
-    .from('daily_meal_records')
-    .select('daily_meal_day_id, member_id, planned_breakfast, planned_lunch, planned_dinner, actual_breakfast, actual_lunch, actual_dinner, final_breakfast, final_lunch, final_dinner, cancelled')
-    .eq('member_id', memberId)
-    .in('daily_meal_day_id', dayIds);
+  // Use the manager-scoped, SECURITY DEFINER reader rather than composing a
+  // member_id + day_id PostgREST filter. This returns the same source columns
+  // used by date mode and avoids a false all-zero month when that combined
+  // client-side table query is filtered by the live RLS/PostgREST context.
+  const { data, error } = await supabase.rpc('manager_get_member_final_meal_month', {
+    p_member_id: memberId,
+    p_period_id: periodId,
+  });
   if (error) throw error;
+  const days = await fetchMealDayStates(startDate, endDate, periodId);
   return { days, records: Array.isArray(data) ? data : [] };
 }
 
