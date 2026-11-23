@@ -292,6 +292,24 @@ function loadReportLogoImage() {
   });
 }
 
+async function buildReportWatermarkImage() {
+  const logoImage = await loadReportLogoImage();
+  const size = 480;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d');
+  if (!context) return '';
+  context.clearRect(0, 0, size, size);
+  // Bake the very low alpha into an actual image element (not a CSS background),
+  // so the watermark remains printable even when Background graphics is off.
+  context.globalAlpha = 0.035;
+  if (logoImage) context.drawImage(logoImage, 0, 0, size, size);
+  else drawReportLogoFallback(context, 0, 0, size);
+  context.globalAlpha = 1;
+  return canvas.toDataURL('image/png');
+}
+
 function drawReportLogoFallback(context, x, y, size) {
   const scale = size / 64;
   context.save();
@@ -359,10 +377,10 @@ async function buildReportHeaderImage({
   context.textBaseline = 'alphabetic';
   context.direction = 'ltr';
 
-  const logoX = Math.round(1.2 * pixelsPerMm);
+  const logoX = Math.round(2.1 * pixelsPerMm);
   const logoSize = Math.round(7 * pixelsPerMm);
   const leftWidth = Math.round(width * 0.52);
-  const leftTextX = logoX + logoSize + Math.round(1.8 * pixelsPerMm);
+  const leftTextX = logoX + logoSize + Math.round(2.0 * pixelsPerMm);
   const leftTextWidth = Math.max(100, leftWidth - leftTextX - Math.round(2 * pixelsPerMm));
   context.textAlign = 'left';
 
@@ -509,6 +527,7 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
     brandFontFamily: '"Inter", Arial, sans-serif',
     pageOrientation: metadata.pageOrientation,
   }).catch(() => '');
+  const pageWatermarkReady = buildReportWatermarkImage().catch(() => '');
   const pageFooter = cssContentString([
     `Copyright © ${currentYear} Hostel-Life. All rights reserved.`,
     'Designed & Developed by Rakibul Islam Samrat',
@@ -531,7 +550,7 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
     `${headerLabels.generatedAt}: ${generatedAt}`,
   ].join('\n'));
 
-  const writeReportDocument = (pageHeaderImage) => {
+  const writeReportDocument = (pageHeaderImage, watermarkImage) => {
     if (win.closed) return;
     const headerContent = pageHeaderImage ? `url("${pageHeaderImage}")` : fallbackHeaderContent;
     win.document.open();
@@ -543,15 +562,18 @@ export function printReport(title, subtitle, tableHtml, existingWindow = null, m
     @top-center{content:${headerContent};vertical-align:top;padding-top:12.7mm;${headerFallbackStyles}}
     @bottom-center{content:${pageFooter};white-space:pre-line;overflow-wrap:anywhere;box-sizing:border-box;vertical-align:top;text-align:center;width:calc(100% - 25.4mm);height:25.4mm;margin:0 auto;padding:1.2mm 0 0;border-top:.8pt solid #dfe7e1;font-family:"Inter","Noto Sans Bengali",Arial,sans-serif;font-size:6.8pt;line-height:1.38;font-weight:400;color:#829087}
   }
+  .report-watermark{position:fixed;display:block;top:50%;left:50%;width:92mm;height:92mm;max-width:none;object-fit:contain;transform:translate(-50%,-50%);opacity:1;pointer-events:none;z-index:0}.report-body{position:relative;z-index:1}
   @media print{html,body{margin:0;padding:0}body{print-color-adjust:exact;-webkit-print-color-adjust:exact}thead{display:table-header-group}tfoot{display:table-footer-group}tr{break-inside:avoid;page-break-inside:avoid}h1,h2,h3{break-after:avoid;page-break-after:avoid}.report-summary{break-inside:avoid}.report-section{break-inside:auto}.report-table-wrap{overflow:visible}}
-  </style></head><body class="${escapeHtml(bodyClasses)}"><main class="report-body">${subtitleMarkup}${reportMarkup}</main><script>window.onload=()=>{const ready=document.fonts?.ready?.catch?.(()=>{})||Promise.resolve();Promise.race([ready,new Promise(resolve=>setTimeout(resolve,1200))]).then(()=>setTimeout(()=>window.print(),120));};<\/script></body></html>`);
+  </style></head><body class="${escapeHtml(bodyClasses)}">${watermarkImage ? `<img class="report-watermark" src="${watermarkImage}" alt="" aria-hidden="true">` : ''}<main class="report-body">${subtitleMarkup}${reportMarkup}</main><script>window.onload=()=>{const ready=document.fonts?.ready?.catch?.(()=>{})||Promise.resolve();Promise.race([ready,new Promise(resolve=>setTimeout(resolve,1200))]).then(()=>setTimeout(()=>window.print(),120));};<\/script></body></html>`);
     win.document.close();
   };
 
   // The header is emitted as generated content, not a CSS background image.
   // It therefore remains visible when the browser's "Background graphics" print
   // option is disabled. The popup is created synchronously above to avoid blockers.
-  void pageHeaderReady.then(writeReportDocument).catch(() => writeReportDocument(''));
+  void Promise.all([pageHeaderReady, pageWatermarkReady])
+    .then(([pageHeaderImage, watermarkImage]) => writeReportDocument(pageHeaderImage, watermarkImage))
+    .catch(() => writeReportDocument('', ''));
 }
 
 /**

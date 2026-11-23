@@ -20,10 +20,12 @@ import {
   createLateMealRequest,
   reviewLateMealRequest,
   createMemberMealRequest,
+  createMemberMealRequests,
   editApprovedMealRequest,
   fetchManagerMealRequests,
   fetchMealDayStates,
   fetchMealEntryData,
+  fetchMemberFinalMealMonthData,
   fetchFinalMealAudit,
   fetchMemberDirectory,
   fetchMyMealRequests,
@@ -1287,6 +1289,7 @@ function MarketEntryForm({ isManager, members, ownMembershipId, period, onSaved,
 function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   const toast = useToast();
   const [date, setDate] = useState(todayValue());
+  const [entryView, setEntryView] = useState('date');
   const [mode, setMode] = useState('single');
   const [selectedMember, setSelectedMember] = useState(members.find((member) => member.member_status === 'active')?.membership_id || '');
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
@@ -1299,6 +1302,14 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
   const [busy, setBusy] = useState(false);
   const [conflicts, setConflicts] = useState([]);
   const [conflictConfirmOpen, setConflictConfirmOpen] = useState(false);
+  const [memberMonthRows, setMemberMonthRows] = useState([]);
+  const [memberMonthLoading, setMemberMonthLoading] = useState(false);
+  const [memberMonthError, setMemberMonthError] = useState('');
+  const [memberMonthReloadTick, setMemberMonthReloadTick] = useState(0);
+  const [memberAuditByDate, setMemberAuditByDate] = useState({});
+  const memberAuditRequestRef = useRef({});
+  const selectedMemberRef = useRef(selectedMember);
+  selectedMemberRef.current = selectedMember;
 
   const [defaultMealDefaults, setDefaultMealDefaults] = useState(DEFAULT_MEALS);
   const periodStartNotice = getPeriodStartNotice(period, 'ম্যানেজারের সরাসরি ফাইনাল মিল এন্ট্রি');
@@ -1370,6 +1381,61 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
 
   useEffect(() => { load(); }, [load]);
 
+  const loadMemberMonth = useCallback(async () => {
+    const activePeriod = period || await fetchRunningPeriod();
+    if (!activePeriod?.start_date || !activePeriod?.end_date || !selectedMember) {
+      return { activePeriod: activePeriod || null, rows: [] };
+    }
+    if (!period && activePeriod) setPeriod(activePeriod);
+    const periodId = activePeriod.period_id || activePeriod.id;
+    const { days, records } = await fetchMemberFinalMealMonthData({
+      memberId: selectedMember,
+      periodId,
+      startDate: String(activePeriod.start_date).slice(0, 10),
+      endDate: String(activePeriod.end_date).slice(0, 10),
+    });
+    const dayByDate = new Map(days.map((day) => [String(day.meal_date).slice(0, 10), day]));
+    const recordByDay = new Map(records.map((record) => [record.daily_meal_day_id, record]));
+    const calendarDays = buildDateRange(
+      String(activePeriod.start_date).slice(0, 10),
+      String(activePeriod.end_date).slice(0, 10),
+      { breakfast: 0, lunch: 0, dinner: 0 },
+    );
+    const rows = calendarDays.map((calendarDay) => {
+      const day = dayByDate.get(calendarDay.meal_date) || null;
+      const record = day ? (recordByDay.get(day.id) || null) : null;
+      const values = {
+        breakfast: Number(record?.final_breakfast ?? record?.actual_breakfast ?? record?.planned_breakfast ?? 0),
+        lunch: Number(record?.final_lunch ?? record?.actual_lunch ?? record?.planned_lunch ?? 0),
+        dinner: Number(record?.final_dinner ?? record?.actual_dinner ?? record?.planned_dinner ?? 0),
+      };
+      return { ...calendarDay, ...values, initialValues: { ...values }, day, record };
+    });
+    return { activePeriod, rows };
+  }, [period, selectedMember]);
+
+  useEffect(() => {
+    if (entryView !== 'member' || !selectedMember) return undefined;
+    let active = true;
+    setMemberMonthLoading(true);
+    setMemberMonthError('');
+    loadMemberMonth()
+      .then(({ rows }) => { if (active) setMemberMonthRows(rows); })
+      .catch((error) => {
+        if (active) {
+          setMemberMonthRows([]);
+          setMemberMonthError(getFriendlySupabaseError(error, 'সদস্যের মাসিক ফাইনাল মিল লোড করা যায়নি।'));
+        }
+      })
+      .finally(() => { if (active) setMemberMonthLoading(false); });
+    return () => { active = false; };
+  }, [entryView, selectedMember, memberMonthReloadTick, loadMemberMonth]);
+
+  useEffect(() => {
+    memberAuditRequestRef.current = {};
+    setMemberAuditByDate({});
+  }, [selectedMember]);
+
   // If the screen was opened before 21:00 Dhaka, refresh today's day status
   // after the finalization boundary. fetchMealEntryData triggers the existing
   // lazy-finalization RPC, so this also works when pg_cron is unavailable.
@@ -1383,6 +1449,84 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
 
   const setValue = (memberId, key, value) => {
     setEntries((current) => ({ ...current, [memberId]: { ...current[memberId], [key]: clampMeal(value) } }));
+  };
+
+  const setMemberMonthValue = (mealDate, key, value) => {
+    setMemberMonthRows((current) => current.map((row) => row.meal_date === mealDate
+      ? { ...row, [key]: clampMeal(value) }
+      : row));
+  };
+
+  const memberRowCanEdit = (row) => Boolean(
+    canManageFinalMeals
+    && !periodStartNotice
+    && row?.day?.status === 'finalized'
+    && row.meal_date <= todayValue()
+    && row.record?.cancelled !== true
+  );
+
+  const applyMemberMonthDefaults = () => {
+    setMemberMonthRows((current) => current.map((row) => memberRowCanEdit(row)
+      ? { ...row, ...defaultMealDefaults }
+      : row));
+  };
+
+  const saveMemberMonth = async () => {
+    if (periodStartNotice) return toast.info(periodStartNotice);
+    if (!canManageFinalMeals) return toast.warning('ফাইনাল মিল সংশোধনের অনুমতি নেই।');
+    const payload = memberMonthRows
+      .filter((row) => memberRowCanEdit(row)
+        && ['breakfast', 'lunch', 'dinner'].some((key) => Number(row[key]) !== Number(row.initialValues?.[key])))
+      .map((row) => ({
+        member_id: selectedMember,
+        meal_date: row.meal_date,
+        breakfast: clampMeal(row.breakfast),
+        lunch: clampMeal(row.lunch),
+        dinner: clampMeal(row.dinner),
+        force: true,
+      }));
+    if (!payload.length) return toast.info('সংরক্ষণের জন্য কোনো পরিবর্তন পাওয়া যায়নি।');
+    if (payload.length > MAX_FINAL_MEAL_BATCH_SIZE) return toast.warning('একবারে সর্বোচ্চ ১০০ দিনের পরিবর্তন সংরক্ষণ করা যাবে।');
+    setBusy(true);
+    try {
+      const result = await setManagerMealEntries(payload);
+      toast.success(`${formatDateWithWeekday(payload[0].meal_date)} থেকে ${formatNumber(payload.length)} দিনের ফাইনাল মিল সংরক্ষণ হয়েছে।`);
+      onSaved?.(result);
+      setMemberMonthReloadTick((current) => current + 1);
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'সদস্যের মাসিক ফাইনাল মিল সংরক্ষণ করা যায়নি।'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleMemberDayAudit = async (mealDate) => {
+    const current = memberAuditByDate[mealDate];
+    if (current?.open) {
+      delete memberAuditRequestRef.current[mealDate];
+      setMemberAuditByDate((state) => ({ ...state, [mealDate]: { ...state[mealDate], open: false } }));
+      return;
+    }
+    if (current?.loaded) {
+      setMemberAuditByDate((state) => ({ ...state, [mealDate]: { ...state[mealDate], open: true } }));
+      return;
+    }
+    const requestToken = Symbol(mealDate);
+    const requestedMemberId = selectedMember;
+    memberAuditRequestRef.current[mealDate] = requestToken;
+    setMemberAuditByDate((state) => ({ ...state, [mealDate]: { open: true, loading: true } }));
+    try {
+      const audit = await fetchFinalMealAudit(mealDate);
+      if (memberAuditRequestRef.current[mealDate] !== requestToken || selectedMemberRef.current !== requestedMemberId) return;
+      const events = (audit?.events || []).filter((event) => (event.members || []).some((item) => item.member_id === requestedMemberId));
+      const record = (audit?.records || []).find((item) => item.member_id === requestedMemberId) || null;
+      setMemberAuditByDate((state) => ({ ...state, [mealDate]: { open: true, loading: false, loaded: true, available: Boolean(audit?.available), events, record } }));
+    } catch (error) {
+      if (memberAuditRequestRef.current[mealDate] !== requestToken || selectedMemberRef.current !== requestedMemberId) return;
+      setMemberAuditByDate((state) => ({ ...state, [mealDate]: { open: true, loading: false, loaded: true, error: getFriendlySupabaseError(error, 'এই দিনের ইতিহাস লোড করা যায়নি।') } }));
+    } finally {
+      if (memberAuditRequestRef.current[mealDate] === requestToken) delete memberAuditRequestRef.current[mealDate];
+    }
   };
 
   const finalizedMembers = useMemo(() => activeMembers.filter((member) => finalizedMemberIds.includes(member.membership_id)), [activeMembers, finalizedMemberIds]);
@@ -1438,8 +1582,18 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
         </div>
       </div>
       <InfoPanel tone={periodStartNotice ? 'warning' : 'info'} icon={periodStartNotice ? 'calendar' : 'clipboard-check'}>
-        {periodStartNotice ? `${periodStartNotice} এখানে শুধু আগে থেকে চূড়ান্ত হওয়া দিনের মিল সংশোধন করা যায়।` : 'নির্বাচিত তারিখের ফাইনাল মিল, এন্ট্রিকারী ও সংশোধনের ইতিহাস একসঙ্গে দেখুন।'}
+        {periodStartNotice
+          ? `${periodStartNotice} এখানে শুধু আগে থেকে চূড়ান্ত হওয়া দিনের মিল সংশোধন করা যায়।`
+          : entryView === 'member'
+            ? 'সদস্য নির্বাচন করে চলমান মাসের প্রতিদিনের ফাইনাল মিল দেখুন, অনুমোদিত দিনে সংশোধন করুন এবং সংশ্লিষ্ট দিনের লগ পর্যালোচনা করুন।'
+            : 'নির্বাচিত তারিখের ফাইনাল মিল, এন্ট্রিকারী ও সংশোধনের ইতিহাস একসঙ্গে দেখুন।'}
       </InfoPanel>
+      <div className="manager-entry-view-switcher" role="tablist" aria-label="ফাইনাল মিল দেখার ধরন">
+        <button type="button" role="tab" aria-selected={entryView === 'date'} className={entryView === 'date' ? 'active' : ''} onClick={() => setEntryView('date')}>তারিখ অনুযায়ী</button>
+        <button type="button" role="tab" aria-selected={entryView === 'member'} className={entryView === 'member' ? 'active' : ''} onClick={() => setEntryView('member')}>ব্যক্তি অনুযায়ী</button>
+      </div>
+      {entryView === 'date' && (
+      <>
       <div className="manager-entry-toolbar">
         <label className="field-label">
           <span>তারিখ</span>
@@ -1543,6 +1697,73 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
       <button className="primary-button large dining-submit" type="button" disabled={busy || loading || Boolean(periodStartNotice) || !dayStatus || dayStatus.status !== 'finalized' || !canManageFinalMeals || !scopedMembers.length || !period || date < period.start_date || date > todayValue()} onClick={save}>
         {busy ? 'ফাইনাল হিসাব আপডেট হচ্ছে...' : mode === 'all' && hasMemberSearch ? `খুঁজে পাওয়া ${formatNumber(scopedMembers.length)} জনের মিল সংরক্ষণ করুন` : 'মিল যোগ / সংশোধন সংরক্ষণ করুন'}
       </button>
+      </>
+      )}
+      {entryView === 'member' && (
+        <section className="member-final-month-panel" aria-label="ব্যক্তিভিত্তিক ফাইনাল মিল">
+          <div className="member-final-month-toolbar">
+            <label className="field-label">
+              <span>সদস্য নির্বাচন</span>
+              <select value={selectedMember} onChange={(event) => setSelectedMember(event.target.value)} disabled={!activeMembers.length || memberMonthLoading || busy}>
+                {activeMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}
+              </select>
+            </label>
+            <div className="member-final-month-summary">
+              <span>{selectedActiveMember?.member_name || 'সদস্য নির্বাচন করুন'}</span>
+              <strong>{formatNumber(memberMonthRows.length)} দিন</strong>
+            </div>
+          </div>
+          <div className="default-meal-box manager-default-entry-box">
+            <div><strong>ডিফল্ট মিল</strong><small>একবার সেট করে এই সদস্যের সব সম্পাদনাযোগ্য দিনে প্রয়োগ করুন।</small></div>
+            <div className="default-meal-controls">
+              { [['breakfast', 'ব্রেকফাস্ট'], ['lunch', 'লাঞ্চ'], ['dinner', 'ডিনার']].map(([key, label]) => (
+                <label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={defaultMealDefaults[key]} onChange={(event) => setDefaultMealDefaults((current) => ({ ...current, [key]: clampMeal(event.target.value) }))} /></label>
+              )) }
+            </div>
+            <button className="secondary-button compact" type="button" onClick={applyMemberMonthDefaults} disabled={busy || !memberMonthRows.some((row) => memberRowCanEdit(row))}>সব সম্পাদনাযোগ্য দিনে প্রয়োগ করুন</button>
+          </div>
+          {!canManageFinalMeals && <div className="meal-policy-note is-warning"><Icon name="shield" size={15}/> ফাইনাল মিল সংশোধনের অনুমতি নেই।</div>}
+          {periodStartNotice && <div className="meal-policy-note is-warning"><Icon name="calendar" size={15}/> {periodStartNotice}</div>}
+          {memberMonthLoading ? <LoadingSpinner label="সদস্যের মাসিক ফাইনাল মিল লোড হচ্ছে..." /> : memberMonthError ? (
+            <div className="meal-policy-note is-warning"><Icon name="warning" size={15}/>{memberMonthError}</div>
+          ) : !selectedMember ? (
+            <div className="empty-state-card"><Icon name="users" size={22}/><strong>সক্রিয় সদস্য পাওয়া যায়নি</strong></div>
+          ) : (
+            <>
+              <div className="member-final-day-list">
+                {memberMonthRows.map((row) => {
+                  const editable = memberRowCanEdit(row);
+                  const audit = memberAuditByDate[row.meal_date];
+                  const dayStatusLabel = row.record?.cancelled ? 'বাতিল রেকর্ড' : row.day?.status === 'finalized' ? 'চূড়ান্ত' : row.day?.status ? getMealDayStatusText(row.day) : 'রেকর্ড প্রস্তুত নয়';
+                  return (
+                    <article className={`member-final-day-card ${editable ? 'is-editable' : 'is-readonly'}`} key={row.meal_date}>
+                      <div className="member-final-day-heading">
+                        <div><strong>{formatDateWithWeekday(row.meal_date)}</strong><span className={`member-final-day-status ${editable ? 'is-finalized' : ''}`}>{dayStatusLabel}</span></div>
+                        <button className="secondary-button compact member-final-log-button" type="button" onClick={() => toggleMemberDayAudit(row.meal_date)} disabled={!row.day || row.day.status !== 'finalized'}><Icon name="clipboard-list" size={14}/>{audit?.loading ? 'লোড হচ্ছে...' : audit?.open ? 'লগ বন্ধ করুন' : 'লগ'}</button>
+                      </div>
+                      <div className="manager-meal-grid member-final-day-meals">
+                        <div><MealStepper label="ব্রেকফাস্ট" value={row.breakfast} readOnly={!editable || busy} onChange={(value) => setMemberMonthValue(row.meal_date, 'breakfast', value)} /></div>
+                        <div><MealStepper label="লাঞ্চ" value={row.lunch} readOnly={!editable || busy} onChange={(value) => setMemberMonthValue(row.meal_date, 'lunch', value)} /></div>
+                        <div><MealStepper label="ডিনার" value={row.dinner} readOnly={!editable || busy} onChange={(value) => setMemberMonthValue(row.meal_date, 'dinner', value)} /></div>
+                      </div>
+                      <div className="member-final-day-total"><span>মোট মিল</span><strong>{formatMealCompact(row.breakfast + row.lunch + row.dinner)}</strong></div>
+                      {audit?.open && <div className="member-final-day-audit">
+                        {audit.loading ? <small>ইতিহাস লোড হচ্ছে...</small> : audit.error ? <small className="is-error">{audit.error}</small> : !audit.available ? <small>এই দিনের বিস্তারিত ইতিহাস পাওয়া যায়নি।</small> : audit.events?.length ? audit.events.map((event, index) => (
+                          <div className="member-final-audit-event" key={`${event.created_at}-${event.actor_user_id || index}`}><strong>{event.event_label}</strong><span>{event.actor_name} · {formatDateTime12(event.created_at)}</span></div>
+                        )) : <small>এই সদস্যের জন্য এই তারিখে আলাদা ম্যানেজার সংশোধন লগ পাওয়া যায়নি।</small>}
+                      </div>}
+                    </article>
+                  );
+                })}
+                {!memberMonthRows.length && <div className="empty-state-card"><Icon name="calendar" size={22}/><strong>এই চলমান মাসের কোনো দিনের রেকর্ড পাওয়া যায়নি</strong></div>}
+              </div>
+              <button className="primary-button large dining-submit" type="button" disabled={busy || !canManageFinalMeals || Boolean(periodStartNotice) || !memberMonthRows.some((row) => memberRowCanEdit(row) && ['breakfast', 'lunch', 'dinner'].some((key) => Number(row[key]) !== Number(row.initialValues?.[key])))} onClick={saveMemberMonth}>
+                {busy ? 'ফাইনাল মিল সংরক্ষণ হচ্ছে...' : 'পরিবর্তন সংরক্ষণ করুন'}
+              </button>
+            </>
+          )}
+        </section>
+      )}
       </section>
       {conflictConfirmOpen && (
         <div className="modal-backdrop" role="presentation">
@@ -2067,44 +2288,180 @@ function LateMealRequestForm({ onSaved, onCancel, managerMode = false }) {
 
 function ManualMemberMealRequest({ members, period, onSaved, onCancel }) {
   const toast = useToast();
-  const [memberId, setMemberId] = useState(members.find((item)=>item.member_status==='active')?.membership_id || '');
+  const activeMembers = useMemo(() => members.filter((item) => item.member_status === 'active'), [members]);
+  const [targetMode, setTargetMode] = useState('single');
+  const [memberId, setMemberId] = useState(activeMembers[0]?.membership_id || '');
   const [startDate, setStartDate] = useState(tomorrowValue());
   const [endDate, setEndDate] = useState(tomorrowValue());
   const [defaults, setDefaults] = useState(DEFAULT_MEALS);
   const latestDefaultsRef = useRef(defaults);
   latestDefaultsRef.current = defaults;
-  const [days, setDays] = useState(()=>buildDateRange(tomorrowValue(),tomorrowValue(),DEFAULT_MEALS));
+  const [days, setDays] = useState(() => buildMealDaysForRange(tomorrowValue(), tomorrowValue(), DEFAULT_MEALS));
+  const [weekdayExceptions, setWeekdayExceptions] = useState([]);
+  const [exceptionEditorOpen, setExceptionEditorOpen] = useState(false);
+  const [editingExceptionWeekday, setEditingExceptionWeekday] = useState(null);
+  const [exceptionDraft, setExceptionDraft] = useState({ weekday: 5, ...DEFAULT_MEALS });
   const [busy, setBusy] = useState(false);
-  useEffect(()=>{ if(!memberId) setMemberId(members.find((item)=>item.member_status==='active')?.membership_id||''); },[members,memberId]);
-  useEffect(()=>{
-    const fresh=buildDateRange(startDate,endDate,defaults);
-    setDays((current)=>fresh.map((day)=>current.find((old)=>old.meal_date===day.meal_date)||day));
-  },[startDate,endDate]);
-  const applyDefaults=()=>setDays((current)=>current.map((day)=>({...day,...defaults})));
-  const submit=async()=>{
-    if(!memberId) return toast.warning('সদস্য নির্বাচন করুন।');
-    if(!period) return toast.warning('কোনো running period নেই।');
-    if(!startDate||!endDate||startDate>endDate) return toast.warning('তারিখের পরিসর সঠিক নয়।');
-    if(startDate<=todayValue()) return toast.warning('ম্যানুয়াল সাধারণ অনুরোধ আগামীকাল বা পরবর্তী দিনের জন্য হবে। আজকের জন্য লেট অনুরোধ ব্যবহার করুন।');
-    if (startDate < period.start_date || (period.end_date && endDate > period.end_date)) return toast.warning('নির্বাচিত তারিখগুলো চলমান মাসের শুরুর তারিখের পরে হতে হবে। চলমান মাস বন্ধ না হওয়া পর্যন্ত নির্দিষ্ট শেষ তারিখ নেই।');
-    if(!days.length) return toast.warning('কমপক্ষে একটি দিনের মিল দরকার।');
-    setBusy(true);
-    try{
-      await createMemberMealRequest({memberId,startDate,endDate,days:normalizeDays(days)});
-      const target=members.find((item)=>item.membership_id===memberId);
-      toast.success(`${target?.member_name||'সদস্য'}-এর হয়ে অনুরোধ তৈরি হয়েছে। এটি ওই সদস্যের অনুরোধের ইতিহাসে থাকবে।`);
-      onSaved?.();
-    }catch(error){toast.error(getFriendlySupabaseError(error,'ম্যানুয়াল মিল অনুরোধ তৈরি করা যায়নি।'));}
-    finally{setBusy(false);}
+
+  useEffect(() => {
+    if (!activeMembers.some((item) => item.membership_id === memberId)) {
+      setMemberId(activeMembers[0]?.membership_id || '');
+    }
+  }, [activeMembers, memberId]);
+
+  useEffect(() => {
+    setDays((current) => buildMealDaysForRange(
+      startDate,
+      endDate,
+      latestDefaultsRef.current,
+      current,
+      weekdayExceptions,
+    ));
+  }, [startDate, endDate, weekdayExceptions]);
+
+  const applyDefaults = () => {
+    setDays((current) => applyWeekdayMealExceptions(
+      current.map((day) => ({ ...day, ...defaults })),
+      weekdayExceptions,
+    ));
   };
+
+  const openExceptionEditor = (exception = null) => {
+    if (exception) {
+      setEditingExceptionWeekday(Number(exception.weekday));
+      setExceptionDraft({ weekday: Number(exception.weekday), breakfast: exception.breakfast, lunch: exception.lunch, dinner: exception.dinner });
+    } else {
+      setEditingExceptionWeekday(null);
+      const availableDay = WEEKDAY_OPTIONS_BN.find((option) => days.some((day) => getMealWeekdayIndex(day.meal_date) === option.value)
+        && !weekdayExceptions.some((item) => Number(item.weekday) === option.value));
+      setExceptionDraft({ weekday: availableDay?.value ?? 5, ...defaults });
+    }
+    setExceptionEditorOpen(true);
+  };
+
+  const saveWeekdayException = () => {
+    const weekday = Number(exceptionDraft.weekday);
+    if (!days.some((day) => getMealWeekdayIndex(day.meal_date) === weekday)) {
+      const weekdayName = WEEKDAY_OPTIONS_BN.find((item) => item.value === weekday)?.label || 'নির্বাচিত বার';
+      toast.warning(`নির্বাচিত তারিখসীমায় ${weekdayName} নেই। তারিখসীমা পরিবর্তন করে আবার চেষ্টা করুন।`);
+      return;
+    }
+    const nextException = {
+      weekday,
+      breakfast: clampMeal(exceptionDraft.breakfast),
+      lunch: clampMeal(exceptionDraft.lunch),
+      dinner: clampMeal(exceptionDraft.dinner),
+    };
+    const nextExceptions = weekdayExceptions.filter((item) =>
+      Number(item.weekday) !== Number(editingExceptionWeekday) && Number(item.weekday) !== weekday
+    ).concat(nextException).sort((a, b) => Number(a.weekday) - Number(b.weekday));
+    setWeekdayExceptions(nextExceptions);
+    setDays((current) => buildMealDaysForRange(
+      startDate,
+      endDate,
+      defaults,
+      current.map((day) => editingExceptionWeekday !== null
+        && editingExceptionWeekday !== undefined
+        && getMealWeekdayIndex(day.meal_date) === Number(editingExceptionWeekday)
+        && Number(editingExceptionWeekday) !== weekday
+        ? { ...day, ...defaults }
+        : day),
+      nextExceptions,
+    ));
+    setExceptionEditorOpen(false);
+    setEditingExceptionWeekday(null);
+    toast.success('ব্যতিক্রমটি নির্বাচিত বারের সব দিনে প্রয়োগ হয়েছে।');
+  };
+
+  const removeWeekdayException = (weekday) => {
+    const nextExceptions = weekdayExceptions.filter((item) => Number(item.weekday) !== Number(weekday));
+    setWeekdayExceptions(nextExceptions);
+    setDays((current) => buildMealDaysForRange(
+      startDate,
+      endDate,
+      defaults,
+      current.map((day) => getMealWeekdayIndex(day.meal_date) === Number(weekday) ? { ...day, ...defaults } : day),
+      nextExceptions,
+    ));
+  };
+
+  const submit = async () => {
+    if (targetMode === 'single' && !memberId) return toast.warning('সদস্য নির্বাচন করুন।');
+    if (targetMode === 'all' && !activeMembers.length) return toast.warning('কোনো সক্রিয় সদস্য পাওয়া যায়নি।');
+    if (targetMode === 'all' && activeMembers.length > 200) return toast.warning('একবারে সর্বোচ্চ ২০০ জনের অনুরোধ তৈরি করা যাবে। সক্রিয় সদস্যদের কয়েকটি দলে ভাগ করে অনুরোধ দিন।');
+    if (!period) return toast.warning('কোনো running period নেই।');
+    if (!startDate || !endDate || startDate > endDate) return toast.warning('তারিখের পরিসর সঠিক নয়।');
+    if (startDate <= todayValue()) return toast.warning('ম্যানুয়াল সাধারণ অনুরোধ আগামীকাল বা পরবর্তী দিনের জন্য হবে। আজকের জন্য লেট অনুরোধ ব্যবহার করুন।');
+    if (startDate < period.start_date || (period.end_date && endDate > period.end_date)) return toast.warning('নির্বাচিত তারিখগুলো চলমান মাসের শুরুর তারিখের পরে হতে হবে। চলমান মাস বন্ধ না হওয়া পর্যন্ত নির্দিষ্ট শেষ তারিখ নেই।');
+    if (!days.length) return toast.warning('কমপক্ষে একটি দিনের মিল দরকার।');
+    setBusy(true);
+    try {
+      if (targetMode === 'all') {
+        const result = await createMemberMealRequests({
+          memberIds: activeMembers.map((member) => member.membership_id),
+          startDate,
+          endDate,
+          days: normalizeDays(days),
+        });
+        const createdCount = Number(result?.created_count || activeMembers.length);
+        toast.success(`${formatNumber(createdCount)} জন সক্রিয় সদস্যের জন্য ম্যানুয়াল মিল অনুরোধ তৈরি হয়েছে।`);
+      } else {
+        await createMemberMealRequest({ memberId, startDate, endDate, days: normalizeDays(days) });
+        const target = activeMembers.find((item) => item.membership_id === memberId);
+        toast.success(`${target?.member_name || 'সদস্য'}-এর হয়ে অনুরোধ তৈরি হয়েছে। এটি ওই সদস্যের অনুরোধের ইতিহাসে থাকবে।`);
+      }
+      onSaved?.();
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'ম্যানুয়াল মিল অনুরোধ তৈরি করা যায়নি।'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return <section className="dining-panel card">
     <div className="panel-header"><div><span className="eyebrow">এডমিন এন্ট্রি</span><h2>ম্যানুয়াল মিল অনুরোধ</h2></div><button className="icon-button" type="button" onClick={onCancel} aria-label="বন্ধ করুন"><Icon name="x" size={19}/></button></div>
-    <div className="request-range-grid"><label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(e)=>setMemberId(e.target.value)}>{members.filter((m)=>m.member_status==='active').map((m)=><option key={m.membership_id} value={m.membership_id}>{m.member_name}</option>)}</select></label><label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date||undefined} value={startDate} onChange={(e)=>{setStartDate(e.target.value);if(endDate<e.target.value)setEndDate(e.target.value);}}/></label><label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate||tomorrowValue()} max={period?.end_date||undefined} value={endDate} onChange={(e)=>setEndDate(e.target.value)}/></label></div>
-    <div className="default-meal-box"><div><strong>ডিফল্ট মিল</strong><small>প্রতিদিনের শুরুতে এই মান থাকবে; প্রতিটি দিনে আলাদা করে +/- করতে পারবেন।</small></div><div className="default-meal-controls">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={defaults[key]} onChange={(e)=>setDefaults((old)=>({...old,[key]:clampMeal(e.target.value)}))}/></label>)}</div><button className="secondary-button compact" type="button" onClick={applyDefaults}>সব দিনে প্রয়োগ করুন</button></div>
-    <div className="request-summary-strip"><span>{formatNumber(days.length)} দিন</span><strong>মোট {formatMealCompact(totalDays(days))} মিল</strong></div>
+    <div className="manager-entry-view-switcher manual-request-target-switcher" role="tablist" aria-label="অনুরোধের সদস্য নির্বাচন">
+      <button type="button" role="tab" aria-selected={targetMode === 'single'} className={targetMode === 'single' ? 'active' : ''} onClick={() => setTargetMode('single')}>একক ব্যক্তি</button>
+      <button type="button" role="tab" aria-selected={targetMode === 'all'} className={targetMode === 'all' ? 'active' : ''} onClick={() => setTargetMode('all')}>সক্রিয় সবাই</button>
+    </div>
+    <div className="request-range-grid">
+      {targetMode === 'single' ? (
+        <label className="field-label"><span>সদস্য</span><select value={memberId} onChange={(event) => setMemberId(event.target.value)}>{activeMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{member.member_name}</option>)}</select></label>
+      ) : (
+        <div className="member-final-month-summary manual-request-all-summary"><span>অনুরোধ যাবে</span><strong>{formatNumber(activeMembers.length)} জন সক্রিয় সদস্যের কাছে</strong></div>
+      )}
+      <label className="field-label"><span>শুরুর তারিখ</span><input type="date" min={tomorrowValue()} max={period?.end_date || undefined} value={startDate} onChange={(event) => { setStartDate(event.target.value); if (endDate < event.target.value) setEndDate(event.target.value); }}/></label>
+      <label className="field-label"><span>শেষের তারিখ</span><input type="date" min={startDate || tomorrowValue()} max={period?.end_date || undefined} value={endDate} onChange={(event) => setEndDate(event.target.value)}/></label>
+    </div>
+    <div className="default-meal-box">
+      <div><strong>ডিফল্ট মিল</strong><small>প্রতিদিনের শুরুতে এই মান থাকবে; প্রতিটি দিনে আলাদা করে +/- করতে পারবেন।</small></div>
+      <div className="default-meal-controls">{[['breakfast','ব্রেকফাস্ট'],['lunch','লাঞ্চ'],['dinner','ডিনার']].map(([key,label])=><label className="mini-field" key={key}><span>{label}</span><input type="number" min="0" max="50" step="0.5" value={defaults[key]} onChange={(event)=>setDefaults((old)=>({...old,[key]:clampMeal(event.target.value)}))}/></label>)}</div>
+      <button className="secondary-button compact" type="button" onClick={applyDefaults}>সব দিনে প্রয়োগ করুন</button>
+    </div>
+    <section className="weekday-exceptions-card" aria-label="বারভিত্তিক মিলের ব্যতিক্রম">
+      <div className="weekday-exceptions-heading"><div><strong>বারভিত্তিক ব্যতিক্রম</strong><small>নির্বাচিত বারের সব দিনের জন্য আলাদা মিল নির্ধারণ করুন।</small></div><span className="weekday-exception-count">{formatNumber(weekdayExceptions.length)} / ৭</span></div>
+      {weekdayExceptions.length > 0 && <div className="weekday-exception-list">{weekdayExceptions.map((exception) => {
+        const weekday = WEEKDAY_OPTIONS_BN.find((item) => item.value === Number(exception.weekday));
+        return <article className="weekday-exception-item" key={exception.weekday}>
+          <div className="weekday-exception-summary"><strong>{weekday?.label || 'নির্বাচিত বার'}</strong><MealValuePills day={exception} compact /></div>
+          <div className="weekday-exception-actions"><button className="secondary-button compact" type="button" onClick={() => openExceptionEditor(exception)}><Icon name="edit" size={14}/> পরিবর্তন</button><button className="icon-button compact-icon" type="button" onClick={() => removeWeekdayException(exception.weekday)} aria-label={`${weekday?.label || 'ব্যতিক্রম'} মুছুন`}><Icon name="trash" size={15}/></button></div>
+        </article>;
+      })}</div>}
+      {exceptionEditorOpen && <div className="weekday-exception-editor">
+        <label className="field-label"><span>সপ্তাহের দিন</span><select value={exceptionDraft.weekday} onChange={(event) => setExceptionDraft((current) => ({ ...current, weekday: Number(event.target.value) }))}>{WEEKDAY_OPTIONS_BN.map((option) => {
+          const usedByAnother = weekdayExceptions.some((item) => Number(item.weekday) === option.value && option.value !== Number(editingExceptionWeekday));
+          return <option key={option.value} value={option.value} disabled={usedByAnother}>{option.label}{usedByAnother ? ' · যুক্ত আছে' : ''}</option>;
+        })}</select></label>
+        <div className="weekday-exception-meals"><MealStepper label="ব্রেকফাস্ট" value={exceptionDraft.breakfast} onChange={(value) => setExceptionDraft((current) => ({ ...current, breakfast: value }))}/><MealStepper label="লাঞ্চ" value={exceptionDraft.lunch} onChange={(value) => setExceptionDraft((current) => ({ ...current, lunch: value }))}/><MealStepper label="ডিনার" value={exceptionDraft.dinner} onChange={(value) => setExceptionDraft((current) => ({ ...current, dinner: value }))}/></div>
+        <div className="weekday-exception-editor-actions"><button className="secondary-button compact" type="button" onClick={() => { setExceptionEditorOpen(false); setEditingExceptionWeekday(null); }}>বাতিল</button><button className="primary-button compact" type="button" onClick={saveWeekdayException}>ব্যতিক্রম প্রয়োগ করুন</button></div>
+      </div>}
+      {!exceptionEditorOpen && weekdayExceptions.length < 7 && <button className="secondary-button weekday-exception-add" type="button" onClick={() => openExceptionEditor()}><Icon name="plus-circle" size={16}/> ব্যতিক্রম যোগ করুন</button>}
+      {weekdayExceptions.length === 0 && <small className="weekday-exception-empty">ব্যতিক্রম না দিলে সব দিন ডিফল্ট মিল অনুসরণ করবে।</small>}
+    </section>
+    <div className="request-summary-strip"><span>{formatNumber(days.length)} দিন{targetMode === 'all' ? ` · ${formatNumber(activeMembers.length)} জন` : ''}</span><strong>মোট {formatMealCompact(totalDays(days))} মিল / ব্যক্তি</strong></div>
     <div className="meal-days-stack">{days.map((day)=><MealDayCard key={day.meal_date} day={day} onChange={(next)=>setDays((current)=>current.map((item)=>item.meal_date===next.meal_date?next:item))}/>)}</div>
-    <div className="manager-warning-box"><Icon name="info" size={18}/><div><strong>ডুপ্লিকেট সুরক্ষা</strong><p>সদস্যের কোনো দিনের active request আগে থেকেই থাকলে server request reject করবে; পুরোনো request overwrite হবে না।</p></div></div>
-    <button className="primary-button large dining-submit" type="button" disabled={busy||!days.length} onClick={submit}>{busy?'অনুরোধ তৈরি হচ্ছে...':'চূড়ান্তভাবে সাবমিট করুন'}</button>
+    <div className="manager-warning-box"><Icon name="info" size={18}/><div><strong>ডুপ্লিকেট সুরক্ষা</strong><p>কোনো সদস্যের নির্বাচিত তারিখে সক্রিয় অনুরোধ আগে থেকেই থাকলে সার্ভার পুরো ব্যাচ বাতিল করবে; পুরোনো অনুরোধ পরিবর্তন হবে না।</p></div></div>
+    <button className="primary-button large dining-submit" type="button" disabled={busy || !days.length || !activeMembers.length || (targetMode === 'all' && activeMembers.length > 200)} onClick={submit}>{busy ? 'অনুরোধ তৈরি হচ্ছে...' : targetMode === 'all' ? 'সবার জন্য অনুরোধ তৈরি করুন' : 'চূড়ান্তভাবে সাবমিট করুন'}</button>
   </section>;
 }
 

@@ -4676,3 +4676,11 @@ button.platform-monitor-country:hover{border-color:var(--primary);background:var
   .manager-join-request-row { align-items:stretch; flex-direction:column; gap:12px; padding:13px; }
   .manager-join-request-actions { display:grid; grid-template-columns:1fr 1fr; }
 }
+
+/* Run116 — use a little more desktop canvas without changing auth layouts or card geometry. */
+@media (min-width: 1360px) {
+  .app-main { width: min(100% - 48px, 1840px); }
+}
+@media (min-width: 1900px) {
+  .app-main { width: min(100% - 72px, 2240px); }
+}

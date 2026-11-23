@@ -176,13 +176,18 @@ function GoogleSignInButton({ mode = 'login', fullName = '', phone = '', disable
     }
     setUiState('loading');
     (async () => {
-      const prepared = await prepareGoogleOAuth({
-        mode,
-        fullName,
-        phone,
-        eligibilityAccepted: true,
-      });
-      await loadGoogleIdentityServices(english ? 'en' : 'bn');
+      // The server-issued OAuth nonce and Google's SDK are independent setup
+      // steps. Start both only after the required consent is accepted, avoiding
+      // the previous sequential wait while keeping the consent/security gate.
+      const [prepared] = await Promise.all([
+        prepareGoogleOAuth({
+          mode,
+          fullName,
+          phone,
+          eligibilityAccepted: true,
+        }),
+        loadGoogleIdentityServices(english ? 'en' : 'bn'),
+      ]);
       if (cancelled || !hostRef.current) return;
       const googleId = window.google?.accounts?.id;
       if (!googleId) throw new Error('Google sign-in button প্রস্তুত করা যায়নি।');

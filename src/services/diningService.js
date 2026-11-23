@@ -108,6 +108,21 @@ export async function createMemberMealRequest({ memberId, startDate, endDate, da
   return unwrapData(data);
 }
 
+export async function createMemberMealRequests({ memberIds, startDate, endDate, days }) {
+  assertSupabase();
+  const safeMemberIds = [...new Set((memberIds || []).filter(Boolean))];
+  if (!safeMemberIds.length) throw new Error('অন্তত একজন সক্রিয় সদস্য নির্বাচন করুন।');
+  const { data, error } = await supabase.rpc('manager_create_member_meal_requests', {
+    p_member_ids: safeMemberIds,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_days: days,
+  });
+  if (error) throw error;
+  invalidateRequestCache('dashboard:', 'dining:');
+  return unwrapData(data);
+}
+
 export async function createMealRequest({ startDate, endDate, days }) {
   assertSupabase();
   const { data, error } = await supabase.rpc('create_meal_request', {
@@ -240,6 +255,32 @@ export async function fetchFinalMealAudit(date) {
   const { data, error } = await supabase.rpc('hl_get_final_meal_audit', { p_meal_date: date });
   if (error) throw error;
   return data && typeof data === 'object' ? data : null;
+}
+
+export async function fetchMemberFinalMealMonthData({ memberId, periodId, startDate, endDate }) {
+  assertSupabase();
+  if (!memberId || !periodId || !startDate || !endDate || startDate > endDate) return { days: [], records: [] };
+
+  // Preserve the existing lazy-finalization behavior for today's meal day.
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  if (today >= startDate && today <= endDate && isDhakaFinalizationDue(today, new Date())) {
+    const { error: finalizeError } = await supabase.rpc('get_meal_details', { p_meal_date: today });
+    if (finalizeError) throw finalizeError;
+  }
+
+  const days = await fetchMealDayStates(startDate, endDate, periodId);
+  const dayIds = days.map((day) => day.id).filter(Boolean);
+  if (!dayIds.length) return { days, records: [] };
+
+  const { data, error } = await supabase
+    .from('daily_meal_records')
+    .select('daily_meal_day_id, member_id, planned_breakfast, planned_lunch, planned_dinner, actual_breakfast, actual_lunch, actual_dinner, final_breakfast, final_lunch, final_dinner, cancelled')
+    .eq('member_id', memberId)
+    .in('daily_meal_day_id', dayIds);
+  if (error) throw error;
+  return { days, records: Array.isArray(data) ? data : [] };
 }
 
 export async function fetchMealEntryData(date, periodId = null) {

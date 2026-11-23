@@ -1,0 +1,45 @@
+/* Run116 — About header actions: reserve distinct tap targets on narrow screens. */
+@media (max-width: 760px) {
+  .about-page .nav-actions {
+    display: grid !important;
+    grid-template-columns: minmax(72px, .95fr) minmax(48px, .72fr) minmax(76px, 1.05fr) minmax(46px, .68fr) !important;
+    align-items: center !important;
+    justify-content: stretch !important;
+    gap: 5px !important;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .about-page .nav-actions > .public-language-switcher,
+  .about-page .nav-actions > .nav-signin,
+  .about-page .nav-actions > .nav-register,
+  .about-page .nav-actions > .nav-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: 34px;
+    padding-inline: 5px;
+    white-space: nowrap;
+    font-size: clamp(8px, 2.3vw, 10px);
+  }
+  .about-page .nav-actions .public-language-switcher { gap: 4px; }
+}
+@media (max-width: 390px) {
+  /* The same app-download destination is already available in the mobile menu. */
+  .about-page .nav-actions > .nav-download { display: none !important; }
+  .about-page .nav-actions {
+    grid-template-columns: minmax(68px, .95fr) minmax(48px, .72fr) minmax(76px, 1.05fr) !important;
+    gap: 6px !important;
+  }
+}
+
+/* About-only desktop width: use the available canvas while preserving inner component sizing. */
+@media (min-width: 1440px) {
+  .about-page .wrap { width: min(calc(100% - 72px), 1540px); }
+}
+@media (min-width: 1900px) {
+  .about-page .wrap { width: min(calc(100% - 88px), 1680px); }
+}

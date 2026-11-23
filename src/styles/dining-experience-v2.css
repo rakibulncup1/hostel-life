@@ -744,3 +744,121 @@
   :is(.dining-experience, .dining-stack) .meal-day-fields .meal-stepper button { width: 20px; height: 23px; }
   :is(.dining-experience, .dining-stack) .meal-day-fields > .meal-stepper-row > span { font-size: 8.5px; }
 }
+
+/* Run116 — focused additions for final-meal member view and manager bulk requests. */
+.manager-entry-view-switcher {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  width: min(100%, 520px);
+  margin: 18px 0 20px;
+  padding: 5px;
+  border: 1px solid var(--border, #dbe5df);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface, #fff) 88%, var(--din-slate-bg, #f1f4f8));
+}
+.manager-entry-view-switcher > button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted, #64746b);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.manager-entry-view-switcher > button.active {
+  border-color: var(--din-green-line, #cce7d8);
+  background: var(--surface, #fff);
+  color: var(--din-green, #398665);
+  box-shadow: 0 2px 7px rgba(30, 70, 48, .07);
+}
+.manager-entry-view-switcher > button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--din-green, #398665) 22%, transparent);
+  outline-offset: 2px;
+}
+.member-final-month-panel { display: grid; gap: 15px; min-width: 0; }
+.member-final-month-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(180px, .8fr);
+  align-items: end;
+  gap: 12px;
+}
+.member-final-month-summary,
+.manual-request-all-summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 9px 13px;
+  border: 1px solid var(--din-green-line, #cce7d8);
+  border-radius: 11px;
+  background: var(--din-green-bg, #edf8f2);
+  color: var(--din-green-text, #356f55);
+}
+.member-final-month-summary span,
+.manual-request-all-summary span { font-size: 11px; color: var(--text-muted, #68798d); }
+.member-final-month-summary strong,
+.manual-request-all-summary strong { font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.member-final-day-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; min-width: 0; }
+.member-final-day-card {
+  display: grid;
+  gap: 11px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--border, #dbe5df);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  box-shadow: 0 3px 11px rgba(33, 56, 78, .035);
+}
+.member-final-day-card.is-readonly { background: color-mix(in srgb, var(--surface, #fff) 92%, var(--din-slate-bg, #f1f4f8)); }
+.member-final-day-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.member-final-day-heading > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
+.member-final-day-heading > div > strong { font-size: 13px; line-height: 1.45; }
+.member-final-day-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border: 1px solid var(--din-slate-line, #d9e1e9);
+  border-radius: 999px;
+  background: var(--din-slate-bg, #f1f4f8);
+  color: var(--din-slate, #68798d);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.member-final-day-status.is-finalized { border-color: var(--din-green-line, #cce7d8); background: var(--din-green-bg, #edf8f2); color: var(--din-green, #398665); }
+.member-final-log-button { flex: 0 0 auto; min-height: 31px; white-space: nowrap; }
+.member-final-day-meals { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.member-final-day-meals > div { min-width: 0; }
+.member-final-day-total { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border, #e1e9e3); color: var(--text-muted, #68798d); font-size: 11px; }
+.member-final-day-total strong { color: var(--text, #203129); font-size: 13px; font-variant-numeric: tabular-nums; }
+.member-final-day-audit { display: grid; gap: 7px; padding: 9px 10px; border: 1px solid var(--din-blue-line, #cfdef1); border-radius: 9px; background: var(--din-blue-bg, #eef5ff); color: var(--din-blue-text, #315f91); }
+.member-final-day-audit > small { font-size: 11px; line-height: 1.5; }
+.member-final-day-audit > small.is-error { color: #a43e35; }
+.member-final-audit-event { display: grid; gap: 3px; padding-bottom: 6px; border-bottom: 1px solid color-mix(in srgb, var(--din-blue-line, #cfdef1) 68%, transparent); }
+.member-final-audit-event:last-child { padding-bottom: 0; border-bottom: 0; }
+.member-final-audit-event strong { font-size: 11px; line-height: 1.4; }
+.member-final-audit-event span { font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.manual-request-target-switcher { margin: 0 0 15px; }
+.manual-request-all-summary { align-self: end; }
+@media (max-width: 760px) {
+  .member-final-month-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .member-final-day-list { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .manager-entry-view-switcher { width: 100%; }
+  .manager-entry-view-switcher > button { min-height: 39px; padding-inline: 7px; font-size: 12px; }
+  .member-final-day-card { padding: 10px; }
+}

@@ -1,0 +1,35 @@
+{
+  "patch": "Run116_Selected_Features",
+  "baseline": {
+    "archive": "Hostel Life(2).zip",
+    "git_commit": "d5dd8cc"
+  },
+  "scope": "Only the seven user-requested feature areas; one additive SQL RPC migration is included for manager bulk manual meal requests.",
+  "files": [
+    "index.html",
+    "public/about.html",
+    "public/landing-assets/run116-about-mobile-actions.css",
+    "public/og/hostel-life-social.png",
+    "src/features/auth/AuthPage.jsx",
+    "src/features/dining/DiningPage.jsx",
+    "src/services/diningService.js",
+    "src/services/reportService.js",
+    "src/styles/dining-experience-v2.css",
+    "src/styles/google-oauth-auth-ui.css",
+    "src/styles/ui-refresh.css",
+    "supabase/migrations/Run95_manager_bulk_manual_meal_requests.sql",
+    "tests/run116_requested_features.test.mjs"
+  ],
+  "database_changes": {
+    "new_objects": ["public.manager_create_member_meal_requests(uuid[],date,date,jsonb)"],
+    "tables_changed": false,
+    "columns_changed": false,
+    "existing_functions_replaced": false,
+    "manual_migration_required": true
+  },
+  "production_notes": [
+    "Apply the included SQL migration once before deploying the frontend.",
+    "Bulk manual request batch is atomic and capped at 200 active members.",
+    "The full baseline suite already had 21 failing tests; the same 21 remained after this patch."
+  ]
+}
