@@ -1,34 +1,34 @@
 {
-  "patch": "Run117",
-  "name": "Member Final Meal & Manual Request Safety Patch",
-  "authoritative_base": "Hostel Life(2).zip + successfully applied Run116 patch",
-  "incremental_only": true,
-  "changed_files": [
+  "patch": "Run118 — Person-based Final Meal Display Fix",
+  "baseline": "Hostel Life(2).zip + accepted Run116 + Run117 changes",
+  "purpose": "Fix empty 0-day list in the member-based Final Meal editor for an open-ended running period.",
+  "database_migration_required": false,
+  "changed_runtime_files": [
     "src/features/dining/DiningPage.jsx",
-    "src/services/diningService.js",
-    "src/styles/dining-experience-v2.css",
-    "src/utils/mealRequestPolicy.js",
-    "supabase/migrations/Run96_member_final_meal_and_manual_request_conflicts.sql",
-    "tests/run116_requested_features.test.mjs",
-    "tests/run117_member_final_meal_and_manual_request_safety.test.mjs"
+    "src/utils/period.js"
   ],
-  "database_migration": "supabase/migrations/Run96_member_final_meal_and_manual_request_conflicts.sql",
-  "database_scope": [
-    "three narrowly scoped RPCs only",
-    "no table/column/index/trigger changes",
-    "no RLS policy changes",
-    "no meal calculation or existing request history changes"
+  "test_files": [
+    "tests/run118_member_final_meal_open_period.test.mjs"
   ],
-  "requires_migration_before_frontend": true,
-  "validation": {
-    "targeted_tests": "24/24 passed",
-    "full_suite_baseline": "1206 passed / 21 failed / 1227 total",
-    "full_suite_after_patch": "1210 passed / 21 failed / 1231 total",
-    "existing_failure_set_unchanged": true,
-    "stylesheet_integrity": "passed",
-    "javascript_syntax": "passed",
-    "jsx_syntax": "passed with TypeScript parser",
-    "production_build": "not run; node_modules absent",
-    "live_migration": "not applied to production database"
+  "out_of_scope_untouched": [
+    "database schema and migrations",
+    "RPC definitions",
+    "RLS and permissions",
+    "audit writer",
+    "manual meal requests",
+    "stylesheets",
+    "authentication",
+    "reports/PDF",
+    "all unrelated UI"
+  ],
+  "verification": {
+    "targeted_tests": "5/5 passed",
+    "existing_run116_run117_target_tests": "21/21 passed",
+    "full_suite_baseline": "1206 passed, 21 failed (1227 total)",
+    "full_suite_after_patch": "1215 passed, 21 failed (1236 total)",
+    "pre_existing_failures_unchanged": true,
+    "stylesheet_integrity": "PASS",
+    "period_utility_node_syntax": "PASS",
+    "production_build": "Not run in this environment"
   }
 }

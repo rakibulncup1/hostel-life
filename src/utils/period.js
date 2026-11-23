@@ -102,3 +102,20 @@ export function reconcileManagementContextWithPeriod(
     period: null,
   };
 }
+
+/**
+ * Resolve the visible end date for the running-period member Final Meal view.
+ * Running periods intentionally normalize their far-future database sentinel
+ * to `null`; in that case the member calendar should show dates through today
+ * (Bangladesh local date supplied by the caller), not an empty range.
+ * Explicit finite period end dates remain authoritative.
+ */
+export function resolveMemberFinalMealEndDate(period, currentDhakaDate) {
+  const configuredEnd = String(period?.end_date || '').slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(configuredEnd) && configuredEnd < '9999-01-01') {
+    return configuredEnd;
+  }
+
+  const today = String(currentDhakaDate || '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(today) ? today : null;
+}

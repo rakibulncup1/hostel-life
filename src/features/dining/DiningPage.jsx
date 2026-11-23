@@ -41,6 +41,7 @@ import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
 import { getFriendlySupabaseError } from '../../utils/supabaseErrors';
 import { getPeriodAwareError, getPeriodStartNotice } from '../../utils/periodMessaging';
+import { resolveMemberFinalMealEndDate } from '../../utils/period';
 import { canSubmitMealDay, getMealDayStatusText, isDhakaFinalizationDue } from '../../utils/mealPolicy';
 import { findActiveMealRequestForDate, getLateMealRequestTargetDate, isNormalMealRequestWindowOpen, isManualNormalRequestCutoffClosedForRange, isCorrectionDayEligible, canDirectEditMealDate } from '../../utils/mealRequestPolicy';
 import { getDhakaDateTimeParts } from '../../utils/monthLifecyclePolicy';
@@ -1384,7 +1385,12 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
 
   const loadMemberMonth = useCallback(async () => {
     const activePeriod = period || await fetchRunningPeriod();
-    if (!activePeriod?.start_date || !activePeriod?.end_date || !selectedMember) {
+    const monthStartDate = String(activePeriod?.start_date || '').slice(0, 10);
+    // Running periods intentionally expose end_date=null after their internal
+    // far-future sentinel is normalized. Use today's Bangladesh date so the
+    // person-based calendar still includes every day elapsed in the live month.
+    const monthEndDate = resolveMemberFinalMealEndDate(activePeriod, todayValue());
+    if (!monthStartDate || !monthEndDate || !selectedMember) {
       return { activePeriod: activePeriod || null, rows: [] };
     }
     if (!period && activePeriod) setPeriod(activePeriod);
@@ -1392,14 +1398,14 @@ function ManagerMealEntry({ members, onSaved, canManageFinalMeals = false }) {
     const { days, records } = await fetchMemberFinalMealMonthData({
       memberId: selectedMember,
       periodId,
-      startDate: String(activePeriod.start_date).slice(0, 10),
-      endDate: String(activePeriod.end_date).slice(0, 10),
+      startDate: monthStartDate,
+      endDate: monthEndDate,
     });
     const dayByDate = new Map(days.map((day) => [String(day.meal_date).slice(0, 10), day]));
     const recordByDay = new Map(records.map((record) => [record.daily_meal_day_id, record]));
     const calendarDays = buildDateRange(
-      String(activePeriod.start_date).slice(0, 10),
-      String(activePeriod.end_date).slice(0, 10),
+      monthStartDate,
+      monthEndDate,
       { breakfast: 0, lunch: 0, dinner: 0 },
     );
     const rows = calendarDays.map((calendarDay) => {
