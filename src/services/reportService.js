@@ -5,6 +5,7 @@ import { normalizeLedgerRow } from '../utils/accounting';
 import { formatDateWithWeekday } from '../utils/date';
 import { formatCurrency, formatNumber } from '../utils/number';
 import { getUiLocale } from '../i18n/locale.js';
+import { compareMembersByOrder } from '../utils/memberOrdering';
 
 function translateReportUi(value) {
   const text = String(value ?? '');
@@ -156,6 +157,7 @@ export function buildMemberSettlementRows(members = []) {
   return (Array.isArray(members) ? members : []).map((member) => ({
     key: member.membership_id,
     membershipId: member.membership_id,
+    member_order: member.member_order ?? null,
     name: member.member_name || 'অজানা সদস্য',
     status: member.member_status || 'active',
     role: member.role || 'member',
@@ -165,11 +167,7 @@ export function buildMemberSettlementRows(members = []) {
     mealCost: toFiniteNumber(member.meal_cost),
     otherExpense: toFiniteNumber(member.other_expense),
     balance: toFiniteNumber(member.balance),
-  })).sort((a, b) => {
-    const statusOrder = (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1);
-    if (statusOrder) return statusOrder;
-    return a.name.localeCompare(b.name, 'bn');
-  });
+  })).sort(compareMembersByOrder);
 }
 
 export function buildDailyMealRows(days = [], mealRows = []) {
@@ -591,13 +589,15 @@ export function printArchivedMonthlyReport(detail, existingWindow = null, metada
   const money = (value) => esc(formatCurrency(value));
   const date = (value) => esc(value ? formatDateWithWeekday(value) : '—');
   const members = detail.members.map((member) => ({
+    membershipId: member.membership_id || member.member_id,
+    member_order: member.member_order ?? null,
     name: member.member_name || member.name || 'সদস্য',
     deposit: toFiniteNumber(member.deposit),
     meals: toFiniteNumber(member.final_meals ?? member.meals),
     mealCost: toFiniteNumber(member.meal_cost),
     otherExpense: toFiniteNumber(member.other_expense),
     balance: toFiniteNumber(member.balance),
-  }));
+  })).sort(compareMembersByOrder);
   const activeMarkets = detail.markets.filter((row) => row.status !== 'void');
   const totalMarket = toFiniteNumber(detail.total_market_expense)
     || activeMarkets.reduce((sum, row) => sum + toFiniteNumber(row.total ?? row.total_amount), 0);
@@ -635,10 +635,11 @@ export function printArchivedMonthlyReport(detail, existingWindow = null, metada
   ], marketRows).replace('</tbody></table>', `</tbody><tfoot><tr><th colspan="2">মোট কার্যকর বাজার</th><th>${money(totalMarket)}</th><th>${formatNumber(activeMarkets.reduce((sum, row) => sum + (Array.isArray(row.items) ? row.items.length : 0), 0))} ${translateReportUi('আইটেম')}</th><th></th></tr></tfoot></table>`);
   const depositRows = detail.ledger.filter((row) => ['deposit', 'market_deposit'].includes(row.ledger_type || row.transaction_type)
     && row.status !== 'void' && toFiniteNumber(row.amount) > 0);
+  const archivedMemberOrder = new Map(members.map((member) => [String(member.membershipId || ''), member.member_order]));
   const depositGroupsMap = new Map();
   for (const row of depositRows) {
     const key = row.member_id || row.member_name || 'unknown';
-    if (!depositGroupsMap.has(key)) depositGroupsMap.set(key, { name: row.member_name || 'সদস্য', entries: [], total: 0 });
+    if (!depositGroupsMap.has(key)) depositGroupsMap.set(key, { name: row.member_name || 'সদস্য', member_order: archivedMemberOrder.get(String(row.member_id || '')) ?? null, entries: [], total: 0 });
     const group = depositGroupsMap.get(key);
     group.entries.push(row);
     group.total += toFiniteNumber(row.amount);
@@ -646,7 +647,7 @@ export function printArchivedMonthlyReport(detail, existingWindow = null, metada
   const depositGroups = [...depositGroupsMap.values()].map((group) => ({
     ...group,
     entries: group.entries.sort((a, b) => String(a.entry_date || '').localeCompare(String(b.entry_date || ''))),
-  })).sort((a, b) => a.name.localeCompare(b.name, 'bn'));
+  })).sort(compareMembersByOrder);
   const maxDeposits = Math.max(1, ...depositGroups.map((group) => group.entries.length));
   const depositHead = `<th>${translateReportUi('সদস্যের নাম')}</th>${Array.from({ length: maxDeposits }, (_, index) => `<th>${translateReportUi('জমা')} ${formatNumber(index + 1, { maximumFractionDigits: 0 })}</th>`).join('')}<th>${translateReportUi('মোট জমা')}</th>`;
   const depositBody = depositGroups.map((group) => `<tr><td>${esc(group.name)}</td>${Array.from({ length: maxDeposits }, (_, index) => {
@@ -706,7 +707,7 @@ export async function fetchRunningPeriodReport() {
   const [{ data: days, error: daysError }, { data: records, error: recordsError }, members] = await Promise.all([
     supabase.from('daily_meal_days').select('id,meal_date,status,cutoff_at,finalized_at').eq('period_id', periodId).order('meal_date'),
     supabase.from('daily_meal_records').select('daily_meal_day_id,member_id,actual_breakfast,actual_lunch,actual_dinner,final_breakfast,final_lunch,final_dinner,cancelled').eq('period_id', periodId),
-    fetchMemberDirectory(),
+    fetchMemberDirectory({ force: true }),
   ]);
   if (daysError) throw daysError;
   if (recordsError) throw recordsError;

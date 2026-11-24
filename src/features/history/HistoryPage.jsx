@@ -190,7 +190,7 @@ export function HistoryPage() {
       if (tab === 'market') {
         const [marketResult, memberResult] = await Promise.allSettled([
           fetchMarketHistory({ periodId, limit: 500 }),
-          fetchMemberDirectory(),
+          fetchMemberDirectory({ force: true }),
         ]);
         if (marketResult.status === 'rejected') throw marketResult.reason;
         setMarketRows(Array.isArray(marketResult.value) ? marketResult.value : []);
@@ -202,7 +202,7 @@ export function HistoryPage() {
         const memberId = accountFilter || null;
         const accounts = await fetchAccountHistory({ periodId, memberId, limit: 500 });
         setAccountRows(accounts);
-        try { setMembers(await fetchMemberDirectory()); }
+        try { setMembers(await fetchMemberDirectory({ force: true })); }
         catch (memberError) { console.warn('Account member filter unavailable:', memberError); }
       }
     } catch (error) {

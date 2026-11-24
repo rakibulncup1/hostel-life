@@ -4684,3 +4684,33 @@ button.platform-monitor-country:hover{border-color:var(--primary);background:var
 @media (min-width: 1900px) {
   .app-main { width: min(100% - 72px, 2240px); }
 }
+
+
+/* Run119 — compact member ordering controls in Mess Settings. */
+.member-order-settings-card { display: grid; gap: 14px; }
+.member-order-settings-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.member-order-settings-heading > div { display: grid; gap: 4px; min-width: 0; }
+.member-order-settings-heading h2 { margin: 0; }
+.member-order-settings-heading p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.member-order-count { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.member-order-list { display: grid; gap: 7px; min-width: 0; }
+.member-order-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+.member-order-index { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid color-mix(in srgb, var(--primary) 26%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--primary) 8%, var(--surface)); color: var(--primary); font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.member-order-copy { display: grid; gap: 3px; min-width: 0; }
+.member-order-copy strong { color: var(--text); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.member-order-copy small { color: var(--muted); font-size: 10px; line-height: 1.35; }
+.member-order-actions { display: flex; align-items: center; gap: 5px; }
+.member-order-actions .icon-button { display: grid; width: 32px; height: 32px; min-width: 32px; place-items: center; padding: 0; }
+.member-order-actions .icon-button:disabled { opacity: .35; cursor: not-allowed; }
+.member-order-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 9px; padding-top: 11px; border-top: 1px solid var(--line); }
+.member-order-footer > small { color: var(--muted); font-size: 10px; line-height: 1.5; }
+.member-order-footer > .primary-button { min-width: 190px; }
+@media (max-width: 520px) {
+  .member-order-settings-heading { align-items: flex-start; }
+  .member-order-row { grid-template-columns: 34px minmax(0, 1fr) auto; gap: 7px; padding: 8px; }
+  .member-order-index { width: 31px; height: 31px; }
+  .member-order-actions { gap: 3px; }
+  .member-order-actions .icon-button { width: 30px; height: 30px; min-width: 30px; }
+  .member-order-footer { align-items: stretch; flex-direction: column; }
+  .member-order-footer > .primary-button { width: 100%; min-width: 0; }
+}

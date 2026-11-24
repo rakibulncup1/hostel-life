@@ -2788,7 +2788,7 @@ export function DiningPage() {
     } catch { /* Route state remains functional when history APIs are unavailable. */ }
   }, [view]);
 
-  const loadMembers = useCallback(async ({ quiet = false } = {}) => {
+  const loadMembers = useCallback(async ({ quiet = false, force = false } = {}) => {
     if (!quiet) setLoadingMembers(true);
     setMemberDirectoryError(null);
     setPeriodLoadError(null);
@@ -2797,7 +2797,7 @@ export function DiningPage() {
     // hide a valid running period (which previously disabled the market form as well).
     try {
       const [membersResult, periodResult] = await Promise.allSettled([
-        canOperateDining ? fetchManagerMemberDirectory() : Promise.resolve([]),
+        canOperateDining ? fetchManagerMemberDirectory({ force }) : Promise.resolve([]),
         fetchRunningPeriod(),
       ]);
 
@@ -2835,7 +2835,7 @@ export function DiningPage() {
     enabled: isOnline,
     hostelId: membership?.hostel_id,
     tables: ['meal_requests', 'market_entries', 'khala_money_entries', 'monthly_periods', 'hostel_memberships'],
-    onRefresh: () => loadMembers({ quiet: true }),
+    onRefresh: () => loadMembers({ quiet: true, force: true }),
   });
 
   if (!isOnline) return <OfflineState description="ডাইনিং-এর সব কাজ online-এ চলবে। ডাটা/ওয়াই‑ফাই চালু করে আবার চেষ্টা করুন।" />;

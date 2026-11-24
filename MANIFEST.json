@@ -1,34 +1,24 @@
 {
-  "patch": "Run118 — Person-based Final Meal Display Fix",
-  "baseline": "Hostel Life(2).zip + accepted Run116 + Run117 changes",
-  "purpose": "Fix empty 0-day list in the member-based Final Meal editor for an open-ended running period.",
-  "database_migration_required": false,
-  "changed_runtime_files": [
+  "patch": "Run119",
+  "baseline": "Hostel Life(2).zip + Run116 + Run117 + Run118",
+  "description": "Mobile person-based final meal layout, persistent member ordering, Google Identity Services library warm-up",
+  "files": [
+    "src/features/auth/AuthPage.jsx",
+    "src/features/dashboard/DashboardPage.jsx",
     "src/features/dining/DiningPage.jsx",
-    "src/utils/period.js"
+    "src/features/history/HistoryPage.jsx",
+    "src/features/manager/ManagerPages.jsx",
+    "src/features/menu/MenuPages.jsx",
+    "src/services/diningService.js",
+    "src/services/managerService.js",
+    "src/services/reportService.js",
+    "src/styles/dining-experience-v2.css",
+    "src/styles/ui-refresh.css",
+    "src/utils/memberOrdering.js",
+    "supabase/migrations/Run97_member_order_manager_settings.sql",
+    "tests/run119_member_order_and_mobile_meal_layout.test.mjs"
   ],
-  "test_files": [
-    "tests/run118_member_final_meal_open_period.test.mjs"
-  ],
-  "out_of_scope_untouched": [
-    "database schema and migrations",
-    "RPC definitions",
-    "RLS and permissions",
-    "audit writer",
-    "manual meal requests",
-    "stylesheets",
-    "authentication",
-    "reports/PDF",
-    "all unrelated UI"
-  ],
-  "verification": {
-    "targeted_tests": "5/5 passed",
-    "existing_run116_run117_target_tests": "21/21 passed",
-    "full_suite_baseline": "1206 passed, 21 failed (1227 total)",
-    "full_suite_after_patch": "1215 passed, 21 failed (1236 total)",
-    "pre_existing_failures_unchanged": true,
-    "stylesheet_integrity": "PASS",
-    "period_utility_node_syntax": "PASS",
-    "production_build": "Not run in this environment"
-  }
+  "migration_required": "supabase/migrations/Run97_member_order_manager_settings.sql",
+  "unrelated_files_modified": false,
+  "ranking_views_changed": false
 }

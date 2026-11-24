@@ -147,6 +147,17 @@ function GoogleSignInButton({ mode = 'login', fullName = '', phone = '', disable
     };
   }, []);
 
+  // Warm only Google's public button library while the auth page is idle.
+  // OAuth nonce preparation, GIS initialization and the actual sign-in flow remain
+  // strictly gated by the user's explicit consent in the effect below.
+  useEffect(() => {
+    if (disabled || !navigator.onLine) return undefined;
+    loadGoogleIdentityServices(english ? 'en' : 'bn').catch(() => {
+      // The post-consent path retries and reports a user-facing error if needed.
+    });
+    return undefined;
+  }, [disabled, english]);
+
   renderButtonRef.current = () => {
     const googleId = window.google?.accounts?.id;
     const host = hostRef.current;

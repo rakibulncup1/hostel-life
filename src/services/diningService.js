@@ -30,8 +30,8 @@ export async function fetchMemberDirectory({ force = false } = {}) {
   }, { ttlMs: 60000, force });
 }
 
-export async function fetchManagerMemberDirectory() {
-  return fetchMemberDirectory();
+export async function fetchManagerMemberDirectory(options = {}) {
+  return fetchMemberDirectory(options);
 }
 
 export async function fetchMyMealRequests(limit = 100, { force = false } = {}) {

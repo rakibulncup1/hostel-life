@@ -53,14 +53,14 @@ export function AllMembersPage() {
   const [requestedMemberId] = useState(() => new URLSearchParams(window.location.search).get('member_id') || '');
   const loadInFlightRef = useRef(null);
 
-  const load = useCallback(async ({ silent = false } = {}) => {
+  const load = useCallback(async ({ silent = false, force = false } = {}) => {
     if (!online || !navigator.onLine || document.visibilityState !== 'visible' || !document.hasFocus()) return null;
     if (loadInFlightRef.current) return loadInFlightRef.current;
 
     const task = (async () => {
       if (!silent) setLoading(true);
       try {
-        const [directoryResult, periodResult] = await Promise.allSettled([fetchMemberDirectory(), fetchRunningPeriod()]);
+        const [directoryResult, periodResult] = await Promise.allSettled([fetchMemberDirectory({ force }), fetchRunningPeriod()]);
         if (directoryResult.status === 'rejected') throw directoryResult.reason;
         setMembers(Array.isArray(directoryResult.value) ? directoryResult.value : []);
         if (periodResult.status === 'fulfilled') {
@@ -88,7 +88,7 @@ export function AllMembersPage() {
     enabled: online,
     hostelId: membership?.hostel_id,
     tables: ['hostel_memberships'],
-    onRefresh: () => load({ silent: true }),
+    onRefresh: () => load({ silent: true, force: true }),
   });
 
   useEffect(() => {

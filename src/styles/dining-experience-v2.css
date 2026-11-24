@@ -891,3 +891,98 @@
   .manager-entry-view-switcher > button { min-height: 39px; padding-inline: 7px; font-size: 12px; }
   .member-final-day-card { padding: 10px; }
 }
+
+
+
+/* Run119: person-based final-meal cards stay readable at narrow mobile widths.
+   Each meal gets its own full-width row so Bengali labels never split vertically. */
+@media (max-width: 760px) {
+  .dining-experience .manager-meal-grid.member-final-day-meals,
+  .dining-stack .manager-meal-grid.member-final-day-meals {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-flow: row !important;
+    gap: 7px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .dining-experience .manager-meal-grid.member-final-day-meals > div,
+  .dining-stack .manager-meal-grid.member-final-day-meals > div {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper-row,
+  .dining-stack .member-final-day-meals .meal-stepper-row {
+    display: grid !important;
+    grid-template-columns: minmax(104px, 1fr) minmax(0, 1.1fr) !important;
+    align-items: center !important;
+    justify-content: initial !important;
+    gap: 10px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 8px 10px !important;
+    box-sizing: border-box !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper-row > span,
+  .dining-stack .member-final-day-meals .meal-stepper-row > span {
+    display: block !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    overflow: visible !important;
+    text-align: left !important;
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper,
+  .dining-stack .member-final-day-meals .meal-stepper {
+    display: grid !important;
+    grid-template-columns: 32px minmax(28px, 38px) 32px !important;
+    align-items: center !important;
+    justify-content: end !important;
+    justify-self: end !important;
+    gap: 5px !important;
+    width: max-content !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper button,
+  .dining-stack .member-final-day-meals .meal-stepper button {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper strong,
+  .dining-stack .member-final-day-meals .meal-stepper strong {
+    min-width: 28px !important;
+    text-align: center !important;
+    font-variant-numeric: tabular-nums;
+  }
+}
+@media (max-width: 380px) {
+  .dining-experience .member-final-day-meals .meal-stepper-row,
+  .dining-stack .member-final-day-meals .meal-stepper-row {
+    grid-template-columns: minmax(92px, .9fr) minmax(0, 1fr) !important;
+    gap: 6px !important;
+    padding-inline: 7px !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper,
+  .dining-stack .member-final-day-meals .meal-stepper {
+    grid-template-columns: 29px minmax(25px, 32px) 29px !important;
+    gap: 4px !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper button,
+  .dining-stack .member-final-day-meals .meal-stepper button {
+    width: 29px !important;
+    height: 29px !important;
+    min-width: 29px !important;
+  }
+}

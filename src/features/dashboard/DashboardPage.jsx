@@ -698,6 +698,7 @@ function LateRequestDetailsModal({ date, rows, totals, onClose }) {
 function mapDirectoryMember(row, hasRunningPeriod = true) {
   return {
     membership_id: row.membership_id,
+    member_order: row.member_order ?? null,
     name: row.member_name || 'সদস্য',
     avatar_url: row.avatar_url || row.photo_url || row.profile_photo_url || null,
     phone: row.phone || row.phone_number || row.mobile || '',
@@ -1066,7 +1067,7 @@ export function DashboardPage() {
     minRefreshIntervalMs: 30000,
     immediateTables: ['monthly_periods'],
     hostelId,
-    tables: ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests', 'market_entries', 'ledger_transactions', 'khala_money_entries', 'monthly_periods'],
+    tables: ['meal_late_overrides', 'daily_meal_snapshots', 'meal_requests', 'market_entries', 'ledger_transactions', 'khala_money_entries', 'monthly_periods', 'hostel_memberships'],
     onRefresh: ({ tables = [], reason = 'realtime' } = {}) => {
       const isDatabaseChange = reason === 'realtime';
       const mealDataChanged = isDatabaseChange
@@ -1076,6 +1077,7 @@ export function DashboardPage() {
       if (isDatabaseChange) {
         invalidateRequestCache('dashboard:data');
         if (tables.includes('monthly_periods')) invalidateRequestCache('dining:runningPeriod');
+        if (tables.includes('hostel_memberships')) invalidateRequestCache('dining:memberDirectory');
         if (mealDataChanged) invalidateRequestCache('dashboard:offlineMealBundle', 'dashboard:upcoming-seven:');
       }
       return loadDashboard(true, {

@@ -1,36 +1,45 @@
-# Run118 — ব্যক্তি-ভিত্তিক Final Meal: চলমান মাসের দিন দেখানোর সংশোধন
+# Hostel Life — Run119 Patch (বাংলা নির্দেশনা)
 
-## কেন ০ দিন দেখাচ্ছিল
+এই Incremental Patch টি Run118-সমন্বিত Hostel Life প্রজেক্টের ওপর তৈরি। সম্পূর্ণ প্রজেক্ট ZIP নয়।
 
-চলমান মাসের `end_date` Database-এর far-future sentinel গোপন করার জন্য অ্যাপের period normalizer ইচ্ছাকৃতভাবে `null` করে। কিন্তু ব্যক্তি-ভিত্তিক Final Meal loader `end_date` না থাকলে খালি তালিকা ফেরত দিচ্ছিল। তাই মাসে দিন ও রেকর্ড থাকা সত্ত্বেও UI-তে `০ দিন` দেখা যাচ্ছিল।
+## এই প্যাচে যা আছে
 
-## কী পরিবর্তন হয়েছে
+1. Final Meal Correction-এর ব্যক্তি-ভিত্তিক ভিউতে মোবাইল স্ক্রিনে Breakfast, Lunch ও Dinner আলাদা সারিতে দেখানোর responsive layout। লেবেল ভেঙে উল্লম্বভাবে না গিয়ে Plus/Minus controls কার্ডের ভেতরে থাকবে।
+2. মেস সেটিংসের মধ্যে `সদস্যের ক্রম` সেটিং। ম্যানেজার ও চলমান period-এ অনুমোদিত সহকারী ম্যানেজার সদস্যদের ক্রম উপরে/নিচে সরিয়ে Database-এ সংরক্ষণ করতে পারবেন।
+3. সংরক্ষিত ক্রম Dashboard-এর সদস্য তালিকা, সদস্য নির্বাচন/ডিরেক্টরি, Final Meal ও Manual Meal-এর সদস্য তালিকা এবং সাধারণ Live/Archived রিপোর্টে ব্যবহার হবে। Ranking views (যেমন সর্বোচ্চ Deposit বা Meal) এই ক্রম ব্যবহার করবে না।
+4. Google Identity Services-এর Public Button Library আগে থেকে লোড হবে যাতে সম্মতির পর অপেক্ষা কম হয়। OAuth preparation, nonce, GIS initialize ও sign-in callback এখনও স্পষ্ট সম্মতির পরেই শুরু হবে।
 
-- চলমান period-এর `end_date` null হলে Bangladesh time zone অনুযায়ী আজকের তারিখকে calendar-এর end date হিসেবে ব্যবহার করা হবে।
-- Period-এ বৈধ নির্দিষ্ট end date থাকলে সেটি আগের মতোই ব্যবহার হবে।
-- ওই start/end range দিয়েই existing manager-scoped `manager_get_member_final_meal_month` RPC এবং `daily_meal_days` read চলবে।
-- প্রতিদিনের Breakfast/Lunch/Dinner-এর existing final → actual → planned priority অক্ষত।
-- প্রতিদিনের existing `hl_get_final_meal_audit` log button/flow অপরিবর্তিত।
-- কোনো SQL Migration প্রয়োজন নেই; Run96 RPC আগেই প্রয়োগ করা থাকলেই হবে।
+## গুরুত্বপূর্ণ গোপনীয়তা নোট — Google preload
 
-## প্রয়োগ
+Google-এর public `gsi/client` script Auth page-এ অবস্থানকালে preload হয়। ফলে সম্মতির আগেই ব্রাউজার Google-এর সাথে সাধারণ script request করতে পারে এবং সেই request-এর স্বাভাবিক network metadata Google দেখতে পারে। তবে OAuth nonce তৈরি, sign-in initialize, popup বা credential পাঠানো সম্মতির আগ পর্যন্ত শুরু হয় না। এ ধরনের public third-party request-ও সম্মতির আগে সম্পূর্ণ বন্ধ রাখতে চাইলে preload effect সরাতে হবে, তবে তখন সম্মতির পর Google button তৈরি হতে বেশি সময় লাগতে পারে।
 
-এই প্যাচটি Run117-এর ওপর তৈরি। বর্তমান Run117-সমন্বিত প্রজেক্টে ZIP Extract করে একই Path অনুযায়ী নিচের ফাইল Replace করুন:
+## প্রয়োগের ক্রম
 
-- `src/features/dining/DiningPage.jsx`
-- `src/utils/period.js`
-
-`tests/run118_member_final_meal_open_period.test.mjs` শুধু Regression Test-এর জন্য।
-
-## যাচাই
-
-প্রজেক্ট Root থেকে:
+1. Run118-সমন্বিত বর্তমান প্রজেক্ট ও Supabase Database-এর backup নিন।
+2. Supabase SQL Editor-এ `supabase/migrations/Run97_member_order_manager_settings.sql` ফাইলটি একবার চালান। এটি `hostel_memberships.member_order` কলাম, check constraint, index, member-directory/archive-detail RPC update এবং manager-only order-save RPC যোগ/পরিবর্তন করে। SQL transaction-এ আবদ্ধ।
+3. Migration সফল হলে ZIP Extract করে প্রজেক্ট Root-এ একই path অনুযায়ী ফাইলগুলো Replace/Add করুন।
+4. `npm ci` চালিয়ে dependency install করুন।
+5. পরীক্ষা চালান:
 
 ```powershell
-node --test tests/run118_member_final_meal_open_period.test.mjs
+node --test tests/run119_member_order_and_mobile_meal_layout.test.mjs
 npm run verify:styles
 npm test
 npm run build
 ```
 
-এই প্যাচে নতুন SQL Migration নেই। Database, RPC, RLS, audit writer, request logic, CSS, About page, Auth, PDF বা অন্য কোনো feature পরিবর্তন করা হয়নি।
+6. Local app-এ মোবাইল Final Meal card, Manager/Assistant Manager role-এ Member Order setting, Dashboard, সাধারণ report, Manual/Final Meal-এর Everyone list এবং Google consent/sign-in পরীক্ষা করুন। সব ঠিক থাকলে staging/production-এ deploy করুন।
+
+## Database আচরণ ও সীমা
+
+- Migration কোনো আর্থিক amount, meal record, ledger entry, request বা audit row পরিবর্তন করে না।
+- Ranking query/service পরিবর্তিত হয়নি।
+- `member_order` মেসভিত্তিক এবং সদস্যের membership row-তে সংরক্ষিত হয়।
+- Migration-এর সময় বিদ্যমান সক্রিয়/নিষ্ক্রিয়, non-blocked সদস্যদের প্রাথমিক ক্রম বর্তমান alphabetical order অনুসারে বসবে। এরপর ম্যানেজার চাইলে নতুন ক্রম সেট করবেন।
+- নতুন সদস্যের order প্রথমে NULL থাকবে; তালিকায় সংরক্ষিত সদস্যদের পরে নামের ক্রমে দেখাবে, যতক্ষণ না ম্যানেজার নতুন সম্পূর্ণ ক্রম সংরক্ষণ করেন।
+- `manager_save_hostel_member_order` সম্পূর্ণ মেসের বর্তমান eligible membership ID list চায়; তালিকা পরিবর্তিত/অসম্পূর্ণ হলে save প্রত্যাখ্যান করে।
+- Manager/Assistant Manager access backend authorization helper দিয়েও যাচাই করা হয়; শুধু UI guard-এর ওপর নির্ভর করা হয়নি।
+
+## পরীক্ষার সীমাবদ্ধতা
+
+প্যাচ প্রস্তুতের পরিবেশে `node_modules` অনুপস্থিত থাকায় পূর্ণ Vite Production Build করা যায়নি। SQL migration কোনো live Production Supabase Database-এ চালানো হয়নি। Production-এ প্রয়োগের আগে Backup ও staging/local যাচাই বাধ্যতামূলক।

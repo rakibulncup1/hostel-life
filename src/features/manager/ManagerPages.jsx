@@ -23,6 +23,7 @@ import {
   reopenArchivedPeriod,
   regenerateJoinCode,
   saveManagerMyMeal,
+  saveHostelMemberOrder,
   setPeriodAssistants,
   startNewMonth,
   updateHostel,
@@ -32,7 +33,7 @@ import {
 } from '../../services/managerService';
 import { fetchKhalaMoneyHistory, fetchPreviousMonths, fetchArchivedMonthDetail } from '../../services/historyService';
 import { buildDailyMealRows, buildMemberSettlementRows, calculateMealTotals, fetchCurrentReportBundle, getActiveMarketRows, getVoidMarketRows, printReport } from '../../services/reportService';
-import { fetchManagerMemberDirectory, fetchMonthClosePreflight } from '../../services/diningService';
+import { fetchManagerMemberDirectory, fetchMemberDirectory, fetchMonthClosePreflight } from '../../services/diningService';
 import { formatDateBangla, formatDateWithWeekday, toDateInputValue } from '../../utils/date';
 import { formatCurrency, formatNumber } from '../../utils/number';
 import { formatDateTime12 } from '../../utils/time';
@@ -47,6 +48,7 @@ import {
 import { deriveNextRequiredStartDate, dhakaDateInputValue } from '../../utils/monthStart';
 import { canActivateNextPeriod, getDhakaDateTimeParts, getMemberDeactivationImpact, getNextPeriodActivationMessage } from '../../utils/monthLifecyclePolicy';
 import { getUiLocale } from '../../i18n/locale.js';
+import { compareMembersByOrder, hasMemberOrderChanged, moveMemberWithinOrder, sortMembersByOrder } from '../../utils/memberOrdering';
 
 
 function FeatureStateNotice({ title, text, icon = 'info', children }) {
@@ -471,7 +473,7 @@ export function ChangeManagerPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setMembers(await fetchManagerMemberDirectory()); }
+    try { setMembers(await fetchManagerMemberDirectory({ force: true })); }
     catch (error) { toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।')); }
     finally { setLoading(false); }
   }, [toast]);
@@ -531,10 +533,10 @@ export function AssistantManagersPage() {
     setLoading(true);
     try {
       const [memberRows, assistantRows] = await Promise.all([
-        fetchManagerMemberDirectory(),
+        fetchManagerMemberDirectory({ force: true }),
         fetchPeriodAssistants(context?.period?.period_id || null),
       ]);
-      setMembers(memberRows.filter((member) => member.member_status === 'active' && member.membership_id !== membership?.membership_id && member.role !== 'manager').sort((a, b) => String(a.member_name || '').localeCompare(String(b.member_name || ''), 'bn')));
+      setMembers(sortMembersByOrder(memberRows.filter((member) => member.member_status === 'active' && member.membership_id !== membership?.membership_id && member.role !== 'manager')));
       setSelected(assistantRows.map((row) => row.membership_id));
     } catch (error) { toast.error(getFriendlySupabaseError(error, 'সহকারী ম্যানেজারের তালিকা লোড করা যায়নি।')); }
     finally { setLoading(false); }
@@ -588,6 +590,96 @@ export function AssistantManagersPage() {
         </section>
       </div>
     </PrimaryManagerGuard>
+  );
+}
+
+
+function MemberOrderSettings() {
+  const toast = useToast();
+  const [members, setMembers] = useState([]);
+  const [savedIds, setSavedIds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const rows = await fetchMemberDirectory({ force: true });
+      const ordered = sortMembersByOrder(rows);
+      setMembers(ordered);
+      setSavedIds(ordered.map((member) => member.membership_id));
+    } catch (error) {
+      setLoadError(getFriendlySupabaseError(error, 'সদস্যের তালিকা লোড করা যায়নি।'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const changed = hasMemberOrderChanged(members, savedIds);
+  const move = (membershipId, direction) => {
+    if (saving) return;
+    setMembers((current) => moveMemberWithinOrder(current, membershipId, direction));
+  };
+
+  const save = async () => {
+    const ids = members.map((member) => member.membership_id);
+    if (!ids.length || !changed || saving) return;
+    setSaving(true);
+    try {
+      await saveHostelMemberOrder(ids);
+      const locallySaved = members.map((member, index) => ({ ...member, member_order: index + 1 }));
+      setMembers(locallySaved);
+      setSavedIds(ids);
+      // Refresh from the authoritative directory after the RPC invalidates its cache.
+      try {
+        const refreshed = await fetchMemberDirectory({ force: true });
+        const ordered = sortMembersByOrder(refreshed);
+        setMembers(ordered);
+        setSavedIds(ordered.map((member) => member.membership_id));
+      } catch { /* The successful database save remains reflected in the local list. */ }
+      toast.success('সদস্যের ক্রম সংরক্ষণ হয়েছে।');
+    } catch (error) {
+      toast.error(getFriendlySupabaseError(error, 'সদস্যের ক্রম সংরক্ষণ করা যায়নি। তালিকা পুনরায় যাচাই করুন।'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="card manager-form-card member-order-settings-card" aria-labelledby="member-order-settings-title">
+      <div className="panel-header member-order-settings-heading">
+        <div><span className="eyebrow">সদস্য ব্যবস্থাপনা</span><h2 id="member-order-settings-title">সদস্যের ক্রম</h2><p>ড্যাশবোর্ড, মিল এন্ট্রি ও সাধারণ রিপোর্টে সদস্যদের প্রদর্শনের ক্রম নির্ধারণ করুন।</p></div>
+        <span className="member-order-count">{formatNumber(members.length)} জন</span>
+      </div>
+      {loading ? <LoadingSpinner label="সদস্যের ক্রম লোড হচ্ছে..." /> : loadError ? (
+        <div className="state-card state-card-warning"><Icon name="warning" size={19}/><div><p>{loadError}</p><button className="secondary-button compact" type="button" onClick={load}>আবার চেষ্টা করুন</button></div></div>
+      ) : !members.length ? (
+        <div className="empty-state-card compact-empty"><Icon name="users" size={22}/><strong>কোনো সদস্য পাওয়া যায়নি।</strong></div>
+      ) : (
+        <>
+          <div className="member-order-list" role="list" aria-label="সদস্য প্রদর্শনের ক্রম">
+            {members.map((member, index) => (
+              <div className="member-order-row" role="listitem" key={member.membership_id}>
+                <span className="member-order-index" aria-label={`ক্রম ${index + 1}`}>{formatNumber(index + 1, { maximumFractionDigits: 0 })}</span>
+                <span className="member-order-copy"><strong>{member.member_name || member.full_name || 'সদস্য'}</strong><small>{member.member_status === 'inactive' ? 'নিষ্ক্রিয়' : 'সক্রিয়'}</small></span>
+                <span className="member-order-actions">
+                  <button className="icon-button" type="button" aria-label={`${member.member_name || 'সদস্য'} এক ধাপ উপরে নিন`} title="উপরে নিন" disabled={saving || index === 0} onClick={() => move(member.membership_id, -1)}><Icon name="chevron-up" size={17}/></button>
+                  <button className="icon-button" type="button" aria-label={`${member.member_name || 'সদস্য'} এক ধাপ নিচে নিন`} title="নিচে নিন" disabled={saving || index === members.length - 1} onClick={() => move(member.membership_id, 1)}><Icon name="chevron-down" size={17}/></button>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="member-order-footer">
+            <span>{changed ? 'পরিবর্তন সংরক্ষণ করা হয়নি।' : 'বর্তমান সদস্যের ক্রম সংরক্ষিত আছে।'}</span>
+            <button className="primary-button" type="button" disabled={!changed || saving || loading} onClick={save}>{saving ? 'সংরক্ষণ হচ্ছে...' : 'সদস্যের ক্রম সংরক্ষণ করুন'}</button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -712,6 +804,7 @@ export function HostelSettingsPage() {
             {mealModesBusy ? 'সংরক্ষণ হচ্ছে...' : 'মিল গণনার পদ্ধতি সংরক্ষণ করুন'}
           </button>
         </section>
+        <MemberOrderSettings />
         <section className="card manager-form-card">
           <div className="panel-header"><div><span className="eyebrow">যুক্ত হওয়ার কোড</span><h2>মেসে সদস্য যুক্ত করার কোড</h2><p>নতুন কোড তৈরি করলে আগের কোডটি বাতিল হবে।</p></div></div>
           <div className="join-code-display"><strong>{joinCode || '—'}</strong><button className="secondary-button compact" type="button" onClick={async () => { try { await copyText(joinCode); toast.success('যুক্ত হওয়ার কোড কপি হয়েছে।'); } catch { toast.warning('কপি করা যায়নি।'); } }}>কপি</button></div>
@@ -844,7 +937,7 @@ export function MemberManagementPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setMembers(await fetchManagerMemberDirectory()); }
+    try { setMembers(await fetchManagerMemberDirectory({ force: true })); }
     catch (error) { toast.error(getFriendlySupabaseError(error, 'সদস্য তালিকা লোড করা যায়নি।')); }
     finally { setLoading(false); }
   }, [toast]);
@@ -1421,10 +1514,11 @@ export function ReportsPage() {
   ], marketRows);
   const marketTableWithTotal = marketTable.replace('</tbody></table>', `</tbody><tfoot><tr><th colspan="2">মোট কার্যকর বাজার</th><th>${money(totalMarket)}</th><th>${formatNumber(activeMarkets.reduce((sum, row) => sum + (Array.isArray(row.items) ? row.items.length : 0), 0))} আইটেম</th><th></th></tr></tfoot></table>`);
 
+  const liveMemberOrder = new Map(members.map((member) => [String(member.membershipId || ''), member.member_order]));
   const depositsByMember = new Map();
   for (const row of depositRows) {
     const key = row.member_id || row.member_name || 'unknown';
-    if (!depositsByMember.has(key)) depositsByMember.set(key, { name: row.member_name || 'সদস্য', entries: [], total: 0 });
+    if (!depositsByMember.has(key)) depositsByMember.set(key, { name: row.member_name || 'সদস্য', member_order: liveMemberOrder.get(String(row.member_id || '')) ?? null, entries: [], total: 0 });
     const group = depositsByMember.get(key);
     group.entries.push(row);
     group.total += Number(row.amount || 0);
@@ -1432,7 +1526,7 @@ export function ReportsPage() {
   const depositGroups = [...depositsByMember.values()].map((group) => ({
     ...group,
     entries: group.entries.sort((a, b) => String(a.entry_date || '').localeCompare(String(b.entry_date || ''))),
-  })).sort((a, b) => a.name.localeCompare(b.name, 'bn'));
+  })).sort(compareMembersByOrder);
   const maxDeposits = Math.max(1, ...depositGroups.map((group) => group.entries.length));
   const depositHead = `<th>সদস্যের নাম</th>${Array.from({ length: maxDeposits }, (_, i) => `<th>জমা ${i + 1}</th>`).join('')}<th>মোট জমা</th>`;
   const depositBody = depositGroups.map((group) => `<tr><td>${escapeReportHtml(group.name)}</td>${Array.from({ length: maxDeposits }, (_, i) => {

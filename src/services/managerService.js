@@ -81,6 +81,13 @@ export async function reactivateMember(membershipId) {
   return unwrap(await rpc('reactivate_member', { p_membership_id: membershipId }));
 }
 
+export async function saveHostelMemberOrder(membershipIds) {
+  const ids = Array.isArray(membershipIds) ? membershipIds.map((id) => String(id || '').trim()) : [];
+  if (!ids.length || ids.some((id) => !id)) throw new Error('সদস্যের ক্রম সংরক্ষণের জন্য পূর্ণ সদস্য তালিকা প্রয়োজন।');
+  if (new Set(ids).size !== ids.length) throw new Error('সদস্যের তালিকায় একই সদস্য একাধিকবার রয়েছে।');
+  return unwrap(await rpc('manager_save_hostel_member_order', { p_membership_ids: ids }));
+}
+
 export async function updateHostel(name) {
   return unwrap(await rpc('manager_update_hostel', { p_name: name }));
 }
