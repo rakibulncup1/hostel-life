@@ -134,7 +134,25 @@ self.addEventListener('fetch', (event) => {
       '/terms-of-service', '/terms-of-service.html',
     ]);
     if (publicDocumentPaths.has(url.pathname)) {
-      event.respondWith(fetch(request, { cache: 'no-store' }));
+      // Keep public documents network-only while online. If the device is
+      // offline, fall back to the already-cached SPA shell; App.jsx will route
+      // a previously authenticated active member to Dashboard. Public HTML is
+      // never cached under its own URL, and unauthenticated users still see the
+      // normal login flow after the shell loads.
+      event.respondWith((async () => {
+        try {
+          const response = await fetch(request, { cache: 'no-store' });
+          // Preserve normal public-page 4xx responses. For network/server
+          // failures, use the cached SPA shell so offline auth can route safely.
+          if (response && (response.ok || response.status < 500)) return response;
+          const appShell = await caches.match('/index.html');
+          return appShell || response;
+        } catch (error) {
+          const appShell = await caches.match('/index.html');
+          if (appShell) return appShell;
+          throw error;
+        }
+      })());
       return;
     }
     event.respondWith(

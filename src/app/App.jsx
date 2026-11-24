@@ -86,6 +86,20 @@ export function App() {
     return () => window.removeEventListener('popstate', update);
   }, []);
 
+  // Re-run route policy immediately when connectivity changes, not only after
+  // the next click/navigation. This keeps offline entry deterministic in PWA
+  // and ordinary browser tabs.
+  const [connectivityRevision, setConnectivityRevision] = useState(0);
+  useEffect(() => {
+    const updateConnectivity = () => setConnectivityRevision((value) => value + 1);
+    window.addEventListener('offline', updateConnectivity);
+    window.addEventListener('online', updateConnectivity);
+    return () => {
+      window.removeEventListener('offline', updateConnectivity);
+      window.removeEventListener('online', updateConnectivity);
+    };
+  }, []);
+
   useEffect(() => {
     const isInviteRoute = pathname === '/invite' || pathname.startsWith('/invite/');
     const applyPageTheme = () => {
@@ -118,8 +132,19 @@ export function App() {
     // OAuth callback must finish consent/profile finalization before normal
     // authenticated-route redirects choose Dashboard or Onboarding.
     if (pathname === '/auth/google-callback' || isGoogleOAuthExchanging()) return;
-    // The install guide contains no member data and is intentionally public.
-    // Keep every other /app/* route behind the existing authentication guard.
+    // The install guide remains public online. Offline, a previously authenticated
+    // active member is routed to the cached Dashboard like every other app page.
+    if (pathname === '/app/menu/app-download'
+      && typeof navigator !== 'undefined'
+      && navigator.onLine === false
+      && !auth.authLoading
+      && auth.isAuthenticated
+      && auth.identityReady
+      && auth.membership
+      && auth.membership.status === 'active') {
+      navigateTo('/app/dashboard', true);
+    }
+    // Keep the informational install page public while online or unauthenticated.
     if (pathname === '/app/menu/app-download') return;
     if (auth.authLoading || auth.user?.app_metadata?.must_change_password) return;
 
@@ -157,6 +182,21 @@ export function App() {
     // Wait for the first profile + membership read after a new login.
     // A momentarily-null membership is not evidence that the account is unlinked.
     if (auth.isAuthenticated && !auth.identityReady && pathname !== '/auth/reset-password') return;
+
+    // Offline app navigation always returns a previously authenticated active
+    // member to the Dashboard. AuthContext only provides a membership here when
+    // the session is present and its identity was already verified/cached.
+    // Invite tokens, password recovery and the separately guarded Super Admin
+    // route are deliberately handled above and never bypass their own checks.
+    if (typeof navigator !== 'undefined'
+      && navigator.onLine === false
+      && auth.isAuthenticated
+      && auth.identityReady
+      && auth.membership?.status === 'active'
+      && pathname !== '/app/dashboard') {
+      navigateTo('/app/dashboard', true);
+      return;
+    }
 
     if (auth.isAuthenticated && auth.identityReady && auth.membership?.status === 'active'
       && (inAuth || inOnboarding || pathname === '/')) {
@@ -222,7 +262,7 @@ export function App() {
     if (!inApp && !inAuth && !inOnboarding && !pathname.startsWith('/account/')) {
       navigateTo('/app/dashboard', true);
     }
-  }, [pathname, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityReady, auth.identityError, auth.membership, auth.user?.id, auth.user?.app_metadata?.provider, auth.user?.app_metadata?.providers, auth.profile?.phone]);
+  }, [pathname, connectivityRevision, auth.authLoading, auth.isAuthenticated, auth.identityLoading, auth.identityReady, auth.identityError, auth.membership, auth.user?.id, auth.user?.app_metadata?.provider, auth.user?.app_metadata?.providers, auth.profile?.phone]);
 
   useEffect(() => {
     const isEnglish = uiLanguage === 'en';

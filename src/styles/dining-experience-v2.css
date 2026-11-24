@@ -986,3 +986,144 @@
     min-width: 29px !important;
   }
 }
+
+
+/* Run120: keep all three meal controls on one row in person-based mobile correction.
+   Each meal remains a compact tile; its Bengali label sits above the +/- control. */
+@media (max-width: 760px) {
+  .dining-experience .manager-meal-grid.member-final-day-meals,
+  .dining-stack .manager-meal-grid.member-final-day-meals {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-auto-flow: row !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .dining-experience .manager-meal-grid.member-final-day-meals > div,
+  .dining-stack .manager-meal-grid.member-final-day-meals > div {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper-row,
+  .dining-stack .member-final-day-meals .meal-stepper-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 76px !important;
+    padding: 8px 3px !important;
+    box-sizing: border-box !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper-row > span,
+  .dining-stack .member-final-day-meals .meal-stepper-row > span {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    text-align: center !important;
+    font-size: clamp(9px, 2.7vw, 11px) !important;
+    line-height: 1.4 !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper,
+  .dining-stack .member-final-day-meals .meal-stepper {
+    display: grid !important;
+    grid-template-columns: 24px minmax(14px, 1fr) 24px !important;
+    align-items: center !important;
+    justify-content: stretch !important;
+    justify-self: stretch !important;
+    gap: 2px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper button,
+  .dining-stack .member-final-day-meals .meal-stepper button {
+    width: 24px !important;
+    height: 28px !important;
+    min-width: 24px !important;
+    padding: 0 !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper strong,
+  .dining-stack .member-final-day-meals .meal-stepper strong {
+    min-width: 14px !important;
+    text-align: center !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    font-variant-numeric: tabular-nums;
+  }
+}
+@media (max-width: 360px) {
+  .dining-experience .manager-meal-grid.member-final-day-meals,
+  .dining-stack .manager-meal-grid.member-final-day-meals {
+    gap: 4px !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper-row,
+  .dining-stack .member-final-day-meals .meal-stepper-row {
+    min-height: 72px !important;
+    padding-inline: 2px !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper,
+  .dining-stack .member-final-day-meals .meal-stepper {
+    grid-template-columns: 22px minmax(12px, 1fr) 22px !important;
+    gap: 1px !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper button,
+  .dining-stack .member-final-day-meals .meal-stepper button {
+    width: 22px !important;
+    min-width: 22px !important;
+  }
+  .dining-experience .member-final-day-meals .meal-stepper strong,
+  .dining-stack .member-final-day-meals .meal-stepper strong {
+    min-width: 12px !important;
+    font-size: 11px !important;
+  }
+}
+
+
+/* Run121: subtle meal-specific color cues for person-based final meal cards only. */
+:is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(1) .meal-stepper-row {
+  border-color: #cce5d7;
+  background: #f0f8f3;
+}
+:is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(1) .meal-stepper-row > span { color: #397a5b; }
+:is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(2) .meal-stepper-row {
+  border-color: #d1e3f3;
+  background: #f0f6fc;
+}
+:is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(2) .meal-stepper-row > span { color: #426f9d; }
+:is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(3) .meal-stepper-row {
+  border-color: #ddd6ef;
+  background: #f5f2fb;
+}
+:is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(3) .meal-stepper-row > span { color: #72639d; }
+
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(1) .meal-stepper-row {
+  border-color: #345245;
+  background: #1b2c25;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(1) .meal-stepper-row > span { color: #a7d3ba; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(2) .meal-stepper-row {
+  border-color: #354c64;
+  background: #1d2a38;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(2) .meal-stepper-row > span { color: #aec7e3; }
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(3) .meal-stepper-row {
+  border-color: #4a4262;
+  background: #29243a;
+}
+:root[data-theme="dark"] :is(.dining-experience, .dining-stack) .member-final-day-meals > div:nth-child(3) .meal-stepper-row > span { color: #c1b5e2; }

@@ -1,24 +1,11 @@
 {
-  "patch": "Run119",
-  "baseline": "Hostel Life(2).zip + Run116 + Run117 + Run118",
-  "description": "Mobile person-based final meal layout, persistent member ordering, Google Identity Services library warm-up",
-  "files": [
-    "src/features/auth/AuthPage.jsx",
-    "src/features/dashboard/DashboardPage.jsx",
-    "src/features/dining/DiningPage.jsx",
-    "src/features/history/HistoryPage.jsx",
-    "src/features/manager/ManagerPages.jsx",
-    "src/features/menu/MenuPages.jsx",
-    "src/services/diningService.js",
-    "src/services/managerService.js",
-    "src/services/reportService.js",
-    "src/styles/dining-experience-v2.css",
-    "src/styles/ui-refresh.css",
-    "src/utils/memberOrdering.js",
-    "supabase/migrations/Run97_member_order_manager_settings.sql",
-    "tests/run119_member_order_and_mobile_meal_layout.test.mjs"
-  ],
-  "migration_required": "supabase/migrations/Run97_member_order_manager_settings.sql",
-  "unrelated_files_modified": false,
-  "ranking_views_changed": false
+  "patch": "Run121",
+  "name": "Hostel Life — Person Final Meal Color Cues",
+  "base": "Run120",
+  "scope": "CSS-only; person-based Final Meal Breakfast/Lunch/Dinner tiles",
+  "changed_runtime_files": ["src/styles/dining-experience-v2.css"],
+  "added_test_files": ["tests/run121_person_final_meal_color_cues.test.mjs"],
+  "database_migration_required": false,
+  "business_logic_changed": false,
+  "layout_or_sizing_changed": false
 }
